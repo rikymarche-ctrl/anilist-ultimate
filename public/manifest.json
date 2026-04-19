@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Anilist Ultimate",
+  "version": "2.0.0",
+  "description": "The ultimate Anilist extension suite. Modern calendar, hover comments, and more.",
+  "author": "ExAstra",
+  "homepage_url": "https://github.com/rikymarche-ctrl/anilist-ultimate",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://anilist.co/*",
+    "https://graphql.anilist.co/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Anilist Ultimate",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://anilist.co/*"],
+      "js": ["src/main.ts"],
+      "css": ["src/styles/main.css", "src/styles/calendar.css", "src/styles/settings-panel.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "assets/*"],
+      "matches": ["https://anilist.co/*"]
+    }
+  ]
+}

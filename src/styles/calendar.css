@@ -1,0 +1,1296 @@
+/**
+ * Calendar Styles
+ * Styling for the weekly anime calendar
+ */
+
+/* ============================================================================
+   Calendar Container
+   ============================================================================ */
+
+.anilist-calendar {
+  width: 100%;
+  margin: 10px 0 20px 0; /* Reduced top margin */
+  padding: 0;
+  background: var(--cal-background);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Styled Replaced Header */
+.section-header:has(+ #anilist-calendar) {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 0 !important;
+}
+
+/* Definition of Anilist header actions to hide */
+.section-header:has(+ #anilist-calendar) .actions,
+.section-header:has(+ #anilist-calendar) .size-toggle {
+  display: none !important;
+}
+
+.au-calendar-title {
+  font-family: 'JetBrains Mono', 'Roboto Mono', 'Fira Code', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.25em; /* Increased spacing for techy feel */
+  font-size: 1.3rem !important;
+  font-weight: 700 !important;
+  color: #a0b1c5 !important; /* Default Anilist header color */
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-left: 2px; /* Slight nudge away from the edge */
+}
+
+/* Removed the bar (::before) */
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+  padding: 8px 0; /* Reduced padding */
+  background: transparent;
+}
+
+.calendar-header__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cal-text);
+}
+
+.calendar-header__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.calendar-header__refresh,
+.calendar-header__settings {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--au-border, #1f2b3d);
+  border-radius: 4px;
+  color: var(--au-text, #cfe2f5);
+  cursor: pointer;
+  transition: all var(--au-transition, 200ms);
+}
+
+.calendar-header__refresh:hover,
+.calendar-header__settings:hover {
+  background: rgba(74, 158, 255, 0.1);
+  border-color: var(--au-primary, #4a9eff);
+  color: var(--au-primary, #4a9eff);
+}
+
+/* ============================================================================
+   Calendar Grid
+   ============================================================================ */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  width: 100%;
+  background: var(--cal-background);
+}
+
+.calendar-grid--loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Layout variations */
+.calendar-grid--compact {
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-grid--extended {
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-grid--center-justify .calendar-day-column__entries {
+  justify-content: center;
+}
+
+/* Dynamic column count for hideEmptyDays */
+.calendar-grid.days-count-1 {
+  grid-template-columns: 1fr;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.calendar-grid.days-count-2 {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.calendar-grid.days-count-3 {
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.calendar-grid.days-count-4 {
+  grid-template-columns: repeat(4, 1fr);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.calendar-grid.days-count-5,
+.calendar-grid.days-count-6,
+.calendar-grid.days-count-7 {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  width: 100%;
+}
+
+/* ============================================================================
+   Day Column
+   ============================================================================ */
+
+.calendar-day-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  min-width: 0;
+  /* Allow column to shrink */
+  overflow: visible;
+  /* Relaxed so card box-shadow glows can show */
+  background: var(--cal-background);
+}
+
+.calendar-day-column--empty {
+  opacity: 0.7;
+}
+
+.calendar-day-column--today .calendar-day-column__header {
+  border-bottom: 2px solid #3db4f2;
+}
+
+.calendar-day-column__header {
+  margin-bottom: 0;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--cal-border);
+  background: var(--cal-background);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.calendar-day-column__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cal-text);
+}
+
+.calendar-day-column__day-abbr {
+  display: none;
+  font-size: 14px;
+  color: var(--au-text, #8ba0b2);
+}
+
+/* Pipe separator and day number in header */
+.calendar-day-column__day-separator {
+  color: var(--cal-text-light, #8ba0b2);
+  font-weight: 300;
+  opacity: 0.5;
+  margin: 0 -2px;
+}
+
+.calendar-day-column__day-number {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--cal-text-light, #8ba0b2);
+}
+
+.calendar-day-column__count {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: rgba(74, 158, 255, 0.2);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--au-primary, #4a9eff);
+}
+
+.calendar-day-column__entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  /* Ensure entries container takes full column width */
+  box-sizing: border-box;
+  padding: 8px;
+  background: var(--cal-background);
+}
+
+.calendar-day-column__empty-state {
+  padding: 15px 0;
+  text-align: center;
+  color: var(--cal-text-light);
+  font-size: 14px;
+  font-style: italic;
+  opacity: 0.7;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-day-column__toggle {
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 4px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cal-blue);
+  background: rgba(74, 158, 255, 0.1);
+  border: 1px solid var(--cal-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calendar-day-column__toggle:hover {
+  background: rgba(74, 158, 255, 0.2);
+  border-color: var(--cal-blue);
+}
+
+/* Hidden card state */
+.anime-card--hidden {
+  display: none !important;
+}
+
+/* ============================================================================
+   Anime Card - Base Styles
+   ============================================================================ */
+
+.anime-card {
+  position: relative;
+  display: flex;
+  background: var(--cal-anime-bg);
+  border: 1px solid var(--cal-border);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 6px;
+  width: 100%;
+  /* Ensure card takes full width of container */
+  max-width: 100%;
+  /* Prevent overflow */
+  box-sizing: border-box;
+}
+
+.anime-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: var(--cal-anime-hover);
+}
+
+.anime-card:hover .anime-card__image {
+  transform: scale(1.05);
+}
+
+/* Behind card: permanent thin left border + all-sides pulse (0 → 1px solid + glow → 0) */
+.anime-card--is-behind {
+  border-left: 3px solid #ff4f4f !important;
+  animation: behind-outer-pulse 4.5s ease-in-out infinite;
+  z-index: 10;
+}
+
+@keyframes behind-outer-pulse {
+  0% {
+    box-shadow: 0 0 0 0px rgba(255, 79, 79, 0);
+    border-left-color: rgba(255, 79, 79, 0.4) !important;
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(255, 79, 79, 0.9),
+      0 0 12px rgba(255, 79, 79, 0.4);
+    border-left-color: rgba(255, 79, 79, 1) !important;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0px rgba(255, 79, 79, 0);
+    border-left-color: rgba(255, 79, 79, 0.4) !important;
+  }
+}
+
+.anime-card--aired {
+  opacity: 0.6;
+}
+
+.anime-card--airing-soon {
+  border-color: var(--au-success, #4dff88);
+  background: rgba(77, 255, 136, 0.05);
+}
+
+/* ============================================================================
+   Standard Layout (Default - v1 style horizontal)
+   ============================================================================ */
+
+/* Standard card: horizontal with left image */
+.anime-card--standard {
+  flex-direction: row;
+  align-items: stretch;
+  height: 70px;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Image container with hover overlay */
+.anime-card__image-container {
+  position: relative;
+  width: 50px;
+  height: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.anime-card__image-container .anime-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+/* Black overlay that appears on hover */
+.anime-card__image-overlay {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.anime-card--standard:hover .anime-card__image-overlay {
+  opacity: 1;
+}
+
+/* Glassmorphism moved to the 100% width container to cover the whole card */
+.anime-card--standard:hover .anime-card__action--standard {
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(8px) brightness(0.7);
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+}
+
+/* Specific Glassmorphism for Full Width Mode */
+.anime-card--full-width-images:hover .anime-card__image-overlay {
+  backdrop-filter: blur(8px) brightness(0.6);
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.anime-card__action--standard {
+  /* Removed background to eliminate the black rectangle effect */
+}
+
+
+/* Standard action button — positioned over the image area, sibling of image-container.
+   The card is position:relative, so this absolute-positions within the whole card. */
+.anime-card__action--standard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* Cover entire card width */
+  height: 100%;
+  /* full card height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.25s ease;
+  z-index: 25;
+  pointer-events: none;
+  cursor: pointer; /* Feedback for navigation */
+}
+
+/* Show pill and blur when hovering card */
+.anime-card--standard:hover .anime-card__action--standard {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Give the overlay a matching trigger */
+.anime-card--standard:hover .anime-card__image-overlay {
+  opacity: 1;
+}
+
+/* Action Pill Design - Fixed Size centered */
+.action-pill {
+  display: flex;
+  width: 90px;
+  height: 36px;
+  background: rgba(20, 20, 25, 0.4);
+  /* Reduced opacity for better glass effect */
+  border-radius: 18px;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: auto;
+}
+
+.action-pill:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.pill-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #e5e7eb;
+  font-size: 14px;
+}
+
+.pill-section:hover {
+  background-color: rgba(74, 158, 255, 0.7);
+  color: white;
+}
+
+.pill-section i {
+  transition: transform 0.2s ease;
+}
+
+.pill-section:hover i {
+  transform: scale(1.2);
+}
+
+.pill-separator {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  height: 60%;
+  align-self: center;
+}
+
+/* Behind Badge styling */
+.behind-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #ff4f4f;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  padding: 0 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  pointer-events: none;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: opacity 0.2s ease;
+  opacity: 0;
+}
+
+.anime-card:hover .behind-badge {
+  opacity: 1;
+}
+
+/* Always show badge when behind (not only on hover) */
+.anime-card--is-behind .behind-badge {
+  opacity: 1;
+}
+
+/* Red pulsing dot — prepended to episode text (matches old .behind-indicator) */
+.behind-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #ff4f4f;
+  display: inline-block;
+  margin-right: 4px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+  animation: behind-pulse 1.5s infinite;
+}
+
+@keyframes behind-pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.behind-badge span {
+  transform: translateY(0.5px);
+}
+
+/* Loading spinner animation */
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(359deg);
+  }
+}
+
+.fa-spin {
+  animation: fa-spin 0.8s infinite linear;
+}
+
+/* Pill section loading state */
+.pill-section[style*="pointer-events: none"] {
+  opacity: 0.7;
+}
+
+/* Premium tooltip for behind-info */
+.au-card-tooltip {
+  position: fixed;
+  background: rgba(14, 14, 20, 0.96);
+  color: white;
+  padding: 7px 13px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 99999;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+  animation: tooltip-fade-in 0.18s ease-out;
+  letter-spacing: 0.01em;
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Standard card content */
+.anime-card--compact .anime-card__compact-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.anime-card--standard .anime-card__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 50px);
+  padding: 4px 0 6px;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: rgba(14, 22, 33, 0.4);
+  /* Subtle dark background for title contrast */
+  transition: background 0.3s ease;
+}
+
+.anime-card--standard:hover .anime-card__content {
+  background: rgba(14, 22, 33, 0.7);
+}
+
+.anime-card--standard .anime-card__title {
+  margin: 2px 0 0 0;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--au-text, #cfe2f5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-height: 3em;
+  flex: 1;
+}
+
+.anime-card--standard .anime-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--au-text, #8ba0b2);
+  white-space: nowrap;
+  padding: 0 6px;
+  min-height: 18px;
+  flex-shrink: 0;
+}
+
+.anime-card--standard .anime-card__episode {
+  font-size: 10px;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.anime-card--standard .anime-card__time {
+  font-size: 11px;
+  font-weight: 500;
+  text-align: right;
+  margin-left: auto;
+  color: var(--cal-text-light, #8ba0b2);
+}
+
+/* ============================================================================
+   Compact Layout - MINIMAL (text only, no images)
+   ============================================================================ */
+
+.anime-card--compact {
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 10px;
+  min-height: auto;
+  height: 56px;
+  width: 100%;
+  max-width: 100%;
+  position: relative; /* Ensure overlay positions correctly */
+}
+
+/* Removed duplicate block created by error in previous step */
+
+.anime-card--compact .anime-card__title {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0 0 4px 0;
+  padding-left: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--au-text, #cfe2f5);
+}
+
+.anime-card--compact .anime-card__meta {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--au-text, #8ba0b2);
+  padding: 0 2px;
+}
+
+.anime-card--compact .anime-card__episode {
+  margin-right: auto;
+  text-align: left;
+  padding-left: 2px;
+}
+
+.anime-card--compact .anime-card__time {
+  margin-left: auto;
+  text-align: right;
+  padding-right: 2px;
+  color: var(--au-primary, #4a9eff);
+}
+
+/* Compact action button - now matches standard glass behavior */
+.anime-card__action--compact {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.25s ease;
+  z-index: 25;
+  pointer-events: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.anime-card--compact:hover .anime-card__action--compact {
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(8px) brightness(0.7);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.anime-card__action--compact i {
+  font-size: 11px;
+  color: #3db4f2;
+}
+
+.anime-card__action--compact:hover {
+  background-color: rgba(61, 180, 242, 0.3);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.anime-card__action--compact:active {
+  transform: scale(0.95);
+}
+
+.anime-card__action--compact:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   Extended Layout (Vertical with full-width cover - old standard)
+   ============================================================================ */
+
+.anime-card--extended {
+  flex-direction: column;
+  height: auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Extended cover - full width on top */
+.anime-card--extended .anime-card__cover {
+  position: relative;
+  width: 100%;
+  padding-top: 140%;
+  /* 5:7 aspect ratio */
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.anime-card--extended .anime-card__cover .anime-card__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Extended action button - covers entire card on hover, consistent with standard/compact */
+.anime-card__action--extended {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.25s ease;
+  z-index: 25;
+  pointer-events: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.anime-card--extended:hover .anime-card__action--extended {
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(8px) brightness(0.7);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.anime-card__action--extended:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Extended content */
+.anime-card--extended .anime-card__content {
+  padding: 12px;
+  flex: 1;
+}
+
+.anime-card--extended .anime-card__title {
+  margin: 0 0 6px 0; /* Reduced margin */
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--au-text, #cfe2f5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.anime-card--extended .anime-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* Reduced gap */
+  margin-top: 6px;
+}
+
+.anime-card__meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.anime-card--extended .anime-card__episode {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--au-text, #8ba0b2);
+}
+
+.anime-card--extended .anime-card__time {
+  font-size: 11px;
+  color: var(--au-text, #8ba0b2); /* Neutralized color */
+  opacity: 0.8;
+}
+
+.anime-card--extended .anime-card__progress {
+  padding: 4px 8px; /* Reduced padding */
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--au-text, #cfe2f5);
+  margin-top: 2px;
+}
+
+/* ============================================================================
+   Preference Modifiers
+   ============================================================================ */
+
+/* Full Width Images — landscape card (matches old version) */
+.anime-card--full-width-images.anime-card--standard {
+  position: relative !important;
+  flex-direction: row !important;
+  height: 70px !important;
+  overflow: hidden !important;
+}
+
+.anime-card--full-width-images.anime-card--standard .anime-card__image-container {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding-top: 0 !important;
+  flex-shrink: unset !important;
+}
+
+.anime-card--full-width-images.anime-card--standard .anime-card__image {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+.anime-card--full-width-images.anime-card--standard .anime-card__image-overlay {
+  position: absolute !important;
+  z-index: 2 !important;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 100%) !important;
+  opacity: 1 !important;
+  border-radius: 6px !important; /* Matches card border-radius */
+}
+
+.anime-card--full-width-images.anime-card--standard:hover .anime-card__image-overlay {
+  opacity: 1 !important;
+  transition: all 0.25s ease !important;
+}
+
+.anime-card--full-width-images.anime-card--standard:hover .anime-card__action--standard {
+  opacity: 1 !important;
+  backdrop-filter: blur(8px) brightness(0.6) !important;
+  background-color: rgba(0, 0, 0, 0.15) !important;
+  z-index: 25 !important;
+}
+
+/* In full-width mode: action container covers the whole card to apply blur, 
+   pill is centered via base flex styles. */
+.anime-card--full-width-images.anime-card--standard .anime-card__action--standard {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 25 !important;
+  transform: none !important;
+}
+
+
+.anime-card--full-width-images.anime-card--standard .anime-card__content {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  z-index: 3 !important;
+  padding: 4px 8px 6px !important;
+  box-sizing: border-box !important;
+  pointer-events: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.anime-card--full-width-images.anime-card--standard .anime-card__content:hover {
+  opacity: 1 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.anime-card--full-width-images.anime-card--standard .anime-card__title {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+  -webkit-line-clamp: 3 !important;
+  max-height: 4.5em !important;
+  margin: 0 !important;
+}
+
+.anime-card--full-width-images.anime-card--standard .anime-card__episode,
+.anime-card--full-width-images.anime-card--standard .anime-card__time {
+  color: rgba(255, 255, 255, 0.95) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 1) !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+}
+
+/* Title Alignment Center */
+.anime-card--title-center .anime-card__title {
+  text-align: center;
+}
+
+/* Column Justify Center */
+.calendar-day-column--center-justify .calendar-day-column__entries {
+  flex: 1;
+  justify-content: center;
+}
+
+/* ============================================================================
+   Error States
+   ============================================================================ */
+
+.calendar-grid__error {
+  grid-column: 1 / -1;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.calendar-grid__error-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: var(--au-error, #ff4d4d);
+}
+
+.calendar-grid__error-content i {
+  font-size: 48px;
+}
+
+.calendar-grid__retry-btn {
+  padding: 10px 20px;
+  background: var(--au-primary, #4a9eff);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--au-transition, 200ms);
+}
+
+.calendar-grid__retry-btn:hover {
+  background: #3d8ae5;
+  transform: translateY(-2px);
+}
+
+/* ============================================================================
+   Auth Prompt
+   ============================================================================ */
+
+.calendar-auth-prompt {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.calendar-auth-prompt__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 400px;
+  margin: 0 auto;
+  color: var(--au-text, #cfe2f5);
+}
+
+.calendar-auth-prompt__content i {
+  font-size: 64px;
+  color: var(--au-warning, #ffb84d);
+}
+
+.calendar-auth-prompt__btn {
+  padding: 12px 24px;
+  background: var(--au-primary, #4a9eff);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--au-transition, 200ms);
+}
+
+.calendar-auth-prompt__btn:hover {
+  background: #3d8ae5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+}
+
+/* ============================================================================
+   Responsive Design
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+  .calendar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .anilist-calendar {
+    padding: 16px;
+  }
+
+  .calendar-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  .calendar-day-column__day-name {
+    display: none;
+  }
+
+  .calendar-day-column__day-abbr {
+    display: inline;
+  }
+
+  .anime-card__title {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-day-column__day-name {
+    display: inline;
+  }
+
+  .calendar-day-column__day-abbr {
+    display: none;
+  }
+}
+
+/* --- Quick Edit Modal V2 --- */
+.au-v2-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000 !important;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(5px);
+}
+
+.au-v2-editor--open {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.au-v2-editor-modal {
+  width: 500px;
+  max-width: 90vw;
+  background: #0b1622;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  transform: scale(0.95);
+  transition: transform 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.au-v2-editor--open .au-v2-editor-modal {
+  transform: scale(1);
+}
+
+.au-v2-editor-header {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.au-v2-editor-title {
+  margin: 0;
+  font-size: 17px;
+  color: #edf1f5;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.au-v2-editor-close {
+  background: none;
+  border: none;
+  color: #8ba0b2;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px;
+}
+
+.au-v2-editor-body {
+  position: relative;
+  min-height: 200px;
+}
+
+.au-v2-loading {
+  padding: 60px;
+  text-align: center;
+  color: #3db4f2;
+  font-size: 18px;
+}
+
+.au-v2-cover {
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.au-v2-cover::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 60%;
+  background: linear-gradient(180deg, transparent, #0b1622);
+}
+
+.au-v2-form {
+  padding: 0 25px 25px;
+}
+
+.au-v2-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.au-v2-row label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #8ba0b2;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.au-v2-row select,
+.au-v2-row input,
+.au-v2-row textarea {
+  background: #151f2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #edf1f5;
+  font-family: inherit;
+}
+
+.au-v2-row textarea {
+  resize: vertical;
+}
+
+.au-v2-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.au-v2-btn-primary {
+  background: #3db4f2;
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.au-v2-btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: #edf1f5;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+}
