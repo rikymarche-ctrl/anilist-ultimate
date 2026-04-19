@@ -360,11 +360,17 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   }
 
   /**
-   * Handle slider change with dynamic value display
+   * Handle slider change with dynamic value display and track styling
    */
   private handleSliderChange(slider: HTMLInputElement): void {
     const setting = slider.getAttribute('data-setting') as keyof CalendarPreferences;
     const value = parseInt(slider.value, 10);
+    const min = parseInt(slider.min, 10);
+    const max = parseInt(slider.max, 10);
+
+    // Calculate percentage for blue track fill
+    const percentage = ((value - min) / (max - min)) * 100;
+    slider.style.setProperty('--slider-progress', `${percentage}%`);
 
     // Update the display value
     const valueDisplay = this.element.querySelector(`#${slider.id}Value`);
@@ -448,6 +454,16 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
       if (state.preferences !== prevState.preferences) {
         // Preferences changed externally, could update UI here if needed
       }
+    });
+
+    // Update initial slider track progress
+    const sliders = this.element.querySelectorAll<HTMLInputElement>('.settings-field__slider');
+    sliders.forEach(slider => {
+      const val = parseInt(slider.value);
+      const min = parseInt(slider.min);
+      const max = parseInt(slider.max);
+      const percentage = ((val - min) / (max - min)) * 100;
+      slider.style.setProperty('--slider-progress', `${percentage}%`);
     });
 
     // Update auth status

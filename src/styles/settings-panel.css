@@ -283,29 +283,32 @@
 /* Range slider styling */
 .settings-field__slider {
   flex: 1;
-  height: 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--cal-border);
+  height: 24px; /* Taller element to contain the 18px thumb */
+  background: transparent; /* Background is handled by the track */
+  border: none;
   outline: none;
   -webkit-appearance: none;
   appearance: none;
   cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 
 /* Slider track */
-.settings-field__slider::-webkit-slider-track {
+.settings-field__slider::-webkit-slider-runnable-track {
   width: 100%;
   height: 6px;
-  background: var(--cal-anime-bg);
+  background: linear-gradient(to right, var(--cal-blue) 0%, var(--cal-blue) var(--slider-progress, 0%), var(--cal-anime-bg) var(--slider-progress, 0%), var(--cal-anime-bg) 100%);
   border-radius: 3px;
+  border: 1px solid var(--cal-border);
 }
 
 .settings-field__slider::-moz-range-track {
   width: 100%;
   height: 6px;
-  background: var(--cal-anime-bg);
+  background: linear-gradient(to right, var(--cal-blue) 0%, var(--cal-blue) var(--slider-progress, 0%), var(--cal-anime-bg) var(--slider-progress, 0%), var(--cal-anime-bg) 100%);
   border-radius: 3px;
+  border: 1px solid var(--cal-border);
 }
 
 /* Slider thumb */
@@ -318,7 +321,8 @@
   background: var(--cal-blue);
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-top: -7px; /* (Track height 6px / 2) - (Thumb 18px / 2) - 1px border compensation */
 }
 
 .settings-field__slider::-moz-range-thumb {

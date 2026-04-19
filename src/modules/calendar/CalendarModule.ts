@@ -483,26 +483,41 @@ export class CalendarModule {
    * Setup navigation observer to reinitialize on page changes
    */
   private setupNavigationObserver(): void {
-    // Observe URL changes for SPA navigation
+    // Observe URL and DOM changes for SPA navigation/re-renders
     let lastUrl = location.href;
 
+    const checkAndReinject = () => {
+      const currentUrl = location.href;
+      const isHomePage = currentUrl.includes('/home') || currentUrl === location.origin + '/';
+      const calendarMissing = !document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+
+      if (isHomePage && calendarMissing) {
+        log.debug('Calendar missing or page changed, attempting re-injection');
+        this.replaceAiringSection();
+      }
+    };
+
+    // Observer for DOM mutations (covers navigation and re-renders)
     this.observer = new MutationObserver(() => {
       const currentUrl = location.href;
       if (currentUrl !== lastUrl) {
         lastUrl = currentUrl;
-        log.debug('URL changed, checking if calendar needs reinitialization');
-
-        // If we're on home page and calendar is not present, reinitialize
-        if ((currentUrl.includes('/home') || currentUrl === location.origin + '/') &&
-            !document.querySelector(`#${CSS_CLASSES.CALENDAR}`)) {
-          setTimeout(() => this.replaceAiringSection(), 500);
-        }
+        log.debug('URL changed, checking for re-injection');
+        setTimeout(checkAndReinject, 500);
+      } else {
+        // Even if URL hasn't changed, check if calendar was removed by React
+        checkAndReinject();
       }
     });
 
     this.observer.observe(document.body, {
       childList: true,
       subtree: true,
+    });
+
+    // Fallback for resize events which often trigger Anilist layout changes
+    window.addEventListener('resize', () => {
+      checkAndReinject();
     });
   }
 
