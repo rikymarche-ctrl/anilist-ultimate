@@ -16,9 +16,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
   animation: fadeIn 0.2s ease;
+}
+
+.au-theme-light .settings-overlay,
+.au-theme-contrast .settings-overlay {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 @keyframes fadeIn {
@@ -383,7 +388,7 @@
   height: 24px;
   appearance: none;
   position: relative;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--cal-border);
   border: 1px solid var(--cal-border);
   border-radius: 12px;
   cursor: pointer;
@@ -397,9 +402,10 @@
   left: 2px;
   width: 18px;
   height: 18px;
-  background: var(--cal-text-light);
+  background: white;
   border-radius: 50%;
   transition: all 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .settings-field--toggle input[type="checkbox"]:checked {
@@ -517,7 +523,7 @@
 }
 
 .settings-panel__reset {
-  background: transparent;
+  background: var(--cal-anime-bg);
   border: 1px solid var(--cal-border);
   color: var(--cal-text);
 }

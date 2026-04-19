@@ -104,7 +104,8 @@
 /* Light theme adjustments */
 .site-theme-light,
 [data-theme='light'],
-.theme-light {
+.theme-light,
+.au-theme-light {
   --cal-text: #5c728a;
   --cal-text-light: #8795a6;
   --cal-background: #ffffff;
@@ -119,12 +120,14 @@
   --au-text-light: #8795a6;
   --au-bg: #ffffff;
   --au-border: rgba(125, 125, 125, 0.1);
+  --cal-card-overlay: rgba(255, 255, 255, 0.05);
 }
 
 /* High contrast theme */
 .site-theme-contrast,
 .high-contrast,
-.theme-contrast {
+.theme-contrast,
+.au-theme-contrast {
   --cal-text: #1a1a1a;
   --cal-text-light: #2c2c2c;
   --cal-background: #ffffff;
@@ -139,6 +142,29 @@
   --au-text-light: #2c2c2c;
   --au-bg: #ffffff;
   --au-border: rgba(0, 0, 0, 0.2);
+  --cal-card-overlay: rgba(255, 255, 255, 0.05);
+}
+
+/* Dark theme (standard AU variables) */
+.site-theme-dark,
+[data-theme='dark'],
+.theme-dark,
+.au-theme-dark {
+  --cal-text: #e5e7eb;
+  --cal-text-light: #9ca3af;
+  --cal-background: #151f2e;
+  --cal-foreground: #11161d;
+  --cal-border: rgba(49, 54, 68, 0.6);
+  --cal-blue: #3db4f2;
+  --cal-blue-dim: rgba(61, 180, 242, 0.8);
+  --cal-anime-bg: rgba(23, 34, 51, 0.95);
+  --cal-anime-hover: rgba(30, 43, 60, 0.98);
+
+  --au-text: #e5e7eb;
+  --au-text-light: #9ca3af;
+  --au-bg: #151f2e;
+  --au-border: rgba(49, 54, 68, 0.6);
+  --cal-card-overlay: rgba(14, 22, 33, 0.4);
 }
 
 /* ============================================================================

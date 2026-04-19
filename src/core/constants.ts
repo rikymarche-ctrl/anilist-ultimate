@@ -176,10 +176,10 @@ export const DEBUG = {
 
 export const FEATURE_FLAGS = {
   ENABLE_CALENDAR: true,
-  ENABLE_HOVER_COMMENTS: false, // To be implemented
-  ENABLE_FRIEND_ACTIVITY: false, // To be implemented
-  ENABLE_LIST_EDITOR: false, // To be implemented
-  ENABLE_SOCIAL_ACTIVITY: false, // To be implemented
+  ENABLE_HOVER_COMMENTS: true,
+  ENABLE_FRIEND_ACTIVITY: false,
+  ENABLE_LIST_EDITOR: false,
+  ENABLE_SOCIAL_ACTIVITY: false,
   ENABLE_WEB_COMPONENTS: true,
   ENABLE_VIRTUAL_SCROLL: false, // For future optimization
 } as const;

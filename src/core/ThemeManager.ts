@@ -1,0 +1,119 @@
+/**
+ * Theme Manager
+ * Automatically detects Anilist theme and applies corresponding AU theme
+ */
+
+import { log } from './logger';
+import { CSS_CLASSES } from './constants';
+
+export class ThemeManager {
+  private static instance: ThemeManager;
+  private observer: MutationObserver | null = null;
+  private lastTheme: string | null = null;
+
+  private constructor() {
+    this.init();
+  }
+
+  public static getInstance(): ThemeManager {
+    if (!ThemeManager.instance) {
+      ThemeManager.instance = new ThemeManager();
+    }
+    return ThemeManager.instance;
+  }
+
+  private init(): void {
+    log.info('Initializing Theme Manager');
+    
+    // Initial detection
+    this.detectAndApply();
+
+    // Observe changes to the body style/class (where Anilist usually sets theme)
+    this.observer = new MutationObserver(() => {
+      this.detectAndApply();
+    });
+
+    this.observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    });
+
+    // Also observe the html element as a fallback
+    this.observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    });
+
+    // Listen for resize as a secondary trigger for theme re-evaluation
+    window.addEventListener('resize', () => this.detectAndApply());
+  }
+
+  /**
+   * Detect current background and apply the right AU theme class
+   */
+  public detectAndApply(): void {
+    const theme = this.detectTheme();
+    
+    if (theme !== this.lastTheme) {
+      this.applyTheme(theme);
+      this.lastTheme = theme;
+      log.debug('Theme changed detected', { theme });
+    }
+  }
+
+  /**
+   * Analyze background color to determine theme
+   */
+  private detectTheme(): string {
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    
+    // Parse RGB(A)
+    const match = bgColor.match(/\d+/g);
+    if (!match || match.length < 3) return CSS_CLASSES.THEME_DARK;
+
+    const r = parseInt(match[0]);
+    const g = parseInt(match[1]);
+    const b = parseInt(match[2]);
+
+    // Simple luminance / known Anilist background check
+    // Dark: rgb(11, 22, 34) (sum ~67)
+    // Light: rgb(251, 251, 251) (sum ~753)
+    // Contrast: rgb(0, 0, 0) (sum 0)
+    
+    const sum = r + g + b;
+
+    if (sum > 600) {
+      return CSS_CLASSES.THEME_LIGHT;
+    } else if (sum < 10) {
+      return CSS_CLASSES.THEME_CONTRAST;
+    } else {
+      return CSS_CLASSES.THEME_DARK;
+    }
+  }
+
+  private applyTheme(themeClass: string): void {
+    const container = document.querySelector('.anilist-ultimate-container');
+    if (container) {
+      // Remove all theme classes first
+      container.classList.remove(
+        CSS_CLASSES.THEME_LIGHT,
+        CSS_CLASSES.THEME_DARK,
+        CSS_CLASSES.THEME_CONTRAST
+      );
+      
+      // Add detected theme
+      container.classList.add(themeClass);
+    }
+    
+    // Also apply to body to affect modals/popups
+    document.body.classList.remove('au-theme-light', 'au-theme-dark', 'au-theme-contrast');
+    document.body.classList.add(`au-${themeClass}`);
+  }
+
+  public destroy(): void {
+    if (this.observer) {
+      this.observer.disconnect();
+      this.observer = null;
+    }
+  }
+}

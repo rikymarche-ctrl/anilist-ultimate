@@ -37,7 +37,7 @@
   letter-spacing: 0.25em; /* Increased spacing for techy feel */
   font-size: 1.3rem !important;
   font-weight: 700 !important;
-  color: #a0b1c5 !important; /* Default Anilist header color */
+  color: var(--cal-text) !important;
   display: flex;
   align-items: center;
   gap: 15px;
@@ -71,9 +71,9 @@
 .calendar-header__settings {
   padding: 8px 12px;
   background: transparent;
-  border: 1px solid var(--au-border, #1f2b3d);
+  border: 1px solid var(--cal-border);
   border-radius: 4px;
-  color: var(--au-text, #cfe2f5);
+  color: var(--cal-text);
   cursor: pointer;
   transition: all var(--au-transition, 200ms);
 }
@@ -165,7 +165,11 @@
 }
 
 .calendar-day-column--empty {
-  opacity: 0.7;
+  /* Opacity removed from here to keep headers consistent */
+}
+
+.au-theme-contrast .calendar-day-column--empty {
+  /* Opacity removed from here to keep headers consistent */
 }
 
 .calendar-day-column--today .calendar-day-column__header {
@@ -196,12 +200,12 @@
 .calendar-day-column__day-abbr {
   display: none;
   font-size: 14px;
-  color: var(--au-text, #8ba0b2);
+  color: var(--cal-text-light);
 }
 
 /* Pipe separator and day number in header */
 .calendar-day-column__day-separator {
-  color: var(--cal-text-light, #8ba0b2);
+  color: var(--cal-text-light);
   font-weight: 300;
   opacity: 0.5;
   margin: 0 -2px;
@@ -210,7 +214,7 @@
 .calendar-day-column__day-number {
   font-size: 14px;
   font-weight: 400;
-  color: var(--cal-text-light, #8ba0b2);
+  color: var(--cal-text-light);
 }
 
 .calendar-day-column__count {
@@ -240,7 +244,7 @@
   color: var(--cal-text-light);
   font-size: 14px;
   font-style: italic;
-  opacity: 0.7;
+  opacity: 0.6; /* Dim the 'No anime airing' text specifically */
   min-height: 60px;
   display: flex;
   align-items: center;
@@ -631,13 +635,13 @@
   padding: 4px 0 6px;
   overflow: hidden;
   box-sizing: border-box;
-  background: rgba(14, 22, 33, 0.4);
+  background: var(--cal-card-overlay, rgba(14, 22, 33, 0.4));
   /* Subtle dark background for title contrast */
   transition: background 0.3s ease;
 }
 
 .anime-card--standard:hover .anime-card__content {
-  background: rgba(14, 22, 33, 0.7);
+  background: var(--cal-card-overlay, rgba(14, 22, 33, 0.7));
 }
 
 .anime-card--standard .anime-card__title {

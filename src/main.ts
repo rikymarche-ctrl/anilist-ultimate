@@ -6,7 +6,11 @@
 import { log } from '@core/logger';
 import { APP_NAME, APP_VERSION, FEATURE_FLAGS } from '@core/constants';
 import { storage } from '@core/storage/StorageManager';
+import { ThemeManager } from '@core/ThemeManager';
 import type { UserPreferences } from '@core/types';
+
+// Styles
+import './styles/main.css';
 
 /**
  * Check for OAuth callback and save token
@@ -43,17 +47,25 @@ async function init(): Promise<void> {
     // Check for OAuth callback first
     checkOAuthCallback();
 
-    // Load FontAwesome icons
-    loadFontAwesome();
+    // Initialize Theme Manager early to prevent flash of wrong theme
+    ThemeManager.getInstance();
+
+    // Load Global Styles (Main, Comments, FontAwesome)
+    loadGlobalStyles();
 
     // Load user preferences
     const preferences = await loadPreferences();
     log.info('User preferences loaded', preferences);
 
     // Initialize enabled modules
-    await initializeModules(preferences);
+    const modules = await initializeModules(preferences);
 
     log.success('Initialization complete');
+
+    // Expose modules for debugging
+    if (DEBUG.ENABLED) {
+      (window as any).AnilistUltimate.hoverComments = modules.hoverCommentsModule;
+    }
   } catch (error) {
     log.error('Initialization failed', error);
   } finally {
@@ -72,7 +84,7 @@ async function loadPreferences(): Promise<UserPreferences> {
     stored || {
       modules: {
         calendar: true,
-        hoverComments: false,
+        hoverComments: true,
         friendActivity: false,
         listEditor: false,
         socialActivity: false,
@@ -97,7 +109,7 @@ async function loadPreferences(): Promise<UserPreferences> {
 /**
  * Initialize enabled modules
  */
-async function initializeModules(preferences: UserPreferences): Promise<void> {
+async function initializeModules(preferences: UserPreferences): Promise<any> {
   log.info('Initializing modules...');
 
   // Calendar Module
@@ -114,11 +126,20 @@ async function initializeModules(preferences: UserPreferences): Promise<void> {
     log.debug('Calendar module disabled');
   }
 
-  // Future modules will be initialized here as they're implemented
+  // Hover Comments Module
+  let hoverCommentsModuleInstance: any = null;
   if (preferences.modules.hoverComments && FEATURE_FLAGS.ENABLE_HOVER_COMMENTS) {
     log.info('💬 Hover Comments module enabled');
-    // TODO: Initialize hover comments module
+    try {
+      const { HoverCommentsModule } = await import('@/modules/social/HoverCommentsModule');
+      hoverCommentsModuleInstance = new HoverCommentsModule();
+      await hoverCommentsModuleInstance.init();
+    } catch (error) {
+      log.error('Failed to initialize hover comments module', error);
+    }
   }
+
+  return { hoverCommentsModule: hoverCommentsModuleInstance };
 
   if (preferences.modules.friendActivity && FEATURE_FLAGS.ENABLE_FRIEND_ACTIVITY) {
     log.info('👥 Friend Activity module enabled');
@@ -167,7 +188,7 @@ function shouldInitialize(): boolean {
 /**
  * Load FontAwesome icons
  */
-function loadFontAwesome(): void {
+function loadGlobalStyles(): void {
   if (document.querySelector('link[href*="fontawesome"]')) {
     log.debug('FontAwesome already loaded');
     return;

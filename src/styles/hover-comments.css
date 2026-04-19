@@ -1,0 +1,160 @@
+/**
+ * Hover Comments Styles - Step 3: Final Restoration
+ * Implementation of the "Ghost Container" strategy.
+ */
+
+.anilist-comment-icon {
+  color: var(--cal-text-light);
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.8;
+  vertical-align: middle;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+/* The Ghost Container Strategy (Zero Width) */
+.comment-icon-ghost {
+  display: inline-block;
+  width: 0;
+  height: 20px;
+  overflow: visible;
+  position: relative;
+  vertical-align: middle;
+  margin: 0;
+  pointer-events: none; /* Ignore for layout engine */
+}
+
+.comment-icon-ghost .anilist-comment-icon {
+  position: absolute;
+  left: 8px; /* Offset into the gap between status and score */
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto; /* Re-enable for interactions */
+  width: 24px;
+  height: 24px;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+/* Row Hover Glow Effect */
+.anilist-comment-icon.row-hover {
+  color: var(--cal-blue);
+  opacity: 1;
+  filter: drop-shadow(0 0 3px var(--cal-blue-dim));
+}
+
+.comment-icon-ghost .anilist-comment-icon:hover {
+  color: var(--cal-blue);
+  transform: translateY(-50%) scale(1.15);
+  filter: drop-shadow(0 0 8px var(--cal-blue));
+}
+
+/* Row Stability - TARGETED SELECTORS ONLY */
+.user-status-row, 
+.following-list-item,
+.following-item {
+  white-space: nowrap !important;
+  flex-wrap: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+/* Refresh All Button Styling */
+.au-refresh-all-comments {
+  cursor: pointer;
+  color: var(--cal-text-light);
+  opacity: 0.6;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.au-refresh-all-comments:hover {
+  color: var(--cal-blue);
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
+/* Tooltip - Premium Styles */
+#anilist-tooltip {
+  width: 300px;
+  max-height: 500px;
+  overflow-y: auto;
+  position: absolute;
+  z-index: 10000;
+  background: var(--cal-anime-bg);
+  backdrop-filter: blur(10px);
+  color: var(--cal-text);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  border-left: 5px solid var(--cal-blue);
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+  transform: translateX(10px);
+  pointer-events: none;
+}
+
+#anilist-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--cal-border);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+}
+
+.tooltip-user {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--cal-blue);
+}
+
+.tooltip-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tooltip-age {
+  font-size: 12px;
+  color: var(--cal-text-light);
+  opacity: 0.8;
+}
+
+.tooltip-content {
+  line-height: 1.6;
+  font-size: 15px;
+  word-wrap: break-word;
+}
+
+.tooltip-refresh-btn {
+  background: var(--cal-blue-dim);
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  color: var(--cal-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.tooltip-refresh-btn:hover {
+  background: var(--cal-blue);
+  color: white;
+}
