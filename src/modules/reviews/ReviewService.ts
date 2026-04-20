@@ -82,6 +82,8 @@ export class ReviewService {
       const aliasParts = chunk.map(id => `r${id}: Review(id: ${id}) { ${fields} }`);
       const query = `query { ${aliasParts.join('\n')} }`;
 
+      log.info(`%c[ReviewService] 🚀 Executing Batch Request: ${chunk.length} reviews`, 'color: #3db4f2; font-weight: bold;');
+
       try {
         const response = await this.executeQuery<Record<string, ReviewData>>(query, {});
         
