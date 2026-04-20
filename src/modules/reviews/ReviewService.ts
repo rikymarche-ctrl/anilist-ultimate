@@ -48,7 +48,7 @@ export class ReviewService {
    * Get multiple reviews via GraphQL Alias Batching
    * Very robust for AniList rate limits
    */
-  public async getReviewBatch(ids: number[]): Promise<ReviewData[]> {
+  public async getReviewBatch(ids: number[], chunkSize: number = 25): Promise<ReviewData[]> {
     if (ids.length === 0) return [];
 
     const results: ReviewData[] = [];
@@ -63,7 +63,6 @@ export class ReviewService {
     if (pendingIds.length === 0) return results;
 
     // Process in chunks to avoid too large query strings
-    const chunkSize = 25;
     for (let i = 0; i < pendingIds.length; i += chunkSize) {
       const chunk = pendingIds.slice(i, i + chunkSize);
       

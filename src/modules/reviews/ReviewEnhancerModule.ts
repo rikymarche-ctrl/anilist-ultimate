@@ -1,7 +1,7 @@
 /**
  * Review Enhancer Module
- * Adds numeric ratings to review cards using high-performance Alias Batching
- * UNIVERSAL VERSION: Supports Home, Global, and Media-specific pages with Infinite Scroll
+ * Strategic Batching Version: Optimized for AniList rate limits
+ * Uses Alias Batching with Dynamic Tuning based on the current page section
  */
 
 import { log } from '@core/logger';
@@ -12,58 +12,71 @@ import '../../styles/review-enhancer.css';
 export class ReviewEnhancerModule extends BaseModule {
   private inFlightReviews: Set<number> = new Set();
   private reviewService!: ReviewService;
+  private processingTimeout: number | null = null;
 
-  /**
-   * Initialize the module
-   */
   public async init(): Promise<void> {
-    log.info('ReviewEnhancer: Initializing Universal Version');
+    log.info('ReviewEnhancer: Initializing Strategic Version');
     this.reviewService = ReviewService.getInstance();
 
     this.watchPageNavigation(() => {
-      this.inFlightReviews.clear();
-      this.cleanup();
-      this.processReviews();
+      this.fullReset();
       this.startObservation();
     });
 
     this.startObservation();
   }
 
-  private startObservation(): void {
-    this.processReviews();
+  private fullReset(): void {
+    if (this.processingTimeout) {
+      window.clearTimeout(this.processingTimeout);
+      this.processingTimeout = null;
+    }
+    this.cleanup();
+    this.inFlightReviews.clear();
+  }
 
-    // High frequency observation for infinite scroll
-    this.registerObserver('reviews-continuous', document.body, { childList: true, subtree: true }, () => {
-      this.processReviews();
+  private startObservation(): void {
+    // Initial strategic delay to gather all page-load cards
+    this.queueProcessing(800);
+
+    // Register observer with strategic debounce (500ms)
+    // This ensures that waves of cards (Infinite Scroll) are collected together
+    this.registerObserver('reviews-strategic', document.body, { childList: true, subtree: true }, () => {
+      this.queueProcessing(500);
     });
   }
 
   /**
-   * Process all review cards with Alias Batching
+   * Queue a processing cycle with debounce
+   */
+  private queueProcessing(ms: number): void {
+    if (this.processingTimeout) window.clearTimeout(this.processingTimeout);
+    this.processingTimeout = window.setTimeout(() => {
+      this.processReviews();
+      this.processingTimeout = null;
+    }, ms);
+  }
+
+  /**
+   * Process review cards across all sections using optimized batching
    */
   private async processReviews(): Promise<void> {
-    // Universal selectors for Home, Global Reviews, and Media pages
     const selectors = [
       '.review-card',             // Global & Home Sidebar
-      '.media-review-card',      // Media page sidebars
+      '.media-review-card',      // Media page sidebar
       '.review-entry',           // Media dedicated reviews tab
       '.review-wrap',            // Generic AniList review wrapper
-      'a[href*="/review/"]'      // Fallback for activities
+      'a[href*="/review/"]'      // Fallback/Activity
     ];
 
     const cardsMap: Map<number, HTMLElement[]> = new Map();
     const pendingIds: number[] = [];
 
-    // Identify unique review containers that DON'T have a badge yet
     selectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(el => {
         const item = el as HTMLElement;
         const container = this.findReviewContainer(item);
-        if (!container) return;
-
-        // CRITICAL CHECK: Does it already have our UI badge?
-        if (container.querySelector('.au-review-rating')) return;
+        if (!container || container.querySelector('.au-review-rating')) return;
 
         const href = this.extractReviewHref(item);
         if (!href) return;
@@ -81,13 +94,22 @@ export class ReviewEnhancerModule extends BaseModule {
 
     if (pendingIds.length === 0) return;
 
-    // Start Batching
+    // Detect Page Context for dynamic tuning
+    const path = window.location.pathname;
+    const isGlobalReviews = path.endsWith('/reviews') && !path.includes('/anime/') && !path.includes('/manga/');
+    const isMediaReviewsTab = (path.includes('/anime/') || path.includes('/manga/')) && path.endsWith('/reviews');
+    
+    // Chunk Tuning
+    // Global page: 50 (high volume)
+    // Media Subpage: 10 (as requested for stability)
+    // Others (Home/Sidebar): 25 (default)
+    const chunkSize = isGlobalReviews ? 50 : (isMediaReviewsTab ? 10 : 25);
+
     pendingIds.forEach(id => this.inFlightReviews.add(id));
 
     try {
-      log.debug(`ReviewEnhancer: Batching ${pendingIds.length} cards across all sections...`);
-      // We chunk in 50 inside the service
-      const results = await this.reviewService.getReviewBatch(pendingIds);
+      log.debug(`ReviewEnhancer: Strategic batching ${pendingIds.length} cards (chunkSize: ${chunkSize})`);
+      const results = await this.reviewService.getReviewBatch(pendingIds, chunkSize);
       
       results.forEach(data => {
         const containers = cardsMap.get(data.id);
@@ -98,35 +120,26 @@ export class ReviewEnhancerModule extends BaseModule {
         }
       });
     } catch (error) {
-      log.error('ReviewEnhancer: Batch execution failed', error);
+      log.error('ReviewEnhancer: Strategic processing failed', error);
     } finally {
-      // Clear in-flight status for all IDs in this wave
       pendingIds.forEach(id => this.inFlightReviews.delete(id));
     }
   }
 
-  /**
-   * Finds the best container for the rating badge based on the element type
-   */
   private findReviewContainer(el: HTMLElement): HTMLElement | null {
-    // If it's already a card, use it
     if (el.classList.contains('review-card') || 
         el.classList.contains('media-review-card') ||
         el.classList.contains('review-entry')) return el;
 
-    // Sidebar reviews in media pages often have a specific structure
     const mediaReview = el.closest('.media-review-card');
     if (mediaReview) return mediaReview as HTMLElement;
 
-    // Global review page cards
     const reviewCard = el.closest('.review-card');
     if (reviewCard) return reviewCard as HTMLElement;
 
-    // Home sidebar fallback
     const wrap = el.closest('.review-wrap');
     if (wrap) return wrap as HTMLElement;
 
-    // Activity entry
     const activity = el.closest('.activity-entry');
     if (activity) return activity as HTMLElement;
 
@@ -146,14 +159,12 @@ export class ReviewEnhancerModule extends BaseModule {
   }
 
   private injectRatingUI(card: HTMLElement, rating: number): void {
-    // Double-check to prevent race-condition duplicates
     if (card.querySelector('.au-review-rating')) return;
 
     const badge = document.createElement('div');
     badge.className = `au-review-rating ${this.getColorClass(rating)}`;
     badge.textContent = `${rating}`;
 
-    // Priority for positioning
     const cover = card.querySelector('.cover, .image, .banner, [class*="image"], [class*="cover"]');
     if (cover) {
       (cover as HTMLElement).style.position = 'relative';
@@ -176,6 +187,6 @@ export class ReviewEnhancerModule extends BaseModule {
 
   public destroy(): void {
     super.destroy();
-    this.inFlightReviews.clear();
+    this.fullReset();
   }
 }
