@@ -62,45 +62,61 @@ export class ReviewEnhancerModule extends BaseModule {
       '.media-review-card',
       '.review-entry',
       '.review-wrap',
+      '.activity-entry',  // Activity feed reviews
       'a[href*="/review/"]'
     ];
 
     let newFoundCount = 0;
+    let totalScanned = 0;
+    let alreadyProcessed = 0;
 
     selectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(el => {
+        totalScanned++;
         const item = el as HTMLElement;
         const container = this.findReviewContainer(item);
-        if (!container || container.querySelector('.au-review-rating')) return;
+
+        // Skip if already has badge
+        if (!container || container.querySelector('.au-review-rating')) {
+          return;
+        }
 
         const href = this.extractReviewHref(item);
         if (!href) return;
 
         const id = this.extractIdFromHref(href);
-        if (id && !this.inFlightReviews.has(id)) {
-          if (!this.pendingQueue.has(id)) {
-            this.pendingQueue.set(id, []);
-            newFoundCount++;
-          }
-          this.pendingQueue.get(id)!.push(container);
-          this.inFlightReviews.add(id);
+        if (!id) return;
+
+        if (this.inFlightReviews.has(id)) {
+          alreadyProcessed++;
+          return;
         }
+
+        if (!this.pendingQueue.has(id)) {
+          this.pendingQueue.set(id, []);
+          newFoundCount++;
+        }
+        this.pendingQueue.get(id)!.push(container);
+        this.inFlightReviews.add(id);
       });
     });
 
     if (newFoundCount > 0) {
-      log.info(`%c[ReviewEnhancer] 🧺 Gathering reviews... Found ${newFoundCount} new items. Waiting for grid stability...`, 'color: #9146ff; font-weight: bold;');
+      log.info(
+        `%c[ReviewEnhancer] 🧺 Scan: ${newFoundCount} new | ${alreadyProcessed} queued | ${totalScanned} total scanned | Queue: ${this.pendingQueue.size} unique`,
+        'color: #9146ff; font-weight: bold;'
+      );
       this.triggerBatchWithDebounce();
     }
   }
 
   private triggerBatchWithDebounce(): void {
     if (this.debounceTimer) window.clearTimeout(this.debounceTimer);
-    
-    // Increased to 1200ms to ensure a true ONE-SHOT request on most pages
+
+    // Increased to 2000ms to ensure all reviews are loaded before batching
     this.debounceTimer = window.setTimeout(() => {
       this.executeBatchCycle();
-    }, 1200);
+    }, 2000);
   }
 
   private async executeBatchCycle(): Promise<void> {
@@ -112,13 +128,33 @@ export class ReviewEnhancerModule extends BaseModule {
     this.pendingQueue.clear();
 
     const path = window.location.pathname;
-    const isGlobalReviews = path.endsWith('/reviews') && !path.includes('/anime/') && !path.includes('/manga/');
+    const isHome = path === '/home' || path === '/';
+    const isGlobalReviews = path === '/reviews';
     const isMediaReviewsTab = (path.includes('/anime/') || path.includes('/manga/')) && path.endsWith('/reviews');
-    
-    // Force one-shot for global page (100+)
-    const chunkSize = isGlobalReviews ? 100 : (isMediaReviewsTab ? 10 : 30);
+    const isMediaOverview = (path.includes('/anime/') || path.includes('/manga/')) && !path.endsWith('/reviews');
 
-    log.info(`%c[ReviewEnhancer] 🎯 FINALIZING BATCH: Preparing to fetch ${ids.length} reviews in ONE request.`, 'color: #3db4f2; font-weight: bold; font-size: 1.1em;');
+    // Strategic chunk sizes based on page type (following AniList API rate limits)
+    let chunkSize: number;
+    let pageType: string;
+
+    if (isHome) {
+      chunkSize = 25; // Home: 4 reviews max, single shot
+      pageType = 'Home (Recent Reviews)';
+    } else if (isGlobalReviews) {
+      chunkSize = 100; // Global: 30-90 reviews, single shot
+      pageType = 'Global Reviews Page';
+    } else if (isMediaReviewsTab) {
+      chunkSize = 10; // Media reviews tab: many reviews, small chunks for stability
+      pageType = 'Media Reviews Tab';
+    } else if (isMediaOverview) {
+      chunkSize = 30; // Media sidebar: 2-3 reviews, single shot
+      pageType = 'Media Overview/Sidebar';
+    } else {
+      chunkSize = 30; // Default fallback
+      pageType = 'Other Page';
+    }
+
+    log.info(`%c[ReviewEnhancer] 🎯 BATCH START [${pageType}]: ${ids.length} reviews, chunkSize=${chunkSize}`, 'color: #3db4f2; font-weight: bold; font-size: 1.1em;');
 
     try {
       const results = await this.reviewService.getReviewBatch(ids, chunkSize);

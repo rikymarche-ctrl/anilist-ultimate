@@ -27,10 +27,6 @@ interface ReviewData {
   };
 }
 
-interface ReviewResponse {
-  Review: ReviewData;
-}
-
 export class ReviewService {
   private static instance: ReviewService;
   private reviewCache: Map<number, ReviewData> = new Map();
@@ -46,9 +42,9 @@ export class ReviewService {
 
   /**
    * Get multiple reviews via GraphQL Alias Batching
-   * Very robust for AniList rate limits
+   * Very robust for AniList rate limits with smart delay between chunks
    */
-  public async getReviewBatch(ids: number[], chunkSize: number = 25): Promise<ReviewData[]> {
+  public async getReviewBatch(ids: number[], chunkSize: number = 50): Promise<ReviewData[]> {
     if (ids.length === 0) return [];
 
     const results: ReviewData[] = [];
@@ -62,10 +58,14 @@ export class ReviewService {
 
     if (pendingIds.length === 0) return results;
 
+    const totalChunks = Math.ceil(pendingIds.length / chunkSize);
+    log.info(`%c[ReviewService] 📦 Processing ${pendingIds.length} reviews in ${totalChunks} chunk(s)`, 'color: #3db4f2; font-weight: bold;');
+
     // Process in chunks to avoid too large query strings
     for (let i = 0; i < pendingIds.length; i += chunkSize) {
       const chunk = pendingIds.slice(i, i + chunkSize);
-      
+      const chunkIndex = Math.floor(i / chunkSize) + 1;
+
       // Build Dynamic Alias Query
       // Example: r123: Review(id: 123) { id score ... }
       const fields = `
@@ -82,25 +82,50 @@ export class ReviewService {
       const aliasParts = chunk.map(id => `r${id}: Review(id: ${id}) { ${fields} }`);
       const query = `query { ${aliasParts.join('\n')} }`;
 
-      log.info(`%c[ReviewService] 🚀 Executing Batch Request: ${chunk.length} reviews`, 'color: #3db4f2; font-weight: bold;');
+      log.info(`%c[ReviewService] 🚀 Batch ${chunkIndex}/${totalChunks}: Fetching ${chunk.length} reviews`, 'color: #3db4f2; font-weight: bold;');
 
       try {
         const response = await this.executeQuery<Record<string, ReviewData>>(query, {});
-        
+
         if (response) {
-          Object.values(response).forEach(review => {
+          const responseEntries = Object.entries(response);
+          const successCount = responseEntries.filter(([_, review]) => review && review.id).length;
+          const failedCount = responseEntries.length - successCount;
+
+          responseEntries.forEach(([alias, review]) => {
             if (review && review.id) {
               this.reviewCache.set(review.id, review);
               results.push(review);
+            } else {
+              const reviewId = alias.replace('r', '');
+              log.warn(`%c[ReviewService] ⚠️ Review ${reviewId} not accessible (deleted/private)`, 'color: #ff9800;');
             }
           });
+
+          if (failedCount > 0) {
+            log.info(`%c[ReviewService] 📊 Batch ${chunkIndex}: ${successCount} OK, ${failedCount} failed`, 'color: #ff9800; font-weight: bold;');
+          }
         }
       } catch (error) {
-        log.error(`ReviewService: Failed to fetch alias batch`, error);
+        log.error(`ReviewService: Failed to fetch alias batch ${chunkIndex}/${totalChunks}`, error);
+      }
+
+      // Rate limit protection: wait 900ms between chunks (AniList limit: ~90 req/min)
+      if (i + chunkSize < pendingIds.length) {
+        log.info(`%c[ReviewService] ⏳ Waiting 900ms before next chunk...`, 'color: #ff9800; font-style: italic;');
+        await this.delay(900);
       }
     }
 
+    log.info(`%c[ReviewService] ✅ Completed: ${results.length} reviews fetched successfully`, 'color: #46d369; font-weight: bold;');
     return results;
+  }
+
+  /**
+   * Delay utility for rate limiting
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
