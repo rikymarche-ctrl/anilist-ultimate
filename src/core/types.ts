@@ -75,6 +75,7 @@ export interface CalendarPreferences {
 export interface ModuleConfig {
   calendar: boolean;
   hoverComments: boolean;
+  notificationCleaner: boolean;
   friendActivity: boolean;
   listEditor: boolean;
   socialActivity: boolean;

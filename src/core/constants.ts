@@ -104,6 +104,7 @@ export const DEFAULT_CALENDAR_PREFERENCES = {
 export const DEFAULT_MODULE_CONFIG = {
   calendar: true,
   hoverComments: true,
+  notificationCleaner: true,
   friendActivity: true,
   listEditor: true,
   socialActivity: true,
@@ -177,6 +178,7 @@ export const DEBUG = {
 export const FEATURE_FLAGS = {
   ENABLE_CALENDAR: true,
   ENABLE_HOVER_COMMENTS: true,
+  ENABLE_NOTIFICATION_CLEANER: true,
   ENABLE_FRIEND_ACTIVITY: false,
   ENABLE_LIST_EDITOR: false,
   ENABLE_SOCIAL_ACTIVITY: false,

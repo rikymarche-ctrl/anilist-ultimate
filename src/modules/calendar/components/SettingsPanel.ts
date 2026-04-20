@@ -106,15 +106,13 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
             <span class="settings-field__hint">Open anime details in a new tab instead of the current one.</span>
           </div>
 
-          ${prefs.showTime ? `
-          <div class="settings-field" id="time-format-field">
+          <div class="settings-field" id="time-format-field" style="display: ${prefs.showTime ? 'block' : 'none'}">
             <label class="settings-field__label">Time Display Format</label>
             <select class="settings-field__select" data-setting="timeFormat">
               <option value="release" ${prefs.timeFormat === 'release' ? 'selected' : ''}>Release Time (e.g. 16:00)</option>
               <option value="countdown" ${prefs.timeFormat === 'countdown' ? 'selected' : ''}>Countdown (e.g. 2h 30m)</option>
             </select>
           </div>
-          ` : ''}
         </div>
 
         <!-- Week Tab -->
@@ -388,37 +386,10 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
    * Toggle Time Format field visibility based on Show Time setting
    */
   private toggleTimeFormatVisibility(showTime: boolean): void {
-    const timeFormatField = this.element.querySelector('#time-format-field');
+    const timeFormatField = this.element.querySelector('#time-format-field') as HTMLElement;
 
-    if (showTime && !timeFormatField) {
-      // Build and insert the field dynamically — avoids rerender() which loses pending changes
-      const displayTab = this.element.querySelector('[data-tab-content="display"]');
-      if (displayTab) {
-        const prefs = calendarStore.getState().preferences;
-        const currentFormat = (this.pendingChanges as any).timeFormat ?? prefs.timeFormat;
-
-        const field = document.createElement('div');
-        field.className = 'settings-field';
-        field.id = 'time-format-field';
-        field.innerHTML = `
-          <label class="settings-field__label">Time Display Format</label>
-          <select class="settings-field__select" data-setting="timeFormat">
-            <option value="release" ${currentFormat === 'release' ? 'selected' : ''}>Release Time (e.g. 16:00)</option>
-            <option value="countdown" ${currentFormat === 'countdown' ? 'selected' : ''}>Countdown (e.g. 2h 30m)</option>
-          </select>
-        `;
-        displayTab.appendChild(field);
-
-        // Attach change listener to the new select
-        const newSelect = field.querySelector('select') as HTMLSelectElement;
-        if (newSelect) {
-          this.addEventListener(newSelect, 'change', () => {
-            this.handleSettingChange(newSelect);
-          });
-        }
-      }
-    } else if (!showTime && timeFormatField) {
-      timeFormatField.remove();
+    if (timeFormatField) {
+      timeFormatField.style.display = showTime ? 'block' : 'none';
     }
   }
 

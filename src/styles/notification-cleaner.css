@@ -1,0 +1,88 @@
+/**
+ * Notification Cleaner Styles
+ * Anti-spam UI for notifications page
+ */
+
+/* Settings Section */
+.au-clutterfree-settings {
+  padding: 15px;
+  margin-bottom: 20px;
+  background: var(--cal-bg-light);
+  border-radius: 6px;
+  border: 1px solid var(--cal-border);
+}
+
+.au-clutterfree-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cal-text);
+  margin-bottom: 12px;
+  letter-spacing: 0.3px;
+}
+
+.au-clutterfree-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.au-clutterfree-label {
+  font-size: 13px;
+  color: var(--cal-text-light);
+  flex: 1;
+}
+
+/* Toggle Button */
+.au-clutterfree-toggle {
+  min-width: 50px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.au-clutterfree-toggle.off {
+  background: rgba(139, 139, 139, 0.3);
+  color: var(--cal-text-light);
+}
+
+.au-clutterfree-toggle.off:hover {
+  background: rgba(139, 139, 139, 0.4);
+}
+
+.au-clutterfree-toggle.on {
+  background: var(--cal-blue);
+  color: white;
+  box-shadow: 0 2px 8px rgba(61, 180, 242, 0.3);
+}
+
+.au-clutterfree-toggle.on:hover {
+  background: var(--cal-blue-bright);
+  box-shadow: 0 2px 12px rgba(61, 180, 242, 0.4);
+}
+
+/* Grouped Notifications */
+.au-grouped-notification {
+  position: relative;
+}
+
+.au-grouped-notification::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--cal-blue);
+  border-radius: 2px 0 0 2px;
+}
+
+/* Hidden duplicate notifications */
+.au-hidden-notification {
+  display: none !important;
+}

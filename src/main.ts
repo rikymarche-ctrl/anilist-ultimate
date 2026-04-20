@@ -85,6 +85,7 @@ async function loadPreferences(): Promise<UserPreferences> {
       modules: {
         calendar: true,
         hoverComments: true,
+        notificationCleaner: true,
         friendActivity: false,
         listEditor: false,
         socialActivity: false,
@@ -139,22 +140,19 @@ async function initializeModules(preferences: UserPreferences): Promise<any> {
     }
   }
 
+  // Notification Cleaner Module (Anti-spam)
+  if (preferences.modules.notificationCleaner && FEATURE_FLAGS.ENABLE_NOTIFICATION_CLEANER) {
+    log.info('🧹 Notification Cleaner module enabled');
+    try {
+      const { NotificationCleanerModule } = await import('@/modules/notifications/NotificationCleanerModule');
+      const notificationCleanerModule = new NotificationCleanerModule();
+      await notificationCleanerModule.init();
+    } catch (error) {
+      log.error('Failed to initialize notification cleaner module', error);
+    }
+  }
+
   return { hoverCommentsModule: hoverCommentsModuleInstance };
-
-  if (preferences.modules.friendActivity && FEATURE_FLAGS.ENABLE_FRIEND_ACTIVITY) {
-    log.info('👥 Friend Activity module enabled');
-    // TODO: Initialize friend activity module
-  }
-
-  if (preferences.modules.listEditor && FEATURE_FLAGS.ENABLE_LIST_EDITOR) {
-    log.info('📝 List Editor module enabled');
-    // TODO: Initialize list editor module
-  }
-
-  if (preferences.modules.socialActivity && FEATURE_FLAGS.ENABLE_SOCIAL_ACTIVITY) {
-    log.info('🌐 Social Activity module enabled');
-    // TODO: Initialize social activity module
-  }
 }
 
 /**
