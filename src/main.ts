@@ -16,6 +16,7 @@ import { NotificationCleanerModule } from '@/modules/notifications/NotificationC
 import { ReviewEnhancerModule } from '@/modules/reviews/ReviewEnhancerModule';
 import { ActivityEnhancerModule } from '@/modules/activity/ActivityEnhancerModule';
 import { ForumEnhancerModule } from '@/modules/forum/ForumEnhancerModule';
+import { ActivityScoreModule } from '@/modules/activity/ActivityScoreModule';
 
 // Styles
 import './styles/main.css';
@@ -103,6 +104,7 @@ async function loadPreferences(): Promise<UserPreferences> {
       listEditor: false,
       socialActivity: true,
       forumEnhancer: true,
+      activityScore: true,
     },
     calendar: {
       startDay: '1',
@@ -172,6 +174,14 @@ async function initializeModules(preferences: UserPreferences): Promise<void> {
       instances.forum = new ForumEnhancerModule();
       await instances.forum.init();
     } catch (e) { log.error('Module Error: Forum', e); }
+  }
+
+  // Activity Score
+  if (preferences.modules.activityScore && FEATURE_FLAGS.ENABLE_ACTIVITY_SCORE) {
+    try {
+      instances.activityScore = new ActivityScoreModule();
+      await instances.activityScore.init();
+    } catch (e) { log.error('Module Error: ActivityScore', e); }
   }
 
   // Exposure

@@ -1,0 +1,46 @@
+/**
+ * Activity Score Styles
+ * Rating badges for activity feed entries
+ */
+
+.au-activity-rating {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+  margin-left: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  min-width: 22px;
+  background: rgba(var(--color-foreground), 0.8);
+  border: 1px solid currentColor;
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+/* Colors matching ReviewEnhancer */
+.au-rating--perfect { color: #2d7a1f; }
+.au-rating--excellent { color: #3fae2a; }
+.au-rating--high { color: #4db83a; }
+.au-rating--good { color: #66cc33; }
+.au-rating--decent { color: #9acd32; }
+.au-rating--medium { color: #f7bf63; }
+.au-rating--poor { color: #ff6b6b; }
+.au-rating--bad { color: #e85d75; }
+.au-rating--terrible { color: #9370db; }
+
+/* Activity specific positioning adjustments */
+.activity-entry, .activity-anime, .activity-manga {
+  position: relative !important;
+}
+
+.activity-entry .cover, 
+.activity-anime .cover, 
+.activity-manga .cover,
+.activity-entry .image,
+.activity-anime .image,
+.activity-manga .image {
+  position: relative !important;
+}

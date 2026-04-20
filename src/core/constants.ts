@@ -110,6 +110,7 @@ export const DEFAULT_MODULE_CONFIG = {
   listEditor: true,
   socialActivity: true,
   forumEnhancer: true,
+  activityScore: true,
 };
 
 // ============================================================================
@@ -186,6 +187,7 @@ export const FEATURE_FLAGS = {
   ENABLE_LIST_EDITOR: false,
   ENABLE_SOCIAL_ACTIVITY: true,
   ENABLE_FORUM_ENHANCER: true,
+  ENABLE_ACTIVITY_SCORE: true,
   ENABLE_WEB_COMPONENTS: true,
   ENABLE_VIRTUAL_SCROLL: false, // For future optimization
 } as const;

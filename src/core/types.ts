@@ -81,6 +81,7 @@ export interface ModuleConfig {
   listEditor: boolean;
   socialActivity: boolean;
   forumEnhancer: boolean;
+  activityScore: boolean;
 }
 
 export interface UserPreferences {
