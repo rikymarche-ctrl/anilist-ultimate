@@ -15,6 +15,7 @@ import { HoverCommentsModule } from '@/modules/social/HoverCommentsModule';
 import { NotificationCleanerModule } from '@/modules/notifications/NotificationCleanerModule';
 import { ReviewEnhancerModule } from '@/modules/reviews/ReviewEnhancerModule';
 import { ActivityEnhancerModule } from '@/modules/activity/ActivityEnhancerModule';
+import { ForumEnhancerModule } from '@/modules/forum/ForumEnhancerModule';
 
 // Styles
 import './styles/main.css';
@@ -101,6 +102,7 @@ async function loadPreferences(): Promise<UserPreferences> {
       friendActivity: false,
       listEditor: false,
       socialActivity: true,
+      forumEnhancer: true,
     },
     calendar: {
       startDay: '1',
@@ -162,6 +164,14 @@ async function initializeModules(preferences: UserPreferences): Promise<void> {
       instances.activity = new ActivityEnhancerModule();
       await instances.activity.init();
     } catch (e) { log.error('Module Error: Activity', e); }
+  }
+
+  // Forum Enhancer
+  if (preferences.modules.forumEnhancer && FEATURE_FLAGS.ENABLE_FORUM_ENHANCER) {
+    try {
+      instances.forum = new ForumEnhancerModule();
+      await instances.forum.init();
+    } catch (e) { log.error('Module Error: Forum', e); }
   }
 
   // Exposure

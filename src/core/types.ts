@@ -80,6 +80,7 @@ export interface ModuleConfig {
   friendActivity: boolean;
   listEditor: boolean;
   socialActivity: boolean;
+  forumEnhancer: boolean;
 }
 
 export interface UserPreferences {

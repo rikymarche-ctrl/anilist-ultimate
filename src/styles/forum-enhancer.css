@@ -1,0 +1,19 @@
+/**
+ * Forum Enhancer Styles
+ */
+
+.au-title-link {
+  color: rgb(var(--color-blue)) !important;
+  text-decoration: none !important;
+  transition: color 0.2s ease;
+  cursor: pointer;
+}
+
+.au-title-link:hover {
+  color: rgb(var(--color-blue-dim)) !important;
+}
+
+/* Remove the specific button styling as requested */
+.au-media-link-btn {
+  display: none;
+}
