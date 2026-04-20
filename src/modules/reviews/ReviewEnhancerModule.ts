@@ -1,7 +1,6 @@
 /**
  * Review Enhancer Module
- * Adds numeric ratings to review cards
- * Optimized Parallel Version
+ * Adds numeric ratings to review cards using high-performance Alias Batching
  */
 
 import { log } from '@core/logger';
@@ -11,7 +10,9 @@ import '../../styles/review-enhancer.css';
 
 export class ReviewEnhancerModule extends BaseModule {
   private processedReviews: Set<string> = new Set();
+  private inFlightReviews: Set<number> = new Set();
   private reviewService!: ReviewService;
+  private isProcessing: boolean = false;
 
   public async init(): Promise<void> {
     log.info('ReviewEnhancer: Initializing');
@@ -19,74 +20,92 @@ export class ReviewEnhancerModule extends BaseModule {
 
     this.watchPageNavigation(() => {
       this.processedReviews.clear();
-      this.fullReset();
-      this.processReviews();
+      this.inFlightReviews.clear();
+      this.cleanup();
+      this.startObservation();
     });
 
     this.startObservation();
   }
 
-  private fullReset(): void {
-    this.cleanup();
-  }
-
   private startObservation(): void {
     this.processReviews();
-
     this.registerObserver('reviews-continuous', document.body, { childList: true, subtree: true }, () => {
       this.processReviews();
     });
   }
 
+  /**
+   * Process review cards with Alias Batching
+   */
   private async processReviews(): Promise<void> {
-    // Select any possible review card or link
-    const cards = document.querySelectorAll('.review-card, a[href*="/review/"], .activity-entry .title a[href*="/review/"], [class*="ReviewCard"]');
-    
-    const pendingTasks: Promise<void>[] = [];
+    if (this.isProcessing) return;
 
-    cards.forEach(el => {
-      const card = el as HTMLElement;
-      const href = this.extractReviewHref(card);
-      
-      if (href && !this.processedReviews.has(href)) {
-        // Find the "true" container to avoid badging small inline links
-        const container = this.findCardContainer(card);
-        if (container) {
-          this.processedReviews.add(href);
-          pendingTasks.push(this.enhanceCard(container, href));
+    // Detect all possible review containers or links
+    const selectors = [
+      '.review-card',
+      'a[href*="/review/"]',
+      '.activity-entry .review',
+      '[class*="ReviewCard"]'
+    ];
+
+    const cardsMap: Map<number, HTMLElement[]> = new Map();
+    const pendingIds: number[] = [];
+
+    selectors.forEach(sel => {
+      document.querySelectorAll(sel).forEach(el => {
+        const item = el as HTMLElement;
+        const href = this.extractReviewHref(item);
+        if (!href || this.processedReviews.has(href)) return;
+
+        const id = this.extractIdFromHref(href);
+        if (id && !this.inFlightReviews.has(id)) {
+          const container = this.findCardContainer(item);
+          if (container) {
+            if (!cardsMap.has(id)) {
+              cardsMap.set(id, []);
+              pendingIds.push(id);
+            }
+            cardsMap.get(id)!.push(container);
+          }
         }
-      }
+      });
     });
 
-    if (pendingTasks.length > 0) {
-      log.debug(`ReviewEnhancer: Processing ${pendingTasks.length} cards...`);
-      await Promise.all(pendingTasks);
-    }
-  }
+    if (pendingIds.length === 0) return;
 
-  private async enhanceCard(container: HTMLElement, href: string): Promise<void> {
-    const id = this.extractIdFromHref(href);
-    if (!id) return;
+    // Execution
+    this.isProcessing = true;
+    pendingIds.forEach(id => this.inFlightReviews.add(id));
 
     try {
-      const data = await this.reviewService.getReview(id);
-      if (data && data.score) {
-        this.injectRatingUI(container, data.score);
-      }
-    } catch (e) {
-      log.error(`Failed to enhance card ${id}`, e);
+      log.debug(`ReviewEnhancer: Batching ${pendingIds.length} cards...`);
+      const results = await this.reviewService.getReviewBatch(pendingIds);
+      
+      results.forEach(data => {
+        const containers = cardsMap.get(data.id);
+        if (containers) {
+          containers.forEach(container => {
+            this.injectRatingUI(container, data.score);
+            const href = this.extractReviewHref(container);
+            if (href) this.processedReviews.add(href);
+          });
+        }
+        this.inFlightReviews.delete(data.id);
+      });
+    } catch (error) {
+      log.error('ReviewEnhancer: Batch failed', error);
+    } finally {
+      // Clear any IDs that failed or didn't return data so they can be retried
+      pendingIds.forEach(id => this.inFlightReviews.delete(id));
+      this.isProcessing = false;
     }
   }
 
   private findCardContainer(el: HTMLElement): HTMLElement | null {
-    // If it's a dedicated review card, use it
     if (el.classList.contains('review-card') || el.className.includes('ReviewCard')) return el;
-    
-    // If it's an activity entry, use the whole entry
     const activity = el.closest('.activity-entry');
     if (activity) return activity as HTMLElement;
-
-    // Fallback: if it's a link, use its parent container if it looks like a card
     return el.parentElement;
   }
 
@@ -132,5 +151,6 @@ export class ReviewEnhancerModule extends BaseModule {
   public destroy(): void {
     super.destroy();
     this.processedReviews.clear();
+    this.inFlightReviews.clear();
   }
 }
