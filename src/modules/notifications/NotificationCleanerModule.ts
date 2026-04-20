@@ -29,6 +29,7 @@ interface ActivityData {
     };
   };
   text?: string;
+  message?: string;
 }
 
 export class NotificationCleanerModule extends BaseModule {
@@ -95,7 +96,7 @@ export class NotificationCleanerModule extends BaseModule {
     }
 
     const container = document.querySelector('.notifications');
-    if (container && this.enabled) {
+    if (container) {
       this.processNotifications();
     }
 
@@ -132,13 +133,12 @@ export class NotificationCleanerModule extends BaseModule {
       n.removeAttribute('data-au-processed');
     });
 
-    if (this.enabled) {
-      this.processNotifications();
-    } else {
-      this.suspendObserver(this.OBSERVER_NAME);
-      this.clearVirtualNotifications();
-      this.resumeObserver(this.OBSERVER_NAME);
-    }
+    this.suspendObserver(this.OBSERVER_NAME);
+    this.clearVirtualNotifications();
+    
+    // Process notifications again to apply single enhancements even if grouping is disabled
+    this.processNotifications();
+    this.resumeObserver(this.OBSERVER_NAME);
   }
 
   private async processNotifications(): Promise<void> {
@@ -148,8 +148,8 @@ export class NotificationCleanerModule extends BaseModule {
       return;
     }
 
-    // Get all original notifications (not virtual)
-    const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>('.notification:not(.au-virtual-notification)'));
+    // Get all original notifications (not virtual, not sub-notification)
+    const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>('.notification:not(.au-virtual-notification):not(.au-sub-notification)'));
 
     // Check if there are NEW notifications (without data-au-processed attribute)
     const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
@@ -169,61 +169,73 @@ export class NotificationCleanerModule extends BaseModule {
       // SUSPEND observer before making domestic changes to prevent loop (stuttering)
       this.suspendObserver(this.OBSERVER_NAME);
 
-      // Incremental merge: only process NEW notifications without clearing existing groups
-      const hasExistingGroups = document.querySelectorAll('.au-virtual-notification').length > 0;
-      let useIncrementalMerge = false;
-
-      if (hasExistingGroups && newNotifications.length <= 5) {
-        // INCREMENTAL: Try to add new notifications to existing groups
-        log.info('[NotificationCleaner] ⚡ INCREMENTAL merge - keeping existing groups');
-        await this.processNewNotificationsIncremental(newNotifications);
-        useIncrementalMerge = true;
-      } else {
-        // FULL REPROCESS: Too many new or first time
-        log.info('[NotificationCleaner] 🔄 FULL reprocess - clearing all groups');
-        this.clearVirtualNotifications();
-      }
-
-      // Skip full reprocess if we did incremental
-      if (useIncrementalMerge) {
-        return;
-      }
-
-      const notifications = currentNotifications;
-      if (notifications.length === 0) return;
-
       let currentGroup: NotificationGroup | null = null;
       const groupsToProcess: NotificationGroup[] = [];
+      const singleGroupsToProcess: NotificationGroup[] = [];
 
-      notifications.forEach((notification) => {
+      for (const notification of newNotifications) {
         const text = notification.textContent || '';
-        const notifType = this.detectNotificationType(text);
-
-        // Skip non-groupable notifications
+        let notifType = notification.getAttribute('data-au-type');
         if (!notifType) {
-          if (currentGroup && (currentGroup as NotificationGroup).count > 1) groupsToProcess.push(currentGroup);
-          currentGroup = null;
-          return;
+          notifType = this.detectNotificationType(text);
+          if (notifType) {
+            notification.setAttribute('data-au-type', notifType);
+          }
         }
 
-        const userLink = notification.querySelector<HTMLAnchorElement>('a[href^="/user/"]');
-        if (!userLink) return;
+        const userLink = notification.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
+        if (!userLink) {
+          notification.setAttribute('data-au-processed', 'true');
+          continue;
+        }
 
         const username = userLink.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
         const time = notification.querySelector('.time')?.textContent?.trim() || '';
 
+        if (!notifType || !this.enabled) {
+          if (currentGroup && currentGroup.count > 1) groupsToProcess.push(currentGroup);
+          currentGroup = null;
+          // If unmerged (disabled), or not groupable, treat everything as single
+          const typeMap = new Map<string, number>();
+          if (notifType) typeMap.set(notifType, 1);
+          singleGroupsToProcess.push({
+            user: username,
+            types: typeMap,
+            count: 1,
+            elements: [notification],
+            firstTime: time,
+            latestTime: time
+          });
+          notification.setAttribute('data-au-processed', 'true');
+          continue;
+        }
+
+        // 1. Check if an existing virtual group for this user is already in the document
+        const existingVirtual = this.findVirtualNotificationForUser(username);
+
+        if (existingVirtual) {
+          log.info(`[NotificationCleaner] ➕ Adding to existing group for ${username}`);
+          if (currentGroup && currentGroup.count > 1) groupsToProcess.push(currentGroup);
+          currentGroup = null;
+          
+          await this.addToExistingGroup(existingVirtual, notification, notifType);
+          notification.setAttribute('data-au-processed', 'true');
+          continue;
+        }
+
+        // 2. Standard grouping logic for remaining new elements
         if (currentGroup && currentGroup.user === username) {
-          // Same user - add to group
           currentGroup.count++;
           currentGroup.elements.push(notification);
           currentGroup.latestTime = time;
 
-          // Track type count
           const typeCount = currentGroup.types.get(notifType) || 0;
           currentGroup.types.set(notifType, typeCount + 1);
         } else {
-          // Different user - close current group and start new
-          if (currentGroup && (currentGroup as NotificationGroup).count > 1) groupsToProcess.push(currentGroup);
+          if (currentGroup) {
+            if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
+            else if (currentGroup.count === 1) singleGroupsToProcess.push(currentGroup);
+          }
 
           const typesMap = new Map<string, number>();
           typesMap.set(notifType, 1);
@@ -237,20 +249,79 @@ export class NotificationCleanerModule extends BaseModule {
             latestTime: time,
           };
         }
-      });
+      }
 
-      if (currentGroup && (currentGroup as NotificationGroup).count > 1) groupsToProcess.push(currentGroup);
+      if (currentGroup) {
+        if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
+        else if (currentGroup.count === 1) singleGroupsToProcess.push(currentGroup);
+      }
 
-      // Process groups asynchronously
-      groupsToProcess.forEach(group => {
-        this.groupNotifications(group).catch(err => {
+      // Process new groups sequentially
+      for (const group of groupsToProcess) {
+        await this.groupNotifications(group).catch(err => {
           log.error('Failed to group notifications', err);
         });
-      });
+      }
 
-      // Mark ALL original notifications as processed to avoid re-scanning
-      notifications.forEach(n => {
-        n.setAttribute('data-au-processed', 'true');
+      // Process single notifications for enhancement
+      if (singleGroupsToProcess.length > 0) {
+        const singlesToProcess: HTMLElement[] = [];
+        
+        singleGroupsToProcess.forEach(group => {
+          const single = group.elements[0];
+          singlesToProcess.push(single);
+
+          const activityId = this.extractActivityId(single);
+          if (activityId) {
+            single.setAttribute('data-activity-id', activityId.toString());
+            
+            // Un-nest a.link to prevent invalid HTML when injecting title links
+            single.querySelectorAll('a').forEach(link => {
+              if (link.getAttribute('href')?.includes('/activity/')) {
+                const span = document.createElement('span');
+                span.className = link.className;
+                span.innerHTML = link.innerHTML;
+                link.parentNode?.replaceChild(span, link);
+              }
+            });
+
+            // Only inject user link AFTER the outer activity <a> has been converted to <span>
+            this.injectUserLink(single, group.user);
+
+            // Ensure single notification remains clickable!
+            single.style.cursor = 'pointer';
+            single.addEventListener('click', (e) => {
+              const target = e.target as HTMLElement;
+              const link = target.closest('a');
+              if (link) {
+                const href = link.getAttribute('href');
+                if (href && !link.classList.contains('title')) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.location.href = href;
+                }
+                return;
+              }
+              e.preventDefault();
+              e.stopPropagation();
+              window.location.href = `/activity/${activityId}`;
+            });
+          } else {
+            // No activity ID (e.g. message), still inject user link
+            this.injectUserLink(single, group.user);
+          }
+        });
+        
+        await this.enhanceNotificationsWithActivityDetails(singlesToProcess).catch(err => {
+          log.error('Failed to enhance single notifications', err);
+        });
+      }
+
+      // Mark ALL remaining new notifications as processed to prevent infinite loops
+      newNotifications.forEach(n => {
+        if (!n.hasAttribute('data-au-processed')) {
+          n.setAttribute('data-au-processed', 'true');
+        }
       });
     } finally {
       this.isProcessing = false;
@@ -269,26 +340,46 @@ export class NotificationCleanerModule extends BaseModule {
     log.info(`[NotificationCleaner] 🎯 START groupNotifications for user ${group.user}, ${group.count} activities`);
 
     const firstNotif = group.elements[0];
-    const virtualNotif = firstNotif.cloneNode(true) as HTMLElement;
+    let virtualNotif: HTMLElement;
+    if (firstNotif.tagName.toUpperCase() === 'A') {
+      virtualNotif = document.createElement('div');
+      virtualNotif.className = firstNotif.className;
+      virtualNotif.innerHTML = firstNotif.innerHTML;
+    } else {
+      virtualNotif = firstNotif.cloneNode(true) as HTMLElement;
+    }
     virtualNotif.classList.add('au-virtual-notification');
 
-    // Prevent navigation on the virtual notification link by removing href
+    // Ensure links are interactive and prevent nested <a> tag corruption
     const virtualLinks = virtualNotif.querySelectorAll('a');
     virtualLinks.forEach(link => {
-      link.removeAttribute('href');
-      link.style.cursor = 'pointer';
-      link.style.textDecoration = 'none';
+      const href = link.getAttribute('href');
+      // AniList wraps the text in an activity link. If we inject a user link into it natively, it corrupts the HTML.
+      // We safely convert this wrapper link into a span. The parent div handles dropdown clicks anyway.
+      if (href && href.includes('/activity/')) {
+        const span = document.createElement('span');
+        span.className = link.className;
+        span.innerHTML = link.innerHTML;
+        link.parentNode?.replaceChild(span, link);
+      } else {
+        link.style.pointerEvents = 'auto';
+      }
     });
 
-    const textElement = virtualNotif.querySelector('.text') || virtualNotif;
+    const textElement = virtualNotif.querySelector('.details, .text, .content') || virtualNotif;
     if (textElement) {
+      // Inject user link natively before doing textual replacements
+      this.injectUserLink(virtualNotif, group.user);
+
       // Generate smart text based on notification types
       const { find, replace } = this.generateGroupText(group);
       textElement.innerHTML = textElement.innerHTML.replace(find, replace);
 
       const timeEl = virtualNotif.querySelector('.time');
       if (timeEl && group.firstTime !== group.latestTime) {
-        timeEl.textContent = `${group.latestTime} - ${group.firstTime}`;
+        // most recent on the left (firstTime)
+        const first = group.firstTime.replace(/\s+ago$/i, '');
+        timeEl.textContent = `${first} - ${group.latestTime}`;
       }
     }
 
@@ -304,29 +395,80 @@ export class NotificationCleanerModule extends BaseModule {
     // Add original notifications to dropdown and collect clones
     const clones: HTMLElement[] = [];
     group.elements.forEach((notif) => {
-      const clone = notif.cloneNode(true) as HTMLElement;
+      // Extract activity ID before doing any manipulation wrapper
+      const activityId = this.extractActivityId(notif);
+      
+      let clone: HTMLElement;
+      if (notif.tagName.toUpperCase() === 'A') {
+        clone = document.createElement('div');
+        clone.className = notif.className;
+        clone.innerHTML = notif.innerHTML;
+      } else {
+        clone = notif.cloneNode(true) as HTMLElement;
+      }
+      
+      if (activityId) {
+        clone.setAttribute('data-activity-id', activityId.toString());
+      }
+      
       clone.style.display = '';
       clone.style.opacity = '0.9';
       clone.classList.remove('au-hidden-notification');
+      clone.classList.add('au-sub-notification'); // Add class for styling
+      clone.setAttribute('data-au-processed', 'true'); // Pre-mark the clone to completely bypass the observer loop
 
-      // Remove username from clone text (it's redundant since username is in virtual notif)
-      const userLink = clone.querySelector<HTMLAnchorElement>('a[href^="/user/"]');
-      if (userLink) {
-        userLink.remove();
-      }
+      // Remove username and avatar from clone text (it's redundant since it's in virtual notif)
+      const usernameSelectors = ['a[href*="/user/"]', '.name', '.user', '.avatar'];
+      usernameSelectors.forEach(selector => {
+        clone.querySelectorAll(selector).forEach(el => el.remove());
+      });
 
-      // Prevent navigation on click - make notifications view-only
-      clone.style.cursor = 'default';
+      // Strip leftover plain-text username from the clone's text content
+      const textContainers = clone.querySelectorAll('.text, .content');
+      textContainers.forEach(container => {
+        // Strip the username if it appears as plain text at the beginning
+        const userPattern = new RegExp(`^\\s*${group.user}\\s+`, 'i');
+        container.innerHTML = container.innerHTML.replace(userPattern, '');
+      });
+
+      // Disable default links that are not 'title' and unwrap activity links
       clone.querySelectorAll('a').forEach(link => {
-        link.style.pointerEvents = 'none';
-        link.style.cursor = 'default';
+        const href = link.getAttribute('href');
+        if (href && href.includes('/activity/')) {
+          const span = document.createElement('span');
+          span.className = link.className;
+          span.innerHTML = link.innerHTML;
+          link.parentNode?.replaceChild(span, link);
+        } else if (!link.classList.contains('title')) {
+          link.style.pointerEvents = 'none';
+          link.style.cursor = 'default';
+        }
       });
 
-      // Prevent any click events from propagating
-      clone.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      });
+      // Add general click handler for the whole notification card
+
+      if (activityId) {
+        clone.style.cursor = 'pointer';
+        clone.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          // Allow clicks on our injected media title link
+          if (target.closest('a.title')) {
+            e.stopPropagation();
+            return;
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          window.location.href = `/activity/${activityId}`;
+        });
+      } else {
+        clone.style.cursor = 'default';
+        clone.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('a.title')) return;
+          e.preventDefault();
+          e.stopPropagation();
+        });
+      }
 
       clones.push(clone);
       dropdownInner.appendChild(clone);
@@ -336,7 +478,7 @@ export class NotificationCleanerModule extends BaseModule {
 
     // Fetch and display activity details
     log.info(`[NotificationCleaner] 🚀 CALLING enhanceNotificationsWithActivityDetails with ${clones.length} clones`);
-    this.enhanceNotificationsWithActivityDetails(clones, group.elements).catch(err => {
+    this.enhanceNotificationsWithActivityDetails(clones).catch(err => {
       log.error('[NotificationCleaner] ❌ FAILED to enhance notifications:', err);
     });
 
@@ -344,20 +486,30 @@ export class NotificationCleanerModule extends BaseModule {
     firstNotif.parentNode?.insertBefore(virtualNotif, firstNotif);
     firstNotif.parentNode?.insertBefore(dropdownContainer, firstNotif);
 
-    // Add click handler to toggle dropdown
-    const countElement = virtualNotif.querySelector('.au-activity-count');
-    if (countElement) {
-      log.info(`[NotificationCleaner] ✅ Adding click listener to count element for ${group.count} activities`);
-      countElement.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const isVisible = dropdownContainer.style.display !== 'none';
-        dropdownContainer.style.display = isVisible ? 'none' : 'block';
-        log.info(`[NotificationCleaner] 🔄 Dropdown toggled: ${dropdownContainer.style.display === 'block' ? 'OPEN' : 'CLOSED'}`);
-      }, true); // Use capture to catch event before it bubbles
-    } else {
-      log.error('[NotificationCleaner] ❌ Count element NOT FOUND! Cannot add click listener');
-    }
+    // Make the virtual grouped notification fully interactive
+    virtualNotif.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      
+      // Let standard links work natively (e.g. user avatar, name) via explicit manual routing avoiding Vue DOM detach issues
+      const link = target.closest('a');
+      if (link) {
+        const href = link.getAttribute('href');
+        if (href && !link.classList.contains('title')) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.location.href = href;
+        }
+        return;
+      }
+
+
+      // If clicked anywhere else, toggle the dropdown
+      e.preventDefault();
+      e.stopPropagation();
+      const isVisible = dropdownContainer.style.display !== 'none';
+      dropdownContainer.style.display = isVisible ? 'none' : 'block';
+      log.info(`[NotificationCleaner] 🔄 Dropdown toggled: ${dropdownContainer.style.display === 'block' ? 'OPEN' : 'CLOSED'}`);
+    });
 
     // Hide original notifications
     group.elements.forEach(notif => {
@@ -366,42 +518,6 @@ export class NotificationCleanerModule extends BaseModule {
     });
   }
 
-  /**
-   * Process new notifications incrementally (without clearing existing groups)
-   */
-  private async processNewNotificationsIncremental(newNotifications: HTMLElement[]): Promise<void> {
-    for (const notification of newNotifications) {
-      const text = notification.textContent || '';
-      const notifType = this.detectNotificationType(text);
-
-      if (!notifType) {
-        // Not groupable - just mark as processed
-        notification.setAttribute('data-au-processed', 'true');
-        continue;
-      }
-
-      const userLink = notification.querySelector<HTMLAnchorElement>('a[href^="/user/"]');
-      if (!userLink) continue;
-
-      const username = userLink.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
-
-      // Find existing virtual notification for this user
-      const existingVirtual = this.findVirtualNotificationForUser(username);
-
-      if (existingVirtual) {
-        // Add to existing group
-        log.info(`[NotificationCleaner] ➕ Adding to existing group for ${username}`);
-        await this.addToExistingGroup(existingVirtual, notification, notifType);
-      } else {
-        // No existing group - just leave as single notification
-        log.info(`[NotificationCleaner] ℹ️ No existing group for ${username} - leaving as single`);
-      }
-
-      notification.setAttribute('data-au-processed', 'true');
-    }
-
-    // Don't set isProcessing or resume observer here - handled by caller
-  }
 
   /**
    * Find virtual notification for a specific user
@@ -444,10 +560,12 @@ export class NotificationCleanerModule extends BaseModule {
       clone.style.display = '';
       clone.style.opacity = '0.9';
       clone.classList.remove('au-hidden-notification');
-
-      // Remove username from clone
-      const userLink = clone.querySelector<HTMLAnchorElement>('a[href^="/user/"]');
-      if (userLink) userLink.remove();
+      clone.classList.add('au-sub-notification');
+      clone.setAttribute('data-au-processed', 'true'); // Pre-mark to prevent observer loop
+      // Remove username from clone via safe DOM walker
+      const userLink = notification.querySelector<HTMLAnchorElement>('a[href^="/user/"]');
+      const username = userLink ? userLink.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '' : '';
+      if (username) this.stripUsername(clone, username);
 
       // Disable clicks
       clone.style.cursor = 'default';
@@ -464,7 +582,7 @@ export class NotificationCleanerModule extends BaseModule {
       dropdownInner.appendChild(clone);
 
       // Enhance with activity details
-      await this.enhanceNotificationsWithActivityDetails([clone], [notification]);
+      await this.enhanceNotificationsWithActivityDetails([clone]);
     }
 
     // Hide original notification
@@ -493,7 +611,7 @@ export class NotificationCleanerModule extends BaseModule {
     const types = Array.from(group.types.keys());
     const isSingleType = types.length === 1;
     const count = group.count;
-    const countSpan = `<span class="au-activity-count" data-group-id="${Date.now()}" style="cursor: pointer; text-decoration: underline;">${count}</span>`;
+    const countSpan = `<span class="au-activity-count" data-group-id="${Date.now()}" style="cursor: pointer;">${count}</span>`;
 
     if (isSingleType) {
       const type = types[0];
@@ -535,34 +653,107 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   /**
+   * Safely removes the plain-text username from clones
+   */
+  private stripUsername(notification: Element, username: string): void {
+    const textContainers = notification.querySelectorAll('.details, .text, .content');
+    if (textContainers.length === 0) return;
+    
+    const walkDOM = (node: Node): boolean => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent || '';
+        const idx = text.toLowerCase().indexOf(username.toLowerCase());
+        
+        if (idx !== -1) {
+          node.textContent = text.substring(0, idx) + text.substring(idx + username.length);
+          return true; // Stop walking
+        }
+      } else {
+        for (const child of Array.from(node.childNodes)) {
+          if (walkDOM(child)) return true;
+        }
+      }
+      return false;
+    };
+    
+    walkDOM(textContainers[0]);
+  }
+
+  /**
+   * Safely injects a clickable link over a plain-text username
+   */
+  private injectUserLink(notification: Element, username: string): void {
+    const textContainers = notification.querySelectorAll('.details, .text, .content');
+    if (textContainers.length === 0) return;
+    
+    const walkDOM = (node: Node): boolean => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent || '';
+        const idx = text.toLowerCase().indexOf(username.toLowerCase());
+        
+        if (idx !== -1) {
+          // Verify we aren't already inside an anchor tag
+          let parent = node.parentNode;
+          while (parent) {
+            if (parent.nodeName.toLowerCase() === 'a') return false;
+            if ((parent as Element).classList) {
+               const classes = (parent as Element).classList;
+               if (classes.contains('text') || classes.contains('details') || classes.contains('content')) break;
+            }
+            parent = parent.parentNode;
+          }
+
+          const a = document.createElement('a');
+          a.href = `/user/${username}`;
+          a.className = 'name au-user-link';
+          a.style.pointerEvents = 'auto';
+          a.textContent = text.substring(idx, idx + username.length);
+          
+          const beforeText = document.createTextNode(text.substring(0, idx));
+          const afterText = document.createTextNode(text.substring(idx + username.length));
+          
+          if (node.parentNode) {
+            node.parentNode.insertBefore(beforeText, node);
+            node.parentNode.insertBefore(a, node);
+            node.parentNode.insertBefore(afterText, node);
+            node.parentNode.removeChild(node);
+            return true; // Stop walking
+          }
+        }
+      } else {
+        // Continue walking children
+        for (const child of Array.from(node.childNodes)) {
+          if (walkDOM(child)) return true;
+        }
+      }
+      return false;
+    };
+    
+    walkDOM(textContainers[0]);
+  }
+
+  /**
    * Extract activity ID from notification href
    */
   private extractActivityId(notification: HTMLElement): number | null {
-    // Look for link with class "link" (AniList notification structure)
-    const activityLink = notification.querySelector<HTMLAnchorElement>('a.link[href*="/activity/"]');
-    if (activityLink) {
-      const href = activityLink.getAttribute('href') || '';
+    // Check if we cached it first
+    const dataId = notification.getAttribute('data-activity-id');
+    if (dataId) return parseInt(dataId, 10);
+
+    // Collect all links that might point to an activity
+    const links = Array.from(notification.querySelectorAll<HTMLAnchorElement>('a[href*="/activity/"]'));
+    
+    for (const link of links) {
+      const href = link.getAttribute('href') || '';
       const match = href.match(/\/activity\/(\d+)/);
       if (match) {
         const id = parseInt(match[1], 10);
-        log.info(`[NotificationCleaner] ✅ Extracted activity ID: ${id} from href: ${href}`);
+        log.info(`[NotificationCleaner] ✅ Extracted activity ID: ${id}`);
         return id;
       }
     }
 
-    // Fallback: try any activity link
-    const anyLink = notification.querySelector<HTMLAnchorElement>('a[href*="/activity/"]');
-    if (anyLink) {
-      const href = anyLink.getAttribute('href') || '';
-      const match = href.match(/\/activity\/(\d+)/);
-      if (match) {
-        const id = parseInt(match[1], 10);
-        log.info(`[NotificationCleaner] ✅ Extracted activity ID (fallback): ${id}`);
-        return id;
-      }
-    }
-
-    log.warn('[NotificationCleaner] ❌ No activity link found in notification');
+    log.warn('[NotificationCleaner] ❌ No activity ID found in links');
     return null;
   }
 
@@ -587,6 +778,9 @@ export class NotificationCleanerModule extends BaseModule {
       ... on TextActivity {
         text(asHtml: false)
       }
+      ... on MessageActivity {
+        message(asHtml: false)
+      }
     `;
 
     const aliases = activityIds.map(id => `a${id}: Activity(id: ${id}) { ${fields} }`);
@@ -608,11 +802,13 @@ export class NotificationCleanerModule extends BaseModule {
         if (activity.media && activity.status) {
           const title = activity.media.title.english || activity.media.title.romaji;
           status = activity.status.replace(/_/g, ' ').toLowerCase();
-          text = `${status} ${title}`;
+          text = `${status} <a href="/${activity.media.type.toLowerCase()}/${activity.media.id}" class="title au-title">${title}</a>`;
           mediaId = activity.media.id;
           mediaTitle = title;
+        } else if (activity.message) {
+          text = `sent a message: <i>"${activity.message.substring(0, 50)}${activity.message.length > 50 ? '...' : ''}"</i>`;
         } else if (activity.text) {
-          text = activity.text.substring(0, 50) + (activity.text.length > 50 ? '...' : '');
+          text = `wrote: <i>"${activity.text.substring(0, 50)}${activity.text.length > 50 ? '...' : ''}"</i>`;
         }
 
         results.set(id, { text, mediaId, mediaTitle, status });
@@ -628,7 +824,7 @@ export class NotificationCleanerModule extends BaseModule {
   /**
    * Enhance notifications with activity details
    */
-  private async enhanceNotificationsWithActivityDetails(clones: HTMLElement[], originals: HTMLElement[]): Promise<void> {
+  private async enhanceNotificationsWithActivityDetails(clones: HTMLElement[]): Promise<void> {
     log.info(`[NotificationCleaner] 🔍 Starting enhancement for ${clones.length} clones`);
 
     const activityIds = clones
@@ -653,7 +849,7 @@ export class NotificationCleanerModule extends BaseModule {
     const activityDetails = await this.fetchActivityDetails(activityIds);
     log.info(`[NotificationCleaner] Fetched ${activityDetails.size} activity details`);
 
-    clones.forEach((clone, index) => {
+    clones.forEach((clone) => {
       const activityId = this.extractActivityId(clone);
       if (!activityId) {
         log.warn('[NotificationCleaner] Clone has no activity ID');
@@ -668,16 +864,16 @@ export class NotificationCleanerModule extends BaseModule {
 
       log.info(`[NotificationCleaner] 📝 Processing activity ${activityId} with details: "${activityData.text}"`);
 
-      // Try multiple selectors to find the element containing "liked your activity"
-      const possibleSelectors = ['.text', '.content', 'div', 'span'];
+      // Try multiple selectors to find the element containing the content
+      const possibleSelectors = ['.details', '.text', '.content'];
       let textElement: Element | null = null;
 
       for (const selector of possibleSelectors) {
         const elements = clone.querySelectorAll(selector);
+        // Find the one that actually contains text to replace
         for (const el of Array.from(elements)) {
-          if (el.innerHTML.includes('liked your activity')) {
+          if (el.textContent?.trim().length) {
             textElement = el;
-            log.info(`[NotificationCleaner] ✅ Found text element using selector: ${selector}`);
             break;
           }
         }
@@ -685,31 +881,45 @@ export class NotificationCleanerModule extends BaseModule {
       }
 
       if (!textElement) {
-        log.error('[NotificationCleaner] ❌ No element containing "liked your activity" found!');
-        log.error('[NotificationCleaner] 🔍 Clone HTML:', clone.innerHTML.substring(0, 500));
-        return;
+        // Fallback to clone itself if .text or .content isn't found
+        textElement = clone;
       }
 
       const originalHTML = textElement.innerHTML;
-      log.info(`[NotificationCleaner] Original HTML: "${originalHTML.substring(0, 100)}"`);
+      // Robust replacement - target the phrase and variations
+      let newHTML = originalHTML;
 
-      // Build the replacement HTML with proper links
-      let detailsHTML: string;
+      if (activityData.mediaId) {
+        // We pre-formatted the text to include the HTML link in fetchActivityDetails
+        const patterns = [
+          new RegExp(`liked your activity\\.?`, 'i'),
+          new RegExp(`liked your activity\\s*`, 'i'),
+          new RegExp(`liked your\\s+`, 'i')
+        ];
 
-      if (activityData.mediaId && activityData.mediaTitle && activityData.status) {
-        // Has media - create link to media for title only
-        const mediaType = originals[index].querySelector('[href*="/anime/"]') ? 'anime' : 'manga';
-        const mediaUrl = `/${mediaType}/${activityData.mediaId}`;
-        detailsHTML = `${activityData.status} <a href="${mediaUrl}" class="title">${activityData.mediaTitle}</a>`;
-        log.info(`[NotificationCleaner] 🔗 Added media link: ${mediaUrl}`);
-      } else {
-        // Text activity or no media
-        detailsHTML = activityData.text;
-        log.info(`[NotificationCleaner] ℹ️ No media, using plain text`);
+        for (const pattern of patterns) {
+          if (pattern.test(originalHTML)) {
+            // "Carlos liked: watched episode NIPPON SANGOKU"
+            const replacementText = `liked: ${activityData.text}`;
+            newHTML = originalHTML.replace(pattern, replacementText);
+            break;
+          }
+        }
+      } else if (activityData.text) {
+         // Replace "sent you a message" or "replied to your activity"
+         const patterns = [
+           new RegExp(`sent you a message\\.?`, 'i'),
+           new RegExp(`replied to your activity\\.?`, 'i'),
+           new RegExp(`liked your activity\\.?`, 'i')
+         ];
+         
+         for (const pattern of patterns) {
+           if (pattern.test(originalHTML)) {
+             newHTML = originalHTML.replace(pattern, activityData.text);
+             break;
+           }
+         }
       }
-
-      // More robust replacement - match "liked your activity" with or without punctuation
-      const newHTML = originalHTML.replace(/liked your activity\.?/i, `liked your ${detailsHTML}`);
 
       if (newHTML !== originalHTML) {
         textElement.innerHTML = newHTML;
@@ -719,32 +929,15 @@ export class NotificationCleanerModule extends BaseModule {
           const addedLink = textElement.querySelector<HTMLAnchorElement>('a.title');
           if (addedLink) {
             addedLink.style.pointerEvents = 'auto';
+            // cursor pointer already handled globally, but we can enforce it
             addedLink.style.cursor = 'pointer';
-            log.info(`[NotificationCleaner] ✅ Re-enabled media link`);
+            log.info(`[NotificationCleaner] ✅ Re-enabled media link: ${activityData.mediaTitle}`);
           }
         }
 
-        // Make the entire clone clickable to open activity
-        const originalNotif = originals[index];
-        const activityLink = originalNotif.querySelector<HTMLAnchorElement>('a.link[href*="/activity/"]');
-        if (activityLink) {
-          const activityHref = activityLink.getAttribute('href');
-          if (activityHref) {
-            clone.style.cursor = 'pointer';
-            clone.onclick = (e) => {
-              // Don't navigate if clicking on the media link
-              if ((e.target as HTMLElement).closest('a.title')) {
-                return;
-              }
-              window.location.href = activityHref;
-            };
-            log.info(`[NotificationCleaner] 🔗 Added activity link to clone: ${activityHref}`);
-          }
-        }
-
-        log.info(`[NotificationCleaner] ✅ REPLACED text for activity ${activityId}: "${activityData.text}"`);
+        log.info(`[NotificationCleaner] ✅ REPLACED text for activity ${activityId}`);
       } else {
-        log.error(`[NotificationCleaner] ❌ FAILED to replace - pattern not found in: "${originalHTML}"`);
+        log.error(`[NotificationCleaner] ❌ FAILED to replace - no pattern matched in: "${originalHTML}"`);
       }
     });
   }
@@ -793,9 +986,10 @@ export class NotificationCleanerModule extends BaseModule {
     const notifications = document.querySelectorAll<HTMLElement>('.notification');
 
     notifications.forEach(notification => {
-      // Skip virtual and hidden notifications
+      // Skip virtual, hidden, and sub-notifications
       if (notification.classList.contains('au-virtual-notification') ||
-          notification.classList.contains('au-hidden-notification')) {
+          notification.classList.contains('au-hidden-notification') ||
+          notification.classList.contains('au-sub-notification')) {
         return;
       }
 

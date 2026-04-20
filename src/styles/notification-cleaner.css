@@ -88,12 +88,14 @@
 }
 
 .au-notification-dropdown-inner {
-  padding-left: 20px;
-  padding-top: 10px;
-  border-left: 4px solid rgb(var(--color-blue));
+  padding-left: 16px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-left: 3px solid rgba(var(--color-blue), 0.3);
+  margin-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   overflow: hidden;
 }
 
@@ -102,10 +104,48 @@
   opacity: 0.95;
   font-size: 0.95em;
   transition: opacity 0.2s ease;
+  display: flex !important; /* Ensure flex layout for content */
+  flex-direction: row;
+  align-items: center;
+  min-height: auto;
+  padding: 8px 12px;
+  width: 100%;
 }
 
 .au-notification-dropdown .notification:hover {
   opacity: 1;
+}
+
+/* Fix for word-wrapping/collapsing content */
+.au-notification-dropdown .notification .content,
+.au-notification-dropdown .notification .text {
+  flex: 1;
+  white-space: normal;
+  word-break: break-word;
+  padding-left: 10px;
+}
+
+/* Status and Title separation */
+.notification .au-title {
+  color: rgb(var(--color-blue));
+  font-weight: 600;
+  margin-left: 0.25em; /* Force spacing regardless of HTML text nodes collapse */
+}
+
+.au-notification-dropdown .notification .title,
+.notification .au-user-link {
+  color: rgb(var(--color-blue));
+  font-weight: 600;
+}
+
+.notification .au-user-link:hover,
+.notification .au-title:hover {
+  color: rgb(var(--color-blue-dim));
+}
+
+/* Ensure images don't shrink */
+.au-notification-dropdown .notification img {
+  flex-shrink: 0;
 }
 
 @keyframes au-dropdown-expand {
