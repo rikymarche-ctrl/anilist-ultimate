@@ -31,6 +31,12 @@ interface ReviewResponse {
   Review: ReviewData;
 }
 
+interface BatchReviewResponse {
+  Page: {
+    reviews: ReviewData[];
+  };
+}
+
 export class ReviewService {
   private static instance: ReviewService;
   private reviewCache: Map<number, ReviewData> = new Map();
@@ -42,6 +48,75 @@ export class ReviewService {
       ReviewService.instance = new ReviewService();
     }
     return ReviewService.instance;
+  }
+
+  /**
+   * Get multiple reviews by IDs (Batch)
+   */
+  public async getReviews(ids: number[]): Promise<ReviewData[]> {
+    if (ids.length === 0) return [];
+
+    const results: ReviewData[] = [];
+    const pendingIds: number[] = [];
+
+    // Check cache first
+    ids.forEach(id => {
+      if (this.reviewCache.has(id)) {
+        results.push(this.reviewCache.get(id)!);
+      } else {
+        pendingIds.push(id);
+      }
+    });
+
+    if (pendingIds.length === 0) return results;
+
+    // Fetch pending IDs in chunks of 50 (AniList limit)
+    const chunkSize = 50;
+    for (let i = 0; i < pendingIds.length; i += chunkSize) {
+      const chunk = pendingIds.slice(i, i + chunkSize);
+      try {
+        const query = `
+          query ($ids: [Int]) {
+            Page(page: 1, perPage: 50) {
+              reviews(id_in: $ids) {
+                id
+                score
+                summary
+                body(asHtml: false)
+                rating
+                ratingAmount
+                user {
+                  id
+                  name
+                }
+                media {
+                  id
+                  title {
+                    romaji
+                    english
+                  }
+                }
+              }
+            }
+          }
+        `;
+
+        const variables = { ids: chunk };
+        const response = await this.executeQuery<BatchReviewResponse>(query, variables);
+
+        if (response?.Page?.reviews) {
+          response.Page.reviews.forEach(review => {
+            this.reviewCache.set(review.id, review);
+            results.push(review);
+          });
+          log.info(`ReviewService: Batched fetched ${response.Page.reviews.length} reviews`);
+        }
+      } catch (error) {
+        log.error(`ReviewService: Failed to batch fetch reviews`, error);
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -107,6 +182,9 @@ export class ReviewService {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          ...(localStorage.getItem('access_token') && localStorage.getItem('access_token') !== 'undefined'
+            ? { Authorization: `Bearer ${localStorage.getItem('access_token')}` } 
+            : {}),
         },
         body: JSON.stringify({
           query,
