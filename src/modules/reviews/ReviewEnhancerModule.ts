@@ -1,7 +1,8 @@
 /**
  * Review Enhancer Module
- * Strategic Batching Version: Optimized for AniList rate limits
- * Uses Alias Batching with Dynamic Tuning based on the current page section
+ * Advanced Debounced Batching Version
+ * Consolidates all discoveries into rare, high-volume batch calls to avoid API limits.
+ * Includes a background fail-safe scanner for lazy-loaded content.
  */
 
 import { log } from '@core/logger';
@@ -11,11 +12,15 @@ import '../../styles/review-enhancer.css';
 
 export class ReviewEnhancerModule extends BaseModule {
   private inFlightReviews: Set<number> = new Set();
+  private pendingQueue: Map<number, HTMLElement[]> = new Map();
   private reviewService!: ReviewService;
-  private processingTimeout: number | null = null;
+  
+  private debounceTimer: number | null = null;
+  private scanInterval: number | null = null;
+  private isBatching: boolean = false;
 
   public async init(): Promise<void> {
-    log.info('ReviewEnhancer: Initializing Strategic Version');
+    log.info('ReviewEnhancer: Initializing Debounced Batching Version');
     this.reviewService = ReviewService.getInstance();
 
     this.watchPageNavigation(() => {
@@ -27,55 +32,53 @@ export class ReviewEnhancerModule extends BaseModule {
   }
 
   private fullReset(): void {
-    if (this.processingTimeout) {
-      window.clearTimeout(this.processingTimeout);
-      this.processingTimeout = null;
-    }
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer);
+    if (this.scanInterval) window.clearInterval(this.scanInterval);
+    this.debounceTimer = null;
+    this.scanInterval = null;
+    this.isBatching = false;
+    
     this.cleanup();
     this.inFlightReviews.clear();
+    this.pendingQueue.clear();
   }
 
   private startObservation(): void {
-    // Initial strategic delay to gather all page-load cards
-    this.queueProcessing(800);
+    // 1. Initial Scan
+    this.scanAndQueue();
 
-    // Register observer with strategic debounce (500ms)
-    // This ensures that waves of cards (Infinite Scroll) are collected together
-    this.registerObserver('reviews-strategic', document.body, { childList: true, subtree: true }, () => {
-      this.queueProcessing(500);
+    // 2. Mutation Observer for rapid changes (Debounced)
+    this.registerObserver('reviews-debounced', document.body, { childList: true, subtree: true }, () => {
+      this.scanAndQueue();
     });
+
+    // 3. Background Fail-safe Scanner (every 2 seconds)
+    // Ensures lazy-loaded items that appeared silently are caught
+    this.scanInterval = window.setInterval(() => {
+      this.scanAndQueue();
+    }, 2000);
   }
 
   /**
-   * Queue a processing cycle with debounce
+   * Scan the DOM for new review cards and add them to the pending queue
    */
-  private queueProcessing(ms: number): void {
-    if (this.processingTimeout) window.clearTimeout(this.processingTimeout);
-    this.processingTimeout = window.setTimeout(() => {
-      this.processReviews();
-      this.processingTimeout = null;
-    }, ms);
-  }
-
-  /**
-   * Process review cards across all sections using optimized batching
-   */
-  private async processReviews(): Promise<void> {
+  private scanAndQueue(): void {
     const selectors = [
       '.review-card',             // Global & Home Sidebar
       '.media-review-card',      // Media page sidebar
       '.review-entry',           // Media dedicated reviews tab
       '.review-wrap',            // Generic AniList review wrapper
-      'a[href*="/review/"]'      // Fallback/Activity
+      'a[href*="/review/"]'      // Fallback
     ];
 
-    const cardsMap: Map<number, HTMLElement[]> = new Map();
-    const pendingIds: number[] = [];
+    let foundNew = false;
 
     selectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(el => {
         const item = el as HTMLElement;
         const container = this.findReviewContainer(item);
+        
+        // Physical check: Source of truth
         if (!container || container.querySelector('.au-review-rating')) return;
 
         const href = this.extractReviewHref(item);
@@ -83,46 +86,74 @@ export class ReviewEnhancerModule extends BaseModule {
 
         const id = this.extractIdFromHref(href);
         if (id && !this.inFlightReviews.has(id)) {
-          if (!cardsMap.has(id)) {
-            cardsMap.set(id, []);
-            pendingIds.push(id);
+          if (!this.pendingQueue.has(id)) {
+            this.pendingQueue.set(id, []);
+            foundNew = true;
           }
-          cardsMap.get(id)!.push(container);
+          this.pendingQueue.get(id)!.push(container);
+          // IMMEDIATE LOCK to prevent other parallel scans from picking this up
+          this.inFlightReviews.add(id);
         }
       });
     });
 
-    if (pendingIds.length === 0) return;
+    if (foundNew) {
+      this.triggerBatchWithDebounce();
+    }
+  }
 
-    // Detect Page Context for dynamic tuning
-    const path = window.location.pathname;
-    const isGlobalReviews = path.endsWith('/reviews') && !path.includes('/anime/') && !path.includes('/manga/');
-    const isMediaReviewsTab = (path.includes('/anime/') || path.includes('/manga/')) && path.endsWith('/reviews');
+  /**
+   * Wait for 1 second of silence before executing the batch
+   */
+  private triggerBatchWithDebounce(): void {
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer);
     
-    // Chunk Tuning
-    // Global page: 50 (high volume)
-    // Media Subpage: 10 (as requested for stability)
-    // Others (Home/Sidebar): 25 (default)
-    const chunkSize = isGlobalReviews ? 50 : (isMediaReviewsTab ? 10 : 25);
+    this.debounceTimer = window.setTimeout(() => {
+      this.executeBatchCycle();
+    }, 1000);
+  }
 
-    pendingIds.forEach(id => this.inFlightReviews.add(id));
+  /**
+   * Flush the pending queue into an optimized Batch Alias call
+   */
+  private async executeBatchCycle(): Promise<void> {
+    if (this.isBatching || this.pendingQueue.size === 0) return;
+
+    this.isBatching = true;
+    const batchMap = new Map(this.pendingQueue);
+    const ids = Array.from(batchMap.keys());
+    this.pendingQueue.clear(); // Clear so new ones can be queued while we fetch
+
+    // Tuning based on page
+    const path = window.location.pathname;
+    const isMediaReviewsTab = (path.includes('/anime/') || path.includes('/manga/')) && path.endsWith('/reviews');
+    const chunkSize = (isMediaReviewsTab || path.includes('/anime/')) ? 10 : 50;
 
     try {
-      log.debug(`ReviewEnhancer: Strategic batching ${pendingIds.length} cards (chunkSize: ${chunkSize})`);
-      const results = await this.reviewService.getReviewBatch(pendingIds, chunkSize);
+      log.debug(`ReviewEnhancer: Executing Batch Cycle for ${ids.length} cards (chunkSize: ${chunkSize})`);
+      const results = await this.reviewService.getReviewBatch(ids, chunkSize);
       
       results.forEach(data => {
-        const containers = cardsMap.get(data.id);
+        const containers = batchMap.get(data.id);
         if (containers) {
           containers.forEach(container => {
             this.injectRatingUI(container, data.score);
           });
         }
+        this.inFlightReviews.delete(data.id);
       });
     } catch (error) {
-      log.error('ReviewEnhancer: Strategic processing failed', error);
+      log.error('ReviewEnhancer: Batch Cycle failed', error);
     } finally {
-      pendingIds.forEach(id => this.inFlightReviews.delete(id));
+      // Clear remaining in-flight status so they can be retried if needed
+      ids.forEach(id => this.inFlightReviews.delete(id));
+      this.isBatching = false;
+      this.debounceTimer = null;
+      
+      // If new ones were added while we were fetching, trigger another cycle
+      if (this.pendingQueue.size > 0) {
+        this.triggerBatchWithDebounce();
+      }
     }
   }
 
