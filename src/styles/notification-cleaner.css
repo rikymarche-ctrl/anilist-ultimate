@@ -68,3 +68,96 @@
   border-radius: 3px; /* Squared borders */
   border: 1px solid var(--color-border);
 }
+
+/* Activity count (clickable number) */
+.au-activity-count {
+  cursor: pointer;
+  text-decoration: underline;
+  transition: opacity 0.2s ease;
+}
+
+.au-activity-count:hover {
+  opacity: 0.7;
+}
+
+/* Dropdown container for expanded notifications */
+.au-notification-dropdown {
+  animation: au-dropdown-expand 0.3s ease;
+  margin-top: -17px;
+  margin-bottom: 24px;
+}
+
+.au-notification-dropdown-inner {
+  padding-left: 20px;
+  padding-top: 10px;
+  border-left: 4px solid rgb(var(--color-blue));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.au-notification-dropdown .notification {
+  margin-bottom: 0 !important;
+  opacity: 0.95;
+  font-size: 0.95em;
+  transition: opacity 0.2s ease;
+}
+
+.au-notification-dropdown .notification:hover {
+  opacity: 1;
+}
+
+@keyframes au-dropdown-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+/* Search Bar */
+.au-notifications-search {
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.au-notifications-search .au-search-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--au-bg, #151f2e);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: rgb(var(--color-text));
+  font-size: 1.4rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.au-notifications-search .au-search-input:hover {
+  border-color: rgba(var(--color-text), 0.2);
+}
+
+.au-notifications-search .au-search-input:focus {
+  outline: none;
+  border-color: rgb(var(--color-blue));
+  box-shadow: 0 2px 12px rgba(var(--color-blue), 0.15);
+  background: var(--au-bg, #151f2e);
+}
+
+.au-notifications-search .au-search-input::placeholder {
+  color: rgba(var(--color-text), 0.4);
+  font-weight: 500;
+}
+
+/* High Contrast override */
+.site-theme-contrast .au-notifications-search .au-search-input::placeholder,
+.high-contrast .au-notifications-search .au-search-input::placeholder,
+.theme-contrast .au-notifications-search .au-search-input::placeholder,
+.au-theme-contrast .au-notifications-search .au-search-input::placeholder {
+  color: rgba(0, 0, 0, 0.8);
+}
