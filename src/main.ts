@@ -86,6 +86,7 @@ async function loadPreferences(): Promise<UserPreferences> {
         calendar: true,
         hoverComments: true,
         notificationCleaner: true,
+        reviewEnhancer: true,
         friendActivity: false,
         listEditor: false,
         socialActivity: false,
@@ -149,6 +150,18 @@ async function initializeModules(preferences: UserPreferences): Promise<any> {
       await notificationCleanerModule.init();
     } catch (error) {
       log.error('Failed to initialize notification cleaner module', error);
+    }
+  }
+
+  // Review Enhancer Module
+  if (preferences.modules.reviewEnhancer && FEATURE_FLAGS.ENABLE_REVIEW_ENHANCER) {
+    log.info('⭐ Review Enhancer module enabled');
+    try {
+      const { ReviewEnhancerModule } = await import('@/modules/reviews/ReviewEnhancerModule');
+      const reviewEnhancerModule = new ReviewEnhancerModule();
+      await reviewEnhancerModule.init();
+    } catch (error) {
+      log.error('Failed to initialize review enhancer module', error);
     }
   }
 

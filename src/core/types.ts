@@ -76,6 +76,7 @@ export interface ModuleConfig {
   calendar: boolean;
   hoverComments: boolean;
   notificationCleaner: boolean;
+  reviewEnhancer: boolean;
   friendActivity: boolean;
   listEditor: boolean;
   socialActivity: boolean;
