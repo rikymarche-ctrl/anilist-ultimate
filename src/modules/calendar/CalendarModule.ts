@@ -9,7 +9,9 @@ import { calendarStore } from './CalendarStore';
 import { CalendarGrid } from './components/CalendarGrid';
 import { SettingsPanel } from './components/SettingsPanel';
 import { log } from '@core/logger';
-import { CSS_CLASSES } from '@core/constants';
+import { CSS_CLASSES, FEATURE_FLAGS } from '@core/constants';
+import { SocialService } from '../social/SocialService';
+import type { AnimeEntry } from '@core/types';
 
 export class CalendarModule {
   private calendarGrid: CalendarGrid | null = null;
@@ -43,6 +45,11 @@ export class CalendarModule {
 
       // Load calendar data
       await this.loadCalendarData();
+
+      // Load social data (Friend activity)
+      if (FEATURE_FLAGS.ENABLE_FRIEND_ACTIVITY) {
+        this.loadSocialData(); // Don't await to avoid blocking primary UI
+      }
 
       // Setup page navigation observer
       this.setupNavigationObserver();
@@ -398,6 +405,34 @@ export class CalendarModule {
       this.showError('Failed to load anime schedule');
     } finally {
       calendarStore.setLoading(false);
+    }
+  }
+
+  /**
+   * Load social data (friend activity) in batch
+   */
+  private async loadSocialData(): Promise<void> {
+    const entries = calendarStore.getState().entries;
+    if (entries.length === 0) return;
+
+    log.info('Fetching social data for calendar entries...');
+    
+    const mediaIds = entries.map(e => e.mediaId);
+    const socialService = SocialService.getInstance();
+
+    try {
+      const socialMap = await socialService.getFriendActivityBatch(mediaIds);
+      
+      // Update store in batch
+      const updates = new Map<number, Partial<AnimeEntry>>();
+      socialMap.forEach((activity, mediaId) => {
+        updates.set(mediaId, { friendActivity: activity });
+      });
+
+      calendarStore.updateEntriesBatch(updates);
+      log.success(`Social data loaded for ${socialMap.size} entries`);
+    } catch (e) {
+      log.error('Failed to load social data', e);
     }
   }
 

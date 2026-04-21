@@ -13,7 +13,9 @@
   padding: 0;
   background: var(--cal-background);
   border-radius: 6px;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to allow elevated bubbles */
+  position: relative;
+  z-index: 10;
 }
 
 /* Styled Replaced Header */
@@ -286,22 +288,31 @@
   background: var(--cal-anime-bg);
   border: 1px solid var(--cal-border);
   border-radius: 6px;
-  overflow: hidden;
+  overflow: visible; /* Allow external floating social bubble */
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   margin-bottom: 6px;
-  width: 100%;
-  /* Ensure card takes full width of container */
+  z-index: 1;
   max-width: 100%;
-  /* Prevent overflow */
   box-sizing: border-box;
 }
 
 .anime-card:hover {
+  z-index: 2000 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   background: var(--cal-anime-hover);
+}
+
+.anime-card__container {
+  display: flex;
+  flex-direction: inherit;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Clips everything inside the card perfectly */
+  border-radius: inherit;
+  position: relative;
 }
 
 .anime-card:hover .anime-card__image {
@@ -398,9 +409,12 @@
 .anime-card--standard:hover .anime-card__action--standard {
   opacity: 1;
   pointer-events: auto;
-  backdrop-filter: blur(8px) brightness(0.7);
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 6px;
+  backdrop-filter: blur(12px) brightness(0.7);
+  background-color: rgba(0, 0, 0, 0.2);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* Specific Glassmorphism for Full Width Mode */
@@ -421,9 +435,7 @@
   top: 0;
   left: 0;
   width: 100%;
-  /* Cover entire card width */
   height: 100%;
-  /* full card height */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -431,7 +443,7 @@
   transition: all 0.25s ease;
   z-index: 25;
   pointer-events: none;
-  cursor: pointer; /* Feedback for navigation */
+  cursor: pointer;
 }
 
 /* Show pill and blur when hovering card */

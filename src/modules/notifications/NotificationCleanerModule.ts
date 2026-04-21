@@ -788,30 +788,34 @@ export class NotificationCleanerModule extends BaseModule {
 
     try {
       const response = await anilistClient.query<Record<string, ActivityData>>(query);
-      const results = new Map<number, { text: string; mediaId?: number; mediaTitle?: string; status?: string }>();
+      const results = new Map<number, { text: string; type: string; mediaId?: number; mediaTitle?: string; status?: string }>();
 
       Object.entries(response).forEach(([alias, activity]) => {
         if (!activity) return;
 
         const id = parseInt(alias.replace('a', ''), 10);
         let text = 'your activity';
+        let actType = 'unknown';
         let mediaId: number | undefined;
         let mediaTitle: string | undefined;
         let status: string | undefined;
 
         if (activity.media && activity.status) {
+          actType = 'media';
           const title = activity.media.title.english || activity.media.title.romaji;
           status = activity.status.replace(/_/g, ' ').toLowerCase();
           text = `${status} <a href="/${activity.media.type.toLowerCase()}/${activity.media.id}" class="title au-title">${title}</a>`;
           mediaId = activity.media.id;
           mediaTitle = title;
         } else if (activity.message) {
-          text = `sent a message: <i>"${activity.message.substring(0, 50)}${activity.message.length > 50 ? '...' : ''}"</i>`;
+          actType = 'message';
+          text = `<i>"${activity.message.substring(0, 50)}${activity.message.length > 50 ? '...' : ''}"</i>`;
         } else if (activity.text) {
-          text = `wrote: <i>"${activity.text.substring(0, 50)}${activity.text.length > 50 ? '...' : ''}"</i>`;
+          actType = 'text';
+          text = `<i>"${activity.text.substring(0, 50)}${activity.text.length > 50 ? '...' : ''}"</i>`;
         }
 
-        results.set(id, { text, mediaId, mediaTitle, status });
+        results.set(id, { text, type: actType, mediaId, mediaTitle, status });
       });
 
       return results;
@@ -906,19 +910,30 @@ export class NotificationCleanerModule extends BaseModule {
           }
         }
       } else if (activityData.text) {
-         // Replace "sent you a message" or "replied to your activity"
-         const patterns = [
-           new RegExp(`sent you a message\\.?`, 'i'),
-           new RegExp(`replied to your activity\\.?`, 'i'),
-           new RegExp(`liked your activity\\.?`, 'i')
-         ];
-         
-         for (const pattern of patterns) {
-           if (pattern.test(originalHTML)) {
-             newHTML = originalHTML.replace(pattern, activityData.text);
-             break;
-           }
-         }
+        // Smart replacement based on notification text
+        const isLike = originalHTML.toLowerCase().includes('liked');
+        const isReply = originalHTML.toLowerCase().includes('replied');
+        const isMessage = originalHTML.toLowerCase().includes('message');
+
+        let replacementPrefix = '';
+        if (isLike) replacementPrefix = 'liked: ';
+        else if (isReply) replacementPrefix = 'replied: ';
+        else if (isMessage) replacementPrefix = 'sent: ';
+        else replacementPrefix = 'wrote: ';
+
+        const patterns = [
+          new RegExp(`sent you a message\\.?`, 'i'),
+          new RegExp(`replied to your activity\\.?`, 'i'),
+          new RegExp(`liked your activity\\.?`, 'i'),
+          new RegExp(`liked your activity reply\\.?`, 'i')
+        ];
+
+        for (const pattern of patterns) {
+          if (pattern.test(originalHTML)) {
+            newHTML = originalHTML.replace(pattern, `${replacementPrefix}${activityData.text}`);
+            break;
+          }
+        }
       }
 
       if (newHTML !== originalHTML) {

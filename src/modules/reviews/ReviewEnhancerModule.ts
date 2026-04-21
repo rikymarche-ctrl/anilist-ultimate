@@ -7,6 +7,7 @@
 import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
 import { ReviewService } from './ReviewService';
+import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import '../../styles/review-enhancer.css';
 
 export class ReviewEnhancerModule extends BaseModule {
@@ -231,13 +232,7 @@ export class ReviewEnhancerModule extends BaseModule {
   }
 
   private getColorClass(rating: number): string {
-    if (rating >= 90) return 'au-review-rating--perfect';
-    if (rating >= 80) return 'au-review-rating--excellent';
-    if (rating >= 70) return 'au-review-rating--high';
-    if (rating >= 60) return 'au-review-rating--good';
-    if (rating >= 50) return 'au-review-rating--medium';
-    if (rating >= 40) return 'au-review-rating--poor';
-    return 'au-review-rating--terrible';
+    return `au-review-rating--${ScoreFormatter.getLabel(rating)}`;
   }
 
   public destroy(): void {

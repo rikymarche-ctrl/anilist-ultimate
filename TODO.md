@@ -1,25 +1,20 @@
-# Anilist Ultimate - TODO & Future Enhancements
+# AniList Ultimate v2 - Project TODO
 
-Questo file traccia le funzionalità pianificate e i miglioramenti da apportare ai vari moduli dell'estensione.
+## 🚀 Active Features
+- [x] **Universal Seasonal Calendar**: Modernized layout with responsive grid.
+- [x] **Social Sidebar**: Detailed activity feed with Following/Global filters.
+- [x] **Notification Cleaning**: Merged activity likes and restyled notifications.
+- [x] **Smart Refills**: Ghost comments injected into media pages.
+- [x] **Diverse Scoring**: Support for Stars, Smilies, and Decimal ratings.
 
-## 🧹 Notification Cleaner (Anti-Spam)
-- [ ] **Dropdown per Dettagli**: Aggiungere un menu a discesa (dropdown) nelle notifiche raggruppate che mostri l'elenco dei singoli eventi originali.
-- [ ] **Navigazione Multipla**: Fare in modo che il numero di attività cliccabile (es. "liked **4** activities") permetta di visualizzare o navigare tra tutte le attività coinvolte, non solo l'ultima.
-- [ ] **Supporto altri tipi**: Estendere il raggruppamento anche per "scraped activity", "mentions" o "replies" se provenienti dallo stesso utente in un breve lasso di tempo.
+## 🛠️ Current Bug Fixes
+- [x] **Notification "Like" Fix**: Disambiguated likes from replies in notifications.
+- [x] **Global Social Injection**: Restore the social icons/avatars on native AniList cards (Home/Search).
+- [ ] **Activity Score Check**: Investigate why some 'Completed' activities don't show a score tag.
+- [ ] **Notification Refinement**: Ensure "replied to" vs "liked" is 100% accurate across all notification variants.
 
-## 🌐 Social Activity (Activity Enhancer)
-- [ ] **Persistenza Filtri**: Salvare i filtri selezionati (es. "Read only") nello storage per ritrovarli al prossimo caricamento.
-- [ ] **Pulsante "Unmerge" veloce**: Permettere di espandere un singolo blocco mergiato senza dover de-mergiare tutto il feed.
-- [ ] **Counter globale**: Mostrare quante attività sono state rimosse/mergiate per dare un feedback sull'ordine creato nel feed.
-
-## ⭐ Review Enhancer
-- [ ] **Filtro per Voto**: Aggiungere la possibilità di filtrare le recensioni in base al punteggio (es. "Mostra solo recensioni sopra 80").
-- [ ] **Integrazione Profile**: Assicurarsi che i voti appaiano in modo consistente anche nella scheda "Reviews" del profilo utente.
-
-## 📅 Calendar
-- [ ] **Notifiche Desktop**: Opzione per ricevere una notifica browser quando un anime della propria lista sta per andare in onda.
-- [ ] **Sync Google Calendar**: Esportazione degli airing times verso calendari esterni.
-
-## 🛠 Core & Performance
-- [ ] **Shadow DOM**: Valutare lo spostamento della UI iniettata in uno Shadow DOM per evitare conflitti CSS con AniList.
-- [ ] **I18n**: Supporto multilingua (Italiano/Inglese) per tutte le etichette dell'estensione.
+## 📅 Roadmap (Next Features)
+- [ ] **Weighted Scoring System**: Custom algorithm for personal ratings.
+- [ ] **Import/Export Tool**: List backup to CSV.
+- [ ] **Best Friends Feed**: Dedicated filter for a curated list of close friends.
+- [ ] **Quick Menu**: Sidebar shortcut for list management.

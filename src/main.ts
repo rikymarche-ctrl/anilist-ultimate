@@ -17,9 +17,12 @@ import { ReviewEnhancerModule } from '@/modules/reviews/ReviewEnhancerModule';
 import { ActivityEnhancerModule } from '@/modules/activity/ActivityEnhancerModule';
 import { ForumEnhancerModule } from '@/modules/forum/ForumEnhancerModule';
 import { ActivityScoreModule } from '@/modules/activity/ActivityScoreModule';
+import { SocialActivityModule } from '@/modules/social/SocialActivityModule';
+import { SocialEnhancerModule } from './modules/social/SocialEnhancerModule';
 
 // Styles
 import './styles/main.css';
+import './styles/social-activity.css';
 
 /**
  * Initialize the global debug object
@@ -100,8 +103,8 @@ async function loadPreferences(): Promise<UserPreferences> {
       hoverComments: true,
       notificationCleaner: true,
       reviewEnhancer: true,
-      friendActivity: false,
-      listEditor: false,
+      friendActivity: true,
+      listEditor: true,
       socialActivity: true,
       forumEnhancer: true,
       activityScore: true,
@@ -118,6 +121,8 @@ async function loadPreferences(): Promise<UserPreferences> {
       maxCardsPerDay: 0,
       fullWidthImages: false,
       openInNewTab: false,
+      socialEnabled: true,
+      socialShowAvatars: true,
     },
   };
 }
@@ -182,6 +187,15 @@ async function initializeModules(preferences: UserPreferences): Promise<void> {
       instances.activityScore = new ActivityScoreModule();
       await instances.activityScore.init();
     } catch (e) { log.error('Module Error: ActivityScore', e); }
+  }
+
+  // Social Activity (Sidebar & Avatars)
+  if (preferences.modules.friendActivity && FEATURE_FLAGS.ENABLE_FRIEND_ACTIVITY) {
+    try {
+      instances.socialActivity = new SocialActivityModule();
+      await instances.socialActivity.init();
+      await new SocialEnhancerModule().init();
+    } catch (e) { log.error('Module Error: SocialActivity', e); }
   }
 
   // Exposure

@@ -1,0 +1,350 @@
+/**
+ * Social Activity Styles
+ * Avatars on cards and the Social Sidebar
+ */
+
+/* Friend Activity Container on Cards */
+.friend-activity-container, .au-social-wrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  pointer-events: auto;
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Clipping Fixes */
+.media-preview-card:hover, .media-card:hover, .anime-card:hover,
+.media-preview-card:hover .cover, .media-card:hover .cover,
+.media-preview-card:hover .image, .media-card:hover .image,
+.media-preview-card:hover .image-container, .media-card:hover .image-container {
+  overflow: visible !important;
+}
+
+/* Elevated State on Card Hover */
+.media-preview-card:hover .au-social-wrapper, 
+.media-card:hover .au-social-wrapper,
+.anime-card:hover .au-social-wrapper {
+  opacity: 1;
+  visibility: visible;
+  top: auto;
+  bottom: 100%; /* Placed exactly at the top of the card */
+  right: 50%;
+  left: auto;
+  transform: translateX(50%);
+  align-items: center;
+  z-index: 10000 !important;
+  background: rgba(14, 22, 33, 0.95);
+  backdrop-filter: blur(16px);
+  padding: 10px 14px;
+  border-radius: 24px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex-direction: column;
+  gap: 8px;
+}
+
+.au-social-stack {
+  display: flex;
+  flex-direction: row-reverse;
+  margin-bottom: 0;
+  transition: all 0.3s ease;
+  gap: -8px;
+}
+
+.media-preview-card:hover .au-social-stack, 
+.media-card:hover .au-social-stack,
+.anime-card:hover .au-social-stack {
+  gap: 4px;
+  flex-direction: row; /* Switch to normal row for easier reading when elevated */
+}
+
+.au-social-avatar-extra {
+  display: none !important;
+}
+
+/* Magnification: Reveal extra friends when the bubble is hovered */
+.au-social-wrapper:hover .au-social-avatar-extra {
+  display: block !important;
+}
+
+.au-social-wrapper:hover .extra-count {
+  display: none !important;
+}
+
+.au-social-wrapper:hover .au-social-stack {
+  gap: 6px;
+}
+
+.au-social-button {
+  display: none !important;
+  width: 28px;
+  height: 28px;
+  background: rgba(var(--color-blue), 0.9);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.media-preview-card:hover .au-social-button,
+.media-card:hover .au-social-button,
+.anime-card:hover .au-social-button {
+  display: flex !important;
+}
+
+.au-social-button:hover {
+  background: rgb(var(--color-blue));
+  transform: scale(1.1);
+}
+
+.friend-activity-container {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  gap: -8px; /* Negative gap for stack effect */
+  z-index: 5;
+  transition: opacity 0.3s ease;
+  pointer-events: auto;
+}
+
+.friend-activity-container.loading {
+  opacity: 0.5;
+}
+
+.friend-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--cal-anime-bg, #151f2e);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: -8px; /* Stack effect */
+}
+
+.friend-avatar:hover {
+  transform: translateY(-4px) scale(1.2);
+  z-index: 100 !important;
+  border-color: #3db4f2;
+}
+
+.media-preview-card:hover .friend-avatar,
+.media-card:hover .friend-avatar,
+.anime-card:hover .friend-avatar {
+  width: 30px;
+  height: 30px;
+  margin-right: 0; /* Clear the overlap on hover */
+}
+
+/* Extra count badge */
+.friend-avatar.extra-count {
+  background: rgba(31, 38, 49, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #3db4f2;
+  border-color: rgba(61, 180, 242, 0.3);
+}
+
+/* Tooltip Portal */
+.au-friend-tooltip-portal {
+  pointer-events: auto !important;
+}
+
+/* --- Social Sidebar --- */
+.au-social-sidebar {
+  position: fixed;
+  top: 0;
+  right: -320px;
+  width: 300px;
+  height: 100vh;
+  background: var(--cal-background-glass, rgba(14, 22, 33, 0.95));
+  backdrop-filter: blur(12px);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 9999;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+}
+
+.au-social-sidebar.active {
+  transform: translateX(-320px);
+}
+
+/* Pulse Animation for active card */
+.au-anime-active {
+  animation: au-pulse-blue 1.5s infinite ease-in-out !important;
+  z-index: 1000 !important;
+  position: relative;
+  border: 2px solid #3db4f2 !important;
+  box-shadow: 0 0 15px rgba(61, 180, 242, 0.4) !important;
+}
+
+@keyframes au-pulse-blue {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Sidebar Components */
+.au-social-header {
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.au-social-close {
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8fa0b1;
+  border-radius: 50%;
+  transition: all 0.2s;
+  font-size: 18px;
+}
+
+.au-social-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.au-social-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.au-social-tabs {
+  display: flex;
+  padding: 10px 20px;
+  gap: 15px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.au-filter {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8fa0b1;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding-bottom: 5px;
+  border-bottom: 2px solid transparent;
+}
+
+.au-filter:hover {
+  color: #fff;
+}
+
+.au-filter.active {
+  color: #3db4f2;
+  border-bottom-color: #3db4f2;
+}
+
+.au-social-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+/* Friend Rows */
+.au-friend-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.au-friend-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.au-friend-avatar-link img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.au-friend-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.au-friend-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f3f4f6;
+  text-decoration: none;
+  display: block;
+}
+
+.au-friend-status {
+  font-size: 12px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.au-friend-date {
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.au-friend-note {
+  font-size: 12px;
+  color: #e0c56e;
+  font-style: italic;
+  margin-top: 6px;
+  background: rgba(255, 215, 0, 0.05);
+  padding: 6px;
+  border-radius: 4px;
+  border-left: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.au-score-badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.au-social-loading, .au-social-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.au-social-loading i {
+  font-size: 24px;
+  color: #3db4f2;
+}

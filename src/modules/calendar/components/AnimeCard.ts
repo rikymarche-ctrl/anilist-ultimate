@@ -7,6 +7,7 @@ import { BaseComponent } from '@ui/components/BaseComponent';
 import { calendarStore } from '../CalendarStore';
 import { calendarService } from '../CalendarService';
 import { anilistClient } from '../../../api';
+import { SocialRenderer } from '../../social/SocialRenderer';
 import type { AnimeEntry, CardOptions } from '@core/types';
 
 interface AnimeCardProps {
@@ -58,6 +59,17 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   private getCardHTML(anime: AnimeEntry, options: CardOptions): string {
     const { layoutMode, showTime, showEpisodeNumbers, timeFormat } = options;
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+
+    const showPillSocial = socialEnabled && !socialShowAvatars;
+    const showFloatingSocial = socialEnabled && socialShowAvatars;
+
+    const socialSectionHTML = showPillSocial ? `
+      <div class="pill-separator"></div>
+      <div class="pill-section" data-action="social-activity">
+        <i class="fa fa-users"></i>
+      </div>
+    ` : '';
 
     // Episode counter: "watched/available/total" (matches old version exactly)
     const available = anime.episode - 1; 
@@ -108,6 +120,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           <div class="pill-section" data-action="edit-entry">
             <i class="fa fa-pencil"></i>
           </div>
+          ${socialSectionHTML}
         </div>
       `;
 
@@ -147,6 +160,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           <div class="pill-section" data-action="edit-entry">
             <i class="fa fa-pencil"></i>
           </div>
+          ${socialSectionHTML}
         </div>
       `;
 
@@ -182,11 +196,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           <div class="pill-section" data-action="edit-entry">
             <i class="fa fa-pencil"></i>
           </div>
+          ${socialSectionHTML}
         </div>
       </div>
     `;
 
-    const imageHTML = `
+    const cardContentHTML = `
       <div class="anime-card__image-container">
         <img
           src="${anime.coverImage}"
@@ -196,11 +211,6 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         />
         <div class="anime-card__image-overlay"></div>
       </div>
-      ${standardActionHTML}
-    `;
-
-    return `
-      ${imageHTML}
       <div class="anime-card__content">
         ${titleHTML}
         <div class="anime-card__meta">
@@ -208,6 +218,19 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           ${timeHTML}
         </div>
       </div>
+      ${standardActionHTML}
+    `;
+
+    return `
+      <div class="anime-card__container">
+        ${cardContentHTML}
+      </div>
+      ${showFloatingSocial ? `
+        <div class="au-social-wrapper" id="friends-${anime.mediaId}">
+          ${SocialRenderer.getAvatarsHTML(anime.friendActivity || [])}
+          ${SocialRenderer.getSocialButtonHTML()}
+        </div>
+      ` : ''}
     `;
   }
 
@@ -261,6 +284,16 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       });
     }
 
+    // Social activity button click
+    const socialBtn = this.element.querySelector('[data-action="social-activity"]');
+    if (socialBtn) {
+      this.addEventListener(socialBtn as HTMLElement, 'click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.handleSocialActivity();
+      });
+    }
+
     // Tooltips for action buttons
     if (markWatchedBtn) {
       const lastAired = this.props.anime.episode - 1;
@@ -295,6 +328,26 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         this.hideCardTooltip();
       });
     }
+
+    if (socialBtn) {
+      this.addEventListener(socialBtn as HTMLElement, 'mouseenter', (e) => {
+        this.showCardTooltip('Social Activity', e);
+      });
+      this.addEventListener(socialBtn as HTMLElement, 'mousemove', (e) => {
+        this.moveCardTooltip(e);
+      });
+      this.addEventListener(socialBtn as HTMLElement, 'mouseleave', () => {
+        this.hideCardTooltip();
+      });
+    }
+  }
+
+  private handleSocialActivity(): void {
+    const { anime } = this.props;
+    // Emit custom event for SocialSidebar to handle
+    window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
+        detail: { mediaId: anime.mediaId, title: anime.cleanTitle, element: this.element }
+    }));
   }
 
   private handleEditEntry(): void {

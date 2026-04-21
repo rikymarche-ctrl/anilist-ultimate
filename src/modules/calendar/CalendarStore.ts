@@ -118,6 +118,18 @@ export class CalendarStore extends Store<CalendarState> {
   }
 
   /**
+   * Update multiple entries at once
+   */
+  updateEntriesBatch(updatesMap: Map<number, Partial<AnimeEntry>>): void {
+    const entries = this.getState().entries.map((entry) => {
+      const updates = updatesMap.get(entry.mediaId);
+      return updates ? { ...entry, ...updates } : entry;
+    });
+
+    this.setState({ entries });
+  }
+
+  /**
    * Remove an entry
    */
   removeEntry(mediaId: number): void {

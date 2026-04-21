@@ -1,0 +1,58 @@
+/**
+ * Best Friend Service
+ * Manages the list of close friends for curated activity feeds
+ */
+
+import { storage } from '@core/storage/StorageManager';
+import { log } from '@core/logger';
+
+export interface BestFriend {
+  id: number;
+  name: string;
+}
+
+export class BestFriendService {
+  private static instance: BestFriendService;
+  private bestFriends: Map<number, string> = new Map();
+  private readonly STORAGE_KEY = 'au_best_friends';
+
+  private constructor() {
+    this.load();
+  }
+
+  public static getInstance(): BestFriendService {
+    if (!BestFriendService.instance) {
+      BestFriendService.instance = new BestFriendService();
+    }
+    return BestFriendService.instance;
+  }
+
+  private async load(): Promise<void> {
+    const list = await storage.get<BestFriend[]>(this.STORAGE_KEY) || [];
+    this.bestFriends = new Map(list.map(bf => [bf.id, bf.name]));
+  }
+
+  public isBestFriend(userId: number): boolean {
+    return this.bestFriends.has(userId);
+  }
+
+  public async toggleBestFriend(userId: number, userName: string): Promise<boolean> {
+    const isBf = this.isBestFriend(userId);
+    
+    if (isBf) {
+      this.bestFriends.delete(userId);
+    } else {
+      this.bestFriends.set(userId, userName);
+    }
+
+    const list: BestFriend[] = Array.from(this.bestFriends.entries()).map(([id, name]) => ({ id, name }));
+    await storage.set(this.STORAGE_KEY, list);
+    
+    log.info(`[BestFriendService] ${isBf ? 'Removed' : 'Added'} ${userName} to best friends`);
+    return !isBf;
+  }
+
+  public getBestFriendsList(): BestFriend[] {
+    return Array.from(this.bestFriends.entries()).map(([id, name]) => ({ id, name }));
+  }
+}

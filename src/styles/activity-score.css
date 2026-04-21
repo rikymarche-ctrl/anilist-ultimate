@@ -14,10 +14,26 @@
   margin-left: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   min-width: 22px;
-  background: rgba(var(--color-foreground), 0.8);
-  border: 1px solid currentColor;
+  background: rgba(21, 31, 46, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   vertical-align: middle;
-  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.au-format-point-5 {
+  font-size: 9px;
+  color: #facc15 !important;
+  letter-spacing: -1px;
+  padding: 1px 4px;
+}
+
+.au-format-point-3 {
+  font-size: 14px;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  min-width: unset;
 }
 
 /* Colors matching ReviewEnhancer */
@@ -31,9 +47,28 @@
 .au-rating--bad { color: #e85d75; }
 .au-rating--terrible { color: #9370db; }
 
-/* Activity specific positioning adjustments */
-.activity-entry, .activity-anime, .activity-manga {
-  position: relative !important;
+.au-friend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.au-bf-toggle {
+  cursor: pointer;
+  font-size: 14px;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  padding: 4px;
+}
+
+.au-bf-toggle:hover {
+  color: #facc15;
+  transform: scale(1.2);
+}
+
+.au-bf-toggle.fa-star {
+  color: #facc15;
 }
 
 .activity-entry .cover, 

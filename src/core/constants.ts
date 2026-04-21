@@ -95,6 +95,8 @@ export const DEFAULT_CALENDAR_PREFERENCES = {
   maxCardsPerDay: 0,
   fullWidthImages: false,
   openInNewTab: false,
+  socialEnabled: true,
+  socialShowAvatars: true,
 };
 
 // ============================================================================
@@ -183,7 +185,7 @@ export const FEATURE_FLAGS = {
   ENABLE_HOVER_COMMENTS: true,
   ENABLE_NOTIFICATION_CLEANER: true,
   ENABLE_REVIEW_ENHANCER: true,
-  ENABLE_FRIEND_ACTIVITY: false,
+  ENABLE_FRIEND_ACTIVITY: true,
   ENABLE_LIST_EDITOR: false,
   ENABLE_SOCIAL_ACTIVITY: true,
   ENABLE_FORUM_ENHANCER: true,

@@ -122,7 +122,9 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
         state.preferences.columnJustify !== prevState.preferences.columnJustify ||
         state.preferences.maxCardsPerDay !== prevState.preferences.maxCardsPerDay ||
         state.preferences.timeFormat !== prevState.preferences.timeFormat ||
-        state.preferences.openInNewTab !== prevState.preferences.openInNewTab;
+        state.preferences.openInNewTab !== prevState.preferences.openInNewTab ||
+        state.preferences.socialEnabled !== prevState.preferences.socialEnabled ||
+        state.preferences.socialShowAvatars !== prevState.preferences.socialShowAvatars;
 
       if (shouldRerender) {
         log.debug('Calendar preferences changed, re-rendering grid');

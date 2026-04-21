@@ -19,6 +19,21 @@ export interface AnimeEntry {
   progress: number;
   totalEpisodes: number | null;
   dayOfWeek: string;
+  friendActivity?: FriendActivity[];
+}
+
+export interface FriendActivity {
+  id: number;
+  status: MediaStatus;
+  progress: number;
+  score: number;
+  user: {
+    id: number;
+    name: string;
+    avatar: {
+      medium: string;
+    };
+  };
 }
 
 export interface MediaProgress {
@@ -61,11 +76,13 @@ export interface CalendarPreferences {
   timeFormat: TimeFormat;
   showTime: boolean;
   showEpisodeNumbers: boolean;
-  titleAlignment: 'left' | 'center';
-  columnJustify: 'top' | 'center';
+  titleAlignment: TitleAlignment;
+  columnJustify: ColumnJustify;
   maxCardsPerDay: number;
   fullWidthImages: boolean;
   openInNewTab: boolean;
+  socialEnabled: boolean;
+  socialShowAvatars: boolean;
 }
 
 // ============================================================================
@@ -222,3 +239,25 @@ export interface LoggerConfig {
   level: LogLevel;
   prefix: string;
 }
+export type ScoreFormat = 'POINT_100' | 'POINT_10_DECIMAL' | 'POINT_10' | 'POINT_5' | 'POINT_3';
+
+export interface SocialActivityDetailed {
+  id: number;
+  status: MediaStatus;
+  progress: number;
+  score: number;
+  notes: string | null;
+  updatedAt: number;
+  user: {
+    id: number;
+    name: string;
+    avatar: {
+      medium: string;
+    };
+    mediaListOptions: {
+      scoreFormat: ScoreFormat;
+    };
+  };
+}
+
+export type SocialFilter = 'following' | 'global' | 'self' | 'friends';

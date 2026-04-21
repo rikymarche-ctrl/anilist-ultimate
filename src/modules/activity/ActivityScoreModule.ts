@@ -5,7 +5,8 @@
 
 import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
-import { ActivityService } from './ActivityService';
+import { ActivityService, ActivityScoreData } from './ActivityService';
+import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import '../../styles/activity-score.css';
 
 export class ActivityScoreModule extends BaseModule {
@@ -39,7 +40,7 @@ export class ActivityScoreModule extends BaseModule {
   }
 
   private shouldRun(path: string): boolean {
-    return path === '/' || path === '/home' || path.includes('/user/');
+    return path === '/' || path === '/home' || path.includes('/user/') || path.includes('/social');
   }
 
   private startObservation(): void {
@@ -117,10 +118,10 @@ export class ActivityScoreModule extends BaseModule {
       const scores = await this.activityService.getScoresBatch(pairs);
       
       currentBatch.forEach((data, key) => {
-        const score = scores.get(key);
+        const scoreData = scores.get(key);
         data.elements.forEach(el => {
-          if (score !== null && score !== undefined && score > 0) {
-            this.injectRatingUI(el, score);
+          if (scoreData && scoreData.score > 0) {
+            this.injectRatingUI(el, scoreData);
             el.setAttribute('data-au-score-enhanced', 'true');
           } else {
             el.setAttribute('data-au-score-enhanced', 'no-score');
@@ -132,12 +133,21 @@ export class ActivityScoreModule extends BaseModule {
     }
   }
 
-  private injectRatingUI(entry: HTMLElement, score: number): void {
+  private injectRatingUI(entry: HTMLElement, scoreData: ActivityScoreData): void {
     if (entry.querySelector('.au-activity-rating')) return;
 
+    const { score, format } = scoreData;
+    const formattedScore = ScoreFormatter.format(score, format);
+    const label = ScoreFormatter.getLabel(score);
+
     const badge = document.createElement('span');
-    badge.className = `au-activity-rating ${this.getColorClass(score)}`;
-    badge.textContent = `${score}`;
+    badge.className = `au-activity-rating au-rating--${label} au-format-${format.toLowerCase().replace(/_/g, '-')}`;
+    badge.innerHTML = formattedScore;
+
+    // Apply color from ScoreFormatter
+    badge.style.color = ScoreFormatter.getColor(score);
+    badge.style.borderColor = `${ScoreFormatter.getColor(score)}40`;
+    badge.style.background = `${ScoreFormatter.getColor(score)}15`;
 
     // Target the title link
     const title = entry.querySelector('.title');
@@ -151,16 +161,6 @@ export class ActivityScoreModule extends BaseModule {
         cover.appendChild(badge);
       }
     }
-  }
-
-  private getColorClass(rating: number): string {
-    if (rating >= 90) return 'au-rating--perfect';
-    if (rating >= 80) return 'au-rating--excellent';
-    if (rating >= 70) return 'au-rating--high';
-    if (rating >= 60) return 'au-rating--good';
-    if (rating >= 50) return 'au-rating--medium';
-    if (rating >= 40) return 'au-rating--poor';
-    return 'au-rating--terrible';
   }
 
   public override destroy(): void {

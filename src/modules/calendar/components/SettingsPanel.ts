@@ -36,6 +36,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
         <button class="settings-tab settings-tab--active" data-tab="layout">Layout</button>
         <button class="settings-tab" data-tab="display">Display</button>
         <button class="settings-tab" data-tab="week">Week</button>
+        <button class="settings-tab" data-tab="social">Social</button>
         <button class="settings-tab" data-tab="account">Account</button>
       </div>
 
@@ -152,6 +153,25 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
           </div>
         </div>
 
+        <!-- Social Tab -->
+        <div class="settings-tab-content" data-tab-content="social">
+          <div class="settings-field settings-field--toggle">
+            <label class="settings-field__label">
+              <input type="checkbox" data-setting="socialEnabled" ${prefs.socialEnabled ? 'checked' : ''}>
+              <span>Enable Social Features</span>
+            </label>
+            <span class="settings-field__hint">Show friend activity on cards and enable the social sidebar.</span>
+          </div>
+
+          <div class="settings-field settings-field--toggle" id="social-avatars-field" style="display: ${prefs.socialEnabled ? 'block' : 'none'}">
+            <label class="settings-field__label">
+              <input type="checkbox" data-setting="socialShowAvatars" ${prefs.socialShowAvatars ? 'checked' : ''}>
+              <span>Show Friend Avatars</span>
+            </label>
+            <span class="settings-field__hint">Display your friends' profiles in circles on anime cards.</span>
+          </div>
+        </div>
+
         <!-- Account Tab -->
         <div class="settings-tab-content" data-tab-content="account">
           <div class="settings-field">
@@ -234,6 +254,11 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
         // Toggle Time Format visibility when Show Time changes
         if (checkbox.getAttribute('data-setting') === 'showTime') {
           this.toggleTimeFormatVisibility(checkbox.checked);
+        }
+
+        // Toggle Social Avatars visibility when Social Features changes
+        if (checkbox.getAttribute('data-setting') === 'socialEnabled') {
+          this.toggleSocialAvatarsVisibility(checkbox.checked);
         }
       });
     });
@@ -390,6 +415,16 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
     if (timeFormatField) {
       timeFormatField.style.display = showTime ? 'block' : 'none';
+    }
+  }
+
+  /**
+   * Toggle Social Avatars field visibility based on Social Enabled setting
+   */
+  private toggleSocialAvatarsVisibility(socialEnabled: boolean): void {
+    const avatarsField = this.element.querySelector('#social-avatars-field') as HTMLElement;
+    if (avatarsField) {
+      avatarsField.style.display = socialEnabled ? 'block' : 'none';
     }
   }
 
