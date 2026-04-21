@@ -176,4 +176,50 @@ export class SocialService {
       throw e;
     }
   }
+
+  /**
+   * Fetches all users the current viewer is following
+   */
+  public async getAllFollowings(): Promise<any[]> {
+    if (!this.viewerId && anilistClient.isAuthenticated()) {
+      this.viewerId = await anilistClient.getCurrentUserId();
+    }
+
+    if (!this.viewerId) throw new Error('User not authenticated');
+
+    const query = `
+      query($userId: Int, $page: Int) {
+        Page(page: $page, perPage: 50) {
+          pageInfo { hasNextPage }
+          following(userId: $userId) {
+            id
+            name
+            avatar { medium }
+          }
+        }
+      }
+    `;
+
+    let allFollowing: any[] = [];
+    let hasNextPage = true;
+    let page = 1;
+
+    while (hasNextPage) {
+      try {
+        const response = await anilistClient.query<any>(query, { userId: this.viewerId, page });
+        const pageData = response.Page;
+        allFollowing = [...allFollowing, ...pageData.following];
+        hasNextPage = pageData.pageInfo.hasNextPage;
+        page++;
+        
+        // Safety break for extremely large lists
+        if (page > 40) break; 
+      } catch (e) {
+        log.error(`[SocialService] Failed to fetch following page ${page}`, e);
+        break;
+      }
+    }
+
+    return allFollowing;
+  }
 }

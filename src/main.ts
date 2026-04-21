@@ -19,10 +19,12 @@ import { ForumEnhancerModule } from '@/modules/forum/ForumEnhancerModule';
 import { ActivityScoreModule } from '@/modules/activity/ActivityScoreModule';
 import { SocialActivityModule } from '@/modules/social/SocialActivityModule';
 import { SocialEnhancerModule } from './modules/social/SocialEnhancerModule';
+import { CustomListModule } from './modules/social/CustomListModule';
 
 // Styles
 import './styles/main.css';
 import './styles/social-activity.css';
+import './styles/custom-lists.css';
 
 /**
  * Initialize the global debug object
@@ -195,6 +197,7 @@ async function initializeModules(preferences: UserPreferences): Promise<void> {
       instances.socialActivity = new SocialActivityModule();
       await instances.socialActivity.init();
       await new SocialEnhancerModule().init();
+      await new CustomListModule().init();
     } catch (e) { log.error('Module Error: SocialActivity', e); }
   }
 
