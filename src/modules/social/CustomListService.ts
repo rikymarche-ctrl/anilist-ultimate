@@ -33,8 +33,11 @@ export class CustomListService {
    * Initializes the service by loading data from storage
    */
   public async init(): Promise<void> {
+    log.info('[CustomListService] Initializing... Storage key:', this.STORAGE_KEY);
     try {
       const data = await chrome.storage.local.get(this.STORAGE_KEY);
+      log.info('[CustomListService] Raw storage data:', data);
+      log.info('[CustomListService] Data at key:', data[this.STORAGE_KEY]);
 
       if (!data[this.STORAGE_KEY] || Object.keys(data[this.STORAGE_KEY]).length === 0) {
         // First time - create default list
@@ -43,8 +46,10 @@ export class CustomListService {
         log.info('[CustomListService] Created default "Best Friends" list');
       } else {
         this.lists = data[this.STORAGE_KEY];
-        log.debug('[CustomListService] Loaded lists', Object.keys(this.lists));
+        log.info('[CustomListService] Loaded lists:', Object.keys(this.lists));
       }
+
+      log.info('[CustomListService] Current lists after init:', this.lists);
     } catch (e) {
       log.error('[CustomListService] Load failed', e);
       this.lists = { 'Best Friends': [] };
@@ -53,6 +58,8 @@ export class CustomListService {
   }
 
   public getLists(): CustomLists {
+    log.debug('[CustomListService] getLists() called, returning:', this.lists);
+    log.debug('[CustomListService] List names:', Object.keys(this.lists));
     return this.lists;
   }
 

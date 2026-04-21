@@ -20,6 +20,7 @@ import { ActivityScoreModule } from '@/modules/activity/ActivityScoreModule';
 import { SocialActivityModule } from '@/modules/social/SocialActivityModule';
 import { SocialEnhancerModule } from './modules/social/SocialEnhancerModule';
 import { CustomListModule } from './modules/social/CustomListModule';
+import { MediaSocialEnhancer } from './modules/social/MediaSocialEnhancer';
 
 // Styles
 import './styles/main.css';
@@ -206,6 +207,7 @@ async function initializeModules(preferences: UserPreferences): Promise<void> {
       await instances.socialActivity.init();
       await new SocialEnhancerModule().init();
       await new CustomListModule().init();
+      await new MediaSocialEnhancer().init();
     } catch (e) { log.error('Module Error: SocialActivity', e); }
   }
 

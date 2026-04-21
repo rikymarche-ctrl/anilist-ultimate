@@ -9,12 +9,13 @@
   justify-content: space-between;
   padding: 8px 16px;
   border-radius: 3px;
-  margin: -4px 0 16px 0; /* More spacing while maintaining symmetry with AniList content */
+  margin: -4px 0 16px 0;
+  /* More spacing while maintaining symmetry with AniList content */
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
   animation: au-slide-down 0.2s ease-out;
-  
+
   /* DEFAULT THEME COLOR */
   background: #fafafa !important;
 }
@@ -98,6 +99,181 @@
 }
 
 @keyframes au-slide-down {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* "Squeezed" Container - Final 2px reduction (Total 24px) */
+.feed-type-toggle {
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* Custom Tab Styling - "Squeezed" and Fully Squared to match Global */
+.au-custom-list-btn {
+  cursor: pointer;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 5.2px !important;
+  /* Adjusted to reach exactly 72px total width */
+  height: 25.8px !important;
+  /* Matched to native 25.8px height */
+  border-radius: 0px !important;
+  /* COMPLETELY squared as requested */
+  transition: all 0.15s ease;
+  font-weight: 700;
+  font-size: 1.2rem !important; /* Slightly enlarged from 1.1rem */
+  color: #748899 !important; /* Slightly brightened native inactive grey-blue */
+  background: transparent;
+  white-space: nowrap;
+}
+
+/* Active state color */
+.au-custom-list-btn.active {
+  color: #99aab5 !important; /* Much more grey as requested */
+}
+
+/* Mutual Exclusivity: When Custom is active, FORCE EVERY OTHER CHILD to INACTIVE hex */
+.feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+  background: #fafafa !important;
+  color: var(--color-text-lighter) !important;
+  opacity: 0.6 !important;
+  border-radius: 0 !important;
+}
+
+.site-theme-dark .feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+  background: #151f2e !important;
+}
+
+.site-theme-contrast .feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+  background: #fbfbfb !important;
+}
+
+/* When Custom is NOT active, it must look like a normal inactive tab */
+.feed-type-toggle:not(.au-custom-active) .au-custom-list-btn {
+  background: transparent !important;
+}
+
+/* Active state backgrounds with theme-specific hexes */
+.au-custom-list-btn.router-link-active {
+  font-weight: 700 !important;
+  background: #f6f8fb !important;
+  /* Default Active background */
+}
+
+.site-theme-dark .au-custom-list-btn.router-link-active {
+  background: #0f161f !important;
+  /* Dark Active background */
+}
+
+.site-theme-contrast .au-custom-list-btn.router-link-active {
+  background: #e5e9f5 !important;
+  /* Contrast Active background */
+}
+
+/* Hover state - Blue text ONLY during hover */
+.au-custom-list-btn:hover,
+.au-custom-list-btn:hover .au-custom-list-label {
+  color: rgb(var(--color-blue)) !important;
+}
+
+.au-custom-list-label {
+  max-width: 80px;
+  /* Perfect balance for the top bar */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.au-custom-list-btn .fa-caret-down {
+  font-size: 1rem;
+  transition: transform 0.2s;
+  opacity: 0.6;
+}
+
+.au-custom-list-btn:hover .fa-caret-down,
+.au-custom-list-btn.active .fa-caret-down {
+  opacity: 1;
+}
+
+.au-custom-list-menu {
+  position: fixed !important;
+  background: rgb(var(--color-foreground)) !important;
+  border: 1px solid rgba(var(--color-text), 0.15) !important;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+  min-width: 200px !important;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 999999 !important;
+  padding: 8px 0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.au-custom-list-item {
+  padding: 10px 16px !important;
+  font-size: 1.3rem !important;
+  font-weight: 500 !important;
+  color: rgb(var(--color-text)) !important;
+  background: transparent !important;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.au-custom-list-item:hover {
+  background: rgba(var(--color-blue), 0.08);
+  color: rgb(var(--color-blue));
+}
+
+.au-custom-list-item.active {
+  background: rgba(var(--color-blue), 0.12) !important;
+  color: rgb(var(--color-blue)) !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.au-custom-list-item.active::after {
+  content: '\f00c';
+  font-family: 'FontAwesome';
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.au-custom-list-item.au-custom-list-empty {
+  cursor: default;
+  color: rgb(var(--color-text-lighter));
+  font-style: italic;
+  opacity: 0.6;
+}
+
+.au-custom-list-item.au-custom-list-empty:hover {
+  background: transparent;
+  color: rgb(var(--color-text-lighter));
+}
+
+.au-custom-list-item i {
+  font-size: 1.2rem;
+  opacity: 0.7;
 }

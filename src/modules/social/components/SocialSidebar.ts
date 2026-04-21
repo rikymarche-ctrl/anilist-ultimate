@@ -8,13 +8,16 @@ import { SocialService } from '../SocialService';
 import { SocialActivityDetailed, SocialFilter } from '@core/types';
 import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import { BestFriendService } from '../BestFriendService';
+import { CustomListService } from '../CustomListService';
 import { log } from '@core/logger';
 
 export class SocialSidebar extends BaseComponent {
   private socialService = SocialService.getInstance();
   private bestFriendService = BestFriendService.getInstance();
+  private customListService = CustomListService.getInstance();
   private currentMediaId: number | null = null;
   private currentFilter: SocialFilter = 'self';
+  private currentCustomList: string | null = null; // New: track selected custom list
   private currentStatus: string = 'all';
   private searchQuery: string = '';
   private currentPage = 1;
@@ -39,7 +42,13 @@ export class SocialSidebar extends BaseComponent {
       <div class="au-social-tabs">
         <div class="au-filter active" data-type="self">Self</div>
         <div class="au-filter" data-type="following">Following</div>
-        <div class="au-filter" data-type="friends">Friends</div>
+        <div class="au-filter au-filter-dropdown" data-type="custom-lists">
+          <span class="au-filter-label">Custom Lists</span>
+          <i class="fa fa-caret-down"></i>
+          <div class="au-filter-dropdown-menu" style="display: none;">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
         <div class="au-filter" data-type="global">Global</div>
       </div>
       <div class="au-status-tabs">
@@ -65,6 +74,11 @@ export class SocialSidebar extends BaseComponent {
   }
 
   protected attachEvents(): void {
+    // Initialize custom lists (async)
+    this.populateCustomListsDropdown().catch(e => {
+      log.error('[SocialSidebar] Failed to populate custom lists', e);
+    });
+
     // Listen for open events
     window.addEventListener('au-open-social-sidebar', ((e: CustomEvent) => {
       const { mediaId, title, element } = e.detail;
@@ -77,12 +91,36 @@ export class SocialSidebar extends BaseComponent {
       this.addEventListener(closeBtn as HTMLElement, 'click', () => this.close());
     }
 
-    // Filter clicks
-    const filters = this.querySelectorAll('.au-filter');
+    // Filter clicks (non-dropdown)
+    const filters = this.querySelectorAll('.au-filter:not(.au-filter-dropdown)');
     filters.forEach(filter => {
       this.addEventListener(filter as HTMLElement, 'click', () => {
         const type = filter.getAttribute('data-type') as SocialFilter;
         this.setFilter(type);
+      });
+    });
+
+    // Custom Lists dropdown toggle
+    const customListsFilter = this.querySelector('.au-filter-dropdown');
+    if (customListsFilter) {
+      this.addEventListener(customListsFilter as HTMLElement, 'click', (e) => {
+        e.stopPropagation();
+        const menu = customListsFilter.querySelector('.au-filter-dropdown-menu') as HTMLElement;
+        const isOpen = menu.style.display === 'block';
+
+        // Close all other dropdowns
+        this.querySelectorAll('.au-filter-dropdown-menu').forEach(m => {
+          (m as HTMLElement).style.display = 'none';
+        });
+
+        menu.style.display = isOpen ? 'none' : 'block';
+      });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+      this.querySelectorAll('.au-filter-dropdown-menu').forEach(menu => {
+        (menu as HTMLElement).style.display = 'none';
       });
     });
 
@@ -123,6 +161,71 @@ export class SocialSidebar extends BaseComponent {
     });
   }
 
+  private async populateCustomListsDropdown(): Promise<void> {
+    log.debug('[SocialSidebar] Populating custom lists dropdown');
+    await this.customListService.init();
+    const lists = this.customListService.getLists();
+    log.debug('[SocialSidebar] Lists loaded:', Object.keys(lists));
+
+    const menu = this.querySelector('.au-filter-dropdown-menu');
+
+    if (!menu) {
+      log.warn('[SocialSidebar] Dropdown menu not found');
+      return;
+    }
+
+    const listNames = Object.keys(lists);
+    if (listNames.length === 0) {
+      log.info('[SocialSidebar] No custom lists found');
+      menu.innerHTML = '<div class="au-dropdown-item au-dropdown-empty">No lists created yet</div>';
+      return;
+    }
+
+    log.info('[SocialSidebar] Populating with', listNames.length, 'lists');
+    menu.innerHTML = listNames.map(name => `
+      <div class="au-dropdown-item" data-list-name="${name}">
+        <i class="fa fa-list-ul"></i> ${name}
+      </div>
+    `).join('');
+
+    // Attach click events to dropdown items
+    menu.querySelectorAll('.au-dropdown-item:not(.au-dropdown-empty)').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const listName = item.getAttribute('data-list-name');
+        if (listName) {
+          this.setCustomListFilter(listName);
+        }
+      });
+    });
+  }
+
+  private setCustomListFilter(listName: string): void {
+    this.currentFilter = 'following'; // We fetch "following" but filter locally
+    this.currentCustomList = listName;
+    this.currentPage = 1;
+    this.hasNextPage = true;
+
+    // Update UI - set Custom Lists as active
+    this.querySelectorAll('.au-filter').forEach(f => {
+      f.classList.remove('active');
+    });
+    const customListsFilter = this.querySelector('.au-filter-dropdown');
+    if (customListsFilter) {
+      customListsFilter.classList.add('active');
+      const label = customListsFilter.querySelector('.au-filter-label');
+      if (label) label.textContent = listName;
+    }
+
+    // Close dropdown
+    const menu = this.querySelector('.au-filter-dropdown-menu') as HTMLElement;
+    if (menu) menu.style.display = 'none';
+
+    if (this.currentMediaId) {
+      this.loadData(this.currentMediaId, 1);
+    }
+  }
+
   public open(mediaId: number, title: string, anchor?: HTMLElement): void {
     if (this.currentMediaId === mediaId && this.element.classList.contains('active')) {
       return;
@@ -156,15 +259,23 @@ export class SocialSidebar extends BaseComponent {
   }
 
   private setFilter(type: SocialFilter): void {
-    if (this.currentFilter === type) return;
+    if (this.currentFilter === type && !this.currentCustomList) return;
 
     this.currentFilter = type;
+    this.currentCustomList = null; // Reset custom list when switching to standard filter
     this.currentPage = 1;
     this.hasNextPage = true;
 
     this.querySelectorAll('.au-filter').forEach(f => {
       f.classList.toggle('active', f.getAttribute('data-type') === type);
     });
+
+    // Reset Custom Lists dropdown label
+    const customListsFilter = this.querySelector('.au-filter-dropdown');
+    if (customListsFilter) {
+      const label = customListsFilter.querySelector('.au-filter-label');
+      if (label) label.textContent = 'Custom Lists';
+    }
 
     if (this.currentMediaId) {
       this.loadData(this.currentMediaId, 1);
@@ -208,20 +319,33 @@ export class SocialSidebar extends BaseComponent {
     this.isLoading = true;
 
     try {
-      // For "friends" filter, we actually fetch "following" and filter locally
-      const fetchFilter = this.currentFilter === 'friends' ? 'following' : this.currentFilter;
+      // For "friends" and "custom lists" filters, we fetch "following" and filter locally
+      const fetchFilter = (this.currentFilter === 'friends' || this.currentCustomList) ? 'following' : this.currentFilter;
       const { nodes, hasNextPage } = await this.socialService.getDetailedActivity(
-        mediaId, 
-        fetchFilter, 
+        mediaId,
+        fetchFilter,
         page,
         this.currentStatus
       );
 
       let processedNodes = nodes;
+
+      // Filter by Best Friends (legacy)
       if (this.currentFilter === 'friends') {
         processedNodes = nodes.filter(node => this.bestFriendService.isBestFriend(node.user.id));
 
-        // If we filtered everything and there are more pages, keep fetching (simple recursion)
+        if (processedNodes.length === 0 && hasNextPage && page < 5) {
+          this.isLoading = false;
+          return this.loadData(mediaId, page + 1);
+        }
+      }
+
+      // Filter by Custom List
+      if (this.currentCustomList) {
+        const listUsers = this.customListService.getList(this.currentCustomList);
+        const userIds = new Set(listUsers.map(u => u.id));
+        processedNodes = nodes.filter(node => userIds.has(node.user.id));
+
         if (processedNodes.length === 0 && hasNextPage && page < 5) {
           this.isLoading = false;
           return this.loadData(mediaId, page + 1);

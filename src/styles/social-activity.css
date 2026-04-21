@@ -260,6 +260,66 @@
   text-shadow: none !important;
 }
 
+/* Custom Lists Dropdown */
+.au-filter-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.au-filter-dropdown .fa-caret-down {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.au-filter-dropdown:hover .fa-caret-down {
+  transform: translateY(2px);
+}
+
+.au-filter-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: rgba(14, 22, 33, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 150px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+}
+
+.au-dropdown-item {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8fa0b1;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.au-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.au-dropdown-item.au-dropdown-empty {
+  cursor: default;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.au-dropdown-item.au-dropdown-empty:hover {
+  background: transparent;
+}
+
 /* Search Bar Styling */
 .au-social-search-wrapper {
   padding: 0 18px 15px;
@@ -476,4 +536,91 @@
   color: #3db4f2;
   margin-bottom: 15px;
   text-shadow: 0 0 15px rgba(61, 180, 242, 0.5);
+}
+
+/* Media Social Page Custom Lists Dropdown */
+.au-media-social-custom-list {
+  position: relative;
+  display: inline-block;
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+.au-media-social-cl-btn {
+  padding: 8px 14px;
+  background: rgba(61, 180, 242, 0.1);
+  border: 1px solid rgba(61, 180, 242, 0.3);
+  border-radius: 6px;
+  color: #3db4f2;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.au-media-social-cl-btn:hover {
+  background: rgba(61, 180, 242, 0.2);
+  border-color: #3db4f2;
+  transform: translateY(-1px);
+}
+
+.au-media-social-cl-btn .fa-caret-down {
+  font-size: 11px;
+  transition: transform 0.2s;
+}
+
+.au-media-social-cl-btn:hover .fa-caret-down {
+  transform: translateY(2px);
+}
+
+.au-media-social-cl-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: rgba(14, 22, 33, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 180px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+}
+
+.au-media-social-cl-item {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8fa0b1;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.au-media-social-cl-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.au-media-social-cl-item.active {
+  background: rgba(61, 180, 242, 0.2);
+  color: #3db4f2;
+  font-weight: 700;
+}
+
+.au-media-social-cl-item.au-media-social-cl-empty {
+  cursor: default;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.au-media-social-cl-item.au-media-social-cl-empty:hover {
+  background: transparent;
 }
