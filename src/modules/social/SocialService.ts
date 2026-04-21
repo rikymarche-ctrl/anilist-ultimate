@@ -155,7 +155,7 @@ export class SocialService {
     if (filter === 'following') {
       variables.isFollowing = true;
     } else if (filter === 'self') {
-      if (!this.viewerId && anilistClient.isAuthenticated()) {
+      if (!this.viewerId) {
         this.viewerId = await anilistClient.getCurrentUserId();
       }
       if (this.viewerId) {
@@ -181,14 +181,22 @@ export class SocialService {
    * Fetches all users the current viewer is following
    */
   public async getAllFollowings(): Promise<any[]> {
-    if (!this.viewerId && anilistClient.isAuthenticated()) {
-      this.viewerId = await anilistClient.getCurrentUserId();
+    if (!this.viewerId) {
+      try {
+        this.viewerId = await anilistClient.getCurrentUserId();
+        log.info('[SocialService] Viewer ID fetched:', this.viewerId);
+      } catch (e) {
+        log.error('[SocialService] Failed to get viewer ID', e);
+        throw new Error('Failed to get user ID. Please ensure you are logged in to Anilist Ultimate.');
+      }
     }
 
-    if (!this.viewerId) throw new Error('User not authenticated');
+    if (!this.viewerId) {
+      throw new Error('User not authenticated - viewerId is null');
+    }
 
     const query = `
-      query($userId: Int, $page: Int) {
+      query($userId: Int!, $page: Int) {
         Page(page: $page, perPage: 50) {
           pageInfo { hasNextPage }
           following(userId: $userId) {

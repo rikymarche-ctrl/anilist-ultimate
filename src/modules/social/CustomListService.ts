@@ -35,14 +35,20 @@ export class CustomListService {
   public async init(): Promise<void> {
     try {
       const data = await chrome.storage.local.get(this.STORAGE_KEY);
-      this.lists = data[this.STORAGE_KEY] || {
-        'Best Friends': [],
-        'Haters': []
-      };
-      log.debug('[CustomListService] Loaded lists', Object.keys(this.lists));
+
+      if (!data[this.STORAGE_KEY] || Object.keys(data[this.STORAGE_KEY]).length === 0) {
+        // First time - create default list
+        this.lists = { 'Best Friends': [] };
+        await this.save(); // Save to storage immediately
+        log.info('[CustomListService] Created default "Best Friends" list');
+      } else {
+        this.lists = data[this.STORAGE_KEY];
+        log.debug('[CustomListService] Loaded lists', Object.keys(this.lists));
+      }
     } catch (e) {
       log.error('[CustomListService] Load failed', e);
-      this.lists = { 'Best Friends': [], 'Haters': [] };
+      this.lists = { 'Best Friends': [] };
+      await this.save();
     }
   }
 

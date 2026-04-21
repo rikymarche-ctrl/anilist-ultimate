@@ -15,18 +15,26 @@ export class CustomListModule extends BaseModule {
   public async init(): Promise<void> {
     log.info('CustomListModule: Initializing...');
 
-    // 1. Initial check for injection and routing
+    // 1. Rescue from Legacy Path (Fixes 404 on refresh)
+    if (location.pathname === '/settings/au-custom-lists') {
+      log.info('CustomListModule: Legacy path detected, redirecting to hash route...');
+      location.replace('/settings#au-custom-lists');
+      return;
+    }
+
+    // 2. Initial check for injection and routing
     this.handleRouting();
     this.injectLink();
 
-    // 2. Global observer for SPA navigation and settings page structure
+    // 3. Global observer for SPA navigation and settings page structure
     this.registerObserver(this.observerName, document.body, { childList: true, subtree: true }, () => {
       this.handleRouting();
       this.injectLink();
     });
 
-    // 3. Listen for popstate (browser back/forward)
+    // 4. Listen for popstate and hashchange
     window.addEventListener('popstate', () => this.handleRouting());
+    window.addEventListener('hashchange', () => this.handleRouting());
   }
 
   private injectLink(): void {
@@ -39,14 +47,14 @@ export class CustomListModule extends BaseModule {
 
     const link = document.createElement('a');
     link.className = 'au-custom-lists-link';
-    link.href = '/settings/au-custom-lists';
+    link.setAttribute('data-v-48560ace', ''); // Inherit AniList scoped styles
+    link.href = '#au-custom-lists'; // Use hash for refresh stability
     link.textContent = 'AU - Custom Lists';
     link.style.cursor = 'pointer';
 
-    // AniList uses Vue Router, we intercept the click to avoid full reload or 404
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      history.pushState(null, '', '/settings/au-custom-lists');
+      location.hash = 'au-custom-lists';
       this.handleRouting();
     });
 
@@ -54,7 +62,7 @@ export class CustomListModule extends BaseModule {
   }
 
   private handleRouting(): void {
-    const isCustomPath = location.pathname === '/settings/au-custom-lists';
+    const isCustomPath = location.hash === '#au-custom-lists';
     
     if (isCustomPath && !this.isManagerActive) {
       this.activateManager();
@@ -67,21 +75,28 @@ export class CustomListModule extends BaseModule {
   }
 
   private activateManager(): void {
-    const contentArea = document.querySelector('.settings.container > .content') as HTMLElement;
-    if (!contentArea) return;
+    // Try both specific and general selectors as AniList IDs/Classes can be dynamic
+    const contentArea = document.querySelector('.settings.container > .content') || 
+                        document.querySelector('.settings .content');
+    
+    if (!contentArea) {
+      log.warn('CustomListModule: Content area not found, will retry via observer');
+      return;
+    }
 
     log.info('CustomListModule: Activating Manager UI');
     this.isManagerActive = true;
 
     // 1. Hide original content
-    contentArea.style.display = 'none';
+    (contentArea as HTMLElement).style.display = 'none';
 
-    // 2. Create and inject our container if not exists
+    // 2. Create and inject our container
     let auContainer = document.getElementById('au-custom-settings-container');
     if (!auContainer) {
       auContainer = document.createElement('div');
       auContainer.id = 'au-custom-settings-container';
-      auContainer.className = 'content'; // Keep AniList's class for layout
+      auContainer.className = 'content'; 
+      auContainer.setAttribute('data-v-48560ace', ''); // Inherit layout styles
       contentArea.parentElement?.appendChild(auContainer);
     }
     auContainer.style.display = 'block';
@@ -97,21 +112,37 @@ export class CustomListModule extends BaseModule {
     log.info('CustomListModule: Deactivating Manager UI');
     this.isManagerActive = false;
 
-    const nativeContent = document.querySelector('.settings.container > .content') as HTMLElement;
-    if (nativeContent) nativeContent.style.display = 'block';
+    const nativeContent = document.querySelector('.settings.container > .content') || 
+                          document.querySelector('.settings .content');
+    if (nativeContent) (nativeContent as HTMLElement).style.display = 'block';
 
     const auContainer = document.getElementById('au-custom-settings-container');
     if (auContainer) auContainer.style.display = 'none';
   }
 
   private updateLinkUI(): void {
+    const isCustomPath = location.hash === '#au-custom-lists';
     const link = document.querySelector('.au-custom-lists-link');
-    if (!link) return;
+    
+    // 1. Clear active classes from ALL links in the sidebar if we are on our path
+    if (isCustomPath) {
+      const navGroups = document.querySelectorAll('.nav-group.mobile-nav-hidden');
+      navGroups.forEach(group => {
+        group.querySelectorAll('a').forEach(a => {
+          if (a !== link) {
+            a.classList.remove('router-link-exact-active', 'router-link-active');
+          }
+        });
+      });
+    }
 
-    if (location.pathname === '/settings/au-custom-lists') {
-      link.classList.add('router-link-exact-active', 'router-link-active');
-    } else {
-      link.classList.remove('router-link-exact-active', 'router-link-active');
+    // 2. Update our link
+    if (link) {
+      if (isCustomPath) {
+        link.classList.add('router-link-exact-active', 'router-link-active');
+      } else {
+        link.classList.remove('router-link-exact-active', 'router-link-active');
+      }
     }
   }
 

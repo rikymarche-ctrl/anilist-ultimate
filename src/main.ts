@@ -51,10 +51,18 @@ function checkOAuthCallback(): void {
       const params = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = params.get('access_token');
       if (accessToken) {
-        log.info('OAuth token received');
-        localStorage.setItem('access_token', accessToken);
-        localStorage.setItem('jwt', accessToken);
+        log.info('OAuth token received, saving to all storage keys for compatibility');
+
+        // Save to all possible keys for v1/v2 compatibility
+        localStorage.setItem('anilist_ultimate_v2_access_token', accessToken); // V2 prefixed key
+        localStorage.setItem('access_token', accessToken);                      // Generic key
+        localStorage.setItem('accessToken', accessToken);                       // Camel case variant
+        localStorage.setItem('token', accessToken);                             // Short variant
+        localStorage.setItem('auth_token', accessToken);                        // Alternative name
+        localStorage.setItem('jwt', accessToken);                               // JWT variant
+
         history.replaceState(null, document.title, window.location.pathname + window.location.search);
+        log.success('Access token saved successfully to all storage locations');
       }
     } catch (error) {
       log.error('OAuth processing failed', error);

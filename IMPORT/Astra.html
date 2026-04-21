@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Astra — anime / manga / film rating tracker</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<script>
+  // Tweakable defaults — host can rewrite this block on disk.
+  window.__TWEAKS = /*EDITMODE-BEGIN*/{
+    "theme": "boxd",
+    "density": "compact",
+    "accentHue": 0
+  }/*EDITMODE-END*/;
+</script>
+
+<div id="app"></div>
+
+<script src="data.js"></script>
+<script type="text/babel" src="components/primitives.jsx"></script>
+<script type="text/babel" src="components/list.jsx"></script>
+<script type="text/babel" src="components/rating-form.jsx"></script>
+<script type="text/babel" src="components/detail.jsx"></script>
+<script type="text/babel" src="components/compare.jsx"></script>
+
+<script type="text/babel">
+  // ============================================================
+  // APP ROOT — state, routing, persistence, tweaks
+  // ============================================================
+  const { useState, useEffect, useMemo, useReducer, useRef } = React;
+
+  const STORAGE_KEY = 'astra_v1';
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  }
+  function saveState(state) {
+    const toSave = {
+      works: state.works,
+      sections: state.sections,
+      view: state.view,
+      filter: state.filter,
+      sort: state.sort,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  }
+
+  const initialState = (() => {
+    const saved = loadState();
+    return {
+      works:    saved?.works    ?? MOCK_WORKS,
+      sections: saved?.sections ?? DEFAULT_SECTIONS,
+      view:     saved?.view     ?? 'table',
+      filter:   saved?.filter   ?? { q: '', type: 'both', status: 'all' },
+      sort:     saved?.sort     ?? 'score-desc',
+      route:    { name: 'list' },
+      settingsOpen: false,
+    };
+  })();
+
+  function reducer(state, action) {
+    switch (action.type) {
+      case 'filter':    return { ...state, filter: { ...state.filter, [action.key]: action.val } };
+      case 'sort':      return { ...state, sort: action.val };
+      case 'setView':   return { ...state, view: action.val };
+      case 'openSettings':  return { ...state, settingsOpen: true };
+      case 'closeSettings': return { ...state, settingsOpen: false };
+      case 'setSections':   return { ...state, sections: action.sections };
+      case 'goto':          return { ...state, route: action.route };
+      case 'addWork':
+        return { ...state, works: [action.work, ...state.works] };
+      case 'updateWork':
+        return {
+          ...state,
+          works: state.works.map(w => w.id === action.id ? { ...w, ...action.patch } : w),
+        };
+      case 'deleteSeason':
+        return {
+          ...state,
+          works: state.works.map(w => w.id === action.workId
+            ? { ...w, seasons: w.seasons.filter(s => s.id !== action.seasonId) }
+            : w
+          ).filter(w => w.seasons.length > 0), // remove work if no parts left
+        };
+        return { ...state, works: state.works.filter(w => w.id !== action.id) };
+      case 'resetMock':
+        return { ...state, works: MOCK_WORKS, sections: DEFAULT_SECTIONS };
+      case 'clearAll':
+        return { ...state, works: [], sections: DEFAULT_SECTIONS };
+      case 'importData':
+        return { ...state, works: action.works, sections: action.sections ?? state.sections };
+      default: return state;
+    }
+  }
+
+  // ============================================================
+  // CSV IMPORT / EXPORT
+  // ============================================================
+  function exportCSV(works, sections) {
+    const cols = ['title','type','status','tags','season','overall',
+      ...sections.map(s => s.name),
+      ...sections.map(s => s.name + '_skipped'),
+      'start_date','end_date','notes'];
+    const rows = [cols.join(',')];
+    for (const w of works) {
+      for (const s of w.seasons) {
+        const overall = calcOverall(s.scores, sections, s.skip);
+        const skipSet = new Set(s.skip || []);
+        const row = [
+          csvEsc(w.title), w.type, w.status,
+          csvEsc(w.tags.join('; ')),
+          csvEsc(s.label),
+          overall == null ? '' : overall,
+          ...sections.map(se => {
+            const v = s.scores?.[se.id];
+            return v == null ? '' : v;
+          }),
+          ...sections.map(se => skipSet.has(se.id) ? 'yes' : ''),
+          s.startDate || '', s.endDate || '',
+          csvEsc(s.notes || ''),
+        ];
+        rows.push(row.join(','));
+      }
+    }
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `astra-export-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  function csvEsc(v) {
+    const s = String(v ?? '');
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  // ============================================================
+  // TOPBAR with theme + I/O
+  // ============================================================
+  function TopBar({ state, dispatch }) {
+    const fileRef = useRef();
+    const onImport = (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (data.works) dispatch({ type: 'importData', works: data.works, sections: data.sections });
+        } catch { alert('Invalid JSON file'); }
+      };
+      reader.readAsText(f);
+    };
+    return (
+      <div className="topbar">
+        <div className="topbar__left">
+          {/* theme switcher intentionally hidden — Minimal only for now */}
+        </div>
+        <div className="topbar__right">
+          <button className="btn btn--ghost" onClick={() => dispatch({ type: 'goto', route: { name: 'compare' } })}>
+            <Icon name="compare" /> Compare
+          </button>
+          <button className="btn btn--ghost" onClick={() => exportCSV(state.works, state.sections)}>
+            <Icon name="download" /> Export CSV
+          </button>
+          <button className="btn btn--ghost" onClick={() => fileRef.current.click()}>
+            <Icon name="upload" /> Import JSON
+          </button>
+          <input ref={fileRef} type="file" accept="application/json" hidden onChange={onImport} />
+          <button className="btn btn--ghost" onClick={() => {
+            if (confirm('Replace all data with mock? Your current data will be lost.'))
+              dispatch({ type: 'resetMock' });
+          }}>Reset mock</button>
+          <button className="btn btn--ghost" onClick={() => {
+            if (confirm('Clear ALL data?')) dispatch({ type: 'clearAll' });
+          }}>Clear</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // APP
+  // ============================================================
+  function App() {
+    const [state, dispatch] = useReducer(reducer, initialState);
+    const [accentHue, setAccentHue] = useState(window.__TWEAKS?.accentHue ?? 0);
+    const [density,   setDensity]   = useState(window.__TWEAKS?.density   ?? 'compact');
+
+    useEffect(() => saveState(state), [state]);
+
+    useEffect(() => {
+      // Theme locked to 'boxd' (Minimal) — other theme CSS kept but unused
+      document.documentElement.setAttribute('data-theme', 'boxd');
+      document.documentElement.setAttribute('data-density', density);
+      document.documentElement.style.setProperty('--accent', `oklch(0.72 0.14 ${accentHue})`);
+      document.documentElement.style.setProperty('--accent-a20', `oklch(0.72 0.14 ${accentHue} / 0.22)`);
+      document.documentElement.style.setProperty('--accent-a50', `oklch(0.72 0.14 ${accentHue} / 0.55)`);
+    }, [density, accentHue]);
+
+    // Persist current tweak values to disk so density/accent survive reload
+    useEffect(() => {
+      window.parent.postMessage({
+        type: '__edit_mode_set_keys',
+        edits: { theme: 'boxd', accentHue, density },
+      }, '*');
+    }, [accentHue, density]);
+
+    const go = (route) => dispatch({ type: 'goto', route });
+
+    const onOpen = (id) => go({ name: 'detail', id });
+    const onAdd = () => go({ name: 'rating', workId: null, seasonId: null });
+    const onEdit = (workId, seasonId) => go({ name: 'rating', workId, seasonId });
+    const onAddSeason = (workId) => go({ name: 'rating', workId, seasonId: null });
+    const onClose = () => go({ name: 'list' });
+
+    return (
+      <>
+        <TopBar state={state} dispatch={dispatch} />
+
+        {state.route.name === 'list' && (
+          <main className="app-shell" data-screen-label="List">
+            <ListView state={state} dispatch={dispatch} onOpen={onOpen} onAdd={onAdd} />
+          </main>
+        )}
+
+        {state.route.name === 'rating' && (
+          <main data-screen-label="Rating form">
+            <RatingForm
+              state={state} dispatch={dispatch}
+              workId={state.route.workId} seasonId={state.route.seasonId}
+              onClose={onClose}
+            />
+          </main>
+        )}
+
+        {state.route.name === 'detail' && (
+          <main data-screen-label="Detail">
+            <DetailView
+              state={state} dispatch={dispatch}
+              workId={state.route.id}
+              onClose={onClose} onEdit={onEdit} onAddSeason={onAddSeason}
+            />
+          </main>
+        )}
+
+        {state.route.name === 'compare' && (
+          <main data-screen-label="Compare">
+            <CompareView state={state} dispatch={dispatch} onClose={onClose} onOpen={onOpen} />
+          </main>
+        )}
+
+        {state.settingsOpen && (
+          <SettingsModal state={state} dispatch={dispatch}
+            onClose={() => dispatch({ type: 'closeSettings' })} />
+        )}
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+</script>
+</body>
+</html>

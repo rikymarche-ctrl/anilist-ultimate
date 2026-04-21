@@ -37,17 +37,45 @@ export class AnilistClient {
    */
   private loadAccessToken(): void {
     try {
-      const token =
-        localStorage.getItem('access_token') ||
-        sessionStorage.getItem('access_token') ||
-        localStorage.getItem('jwt');
+      // Check all possible storage keys (for compatibility with v1 and Anilist native)
+      const possibleKeys = [
+        'anilist_ultimate_v2_access_token', // V2 prefixed key
+        'access_token',                      // Generic key
+        'accessToken',                       // Camel case variant
+        'token',                             // Short variant
+        'auth_token',                        // Alternative name
+        'jwt'                                // JWT variant
+      ];
+
+      let token: string | null = null;
+
+      // Try localStorage first
+      for (const key of possibleKeys) {
+        token = localStorage.getItem(key);
+        if (token) {
+          log.info(`Access token found in localStorage[${key}]`);
+          break;
+        }
+      }
+
+      // If not found, try sessionStorage
+      if (!token) {
+        for (const key of possibleKeys) {
+          token = sessionStorage.getItem(key);
+          if (token) {
+            log.info(`Access token found in sessionStorage[${key}]`);
+            break;
+          }
+        }
+      }
 
       if (token) {
-        this.accessToken = token.replace(/"/g, ''); // Remove quotes if present
+        // Strip quotes if any
+        this.accessToken = token.replace(/"/g, '');
         this.updateHeaders();
-        log.info('Access token loaded');
+        log.info('Access token loaded successfully');
       } else {
-        log.warn('No access token found');
+        log.warn('No access token found in any storage location');
       }
     } catch (error) {
       log.error('Failed to load access token', error);
@@ -55,12 +83,24 @@ export class AnilistClient {
   }
 
   /**
-   * Set access token manually
+   * Set access token manually and persist to storage
    */
   public setAccessToken(token: string): void {
     this.accessToken = token;
     this.updateHeaders();
-    log.info('Access token set');
+
+    // Save to all possible keys for v1/v2 compatibility
+    try {
+      localStorage.setItem('anilist_ultimate_v2_access_token', token); // V2 prefixed key
+      localStorage.setItem('access_token', token);                      // Generic key
+      localStorage.setItem('accessToken', token);                       // Camel case variant
+      localStorage.setItem('token', token);                             // Short variant
+      localStorage.setItem('auth_token', token);                        // Alternative name
+      localStorage.setItem('jwt', token);                               // JWT variant
+      log.info('Access token set and saved to all storage locations');
+    } catch (error) {
+      log.error('Failed to persist access token', error);
+    }
   }
 
   /**
@@ -234,11 +274,11 @@ export class AnilistClient {
 
     try {
       const data = await this.query<{ Viewer: { id: number; name: string } }>(query);
-      log.info('Current user fetched', { userId: data.Viewer.id, name: data.Viewer.name });
+      log.info('Current user fetched via GraphQL', { userId: data.Viewer.id });
       return data.Viewer.id;
     } catch (error) {
-      log.error('Failed to fetch current user', error);
-      throw new Error('Failed to fetch user data. Please ensure you are logged in to Anilist.');
+      log.error('Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.', error);
+      throw new Error('Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.');
     }
   }
 
