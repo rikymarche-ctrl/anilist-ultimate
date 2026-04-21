@@ -1,44 +1,75 @@
 /**
  * Media Social Enhancer Module
- * Adds Custom Lists dropdown to media social pages (/anime/.../social, /manga/.../social)
- * Filters displayed user entries by selected custom list
+ * Mirror version of ActivityEnhancer: Tabs, Filters, and Scores
+ * Targeted at media social pages (/anime/.../social, /manga/.../social)
  */
 
-import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
+import { BaseModule } from '@core/modules/BaseModule';
 import { CustomListService } from './CustomListService';
+import { anilistClient } from '../../api/AnilistClient';
+import { ActivityType, AniListActivity, getTimeAgo, getActivityType } from '../activity/ActivityUtils';
+import '../../styles/activity-enhancer.css';
 
 export class MediaSocialEnhancer extends BaseModule {
+  private activeFilters: Set<ActivityType> = new Set(['all']);
+  private controlsContainer: HTMLElement | null = null;
+  private readonly OBSERVER_NAME = 'media-social-continuous';
   private customListService = CustomListService.getInstance();
   private currentCustomList: string | null = null;
-  private customListDropdown: HTMLElement | null = null;
-  private readonly OBSERVER_NAME = 'media-social-enhancer';
+  private customListMenu: HTMLElement | null = null;
+  private customListBtn: HTMLElement | null = null;
+  private customActivitiesContainer: HTMLElement | null = null;
+  private tabExclusivityObserver: MutationObserver | null = null;
+  private mediaId: number | null = null;
 
   public async init(): Promise<void> {
-    log.info('MediaSocialEnhancer: Initializing...');
+    log.info('MediaSocialEnhancer: Initializing (Mirror Logic)');
 
     this.watchPageNavigation(() => {
-      this.cleanupDropdown();
+      this.fullCleanup();
       if (this.isOnMediaSocialPage()) {
+        this.extractMediaId();
         this.startObservation();
       }
     });
 
     if (this.isOnMediaSocialPage()) {
+      this.extractMediaId();
       this.startObservation();
     }
   }
 
   private isOnMediaSocialPage(): boolean {
-    const path = window.location.pathname;
-    return /^\/(anime|manga)\/\d+\/social/.test(path);
+    return /^\/(anime|manga)\/\d+\/social/.test(window.location.pathname);
   }
 
-  private cleanupDropdown(): void {
+  private extractMediaId(): void {
+    const match = window.location.pathname.match(/\/(anime|manga)\/(\d+)\//);
+    this.mediaId = match ? parseInt(match[2], 10) : null;
+    log.info('MediaSocialEnhancer: Media ID extracted:', this.mediaId);
+  }
+
+  private fullCleanup(): void {
     this.suspendObserver(this.OBSERVER_NAME);
-    this.customListDropdown?.remove();
-    this.customListDropdown = null;
+    
+    this.controlsContainer?.remove();
+    this.controlsContainer = null;
+    
+    this.customListMenu?.remove();
+    this.customListMenu = null;
+    
+    this.customListBtn?.remove();
+    this.customListBtn = null;
+    
+    this.customActivitiesContainer?.remove();
+    this.customActivitiesContainer = null;
+    
+    this.tabExclusivityObserver?.disconnect();
+    this.tabExclusivityObserver = null;
+    
     this.currentCustomList = null;
+
     this.resumeObserver(this.OBSERVER_NAME);
   }
 
@@ -51,13 +82,19 @@ export class MediaSocialEnhancer extends BaseModule {
   }
 
   private checkAndProcess(): void {
-    // Inject Custom Lists dropdown if not present
-    if (!this.customListDropdown) {
+    // 1. Inject Filter Bar
+    if (!document.querySelector('.au-activity-bar')) {
+      this.injectControls();
+    }
+
+    // 2. Inject Custom Lists Tab
+    if (!this.customListBtn) {
       this.injectCustomListsDropdown();
     }
 
-    // Apply filters if custom list is selected
-    if (this.currentCustomList) {
+    // 3. Apply Filters to native activities if they appear
+    const feed = document.querySelector('.activity-feed');
+    if (feed) {
       this.suspendObserver(this.OBSERVER_NAME);
       this.applyFilters();
       this.resumeObserver(this.OBSERVER_NAME);
@@ -65,163 +102,247 @@ export class MediaSocialEnhancer extends BaseModule {
   }
 
   /**
-   * Inject Custom Lists dropdown next to Self/Following/Global tabs
+   * Inject filter bar above Recent Activity
    */
+  private injectControls(): void {
+    const header = document.querySelector('.section-header');
+    if (!header) return;
+
+    const bar = document.createElement('div');
+    bar.className = 'au-activity-bar';
+    bar.style.marginTop = '15px';
+    bar.style.marginBottom = '15px';
+    bar.innerHTML = `
+      <div class="au-activity-bar__left">
+        <button class="au-filter-btn" data-filter="all">All</button>
+        <button class="au-filter-btn" data-filter="watched">Watched</button>
+        <button class="au-filter-btn" data-filter="completed">Completed</button>
+        <button class="au-filter-btn" data-filter="plans">Plans</button>
+        <button class="au-filter-btn" data-filter="text">Text posts</button>
+      </div>
+    `;
+
+    header.insertAdjacentElement('afterend', bar);
+    this.controlsContainer = bar;
+    
+    // Attach events
+    bar.querySelectorAll('.au-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter') as ActivityType;
+        this.activeFilters.clear();
+        this.activeFilters.add(filter);
+        this.updateControlsUI();
+        this.checkAndProcess();
+      });
+    });
+
+    this.updateControlsUI();
+  }
+
+  private updateControlsUI(): void {
+    if (!this.controlsContainer) return;
+    this.controlsContainer.querySelectorAll('.au-filter-btn').forEach(btn => {
+      const f = btn.getAttribute('data-filter') as ActivityType;
+      btn.classList.toggle('active', this.activeFilters.has(f));
+    });
+  }
+
+  private applyFilters(): void {
+    if (this.currentCustomList) {
+      this.hideNativeActivities();
+      return;
+    }
+
+    const activities = Array.from(document.querySelectorAll('.activity-entry')) as HTMLElement[];
+    activities.forEach(el => {
+      const text = el.textContent?.toLowerCase() || '';
+      const type = getActivityType(text);
+      const typeMatch = this.activeFilters.has('all') || this.activeFilters.has(type);
+      el.style.display = typeMatch ? '' : 'none';
+    });
+  }
+
+  private showEmptyMessage(): void {
+    if (this.customActivitiesContainer) {
+      this.customActivitiesContainer.innerHTML = '<div style="text-align:center; padding: 40px; font-size: 1.4rem; color: var(--color-text-lighter);">No activities found for the users in this list.</div>';
+    }
+  }
+
   private async injectCustomListsDropdown(): Promise<void> {
-    // Find the tab navigation container
-    // Usually it's a .filter-group or navigation section before the .following section
-    const filterGroup = document.querySelector('.filter-group, .media-social-filter, .section-header .filter-wrap');
-    if (!filterGroup) return;
+    const feedTypeToggle = document.querySelector('.feed-type-toggle');
+    if (!feedTypeToggle || document.querySelector('.au-custom-list-btn')) return;
 
-    // Check if already injected
-    if (document.querySelector('.au-media-social-custom-list')) return;
-
-    // Initialize service
     await this.customListService.init();
     const lists = this.customListService.getLists();
     const listNames = Object.keys(lists);
 
-    log.debug('[MediaSocialEnhancer] Found lists:', listNames);
+    const btn = document.createElement('div');
+    btn.className = 'link au-custom-list-btn';
+    btn.setAttribute('data-v-4f9e87dc', ''); // Match media social scope
+    btn.innerHTML = `
+      <span class="au-custom-list-label" data-v-4f9e87dc>Custom</span>
+      <i class="fa fa-caret-down" data-v-4f9e87dc style="margin-left: 5px; font-size: 0.9em;"></i>
+    `;
+    
+    // Menu logic
+    let menuItems = '<div class="au-custom-list-item" data-list=""><i class="fa fa-times-circle"></i> Clear</div>';
+    menuItems += listNames.map(name => `<div class="au-custom-list-item" data-list="${name}">${name}</div>`).join('');
 
-    // Build menu items
-    let menuItems = '<div class="au-media-social-cl-item" data-list=""><i class="fa fa-times-circle"></i> Clear Filter</div>';
-    if (listNames.length > 0) {
-      menuItems += listNames.map(name => `
-        <div class="au-media-social-cl-item" data-list="${name}">
-          <i class="fa fa-list-ul"></i> ${name}
-        </div>
-      `).join('');
-    } else {
-      menuItems += '<div class="au-media-social-cl-item au-media-social-cl-empty">No custom lists</div>';
+    const menu = document.createElement('div');
+    menu.className = 'au-custom-list-menu';
+    menu.style.display = 'none';
+    menu.innerHTML = menuItems;
+
+    feedTypeToggle.appendChild(btn);
+    document.body.appendChild(menu);
+    this.customListBtn = btn;
+    this.customListMenu = menu;
+
+    // Capture Phase Universal Listener
+    feedTypeToggle.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.au-custom-list-btn') && this.currentCustomList) {
+        this.setCustomListFilter(null);
+      }
+    }, true);
+
+    if (this.customListMenu) {
+      const menu = this.customListMenu;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rect = btn.getBoundingClientRect();
+        menu.style.top = `${rect.bottom + 8}px`;
+        menu.style.left = `${rect.left}px`;
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      });
     }
 
-    // Create dropdown container
-    const dropdown = document.createElement('div');
-    dropdown.className = 'au-media-social-custom-list';
-    dropdown.innerHTML = `
-      <div class="au-media-social-cl-btn">
-        <i class="fa fa-list-ul"></i>
-        <span class="au-media-social-cl-label">Custom Lists</span>
-        <i class="fa fa-caret-down"></i>
-      </div>
-      <div class="au-media-social-cl-menu" style="display: none;">
-        ${menuItems}
-      </div>
-    `;
-
-    log.info('[MediaSocialEnhancer] Created dropdown with', listNames.length, 'lists');
-
-    // Insert after the filter group
-    filterGroup.appendChild(dropdown);
-    this.customListDropdown = dropdown;
-
-    // Attach events
-    const btn = dropdown.querySelector('.au-media-social-cl-btn');
-    const menu = dropdown.querySelector('.au-media-social-cl-menu') as HTMLElement;
-
-    btn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-    });
-
-    // Close on outside click
-    document.addEventListener('click', () => {
-      if (menu) menu.style.display = 'none';
-    });
-
-    // Handle list selection
-    dropdown.querySelectorAll('.au-media-social-cl-item:not(.au-media-social-cl-empty)').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const listName = item.getAttribute('data-list');
-        this.setCustomListFilter(listName || null);
+    menu.querySelectorAll('.au-custom-list-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const list = item.getAttribute('data-list');
+        this.setCustomListFilter(list || null);
         menu.style.display = 'none';
       });
     });
 
-    // Sync with native tabs: clear custom list filter if user clicks another tab
-    const nativeTabs = filterGroup.querySelectorAll('.link:not(.au-media-social-cl-btn)');
-    nativeTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        if (this.currentCustomList !== null) {
-          log.info('[MediaSocialEnhancer] Native tab clicked. Clearing Custom List context.');
-          this.setCustomListFilter(null);
-        }
-      });
-    });
+    // Nuclear Sync
+    if (!this.tabExclusivityObserver) {
+      this.tabExclusivityObserver = new MutationObserver(() => this.updateCustomListUI(this.currentCustomList));
+      this.tabExclusivityObserver.observe(feedTypeToggle, { attributes: true, childList: true, subtree: true });
+    }
+
+    if (this.currentCustomList) this.updateCustomListUI(this.currentCustomList);
   }
 
-  /**
-   * Set custom list filter and update UI
-   */
-  private setCustomListFilter(listName: string | null): void {
+  private async setCustomListFilter(listName: string | null): Promise<void> {
     this.currentCustomList = listName;
+    this.updateCustomListUI(listName);
 
-    // Update button label and active state
-    const label = this.customListDropdown?.querySelector('.au-media-social-cl-label');
-    const btn = this.customListDropdown?.querySelector('.au-media-social-cl-btn');
-    
-    if (label) {
-      label.textContent = listName || 'Custom Lists';
+    if (listName) {
+      this.hideNativeActivities();
+      this.showCustomLoader();
+      const users = this.customListService.getList(listName);
+      const userIds = users.map(u => u.id);
       
-      if (listName) {
-        btn?.classList.add('router-link-active');
+      if (userIds.length > 0 && this.mediaId) {
+        const activities = await this.fetchMediaActivities(userIds, this.mediaId);
+        this.renderCustomActivities(activities);
       } else {
-        btn?.classList.remove('router-link-active');
+        this.showEmptyMessage();
       }
+    } else {
+      this.showNativeActivities();
     }
-
-    // Update active state in menu
-    this.customListDropdown?.querySelectorAll('.au-media-social-cl-item').forEach(item => {
-      const itemList = item.getAttribute('data-list');
-      item.classList.toggle('active', itemList === (listName || ''));
-    });
-
-    // Apply filters
-    this.checkAndProcess();
   }
 
-  /**
-   * Apply filters to user entries based on selected custom list
-   */
-  private applyFilters(): void {
-    if (!this.currentCustomList) {
-      // Show all entries if no custom list selected
-      document.querySelectorAll<HTMLElement>('.media-list-entry, .list-preview, .following > *').forEach(entry => {
-        entry.style.display = '';
-      });
-      return;
+  private async fetchMediaActivities(userIds: number[], mediaId: number): Promise<AniListActivity[]> {
+    const query = `
+      query($userIds: [Int], $mediaId: Int) {
+        Page(perPage: 50) {
+          activities(userId_in: $userIds, mediaId: $mediaId, sort: ID_DESC) {
+            ... on ListActivity {
+              id type status progress createdAt replyCount likeCount
+              user { id name avatar { medium } }
+              mediaList { score(format: POINT_10) }
+            }
+          }
+        }
+      }
+    `;
+    try {
+      const data = await anilistClient.query<{ Page: { activities: AniListActivity[] } }>(query, { userIds, mediaId });
+      return data.Page?.activities || [];
+    } catch (e) { return []; }
+  }
+
+  private showCustomLoader(): void {
+    if (!this.customActivitiesContainer) {
+      this.customActivitiesContainer = document.createElement('div');
+      this.customActivitiesContainer.className = 'au-custom-activities-feed';
+      document.querySelector('.activity-feed')?.prepend(this.customActivitiesContainer);
     }
+    this.customActivitiesContainer.innerHTML = '<div style="text-align:center; padding: 20px; opacity:0.6;">Loading...</div>';
+  }
 
-    // Get users in selected custom list
-    const listUsers = this.customListService.getList(this.currentCustomList);
-    const userNames = new Set(listUsers.map(u => u.name.toLowerCase()));
+  private renderCustomActivities(activities: AniListActivity[]): void {
+    if (!this.customActivitiesContainer) return;
+    this.customActivitiesContainer.innerHTML = activities.map(act => {
+      const score = act.mediaList?.score ? `<div class="au-score-badge ${act.mediaList.score > 7 ? 'high' : act.mediaList.score > 4 ? 'medium' : 'low'}">${act.mediaList.score}</div>` : '';
+      return `
+        <div class="activity-entry activity-anime">
+          <div class="wrap">
+            <div class="list">
+              <a href="/user/${act.user.name}/" class="avatar" style="background-image: url(${act.user.avatar.medium});"></a>
+              <div class="details">
+                <a href="/user/${act.user.name}/" class="name">${act.user.name} ${score}</a>
+                <div class="status">${act.status} ${act.progress ? 'episode ' + act.progress : ''}</div>
+              </div>
+            </div>
+            <div class="time"><time>${getTimeAgo(act.createdAt)}</time></div>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div style="text-align:center; padding: 20px; opacity:0.6;">No activities found</div>';
+  }
 
-    // Find all user entries and filter
-    const followingSection = document.querySelector('.following, .media-social-following');
-    if (!followingSection) return;
+  private hideNativeActivities(): void {
+    document.querySelectorAll('.activity-entry:not(.au-custom-activities-feed *)').forEach(el => (el as HTMLElement).style.display = 'none');
+    const loadMore = document.querySelector('.load-more') as HTMLElement;
+    if (loadMore) {
+      loadMore.style.setProperty('display', 'none', 'important');
+    }
+  }
 
-    const entries = Array.from(followingSection.querySelectorAll<HTMLElement>('.media-list-entry, .list-preview, a[href^="/user/"]'));
+  private showNativeActivities(): void {
+    document.querySelectorAll('.activity-entry').forEach(el => (el as HTMLElement).style.display = '');
+    const loadMore = document.querySelector('.load-more') as HTMLElement;
+    if (loadMore) {
+      loadMore.style.display = '';
+    }
+    this.customActivitiesContainer?.remove();
+    this.customActivitiesContainer = null;
+  }
 
-    entries.forEach(entry => {
-      // Extract username from the entry
-      const userLink = entry.querySelector('a[href^="/user/"]') as HTMLAnchorElement;
-      if (!userLink) {
-        entry.style.display = 'none';
-        return;
-      }
+  private updateCustomListUI(listName: string | null): void {
+    const btn = this.customListBtn;
+    const parent = document.querySelector('.feed-type-toggle') as HTMLElement;
+    if (!btn || !parent) return;
 
-      const username = userLink.textContent?.trim().toLowerCase();
-      if (username && userNames.has(username)) {
-        entry.style.display = '';
-      } else {
-        entry.style.display = 'none';
-      }
-    });
+    this.tabExclusivityObserver?.disconnect();
+    if (listName) {
+      btn.classList.add('active');
+      parent.classList.add('au-custom-active');
+      parent.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+    } else {
+      btn.classList.remove('active');
+      parent.classList.remove('au-custom-active');
+    }
+    
+    this.tabExclusivityObserver?.observe(parent, { attributes: true, childList: true, subtree: true });
   }
 
   public override destroy(): void {
-    this.cleanupDropdown();
+    this.fullCleanup();
     super.destroy();
   }
 }

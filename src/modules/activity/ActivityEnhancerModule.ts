@@ -8,31 +8,8 @@ import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
 import { CustomListService } from '../social/CustomListService';
 import { anilistClient } from '../../api/AnilistClient';
+import { ActivityType, AniListActivity, getTimeAgo, getActivityType } from './ActivityUtils';
 import '../../styles/activity-enhancer.css';
-
-type ActivityType = 'watched' | 'read' | 'completed' | 'plans' | 'dropped' | 'paused' | 'text' | 'all';
-
-interface AniListActivity {
-  id: number;
-  type: string;
-  text?: string;
-  status?: string;
-  progress?: string;
-  createdAt: number;
-  user: {
-    id: number;
-    name: string;
-    avatar: { medium: string };
-  };
-  media?: {
-    id: number;
-    title: { romaji: string };
-    coverImage: { medium: string };
-    type: string;
-  };
-  replyCount: number;
-  likeCount: number;
-}
 
 export class ActivityEnhancerModule extends BaseModule {
   private activeFilters: Set<ActivityType> = new Set(['all']);
@@ -72,22 +49,22 @@ export class ActivityEnhancerModule extends BaseModule {
   private fullCleanup(): void {
     this.suspendObserver(this.OBSERVER_NAME);
     this.cleanup();
-    
+
     this.controlsContainer?.remove();
     this.controlsContainer = null;
-    
+
     this.customListMenu?.remove();
     this.customListMenu = null;
-    
+
     this.customListBtn?.remove();
     this.customListBtn = null;
-    
+
     this.customActivitiesContainer?.remove();
     this.customActivitiesContainer = null;
-    
+
     this.tabExclusivityObserver?.disconnect();
     this.tabExclusivityObserver = null;
-    
+
     this.currentCustomList = null;
 
     this.resumeObserver(this.OBSERVER_NAME);
@@ -128,7 +105,7 @@ export class ActivityEnhancerModule extends BaseModule {
     // Target the .activity-edit container as requested
     const editContainer = document.querySelector('.activity-edit');
     const feedWrap = document.querySelector('.activity-feed-wrap');
-    
+
     if (!feedWrap) return;
 
     const bar = document.createElement('div');
@@ -153,7 +130,7 @@ export class ActivityEnhancerModule extends BaseModule {
     if (editContainer) {
       editContainer.insertAdjacentElement('afterend', bar);
     } else if (document.querySelector('.status-post-wrap')) {
-        document.querySelector('.status-post-wrap')?.insertAdjacentElement('afterend', bar);
+      document.querySelector('.status-post-wrap')?.insertAdjacentElement('afterend', bar);
     } else {
       feedWrap.prepend(bar);
     }
@@ -187,7 +164,7 @@ export class ActivityEnhancerModule extends BaseModule {
   private toggleFilter(filter: ActivityType): void {
     this.activeFilters.clear();
     this.activeFilters.add(filter);
-    
+
     this.updateControlsUI();
     this.checkAndProcess();
   }
@@ -216,7 +193,7 @@ export class ActivityEnhancerModule extends BaseModule {
 
     activities.forEach(el => {
       const text = el.textContent?.toLowerCase() || '';
-      const type = this.getActivityType(el);
+      const type = getActivityType(text);
       const typeMatch = this.activeFilters.has('all') || this.activeFilters.has(type);
       const searchMatch = !this.searchQuery || text.includes(this.searchQuery);
 
@@ -234,16 +211,6 @@ export class ActivityEnhancerModule extends BaseModule {
     log.info('[ActivityEnhancer] Filtered:', shownCount, 'shown,', hiddenCount, 'hidden');
   }
 
-  private getActivityType(activity: HTMLElement): ActivityType {
-    const text = activity.textContent?.toLowerCase() || '';
-    if (text.includes('watched episode') || text.includes('watched ep')) return 'watched';
-    if (text.includes('read chapter') || text.includes('read ch')) return 'read';
-    if (text.includes('completed')) return 'completed';
-    if (text.includes('plans to')) return 'plans';
-    if (text.includes('dropped')) return 'dropped';
-    if (text.includes('paused')) return 'paused';
-    return 'text';
-  }
 
   /**
    * Inject Custom Lists dropdown next to native Following/Global tabs
@@ -277,7 +244,7 @@ export class ActivityEnhancerModule extends BaseModule {
     const btn = document.createElement('a');
     btn.className = 'link au-custom-list-btn';
     btn.setAttribute('data-v-8209bd04', ''); // Force inject attribute on button
-    
+
     // Build menu items
     let menuItems = '<div class="au-custom-list-item" data-list=""><i class="fa fa-times-circle"></i> Clear Filter</div>';
     if (listNames.length > 0) {
@@ -294,7 +261,7 @@ export class ActivityEnhancerModule extends BaseModule {
       <span class="au-custom-list-label" data-v-8209bd04>Custom</span>
       <i class="fa fa-caret-down" data-v-8209bd04 style="margin-left: 5px; font-size: 0.9em;"></i>
     `;
-    
+
     const menu = document.createElement('div');
     menu.className = 'au-custom-list-menu';
     menu.style.display = 'none';
@@ -306,17 +273,17 @@ export class ActivityEnhancerModule extends BaseModule {
     feedTypeToggle.appendChild(btn);
     // Menu goes to body to prevent stretching feedTypeToggle
     document.body.appendChild(menu);
-    
+
     this.customListMenu = menu;
     this.customListBtn = btn;
 
     // UNIVERSAL LISTENER: Knowledge of all 3 buttons
     feedTypeToggle.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      
+
       // Is the click inside our custom button?
       const isCustomClick = target.closest('.au-custom-list-btn');
-      
+
       if (!isCustomClick) {
         // Any click on the container that's NOT our button must trigger clear filters
         log.info('[ActivityEnhancer] Native tab or container clicked. Switching from Custom Context to Native.');
@@ -324,7 +291,7 @@ export class ActivityEnhancerModule extends BaseModule {
           this.setCustomListFilter(null);
         }
       }
-      
+
       // If it IS a custom click, the individual btn listener handles the rest
     }, true); // Use CAPTURE phase to ensure we see it before Vue hijacks it
 
@@ -373,11 +340,11 @@ export class ActivityEnhancerModule extends BaseModule {
       this.tabExclusivityObserver = new MutationObserver(() => {
         this.updateCustomListUI(this.currentCustomList);
       });
-      this.tabExclusivityObserver.observe(feedTypeToggle, { 
-        attributes: true, 
-        childList: true, 
-        subtree: true, 
-        attributeFilter: ['class', 'active'] 
+      this.tabExclusivityObserver.observe(feedTypeToggle, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        attributeFilter: ['class', 'active']
       });
     }
 
@@ -496,13 +463,13 @@ export class ActivityEnhancerModule extends BaseModule {
   private showCustomLoader(): void {
     const feedWrap = document.querySelector('.activity-feed-wrap, .activity-feed');
     if (!feedWrap) return;
-    
+
     const feed = feedWrap.querySelector('.activity-feed') || feedWrap;
-    
+
     if (!this.customActivitiesContainer) {
       this.customActivitiesContainer = document.createElement('div');
       this.customActivitiesContainer.className = 'au-custom-activities-feed';
-      
+
       const firstActivity = Array.from(feed.children).find(child => child.classList.contains('activity-entry'));
       if (firstActivity) {
         feed.insertBefore(this.customActivitiesContainer, firstActivity);
@@ -525,7 +492,7 @@ export class ActivityEnhancerModule extends BaseModule {
   private renderCustomActivities(activities: AniListActivity[]): void {
     const feedWrap = document.querySelector('.activity-feed-wrap, .activity-feed');
     if (!feedWrap) return;
-    
+
     const feed = feedWrap.querySelector('.activity-feed') || feedWrap;
 
     // Create or get custom container
@@ -544,7 +511,7 @@ export class ActivityEnhancerModule extends BaseModule {
 
     // Render activities with exact AniList structure
     this.customActivitiesContainer.innerHTML = activities.map(activity => {
-      const timeAgo = this.getTimeAgo(activity.createdAt);
+      const timeAgo = getTimeAgo(activity.createdAt);
 
       if (activity.type === 'TEXT') {
         // Text activity
@@ -652,20 +619,6 @@ export class ActivityEnhancerModule extends BaseModule {
   }
 
   /**
-   * Get time ago string
-   */
-  private getTimeAgo(timestamp: number): string {
-    const now = Date.now() / 1000;
-    const diff = now - timestamp;
-
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
-    if (diff < 604800) return `${Math.floor(diff / 86400)} days ago`;
-    return `${Math.floor(diff / 604800)} weeks ago`;
-  }
-
-  /**
    * Purely UI updates for the Custom List tabs
    */
   private updateCustomListUI(listName: string | null): void {
@@ -681,7 +634,7 @@ export class ActivityEnhancerModule extends BaseModule {
         btn?.classList.add('active', 'router-link-active', 'router-link-exact-active');
         btn?.setAttribute('active', 'active');
         parent?.classList.add('au-custom-active');
-        
+
         // Force de-selection of native tabs
         parent.querySelectorAll('.link:not(.au-custom-list-btn)').forEach(tab => {
           tab.removeAttribute('active');
@@ -697,8 +650,8 @@ export class ActivityEnhancerModule extends BaseModule {
         parent.querySelectorAll<HTMLElement>('.link:not(.au-custom-list-btn)').forEach(tab => {
           const href = tab.getAttribute('href');
           if (href === path || (path === '/home' && href === '/')) {
-             tab.classList.add('router-link-active', 'router-link-exact-active');
-             tab.setAttribute('active', 'active');
+            tab.classList.add('router-link-active', 'router-link-exact-active');
+            tab.setAttribute('active', 'active');
           }
         });
       }
@@ -711,11 +664,11 @@ export class ActivityEnhancerModule extends BaseModule {
     } finally {
       // RECONNECT the observer after our changes are done
       if (this.tabExclusivityObserver && parent) {
-        this.tabExclusivityObserver.observe(parent, { 
-          attributes: true, 
-          childList: true, 
-          subtree: true, 
-          attributeFilter: ['class', 'active'] 
+        this.tabExclusivityObserver.observe(parent, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+          attributeFilter: ['class', 'active']
         });
       }
     }

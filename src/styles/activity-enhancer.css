@@ -127,37 +127,34 @@
   justify-content: center;
   gap: 4px;
   padding: 0 5.2px !important;
-  /* Adjusted to reach exactly 72px total width */
   height: 25.8px !important;
-  /* Matched to native 25.8px height */
   border-radius: 0px !important;
-  /* COMPLETELY squared as requested */
   transition: all 0.15s ease;
   font-weight: 700;
-  font-size: 1.2rem !important; /* Slightly enlarged from 1.1rem */
-  color: #748899 !important; /* Slightly brightened native inactive grey-blue */
+  font-size: 1.2rem !important;
+  color: #748899 !important;
   background: transparent;
   white-space: nowrap;
 }
 
 /* Active state color */
 .au-custom-list-btn.active {
-  color: #99aab5 !important; /* Much more grey as requested */
+  color: #99aab5 !important;
 }
 
 /* Mutual Exclusivity: When Custom is active, FORCE EVERY OTHER CHILD to INACTIVE hex */
-.feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+.feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
   background: #fafafa !important;
   color: var(--color-text-lighter) !important;
   opacity: 0.6 !important;
   border-radius: 0 !important;
 }
 
-.site-theme-dark .feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+.site-theme-dark .feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
   background: #151f2e !important;
 }
 
-.site-theme-contrast .feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+.site-theme-contrast .feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
   background: #fbfbfb !important;
 }
 
@@ -276,4 +273,31 @@
 .au-custom-list-item i {
   font-size: 1.2rem;
   opacity: 0.7;
+}
+
+/* Score Badge */
+.au-score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-blue));
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  line-height: 1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  vertical-align: middle;
+}
+
+.au-score-badge.low { background: #e85d75; }
+.au-score-badge.medium { background: #f0ad4e; }
+.au-score-badge.high { background: #26d6ad; }
+
+/* Filter Bar Adjustments for Media Pages */
+.media-social-filter + .au-activity-bar {
+  margin-top: 15px;
+  margin-bottom: 20px;
 }
