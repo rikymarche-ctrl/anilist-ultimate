@@ -14,11 +14,14 @@ export class SocialSidebar extends BaseComponent {
   private socialService = SocialService.getInstance();
   private bestFriendService = BestFriendService.getInstance();
   private currentMediaId: number | null = null;
-  private currentFilter: SocialFilter = 'following';
+  private currentFilter: SocialFilter = 'self';
+  private currentStatus: string = 'all';
+  private searchQuery: string = '';
   private currentPage = 1;
   private hasNextPage = true;
   private isLoading = false;
   private currentAnchor: HTMLElement | null = null;
+  private currentAnimeTitle: string = '';
 
   protected render(): HTMLElement {
     const sidebar = this.createElement('div', {
@@ -34,10 +37,24 @@ export class SocialSidebar extends BaseComponent {
         </div>
       </div>
       <div class="au-social-tabs">
-        <div class="au-filter active" data-type="following">Following</div>
+        <div class="au-filter active" data-type="self">Self</div>
+        <div class="au-filter" data-type="following">Following</div>
         <div class="au-filter" data-type="friends">Friends</div>
         <div class="au-filter" data-type="global">Global</div>
-        <div class="au-filter" data-type="self">Self</div>
+      </div>
+      <div class="au-status-tabs">
+        <div class="au-status-filter active" data-status="all">All</div>
+        <div class="au-status-filter" data-status="current">Watching</div>
+        <div class="au-status-filter" data-status="planning">Plans</div>
+        <div class="au-status-filter" data-status="completed">Completed</div>
+        <div class="au-status-filter" data-status="paused">Paused</div>
+        <div class="au-status-filter" data-status="dropped">Dropped</div>
+      </div>
+      <div class="au-social-search-wrapper">
+        <div class="au-social-search-inner">
+          <i class="fa fa-search au-social-search-icon"></i>
+          <input type="text" class="au-social-search-input" placeholder="Search friends or notes..." />
+        </div>
       </div>
       <div class="au-social-content">
         <div class="au-social-empty">Select an anime to see activity</div>
@@ -69,6 +86,24 @@ export class SocialSidebar extends BaseComponent {
       });
     });
 
+    // Status Filter clicks
+    const statusFilters = this.querySelectorAll('.au-status-filter');
+    statusFilters.forEach(filter => {
+      this.addEventListener(filter as HTMLElement, 'click', () => {
+        const status = filter.getAttribute('data-status')!;
+        this.setStatus(status);
+      });
+    });
+
+    // Search Input
+    const searchInput = this.querySelector('.au-social-search-input') as HTMLInputElement;
+    if (searchInput) {
+      this.addEventListener(searchInput, 'input', (e) => {
+        this.searchQuery = (e.target as HTMLInputElement).value.toLowerCase();
+        this.refreshEntries();
+      });
+    }
+
     // Infinite scroll
     const content = this.querySelector('.au-social-content');
     if (content) {
@@ -94,6 +129,7 @@ export class SocialSidebar extends BaseComponent {
     }
 
     this.currentMediaId = mediaId;
+    this.currentAnimeTitle = title;
     this.currentPage = 1;
     this.hasNextPage = true;
 
@@ -135,12 +171,32 @@ export class SocialSidebar extends BaseComponent {
     }
   }
 
+  private setStatus(status: string): void {
+    if (this.currentStatus === status) return;
+
+    this.currentStatus = status;
+    this.currentPage = 1;
+    this.hasNextPage = true;
+
+    this.querySelectorAll('.au-status-filter').forEach(f => {
+      f.classList.toggle('active', f.getAttribute('data-status') === status);
+    });
+
+    if (this.currentMediaId) {
+      this.loadData(this.currentMediaId, 1);
+    }
+  }
+
   private async loadData(mediaId: number, page: number): Promise<void> {
     if (this.isLoading) return;
 
     const content = this.querySelector('.au-social-content')!;
     if (page === 1) {
-      content.innerHTML = '<div class="au-social-loading"><i class="fa fa-spinner fa-spin"></i></div>';
+      content.innerHTML = `
+        <div class="au-social-loading">
+          <i class="fa fa-spinner fa-spin"></i>
+          <span>Retrieving activities...</span>
+        </div>`;
     } else {
       const loader = document.createElement('div');
       loader.className = 'au-social-loading';
@@ -154,7 +210,12 @@ export class SocialSidebar extends BaseComponent {
     try {
       // For "friends" filter, we actually fetch "following" and filter locally
       const fetchFilter = this.currentFilter === 'friends' ? 'following' : this.currentFilter;
-      const { nodes, hasNextPage } = await this.socialService.getDetailedActivity(mediaId, fetchFilter, page);
+      const { nodes, hasNextPage } = await this.socialService.getDetailedActivity(
+        mediaId, 
+        fetchFilter, 
+        page,
+        this.currentStatus
+      );
 
       let processedNodes = nodes;
       if (this.currentFilter === 'friends') {
@@ -175,7 +236,8 @@ export class SocialSidebar extends BaseComponent {
       const moreLoader = this.querySelector('#au-social-more-loader');
       if (moreLoader) moreLoader.remove();
 
-      this.renderEntries(processedNodes, page === 1);
+      this.lastLoadedNodes = page === 1 ? nodes : [...this.lastLoadedNodes, ...nodes];
+      this.refreshEntries();
 
     } catch (e) {
       log.error('[SocialSidebar] Load failed', e);
@@ -186,6 +248,21 @@ export class SocialSidebar extends BaseComponent {
     }
   }
 
+  private lastLoadedNodes: SocialActivityDetailed[] = [];
+
+  private refreshEntries(): void {
+    let filtered = this.lastLoadedNodes;
+    
+    if (this.searchQuery) {
+      filtered = filtered.filter(node => 
+        node.user.name.toLowerCase().includes(this.searchQuery) || 
+        (node.notes && node.notes.toLowerCase().includes(this.searchQuery))
+      );
+    }
+
+    this.renderEntries(filtered, true); // Always re-render full list for local search
+  }
+
   private renderEntries(nodes: SocialActivityDetailed[], replace: boolean): void {
     const content = this.querySelector('.au-social-content')!;
 
@@ -194,7 +271,7 @@ export class SocialSidebar extends BaseComponent {
       return;
     }
 
-    const html = nodes.map(node => {
+    const html = nodes.map((node, i) => {
       const format = node.user.mediaListOptions?.scoreFormat || 'POINT_100';
       const formattedScore = ScoreFormatter.format(node.score, format);
       const scoreColor = ScoreFormatter.getColor(node.score);
@@ -204,7 +281,7 @@ export class SocialSidebar extends BaseComponent {
       const relativeTime = this.timeAgo(node.updatedAt * 1000);
 
       const scoreHtml = node.score > 0
-        ? `<span class="au-score-badge" style="color:${scoreColor}; background:${scoreColor}20">${formattedScore}</span>`
+        ? `<span class="au-score-badge" style="color:${scoreColor}; border: 1px solid ${scoreColor}40; background:${scoreColor}15">${formattedScore}</span>`
         : '';
 
       const notesHtml = (node.notes && !isMalSync)
@@ -214,14 +291,17 @@ export class SocialSidebar extends BaseComponent {
       const isBf = this.bestFriendService.isBestFriend(node.user.id);
       const starIcon = isBf ? 'fa-star' : 'fa-star-o';
 
+      // Staggered animation delay
+      const animationDelay = replace ? `style="animation-delay: ${i * 0.06}s"` : '';
+
       return `
-        <div class="au-friend-row" data-user-id="${node.user.id}" data-user-name="${node.user.name}">
+        <div class="au-friend-row" data-user-id="${node.user.id}" data-user-name="${node.user.name}" ${animationDelay}>
           <a href="/user/${node.user.name}" target="_blank" class="au-friend-avatar-link">
             <img src="${node.user.avatar.medium}" alt="${node.user.name}">
           </a>
           <div class="au-friend-info">
             <div class="au-friend-header">
-              <a href="/user/${node.user.name}" target="_blank" class="au-friend-name">${node.user.name}</a>
+              <span class="au-friend-name" data-profile-link="/user/${node.user.name}">${node.user.name}</span>
               <i class="fa ${starIcon} au-bf-toggle" title="${isBf ? 'Remove from Best Friends' : 'Add to Best Friends'}"></i>
             </div>
             <div class="au-friend-status" style="color:${statusColor}">
@@ -262,6 +342,24 @@ export class SocialSidebar extends BaseComponent {
           row.style.opacity = '0';
           setTimeout(() => row.remove(), 300);
         }
+      });
+    });
+
+    // Attach row background click (Deep Linking)
+    content.querySelectorAll('.au-friend-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const userName = row.getAttribute('data-user-name');
+        
+        // If clicking name/avatar specifically, stay with profile
+        if (target.closest('.au-friend-avatar-link') || target.hasAttribute('data-profile-link')) {
+          window.open(`/user/${userName}`, '_blank');
+          return;
+        }
+
+        // Otherwise fallback to user list filtered by anime
+        const encodedTitle = encodeURIComponent(this.currentAnimeTitle);
+        window.open(`/user/${userName}/animelist?search=${encodedTitle}`, '_blank');
       });
     });
   }

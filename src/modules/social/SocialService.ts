@@ -118,15 +118,16 @@ export class SocialService {
   public async getDetailedActivity(
     mediaId: number, 
     filter: SocialFilter, 
-    page: number = 1
+    page: number = 1,
+    status?: string
   ): Promise<{ nodes: SocialActivityDetailed[], hasNextPage: boolean }> {
     const query = `
-      query($mediaId: Int, $isFollowing: Boolean, $userId: Int, $page: Int) {
+      query($mediaId: Int, $isFollowing: Boolean, $userId: Int, $page: Int, $status: MediaListStatus) {
         Page(page: $page, perPage: 30) {
           pageInfo {
             hasNextPage
           }
-          mediaList(mediaId: $mediaId, isFollowing: $isFollowing, userId: $userId, sort: [UPDATED_TIME_DESC]) {
+          mediaList(mediaId: $mediaId, isFollowing: $isFollowing, userId: $userId, status: $status, sort: [UPDATED_TIME_DESC]) {
             id
             status
             progress
@@ -147,6 +148,9 @@ export class SocialService {
     `;
 
     const variables: Record<string, any> = { mediaId, page };
+    if (status && status !== 'all') {
+      variables.status = status.toUpperCase();
+    }
     
     if (filter === 'following') {
       variables.isFollowing = true;

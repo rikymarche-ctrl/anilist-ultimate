@@ -21,7 +21,7 @@ export class SocialRenderer {
     for (let i = 0; i < totalToRender; i++) {
       const u = activities[i].user;
       const extraClass = i >= max ? 'au-social-avatar-extra' : '';
-      html += `<div class="friend-avatar ${extraClass}" title="${u.name}" style="background-image:url(${u.avatar.medium}); z-index:${20-i}"></div>`;
+      html += `<div class="friend-avatar ${extraClass}" title="${u.name}" data-user-name="${u.name}" style="background-image:url(${u.avatar.medium}); z-index:${20-i}"></div>`;
     }
     
     if (activities.length > max) {
@@ -65,7 +65,22 @@ export class SocialRenderer {
 
     target.appendChild(wrapper);
 
-    // 3. Attach event to button
+    // 3. Prevent bubble background clicks from triggering the card's navigation
+    // but allowed specific elements (avatars and button) to work
+    wrapper.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains('friend-avatar')) {
+        const userName = target.getAttribute('data-user-name');
+        if (userName) {
+          e.stopPropagation();
+          window.open(`/user/${userName}`, '_blank');
+        }
+      } else {
+        e.stopPropagation();
+      }
+    });
+
+    // 4. Attach event to button
     const btn = wrapper.querySelector('.au-social-button');
     if (btn) {
       btn.addEventListener('click', (e) => {

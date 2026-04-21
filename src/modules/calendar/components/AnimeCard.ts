@@ -251,9 +251,19 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     this.addEventListener(this.element, 'click', (e) => {
       const target = e.target as HTMLElement;
 
-      // Only block if we clicked specifically on a button (pill-section)
-      // Otherwise, we want the glass overlay to be clickable for navigation
-      if (target.closest('[data-action]')) {
+      // Handle avatar clicks first
+      if (target.classList.contains('friend-avatar')) {
+        const userName = target.getAttribute('data-user-name');
+        if (userName) {
+          e.stopPropagation();
+          window.open(`/user/${userName}`, '_blank');
+        }
+        return;
+      }
+
+      // Only block if we clicked specifically on a button (pill-section) 
+      // or inside the social activity bubble
+      if (target.closest('[data-action]') || target.closest('.au-social-wrapper')) {
         return;
       }
 
