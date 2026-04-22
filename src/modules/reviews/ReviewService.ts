@@ -3,11 +3,12 @@
  * Handles GraphQL queries for review data with advanced Batching via Alias
  */
 
+import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
-import { API_CONFIG } from '@core/constants';
-import type { GraphQLResponse } from '@core/types';
 
-interface ReviewData {
+export interface ReviewData {
   id: number;
   score: number;
   summary: string;
@@ -27,18 +28,13 @@ interface ReviewData {
   };
 }
 
+@injectable()
 export class ReviewService {
-  private static instance: ReviewService;
   private reviewCache: Map<number, ReviewData> = new Map();
 
-  private constructor() {}
-
-  public static getInstance(): ReviewService {
-    if (!ReviewService.instance) {
-      ReviewService.instance = new ReviewService();
-    }
-    return ReviewService.instance;
-  }
+  constructor(
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient
+  ) {}
 
   /**
    * Get multiple reviews via GraphQL Alias Batching
@@ -66,8 +62,6 @@ export class ReviewService {
       const chunk = pendingIds.slice(i, i + chunkSize);
       const chunkIndex = Math.floor(i / chunkSize) + 1;
 
-      // Build Dynamic Alias Query
-      // Example: r123: Review(id: 123) { id score ... }
       const fields = `
         id
         score
@@ -85,7 +79,7 @@ export class ReviewService {
       log.info(`%c[ReviewService] 🚀 Batch ${chunkIndex}/${totalChunks}: Fetching ${chunk.length} reviews`, 'color: #3db4f2; font-weight: bold;');
 
       try {
-        const response = await this.executeQuery<Record<string, ReviewData>>(query, {});
+        const response = await this.apiClient.query<Record<string, ReviewData>>(query, {}, true);
 
         if (response) {
           const responseEntries = Object.entries(response);
@@ -110,22 +104,15 @@ export class ReviewService {
         log.error(`ReviewService: Failed to fetch alias batch ${chunkIndex}/${totalChunks}`, error);
       }
 
-      // Rate limit protection: wait 900ms between chunks (AniList limit: ~90 req/min)
+      // Rate limit protection: wait 900ms between chunks
       if (i + chunkSize < pendingIds.length) {
         log.info(`%c[ReviewService] ⏳ Waiting 900ms before next chunk...`, 'color: #ff9800; font-style: italic;');
-        await this.delay(900);
+        await new Promise(r => setTimeout(r, 900));
       }
     }
 
     log.info(`%c[ReviewService] ✅ Completed: ${results.length} reviews fetched successfully`, 'color: #46d369; font-weight: bold;');
     return results;
-  }
-
-  /**
-   * Delay utility for rate limiting
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -138,46 +125,6 @@ export class ReviewService {
 
     const results = await this.getReviewBatch([reviewId]);
     return results.length > 0 ? results[0] : null;
-  }
-
-  /**
-   * Execute a GraphQL query
-   */
-  private async executeQuery<T>(query: string, variables: Record<string, any>): Promise<T | null> {
-    try {
-      const response = await fetch(API_CONFIG.ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(localStorage.getItem('access_token') && localStorage.getItem('access_token') !== 'undefined'
-            ? { Authorization: `Bearer ${localStorage.getItem('access_token')}` } 
-            : {}),
-        },
-        body: JSON.stringify({
-          query,
-          variables,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const json: GraphQLResponse<T> = await response.json();
-
-      if (json.errors && json.errors.length > 0) {
-        // If it's a batch, some aliases might fail but others succeed
-        if (json.data) return json.data;
-        log.error('GraphQL errors:', json.errors);
-        return null;
-      }
-
-      return json.data;
-    } catch (error) {
-      log.error('Failed to execute GraphQL query', error);
-      return null;
-    }
   }
 
   public clearCache(): void {

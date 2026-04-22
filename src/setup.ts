@@ -5,6 +5,7 @@
 
 import 'reflect-metadata'; // Required for tsyringe
 import { container } from '@core/di/container';
+import { ReviewService } from './modules/reviews/ReviewService';
 import { TOKENS } from '@core/di/tokens';
 
 // Core Infrastructure
@@ -21,6 +22,7 @@ import { syncStorage } from '@core/storage/StorageManager';
 import { logger } from '@core/logger';
 import { ThemeManager } from '@core/ThemeManager';
 import { AuthTokenService } from '@core/auth/AuthTokenService';
+import { ToastService } from '@core/services/ToastService';
 
 // Feature Services
 import { CalendarService } from '@/modules/calendar/CalendarService';
@@ -86,6 +88,10 @@ export async function setupDI(): Promise<void> {
     },
   });
 
+  // Toast Service (needs event bus)
+  container.registerSingleton(TOKENS.ReviewService, ReviewService);
+  container.registerSingleton(TOKENS.ToastService, ToastService);
+
   // Module Registry (needs logger and event bus) - REGISTER AS SINGLETON
   container.registerSingleton(TOKENS.ModuleRegistry, ModuleRegistry);
 
@@ -147,6 +153,11 @@ export async function setupDI(): Promise<void> {
   errorHandler.setupGlobalHandlers();
   console.log('[Setup] Error handler initialized');
 
+  // Initialize Toast Service
+  const toastService = container.resolve<ToastService>(TOKENS.ToastService);
+  toastService.init();
+  console.log('[Setup] Toast service initialized');
+
   // Start navigation service
   const navigationService = container.resolve<NavigationService>(TOKENS.NavigationService);
   navigationService.start();
@@ -177,8 +188,14 @@ export async function setupDI(): Promise<void> {
       name: 'hoverComments',
       description: 'Hover to see comments on activity feed',
       enabled: config.isFeatureEnabled('hoverComments'),
-      factory: () => new HoverCommentsModule(),
+      factory: () => {
+        return new HoverCommentsModule(
+          container.resolve(TOKENS.ApiClient),
+          container.resolve(TOKENS.Logger)
+        );
+      },
     },
+
     {
       name: 'notificationCleaner',
       description: 'Enhanced notification management',
@@ -194,9 +211,13 @@ export async function setupDI(): Promise<void> {
     },
     {
       name: 'reviewEnhancer',
-      description: 'Enhanced review display',
+      description: 'Show review ratings on cards',
       enabled: config.isFeatureEnabled('reviewEnhancer'),
-      factory: () => new ReviewEnhancerModule(),
+      factory: () => {
+        return new ReviewEnhancerModule(
+          container.resolve(TOKENS.ReviewService)
+        );
+      },
     },
     {
       name: 'activityEnhancer',

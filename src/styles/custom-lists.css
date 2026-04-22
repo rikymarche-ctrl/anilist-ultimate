@@ -6,17 +6,17 @@
 }
 
 .au-cl-info {
-  background: rgba(var(--color-blue), 0.1);
-  border-left: 4px solid rgb(var(--color-blue));
+  background: rgba(74, 158, 255, 0.1);
+  border-left: 4px solid var(--au-primary);
   padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: var(--au-border-radius);
   margin-bottom: 10px;
 }
 
 .au-cl-info h3 {
   margin: 0 0 5px 0;
   font-size: 16px;
-  color: rgb(var(--color-blue));
+  color: var(--au-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -26,11 +26,11 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.4;
-  color: #8fa0b1;
+  color: var(--au-text-light);
 }
 
 .au-cl-info b {
-  color: #edf1f5;
+  color: var(--au-text);
 }
 
 .au-cl-header {
@@ -50,19 +50,20 @@
 }
 
 .au-cl-list-card {
-  background: rgba(var(--color-background-100), 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
   border-radius: 12px;
   padding: 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
 }
 
 .au-cl-list-card:hover {
-  background: rgba(var(--color-background-100), 0.6);
-  border-color: rgba(var(--color-blue), 0.3);
+  background: var(--au-bg);
+  filter: brightness(1.1);
+  border-color: var(--au-primary);
   transform: translateY(-2px);
 }
 
@@ -74,13 +75,13 @@
   margin: 0 0 5px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #edf1f5;
+  color: var(--au-text);
 }
 
 .au-cl-list-count {
   margin: 0;
   font-size: 13px;
-  color: #8fa0b1;
+  color: var(--au-text-light);
 }
 
 .au-cl-list-actions {
@@ -91,86 +92,88 @@
 .au-cl-manage-btn,
 .au-cl-delete-btn {
   padding: 8px 14px;
-  border-radius: 6px;
+  border-radius: var(--au-border-radius);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   display: flex;
   align-items: center;
   gap: 5px;
 }
 
 .au-cl-manage-btn {
-  background: rgb(var(--color-blue));
+  background: var(--au-primary);
   color: #fff;
 }
 
 .au-cl-manage-btn:hover {
-  background: rgb(var(--color-blue-dark));
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
 .au-cl-delete-btn {
-  background: rgba(229, 93, 117, 0.2);
-  color: #e85d75;
+  background: rgba(255, 77, 77, 0.2);
+  color: var(--au-error);
   padding: 8px 10px;
 }
 
 .au-cl-delete-btn:hover {
-  background: rgba(229, 93, 117, 0.3);
+  background: rgba(255, 77, 77, 0.3);
   transform: translateY(-1px);
 }
 
 .au-cl-back-btn {
   padding: 8px 14px;
-  border-radius: 6px;
+  border-radius: var(--au-border-radius);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  background: rgba(var(--color-background-100), 0.8);
-  color: #edf1f5;
-  transition: all 0.2s;
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
+  color: var(--au-text);
+  transition: all var(--au-transition);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .au-cl-back-btn:hover {
-  background: rgba(var(--color-background-100), 1);
+  background: var(--au-bg);
+  filter: brightness(1.2);
   transform: translateY(-1px);
 }
 
 .au-cl-current-list {
   font-size: 14px;
-  color: #8fa0b1;
+  color: var(--au-text-light);
   margin-left: auto;
 }
 
 .au-cl-current-list b {
-  color: rgb(var(--color-blue));
+  color: var(--au-primary);
 }
 
 .au-cl-add-list-btn {
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: var(--au-border-radius);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-  background: rgb(var(--color-blue));
+  background: var(--au-primary);
   color: #fff;
 }
 
 .au-cl-add-list-btn:hover {
-  background: rgb(var(--color-blue-dark));
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
@@ -181,18 +184,18 @@
 
 .au-cl-search-input {
   width: 100%;
-  background: rgba(var(--color-background-100), 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
   border-radius: 10px;
   padding: 12px 15px 12px 40px;
-  color: #fff;
+  color: var(--au-text);
   font-size: 14px;
   outline: none;
-  transition: border 0.3s;
+  transition: border var(--au-transition);
 }
 
 .au-cl-search-input:focus {
-  border-color: rgb(var(--color-blue));
+  border-color: var(--au-primary);
 }
 
 .au-cl-search-icon {
@@ -200,7 +203,8 @@
   left: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--au-text-light);
+  opacity: 0.5;
 }
 
 .au-cl-grid {
@@ -215,23 +219,24 @@
   align-items: center;
   gap: 12px;
   padding: 10px;
-  background: rgba(var(--color-background-100), 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   position: relative;
 }
 
 .au-cl-user-card:hover {
-  background: rgba(var(--color-background-100), 0.6);
+  background: var(--au-bg);
+  filter: brightness(1.1);
   transform: translateY(-2px);
-  border-color: rgba(var(--color-blue), 0.3);
+  border-color: var(--au-primary);
 }
 
 .au-cl-user-card.active {
-  border-color: rgb(var(--color-blue));
-  background: rgba(var(--color-blue), 0.1);
+  border-color: var(--au-primary);
+  background: rgba(74, 158, 255, 0.1);
 }
 
 .au-cl-avatar {
@@ -246,7 +251,7 @@
 .au-cl-name {
   font-size: 13px;
   font-weight: 600;
-  color: #edf1f5;
+  color: var(--au-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -256,17 +261,17 @@
   margin-left: auto;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid var(--au-border);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
 }
 
 .au-cl-user-card.active .au-cl-checkbox {
-  background: rgb(var(--color-blue));
-  border-color: rgb(var(--color-blue));
+  background: var(--au-primary);
+  border-color: var(--au-primary);
 }
 
 .au-cl-user-card.active .au-cl-checkbox::after {
@@ -283,21 +288,22 @@
   align-items: center;
   justify-content: center;
   padding: 100px 0;
-  color: #8fa0b1;
+  color: var(--au-text-light);
   gap: 15px;
 }
 
 .au-cl-loading-spinner {
   font-size: 30px;
-  color: rgb(var(--color-blue));
+  color: var(--au-primary);
 }
 
 /* Empty State */
 .au-cl-empty {
   text-align: center;
   padding: 60px 0;
-  color: #8fa0b1;
+  color: var(--au-text-light);
 }
+
 
 @keyframes auFadeIn {
   from { opacity: 0; transform: translateY(10px); }

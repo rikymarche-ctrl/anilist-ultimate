@@ -14,6 +14,8 @@ export const TOKENS = {
   EventBus: Symbol.for('IEventBus'),
   Config: Symbol.for('IConfigManager'),
   ErrorHandler: Symbol.for('IErrorHandler'),
+  ToastService: Symbol.for('ToastService'),
+  ReviewService: Symbol.for('ReviewService'),
   NavigationService: Symbol.for('NavigationService'),
 
   // API Layer
@@ -45,7 +47,6 @@ export const TOKENS = {
   ActivityTabManager: Symbol.for('ActivityTabManager'),
 
   // Review Module Services
-  ReviewService: Symbol.for('ReviewService'),
 
   // Notification Module Services
   NotificationFetchService: Symbol.for('NotificationFetchService'),

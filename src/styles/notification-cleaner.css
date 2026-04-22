@@ -9,45 +9,47 @@
   width: 100%;
   padding: 10px;
   margin-bottom: 15px;
-  background: rgb(var(--color-blue));
+  background: var(--au-primary);
   color: #fff;
-  border: 1px solid rgb(var(--color-blue));
-  border-radius: 3px; /* Squared borders as requested */
+  border: 1px solid var(--au-primary);
+  border-radius: var(--au-border-radius);
+  /* Squared borders as requested */
   font-size: 1.3rem;
   font-weight: 600;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--au-transition);
   user-select: none;
 }
 
 .au-compress-button:hover {
-  background: rgb(var(--color-blue-600));
+  background: var(--au-primary);
+  filter: brightness(1.1);
   transform: translateY(-1px);
-  box-shadow: none;
+  box-shadow: var(--au-shadow);
 }
 
 /* Active state (Action: Decompress) - subtle blue */
 .au-compress-button.compressed {
-  background: rgba(var(--color-blue), 0.1);
-  color: rgb(var(--color-blue));
-  border-color: rgba(var(--color-blue), 0.2);
+  background: rgba(74, 158, 255, 0.1);
+  color: var(--au-primary);
+  border-color: rgba(74, 158, 255, 0.2);
 }
 
 .au-compress-button.compressed:hover {
-  background: rgba(var(--color-blue), 0.15);
+  background: rgba(74, 158, 255, 0.15);
   box-shadow: none;
 }
 
 /* Virtual Grouped Notifications */
 .au-virtual-notification {
-  border-left: 4px solid rgb(var(--color-blue)) !important;
-  background: rgba(var(--color-blue), 0.03) !important;
+  border-left: 4px solid var(--au-primary) !important;
+  background: rgba(74, 158, 255, 0.03) !important;
   animation: au-fade-in 0.3s ease;
 }
 
 .au-virtual-notification b {
-  color: rgb(var(--color-blue));
+  color: var(--au-primary);
 }
 
 /* Hidden original notifications */
@@ -56,24 +58,32 @@
 }
 
 @keyframes au-fade-in {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Settings Section */
 .au-clutterfree-settings {
   padding: 15px;
   margin-bottom: 20px;
-  background: var(--color-background-100);
-  border-radius: 3px; /* Squared borders */
-  border: 1px solid var(--color-border);
+  background: var(--au-bg);
+  border-radius: var(--au-border-radius);
+  /* Squared borders */
+  border: 1px solid var(--au-border);
 }
 
 /* Activity count (clickable number) */
 .au-activity-count {
   cursor: pointer;
   text-decoration: underline;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--au-transition);
 }
 
 .au-activity-count:hover {
@@ -91,7 +101,7 @@
   padding-left: 16px;
   padding-top: 5px;
   padding-bottom: 5px;
-  border-left: 3px solid rgba(var(--color-blue), 0.3);
+  border-left: 3px solid rgba(74, 158, 255, 0.3);
   margin-left: 20px;
   display: flex;
   flex-direction: column;
@@ -103,8 +113,9 @@
   margin-bottom: 0 !important;
   opacity: 0.95;
   font-size: 0.95em;
-  transition: opacity 0.2s ease;
-  display: flex !important; /* Ensure flex layout for content */
+  transition: opacity var(--au-transition);
+  display: flex !important;
+  /* Ensure flex layout for content */
   flex-direction: row;
   align-items: center;
   min-height: auto;
@@ -127,20 +138,21 @@
 
 /* Status and Title separation */
 .notification .au-title {
-  color: rgb(var(--color-blue));
+  color: var(--au-primary);
   font-weight: 600;
-  margin-left: 0.25em; /* Force spacing regardless of HTML text nodes collapse */
+  margin-left: 0.25em;
+  /* Force spacing regardless of HTML text nodes collapse */
 }
 
 .au-notification-dropdown .notification .title,
 .notification .au-user-link {
-  color: rgb(var(--color-blue));
+  color: var(--au-primary);
   font-weight: 600;
 }
 
 .notification .au-user-link:hover,
 .notification .au-title:hover {
-  color: rgb(var(--color-blue-dim));
+  filter: brightness(1.2);
 }
 
 /* Ensure images don't shrink */
@@ -154,6 +166,7 @@
     max-height: 0;
     overflow: hidden;
   }
+
   to {
     opacity: 1;
     max-height: 1000px;
@@ -169,28 +182,29 @@
 .au-notifications-search .au-search-input {
   width: 100%;
   padding: 12px 16px;
-  background: var(--au-bg, #151f2e);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  color: rgb(var(--color-text));
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-border-radius);
+  color: var(--au-text);
   font-size: 1.4rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all var(--au-transition);
+  box-shadow: var(--au-shadow);
 }
 
 .au-notifications-search .au-search-input:hover {
-  border-color: rgba(var(--color-text), 0.2);
+  border-color: var(--au-primary);
 }
 
 .au-notifications-search .au-search-input:focus {
   outline: none;
-  border-color: rgb(var(--color-blue));
-  box-shadow: 0 2px 12px rgba(var(--color-blue), 0.15);
-  background: var(--au-bg, #151f2e);
+  border-color: var(--au-primary);
+  box-shadow: 0 2px 12px rgba(74, 158, 255, 0.15);
+  background: var(--au-bg);
 }
 
 .au-notifications-search .au-search-input::placeholder {
-  color: rgba(var(--color-text), 0.4);
+  color: var(--au-text-light);
+  opacity: 0.5;
   font-weight: 500;
 }
 
@@ -199,5 +213,6 @@
 .high-contrast .au-notifications-search .au-search-input::placeholder,
 .theme-contrast .au-notifications-search .au-search-input::placeholder,
 .au-theme-contrast .au-notifications-search .au-search-input::placeholder {
-  color: rgba(0, 0, 0, 0.8);
+  color: var(--au-text);
+  opacity: 1;
 }

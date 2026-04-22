@@ -21,6 +21,7 @@ import { setupDI } from './setup';
 
 // Styles
 import './styles/main.css';
+import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
 

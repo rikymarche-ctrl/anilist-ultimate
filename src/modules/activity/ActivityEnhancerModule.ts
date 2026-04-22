@@ -25,6 +25,7 @@ import '../../styles/activity-enhancer.css';
 export class ActivityEnhancerModule extends BaseModule {
   private readonly OBSERVER_NAME = 'activity-continuous';
   private customActivitiesContainer: HTMLElement | null = null;
+  private isProcessing = false;
 
   constructor(
     private logger: ILogger,
@@ -107,22 +108,39 @@ export class ActivityEnhancerModule extends BaseModule {
   /**
    * Check and process page
    */
-  private checkAndProcess(): void {
-    // Inject filter bar if not present
-    if (!document.querySelector('.au-activity-bar')) {
-      this.injectFilterBar();
-    }
+  private async checkAndProcess(): Promise<void> {
+    if (this.isProcessing) return;
 
-    // Inject custom lists dropdown if not present
-    if (!document.querySelector('.au-custom-list-btn')) {
-      this.injectCustomListsTab();
-    }
+    const feed = document.querySelector('.activity-feed-wrap, .activity-feed, .feed-container');
+    const bar = document.querySelector('.au-activity-bar');
+    const customTab = document.querySelector('.au-custom-list-btn');
 
-    // Apply filters to feed
-    const feed = document.querySelector('.activity-feed-wrap, .activity-feed');
-    if (feed) {
-      this.suspendObserver(this.OBSERVER_NAME);
-      this.applyFilters();
+    // If we are not on activity page, or everything is already there, skip
+    if (!this.isOnActivityPage()) return;
+    if (bar && customTab) return;
+
+    this.isProcessing = true;
+    this.suspendObserver(this.OBSERVER_NAME);
+
+    try {
+      // Inject filter bar if not present
+      if (!document.querySelector('.au-activity-bar')) {
+        this.injectFilterBar();
+      }
+
+      // Inject custom lists dropdown if not present
+      if (!document.querySelector('.au-custom-list-btn')) {
+        await this.injectCustomListsTab();
+      }
+
+      // Apply filters to feed
+      if (feed) {
+        this.applyFilters();
+      }
+    } catch (error) {
+      this.logger.error('[ActivityEnhancer] Processing failed', error);
+    } finally {
+      this.isProcessing = false;
       this.resumeObserver(this.OBSERVER_NAME);
     }
   }
@@ -132,7 +150,7 @@ export class ActivityEnhancerModule extends BaseModule {
    */
   private injectFilterBar(): void {
     const editContainer = document.querySelector('.activity-edit');
-    const feedWrap = document.querySelector('.activity-feed-wrap');
+    const feedWrap = document.querySelector('.activity-feed-wrap, .activity-feed, .feed-container');
 
     if (!feedWrap) return;
 
@@ -209,16 +227,28 @@ export class ActivityEnhancerModule extends BaseModule {
    * Handle custom list change
    */
   private async handleListChange(listName: string | null): Promise<void> {
+    if (this.isProcessing) return;
+    
     this.logger.info(`[ActivityEnhancer] Custom list changed: ${listName || 'none'}`);
 
-    if (listName) {
-      // Show custom list activities
-      await this.loadCustomListActivities(listName);
-    } else {
-      // Clear custom list, show native activities
-      this.clearCustomActivities();
-      this.renderer.showNativeActivities();
-      this.checkAndProcess(); // Re-apply filters
+    this.isProcessing = true;
+    this.suspendObserver(this.OBSERVER_NAME);
+
+    try {
+      if (listName) {
+        // Show custom list activities
+        await this.loadCustomListActivities(listName);
+      } else {
+        // Clear custom list, show native activities
+        this.clearCustomActivities();
+        this.renderer.showNativeActivities();
+        this.applyFilters(); // Re-apply filters
+      }
+    } catch (error) {
+      this.logger.error('[ActivityEnhancer] Failed to handle list change', error);
+    } finally {
+      this.isProcessing = false;
+      this.resumeObserver(this.OBSERVER_NAME);
     }
   }
 
@@ -259,7 +289,7 @@ export class ActivityEnhancerModule extends BaseModule {
    * Create container for custom activities
    */
   private createCustomActivitiesContainer(): void {
-    const feedWrap = document.querySelector('.activity-feed-wrap');
+    const feedWrap = document.querySelector('.activity-feed-wrap, .activity-feed, .feed-container');
     if (!feedWrap) return;
 
     const container = document.createElement('div');
@@ -283,7 +313,8 @@ export class ActivityEnhancerModule extends BaseModule {
    */
   private async fetchCustomListActivities(listName: string): Promise<AniListActivity[]> {
     const lists = this.customListService.getLists();
-    const userIds = lists[listName] || [];
+    const users = lists[listName] || [];
+    const userIds = users.map(u => u.id);
 
     if (userIds.length === 0) {
       return [];

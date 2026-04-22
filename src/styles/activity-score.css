@@ -8,21 +8,21 @@
   align-items: center;
   justify-content: center;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--au-border-radius);
   font-weight: 700;
   font-size: 11px;
   margin-left: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--au-shadow);
   min-width: 22px;
-  background: rgba(21, 31, 46, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
   vertical-align: middle;
-  transition: all 0.2s ease;
+  transition: all var(--au-transition);
 }
 
 .au-format-point-5 {
   font-size: 9px;
-  color: #facc15 !important;
+  color: var(--au-warning) !important;
   letter-spacing: -1px;
   padding: 1px 4px;
 }
@@ -36,15 +36,15 @@
   min-width: unset;
 }
 
-/* Colors matching ReviewEnhancer */
-.au-rating--perfect { color: #2d7a1f; }
-.au-rating--excellent { color: #3fae2a; }
-.au-rating--high { color: #4db83a; }
-.au-rating--good { color: #66cc33; }
-.au-rating--decent { color: #9acd32; }
-.au-rating--medium { color: #f7bf63; }
-.au-rating--poor { color: #ff6b6b; }
-.au-rating--bad { color: #e85d75; }
+/* Colors matching ReviewEnhancer (using AU tokens where possible) */
+.au-rating--perfect { color: var(--au-success); }
+.au-rating--excellent { color: var(--au-success); filter: brightness(0.9); }
+.au-rating--high { color: var(--au-success); filter: brightness(0.8); }
+.au-rating--good { color: var(--au-success); filter: brightness(0.7); }
+.au-rating--decent { color: var(--au-warning); }
+.au-rating--medium { color: var(--au-warning); filter: brightness(0.9); }
+.au-rating--poor { color: var(--au-error); }
+.au-rating--bad { color: var(--au-error); filter: brightness(0.8); }
 .au-rating--terrible { color: #9370db; }
 
 .au-friend-header {
@@ -57,19 +57,20 @@
 .au-bf-toggle {
   cursor: pointer;
   font-size: 14px;
-  color: #94a3b8;
-  transition: all 0.2s ease;
+  color: var(--au-text-light);
+  transition: all var(--au-transition);
   padding: 4px;
 }
 
 .au-bf-toggle:hover {
-  color: #facc15;
+  color: var(--au-warning);
   transform: scale(1.2);
 }
 
 .au-bf-toggle.fa-star {
-  color: #facc15;
+  color: var(--au-warning);
 }
+
 
 .activity-entry .cover, 
 .activity-anime .cover, 

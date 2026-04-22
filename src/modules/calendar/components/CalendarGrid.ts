@@ -5,6 +5,7 @@
 
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { DayColumn } from './DayColumn';
+import { CalendarSkeleton } from './CalendarSkeleton';
 import { calendarStore } from '../CalendarStore';
 import { DAYS_OF_WEEK, TIME } from '@core/constants';
 import { log } from '@core/logger';
@@ -19,10 +20,16 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   private unsubscribe?: () => void;
 
   protected render(): HTMLElement {
-    const grid = this.createElement('div', { class: 'calendar-grid' });
-
     const state = calendarStore.getState();
-    const { preferences } = state;
+    const { preferences, loading, entries } = state;
+
+    // Show skeleton if loading and no entries
+    if (loading && entries.length === 0) {
+      const skeleton = new CalendarSkeleton({});
+      return skeleton.getElement();
+    }
+
+    const grid = this.createElement('div', { class: 'calendar-grid' });
 
     // Apply layout mode class
     grid.classList.add(`calendar-grid--${preferences.layoutMode}`);
@@ -111,6 +118,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
     this.unsubscribe = calendarStore.subscribe((state, prevState) => {
       // Check if we need to re-render
       const shouldRerender =
+        state.loading !== prevState.loading ||
         state.entries !== prevState.entries ||
         state.preferences.layoutMode !== prevState.preferences.layoutMode ||
         state.preferences.hideEmptyDays !== prevState.preferences.hideEmptyDays ||
@@ -176,18 +184,14 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   }
 
   /**
-   * Show loading state
+   * Show loading state (no-op as it's handled by render)
    */
-  public showLoading(): void {
-    this.element.classList.add('calendar-grid--loading');
-  }
+  public showLoading(): void { }
 
   /**
-   * Hide loading state
+   * Hide loading state (no-op as it's handled by render)
    */
-  public hideLoading(): void {
-    this.element.classList.remove('calendar-grid--loading');
-  }
+  public hideLoading(): void { }
 
   /**
    * Show error message

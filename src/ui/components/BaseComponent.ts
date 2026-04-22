@@ -199,7 +199,7 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
    */
   protected createElement<K extends keyof HTMLElementTagNameMap>(
     tag: K,
-    props?: Partial<HTMLElementTagNameMap[K]> & { class?: string; id?: string }
+    props?: Record<string, any>
   ): HTMLElementTagNameMap[K] {
     const element = document.createElement(tag);
 
@@ -211,6 +211,9 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
           element.id = value;
         } else if (key in element) {
           (element as any)[key] = value;
+        } else {
+          // Fallback to setAttribute for custom data attributes etc.
+          element.setAttribute(key, String(value));
         }
       });
     }

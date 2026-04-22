@@ -3,11 +3,14 @@
  * Handles all API communication with rate limiting
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import { GraphQLClient } from 'graphql-request';
 import { API_CONFIG, OAUTH_CONFIG } from '@core/constants';
+import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
+import { ApiError } from '@core/errors/ErrorTypes';
 import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { IErrorHandler } from '@core/errors/ErrorHandler';
 
 interface RequestQueueItem {
   query: string;
@@ -15,6 +18,7 @@ interface RequestQueueItem {
   resolve: (value: any) => void;
   reject: (error: any) => void;
   retries: number;
+  silent?: boolean;
 }
 
 /**
@@ -29,7 +33,9 @@ export class AnilistClient implements IApiClient {
   private isRateLimited = false;
   private accessToken: string | null = null;
 
-  constructor() {
+  constructor(
+    @inject(TOKENS.ErrorHandler) private errorHandler: IErrorHandler
+  ) {
     this.client = new GraphQLClient(API_CONFIG.ENDPOINT, {
       headers: this.getHeaders(),
     });
@@ -158,7 +164,7 @@ export class AnilistClient implements IApiClient {
   /**
    * Execute a GraphQL query with rate limiting
    */
-  public async query<T>(query: string, variables: Record<string, any> = {}): Promise<T> {
+  public async query<T>(query: string, variables: Record<string, any> = {}, silent: boolean = false): Promise<T> {
     return new Promise((resolve, reject) => {
       this.queue.push({
         query,
@@ -166,6 +172,7 @@ export class AnilistClient implements IApiClient {
         resolve,
         reject,
         retries: 0,
+        silent,
       });
 
       this.processQueue();
@@ -202,19 +209,37 @@ export class AnilistClient implements IApiClient {
     try {
       const result = await this.executeRequest(item);
       item.resolve(result);
-    } catch (error) {
+    } catch (error: any) {
       // Handle rate limiting
       if (this.isRateLimitError(error)) {
         log.warn('Rate limit hit, retrying after delay');
         this.handleRateLimit(item);
       } else if (item.retries < API_CONFIG.RETRY_ATTEMPTS) {
-        log.warn(`Request failed, retry ${item.retries + 1}/${API_CONFIG.RETRY_ATTEMPTS}`);
+        const delay = Math.pow(2, item.retries) * 1000; // Exponential backoff: 1s, 2s, 4s...
+        log.warn(`Request failed, retry ${item.retries + 1}/${API_CONFIG.RETRY_ATTEMPTS} in ${delay}ms`);
+        
         item.retries++;
-        this.queue.unshift(item); // Put back at front of queue
+        setTimeout(() => {
+          this.queue.unshift(item);
+          this.processQueue();
+        }, delay);
       } else {
         log.error('Request failed after max retries', error);
-        item.reject(error);
+        
+        const apiError = new ApiError(
+          error.message || 'Anilist API request failed',
+          error.response?.status,
+          'GraphQL',
+          item.retries,
+          error
+        );
+        
+        if (!item.silent) {
+          this.errorHandler.handle(apiError, 'Anilist API');
+        }
+        item.reject(apiError);
       }
+
     } finally {
       this.activeRequests--;
 
@@ -239,8 +264,9 @@ export class AnilistClient implements IApiClient {
       if (error.response?.status === 401 || error.response?.status === 403) {
         log.error('Authentication error - token may be invalid');
         this.accessToken = null;
-        throw new Error('Authentication required');
+        throw new ApiError('Authentication required', error.response?.status, 'GraphQL', 0, error);
       }
+
 
       throw error;
     }
@@ -291,10 +317,17 @@ export class AnilistClient implements IApiClient {
       const data = await this.query<{ Viewer: { id: number; name: string } }>(query);
       log.info('Current user fetched via GraphQL', { userId: data.Viewer.id });
       return data.Viewer.id;
-    } catch (error) {
+    } catch (error: any) {
       log.error('Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.', error);
-      throw new Error('Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.');
+      throw new ApiError(
+        'Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.',
+        error.response?.status,
+        'Viewer Query',
+        0,
+        error
+      );
     }
+
   }
 
   /**
@@ -323,6 +356,14 @@ export class AnilistClient implements IApiClient {
 
 /**
  * Singleton instance for backward compatibility
- * Will be replaced by DI container resolution in Phase 4
+ * Resolves dynamically from the container to avoid circular dependencies and Rollup assignment issues.
+ * DEPRECATED: Inject TOKENS.ApiClient or resolve from container directly.
  */
-export const anilistClient = new AnilistClient();
+export const anilistClient = new Proxy({} as AnilistClient, {
+  get: (_, prop) => {
+    const instance = container.resolve<AnilistClient>(TOKENS.ApiClient);
+    const value = (instance as any)[prop];
+    return typeof value === 'function' ? value.bind(instance) : value;
+  }
+});
+

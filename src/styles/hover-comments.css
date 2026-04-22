@@ -4,12 +4,12 @@
  */
 
 .anilist-comment-icon {
-  color: var(--cal-text-light);
+  color: var(--au-text-light);
   font-size: 16px;
   cursor: pointer;
   opacity: 0.8;
   vertical-align: middle;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   display: flex;
   align-items: center;
 }
@@ -23,36 +23,39 @@
   position: relative;
   vertical-align: middle;
   margin: 0;
-  pointer-events: none; /* Ignore for layout engine */
+  pointer-events: none;
+  /* Ignore for layout engine */
 }
 
 .comment-icon-ghost .anilist-comment-icon {
   position: absolute;
-  left: 8px; /* Offset into the gap between status and score */
+  left: 8px;
+  /* Offset into the gap between status and score */
   top: 50%;
   transform: translateY(-50%);
-  pointer-events: auto; /* Re-enable for interactions */
+  pointer-events: auto;
+  /* Re-enable for interactions */
   width: 24px;
   height: 24px;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
 }
 
 /* Row Hover Glow Effect */
 .anilist-comment-icon.row-hover {
-  color: var(--cal-blue);
+  color: var(--au-primary);
   opacity: 1;
-  filter: drop-shadow(0 0 3px var(--cal-blue-dim));
+  filter: drop-shadow(0 0 3px var(--au-primary));
 }
 
 .comment-icon-ghost .anilist-comment-icon:hover {
-  color: var(--cal-blue);
+  color: var(--au-primary);
   transform: translateY(-50%) scale(1.15);
-  filter: drop-shadow(0 0 8px var(--cal-blue));
+  filter: drop-shadow(0 0 8px var(--au-primary));
 }
 
-/* Row Stability - TARGETED SELECTORS ONLY */
-.user-status-row, 
+/* Row Stability */
+.user-status-row,
 .following-list-item,
 .following-item {
   white-space: nowrap !important;
@@ -65,9 +68,9 @@
 /* Refresh All Button Styling */
 .au-refresh-all-comments {
   cursor: pointer;
-  color: var(--cal-text-light);
+  color: var(--au-text-light);
   opacity: 0.6;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all var(--au-transition) cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -75,7 +78,7 @@
 }
 
 .au-refresh-all-comments:hover {
-  color: var(--cal-blue);
+  color: var(--au-primary);
   opacity: 1;
   transform: rotate(180deg);
 }
@@ -87,16 +90,17 @@
   overflow-y: auto;
   position: absolute;
   z-index: 10000;
-  background: var(--cal-anime-bg);
+  background: var(--au-bg);
+  opacity: 0.95;
   backdrop-filter: blur(10px);
-  color: var(--cal-text);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  border-radius: 6px;
-  border-left: 5px solid var(--cal-blue);
+  color: var(--au-text);
+  box-shadow: var(--au-shadow);
+  border-radius: var(--au-border-radius);
+  border-left: 5px solid var(--au-primary);
   padding: 16px;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+  transition: all var(--au-transition);
   transform: translateX(10px);
   pointer-events: none;
 }
@@ -112,7 +116,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--cal-border);
+  border-bottom: 1px solid var(--au-border);
   margin-bottom: 12px;
   padding-bottom: 8px;
 }
@@ -120,7 +124,7 @@
 .tooltip-user {
   font-weight: 800;
   font-size: 16px;
-  color: var(--cal-blue);
+  color: var(--au-primary);
 }
 
 .tooltip-actions {
@@ -131,7 +135,7 @@
 
 .tooltip-age {
   font-size: 12px;
-  color: var(--cal-text-light);
+  color: var(--au-text-light);
   opacity: 0.8;
 }
 
@@ -142,19 +146,19 @@
 }
 
 .tooltip-refresh-btn {
-  background: var(--cal-blue-dim);
+  background: rgba(74, 158, 255, 0.1);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--au-border-radius);
   padding: 4px;
-  color: var(--cal-text);
+  color: var(--au-text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
 }
 
 .tooltip-refresh-btn:hover {
-  background: var(--cal-blue);
+  background: var(--au-primary);
   color: white;
 }

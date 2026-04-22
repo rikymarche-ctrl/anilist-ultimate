@@ -19,16 +19,27 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
+        manualChunks: {
+          vendor: ['tsyringe', 'reflect-metadata'],
+        },
       },
     },
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: false, // Keep console for debugging
+        drop_console: true,
         drop_debugger: true,
+        pure_funcs: ['console.log', 'console.debug', 'console.info'], // Aggressive removal
+        passes: 2,
+      },
+      format: {
+        comments: false, // Remove all comments
       },
     },
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 1000,
   },
+
   server: {
     port: 5173,
     strictPort: true,
@@ -36,4 +47,14 @@ export default defineConfig({
       port: 5173,
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.ts'],
+    coverage: {
+      reporter: ['text', 'json', 'html'],
+    },
+  },
 });
+

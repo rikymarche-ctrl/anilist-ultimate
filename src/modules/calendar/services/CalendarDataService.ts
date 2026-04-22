@@ -10,7 +10,8 @@ import { log } from '@core/logger';
 export class CalendarDataService {
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(TOKENS.CalendarService) private calendarService: CalendarService
+    @inject(TOKENS.CalendarService) private calendarService: CalendarService,
+    @inject(TOKENS.ToastService) private toastService: any
   ) {}
 
   /**
@@ -25,6 +26,7 @@ export class CalendarDataService {
       calendarStore.setEntries(entries);
 
       log.success(`[CalendarData] Loaded ${entries.length} anime entries`);
+      // this.toastService.success(`Loaded ${entries.length} airing anime entries.`);
 
       // Emit global event
       this.eventBus.emit(EVENT_TYPES.CALENDAR_LOADED, {
@@ -54,6 +56,7 @@ export class CalendarDataService {
 
       // Update local state
       calendarStore.updateEntry(mediaId, { progress: newProgress });
+      this.toastService.success(`Updated progress for ${entry.title}.`);
       
       // Emit progression event
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {

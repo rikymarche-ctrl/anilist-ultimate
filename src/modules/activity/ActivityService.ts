@@ -69,7 +69,7 @@ export class ActivityService {
       const query = `query { ${aliases.join('\n')} }`;
 
       try {
-        const response = await anilistClient.query<Record<string, { score: number; user: { mediaListOptions: { scoreFormat: ScoreFormat } } } | null>>(query);
+        const response = await anilistClient.query<Record<string, { score: number; user: { mediaListOptions: { scoreFormat: ScoreFormat } } } | null>>(query, {}, true);
         
         chunk.forEach((p, idx) => {
           const data = response[`s${idx}`];

@@ -4,26 +4,32 @@
  * Concentrates all API effort into a single, consolidated request using a high debounce.
  */
 
+import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
 import { ReviewService } from './ReviewService';
 import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import '../../styles/review-enhancer.css';
 
+@injectable()
 export class ReviewEnhancerModule extends BaseModule {
   private inFlightReviews: Set<number> = new Set();
   private pendingQueue: Map<number, HTMLElement[]> = new Map();
-  private reviewService!: ReviewService;
   
   private debounceTimer: number | null = null;
   private scanInterval: number | null = null;
   private isBatching: boolean = false;
 
-  public async init(): Promise<void> {
-    log.info('ReviewEnhancer: Initializing One-Shot Strategic Version');
-    this.reviewService = ReviewService.getInstance();
+  constructor(
+    @inject(TOKENS.ReviewService) private reviewService: ReviewService
+  ) {
+    super();
+  }
 
-    // Use centralized navigation events instead of polling
+  public async init(): Promise<void> {
+    log.info('[ReviewEnhancer] Initializing strategic version');
+
     this.onPageChange(() => {
       this.fullReset();
       this.startObservation();
@@ -32,9 +38,6 @@ export class ReviewEnhancerModule extends BaseModule {
     this.startObservation();
   }
 
-  /**
-   * Get module name
-   */
   public getName(): string {
     return 'reviewEnhancer';
   }
@@ -52,14 +55,12 @@ export class ReviewEnhancerModule extends BaseModule {
   }
 
   private startObservation(): void {
-    // Strategic Page-Entry Scan
     this.scanAndQueue();
 
     this.registerObserver('reviews-one-shot', document.body, { childList: true, subtree: true }, () => {
       this.scanAndQueue();
     });
 
-    // Background guardian for lazy-loaded items
     this.scanInterval = window.setInterval(() => {
       this.scanAndQueue();
     }, 2000);
@@ -71,21 +72,17 @@ export class ReviewEnhancerModule extends BaseModule {
       '.media-review-card',
       '.review-entry',
       '.review-wrap',
-      '.activity-entry',  // Activity feed reviews
+      '.activity-entry',
       'a[href*="/review/"]'
     ];
 
     let newFoundCount = 0;
-    let totalScanned = 0;
-    let alreadyProcessed = 0;
 
     selectors.forEach(sel => {
       document.querySelectorAll(sel).forEach(el => {
-        totalScanned++;
         const item = el as HTMLElement;
         const container = this.findReviewContainer(item);
 
-        // Skip if already has badge
         if (!container || container.querySelector('.au-review-rating')) {
           return;
         }
@@ -96,10 +93,7 @@ export class ReviewEnhancerModule extends BaseModule {
         const id = this.extractIdFromHref(href);
         if (!id) return;
 
-        if (this.inFlightReviews.has(id)) {
-          alreadyProcessed++;
-          return;
-        }
+        if (this.inFlightReviews.has(id)) return;
 
         if (!this.pendingQueue.has(id)) {
           this.pendingQueue.set(id, []);
@@ -111,10 +105,6 @@ export class ReviewEnhancerModule extends BaseModule {
     });
 
     if (newFoundCount > 0) {
-      log.info(
-        `%c[ReviewEnhancer] 🧺 Scan: ${newFoundCount} new | ${alreadyProcessed} queued | ${totalScanned} total scanned | Queue: ${this.pendingQueue.size} unique`,
-        'color: #9146ff; font-weight: bold;'
-      );
       this.triggerBatchWithDebounce();
     }
   }
@@ -122,7 +112,6 @@ export class ReviewEnhancerModule extends BaseModule {
   private triggerBatchWithDebounce(): void {
     if (this.debounceTimer) window.clearTimeout(this.debounceTimer);
 
-    // Increased to 2000ms to ensure all reviews are loaded before batching
     this.debounceTimer = window.setTimeout(() => {
       this.executeBatchCycle();
     }, 2000);
@@ -142,28 +131,27 @@ export class ReviewEnhancerModule extends BaseModule {
     const isMediaReviewsTab = (path.includes('/anime/') || path.includes('/manga/')) && path.endsWith('/reviews');
     const isMediaOverview = (path.includes('/anime/') || path.includes('/manga/')) && !path.endsWith('/reviews');
 
-    // Strategic chunk sizes based on page type (following AniList API rate limits)
     let chunkSize: number;
     let pageType: string;
 
     if (isHome) {
-      chunkSize = 25; // Home: 4 reviews max, single shot
-      pageType = 'Home (Recent Reviews)';
+      chunkSize = 25;
+      pageType = 'Home';
     } else if (isGlobalReviews) {
-      chunkSize = 100; // Global: 30-90 reviews, single shot
-      pageType = 'Global Reviews Page';
+      chunkSize = 100;
+      pageType = 'Global Reviews';
     } else if (isMediaReviewsTab) {
-      chunkSize = 10; // Media reviews tab: many reviews, small chunks for stability
+      chunkSize = 10;
       pageType = 'Media Reviews Tab';
     } else if (isMediaOverview) {
-      chunkSize = 30; // Media sidebar: 2-3 reviews, single shot
-      pageType = 'Media Overview/Sidebar';
+      chunkSize = 30;
+      pageType = 'Media Overview';
     } else {
-      chunkSize = 30; // Default fallback
-      pageType = 'Other Page';
+      chunkSize = 30;
+      pageType = 'Other';
     }
 
-    log.info(`%c[ReviewEnhancer] 🎯 BATCH START [${pageType}]: ${ids.length} reviews, chunkSize=${chunkSize}`, 'color: #3db4f2; font-weight: bold; font-size: 1.1em;');
+    log.info(`%c[ReviewEnhancer] 🎯 BATCH START [${pageType}]: ${ids.length} reviews`, 'color: #3db4f2; font-weight: bold;');
 
     try {
       const results = await this.reviewService.getReviewBatch(ids, chunkSize);
@@ -176,9 +164,8 @@ export class ReviewEnhancerModule extends BaseModule {
           });
         }
       });
-      log.info(`%c[ReviewEnhancer] ✅ Success: ${results.length} ratings injected.`, 'color: #46d369; font-weight: bold;');
     } catch (error) {
-      log.error('ReviewEnhancer: One-shot batch failed', error);
+      log.error('[ReviewEnhancer] One-shot batch failed', error);
     } finally {
       ids.forEach(id => this.inFlightReviews.delete(id));
       this.isBatching = false;
@@ -195,19 +182,7 @@ export class ReviewEnhancerModule extends BaseModule {
         el.classList.contains('media-review-card') ||
         el.classList.contains('review-entry')) return el;
 
-    const mediaReview = el.closest('.media-review-card');
-    if (mediaReview) return mediaReview as HTMLElement;
-
-    const reviewCard = el.closest('.review-card');
-    if (reviewCard) return reviewCard as HTMLElement;
-
-    const wrap = el.closest('.review-wrap');
-    if (wrap) return wrap as HTMLElement;
-
-    const activity = el.closest('.activity-entry');
-    if (activity) return activity as HTMLElement;
-
-    return null;
+    return el.closest('.media-review-card, .review-card, .review-wrap, .activity-entry') as HTMLElement;
   }
 
   private extractReviewHref(el: HTMLElement): string | null {
@@ -243,8 +218,8 @@ export class ReviewEnhancerModule extends BaseModule {
     return `au-review-rating--${ScoreFormatter.getLabel(rating)}`;
   }
 
-  public async destroy(): Promise<void> {
-    super.destroy();
+  public override async destroy(): Promise<void> {
     this.fullReset();
+    await super.destroy();
   }
 }

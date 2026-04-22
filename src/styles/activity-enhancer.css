@@ -8,26 +8,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  border-radius: 3px;
+  border-radius: var(--au-border-radius);
   margin: -4px 0 16px 0;
-  /* More spacing while maintaining symmetry with AniList content */
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--color-border);
+  border: none;
   animation: au-slide-down 0.2s ease-out;
-
-  /* DEFAULT THEME COLOR */
-  background: #fafafa !important;
-}
-
-/* DARK THEME COLOR */
-.site-theme-dark .au-activity-bar {
-  background: #151f2e !important;
-}
-
-/* HIGH CONTRAST THEME COLOR */
-.site-theme-contrast .au-activity-bar {
-  background: #fbfbfb !important;
+  background: var(--au-bg) !important;
 }
 
 .au-activity-bar__left {
@@ -41,45 +28,45 @@
   padding: 3px 8px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 3px;
-  color: var(--color-text-lighter);
+  border-radius: var(--au-border-radius);
+  color: var(--au-text-light);
   font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   text-transform: capitalize;
 }
 
 .au-filter-btn:hover {
-  background: rgba(var(--color-text), 0.05);
-  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--au-text);
 }
 
 .au-filter-btn.active {
-  background: rgba(var(--color-blue), 0.15) !important;
-  color: rgb(var(--color-blue)) !important;
+  background: rgba(74, 158, 255, 0.15) !important;
+  color: var(--au-primary) !important;
 }
 
 /* Animated Search Bar */
 .au-search-container {
   display: flex;
   align-items: center;
-  background: rgba(var(--color-background-100), 0.3);
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: var(--au-border-radius);
   padding: 3px 10px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--au-transition);
   width: 110px;
 }
 
 .au-search-container:focus-within {
   width: 200px;
-  border-color: rgb(var(--color-blue));
-  background: var(--color-background-100);
+  border-color: var(--au-primary);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .au-search-icon {
-  color: var(--color-text-lighter);
+  color: var(--au-text-light);
   font-size: 1.1rem;
   margin-right: 6px;
 }
@@ -88,7 +75,7 @@
   background: transparent;
   border: none;
   outline: none;
-  color: var(--color-text);
+  color: var(--au-text);
   font-size: 1.2rem;
   width: 100%;
 }
@@ -110,7 +97,7 @@
   }
 }
 
-/* "Squeezed" Container - Final 2px reduction (Total 24px) */
+/* "Squeezed" Container */
 .feed-type-toggle {
   height: 24px !important;
   display: flex !important;
@@ -119,76 +106,46 @@
   overflow: hidden;
 }
 
-/* Custom Tab Styling - "Squeezed" and Fully Squared to match Global */
+/* Custom Tab Styling */
 .au-custom-list-btn {
   cursor: pointer;
   display: flex !important;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 0 5.2px !important;
-  height: 25.8px !important;
-  border-radius: 0px !important;
-  transition: all 0.15s ease;
-  font-weight: 700;
+  padding: 0 8px !important;
+  height: 24px !important;
+  border-radius: 0 !important;
+  transition: all var(--au-transition);
+  font-weight: 400;
   font-size: 1.2rem !important;
-  color: #748899 !important;
+  color: var(--au-text-light) !important;
   background: transparent;
   white-space: nowrap;
 }
 
 /* Active state color */
 .au-custom-list-btn.active {
-  color: #99aab5 !important;
-}
-
-/* Mutual Exclusivity: When Custom is active, FORCE EVERY OTHER CHILD to INACTIVE hex */
-.feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
-  background: #fafafa !important;
-  color: var(--color-text-lighter) !important;
-  opacity: 0.6 !important;
-  border-radius: 0 !important;
-}
-
-.site-theme-dark .feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
-  background: #151f2e !important;
-}
-
-.site-theme-contrast .feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
-  background: #fbfbfb !important;
-}
-
-/* When Custom is NOT active, it must look like a normal inactive tab */
-.feed-type-toggle:not(.au-custom-active) .au-custom-list-btn {
-  background: transparent !important;
-}
-
-/* Active state backgrounds with theme-specific hexes */
-.au-custom-list-btn.router-link-active {
-  font-weight: 700 !important;
-  background: #f6f8fb !important;
-  /* Default Active background */
-}
-
-.site-theme-dark .au-custom-list-btn.router-link-active {
   background: #0f161f !important;
-  /* Dark Active background */
+  border-radius: 0 4px 4px 0 !important;
 }
 
-.site-theme-contrast .au-custom-list-btn.router-link-active {
-  background: #e5e9f5 !important;
-  /* Contrast Active background */
+/* Mutual Exclusivity: When Custom is active, FORCE EVERY OTHER CHILD to INACTIVE */
+.feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+  background: transparent !important;
+  color: var(--au-text-light) !important;
+  opacity: 0.6 !important;
+  font-weight: 500 !important;
 }
 
-/* Hover state - Blue text ONLY during hover */
+/* Hover state */
 .au-custom-list-btn:hover,
 .au-custom-list-btn:hover .au-custom-list-label {
-  color: rgb(var(--color-blue)) !important;
+  color: var(--au-primary) !important;
 }
 
 .au-custom-list-label {
   max-width: 80px;
-  /* Perfect balance for the top bar */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -209,46 +166,46 @@
 
 .au-custom-list-menu {
   position: fixed !important;
-  background: rgb(var(--color-foreground)) !important;
-  border: 1px solid rgba(var(--color-text), 0.15) !important;
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
-  min-width: 200px !important;
+  background: rgba(21, 31, 46, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+  min-width: 160px !important;
   max-height: 400px;
   overflow-y: auto;
   z-index: 999999 !important;
-  padding: 8px 0 !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
+  padding: 6px 0 !important;
+  backdrop-filter: blur(10px);
+  animation: au-fade-in 0.2s ease-out;
 }
 
 .au-custom-list-item {
-  padding: 10px 16px !important;
+  padding: 8px 16px !important;
   font-size: 1.3rem !important;
-  font-weight: 500 !important;
-  color: rgb(var(--color-text)) !important;
+  font-weight: 400 !important;
+  color: var(--color-text-light) !important;
   background: transparent !important;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
   display: flex !important;
   align-items: center;
   gap: 10px;
-  white-space: nowrap;
+}
+
+.au-custom-list-item:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03) !important;
 }
 
 .au-custom-list-item:hover {
-  background: rgba(var(--color-blue), 0.08);
-  color: rgb(var(--color-blue));
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--color-blue) !important;
+  padding-left: 20px !important; /* Subtle slide effect */
 }
 
 .au-custom-list-item.active {
-  background: rgba(var(--color-blue), 0.12) !important;
-  color: rgb(var(--color-blue)) !important;
+  color: var(--color-blue) !important;
   font-weight: 600 !important;
-  display: flex !important;
-  justify-content: space-between;
-  align-items: center;
+  background: rgba(61, 180, 242, 0.05) !important;
 }
 
 .au-custom-list-item.active::after {
@@ -258,16 +215,35 @@
   opacity: 0.9;
 }
 
+/* Clear Option Special Styling */
+.au-custom-list-clear {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  margin-bottom: 4px;
+  padding-bottom: 10px !important;
+  color: var(--color-text-lighter) !important;
+  opacity: 0.8;
+}
+
+.au-custom-list-clear i {
+  color: #e85d75; /* Soft red */
+}
+
+.au-custom-list-clear:hover {
+  background: rgba(232, 93, 117, 0.08) !important;
+  color: #ff8080 !important;
+  padding-left: 20px !important;
+}
+
 .au-custom-list-item.au-custom-list-empty {
   cursor: default;
-  color: rgb(var(--color-text-lighter));
+  color: var(--au-text-light);
   font-style: italic;
   opacity: 0.6;
 }
 
 .au-custom-list-item.au-custom-list-empty:hover {
   background: transparent;
-  color: rgb(var(--color-text-lighter));
+  color: var(--au-text-light);
 }
 
 .au-custom-list-item i {
@@ -280,24 +256,48 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgb(var(--color-blue));
+  background: var(--au-primary);
   color: #fff;
   font-size: 1rem;
   font-weight: 800;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--au-border-radius);
   margin-left: 8px;
   line-height: 1;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: var(--au-shadow);
   vertical-align: middle;
 }
 
-.au-score-badge.low { background: #e85d75; }
-.au-score-badge.medium { background: #f0ad4e; }
-.au-score-badge.high { background: #26d6ad; }
+.au-score-badge.low {
+  background: var(--au-error);
+}
+
+.au-score-badge.medium {
+  background: var(--au-warning);
+}
+
+.au-score-badge.high {
+  background: var(--au-success);
+}
+
+/* Loader and Empty States */
+.au-custom-activities-container {
+  min-height: 200px;
+  animation: au-fade-in 0.3s ease-in-out;
+}
+
+@keyframes au-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
 
 /* Filter Bar Adjustments for Media Pages */
-.media-social-filter + .au-activity-bar {
+.media-social-filter+.au-activity-bar {
   margin-top: 15px;
   margin-bottom: 20px;
 }

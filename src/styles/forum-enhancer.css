@@ -3,14 +3,14 @@
  */
 
 .au-title-link {
-  color: rgb(var(--color-blue)) !important;
+  color: var(--au-primary) !important;
   text-decoration: none !important;
-  transition: color 0.2s ease;
+  transition: color var(--au-transition);
   cursor: pointer;
 }
 
 .au-title-link:hover {
-  color: rgb(var(--color-blue-dim)) !important;
+  filter: brightness(1.1);
 }
 
 /* Remove the specific button styling as requested */

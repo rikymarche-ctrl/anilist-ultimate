@@ -9,63 +9,70 @@
   align-items: center;
   justify-content: center;
   padding: 3px 8px;
-  border-radius: 3px;
+  border-radius: var(--au-border-radius);
   font-weight: 700;
   font-size: 13px;
   position: absolute;
   top: 6px;
   left: 6px;
   z-index: 3;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--au-shadow);
   min-width: 32px;
-  background: rgb(var(--color-foreground));
+  background: var(--au-bg);
   border: 2px solid currentColor;
+  transition: all var(--au-transition);
 }
 
-/* Perfect rating (95-100) - Very dark green */
+/* Perfect rating (95-100) - Success token */
 .au-review-rating--perfect {
-  color: #2d7a1f;
+  color: var(--au-success);
 }
 
-/* Excellent rating (85-94) - Dark green */
+/* Excellent rating (85-94) */
 .au-review-rating--excellent {
-  color: #3fae2a;
+  color: var(--au-success);
+  filter: brightness(0.9);
 }
 
-/* High rating (75-84) - Medium-dark green */
+/* High rating (75-84) */
 .au-review-rating--high {
-  color: #4db83a;
+  color: var(--au-success);
+  filter: brightness(0.8);
 }
 
-/* Good rating (65-74) - Medium green */
+/* Good rating (65-74) */
 .au-review-rating--good {
-  color: #66cc33;
+  color: var(--au-success);
+  filter: brightness(0.7);
 }
 
-/* Decent rating (60-64) - Light green */
+/* Decent rating (60-64) - Warning token */
 .au-review-rating--decent {
-  color: #9acd32;
+  color: var(--au-warning);
 }
 
-/* Medium rating (50-59) - Yellow/Orange */
+/* Medium rating (50-59) */
 .au-review-rating--medium {
-  color: #f7bf63;
+  color: var(--au-warning);
+  filter: brightness(0.9);
 }
 
-/* Poor rating (40-49) - Light red */
+/* Poor rating (40-49) - Error token */
 .au-review-rating--poor {
-  color: #ff6b6b;
+  color: var(--au-error);
 }
 
-/* Bad rating (30-39) - Dark red */
+/* Bad rating (30-39) */
 .au-review-rating--bad {
-  color: #e85d75;
+  color: var(--au-error);
+  filter: brightness(0.8);
 }
 
-/* Terrible rating (<30) - Purple */
+/* Terrible rating (<30) */
 .au-review-rating--terrible {
   color: #9370db;
 }
+
 
 /* Ensure the review card and its image container have relative positioning */
 .review-card {

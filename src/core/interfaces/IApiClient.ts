@@ -32,7 +32,7 @@ export interface IApiClient {
   /**
    * Execute a GraphQL query
    */
-  query<T>(query: string, variables?: Record<string, any>): Promise<T>;
+  query<T>(query: string, variables?: Record<string, any>, silent?: boolean): Promise<T>;
 
   /**
    * Execute a GraphQL mutation

@@ -110,13 +110,14 @@ export class EventBus implements IEventBus {
    * Subscribe to an event once (auto-unsubscribe after first emit)
    */
   once<T = any>(event: string, handler: EventHandler<T>): EventSubscription {
-    const wrapper: EventHandler<T> = async (data) => {
-      await handler(data);
+    const wrapper: EventHandler<T> = (data) => {
       this.off(event, wrapper);
+      return handler(data);
     };
 
     return this.on(event, wrapper);
   }
+
 
   /**
    * Unsubscribe from an event

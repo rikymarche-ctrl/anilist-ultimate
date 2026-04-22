@@ -86,7 +86,8 @@
   display: none !important;
   width: 28px;
   height: 28px;
-  background: rgba(var(--color-blue), 0.9);
+  background: var(--au-primary);
+  opacity: 0.9;
   color: white;
   border-radius: 50%;
   display: flex;
@@ -95,7 +96,7 @@
   font-size: 12px;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  transition: all 0.2s ease;
+  transition: all var(--au-transition);
   border: 1px solid rgba(255,255,255,0.2);
 }
 
@@ -106,7 +107,8 @@
 }
 
 .au-social-button:hover {
-  background: rgb(var(--color-blue));
+  background: var(--au-primary);
+  filter: brightness(1.1);
   transform: scale(1.1);
 }
 
@@ -117,7 +119,7 @@
   display: flex;
   gap: -8px; /* Negative gap for stack effect */
   z-index: 5;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--au-transition);
   pointer-events: auto;
 }
 
@@ -129,19 +131,19 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid var(--cal-anime-bg, #151f2e);
+  border: 2px solid var(--au-bg);
   background-size: cover;
   background-position: center;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--au-transition);
   margin-right: -8px; /* Stack effect */
 }
 
 .friend-avatar:hover {
   transform: translateY(-4px) scale(1.2);
   z-index: 100 !important;
-  border-color: #3db4f2;
+  border-color: var(--au-primary);
 }
 
 .media-preview-card:hover .friend-avatar,
@@ -154,14 +156,15 @@
 
 /* Extra count badge */
 .friend-avatar.extra-count {
-  background: rgba(31, 38, 49, 0.95);
+  background: var(--au-bg);
+  opacity: 0.95;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
   font-weight: 700;
-  color: #3db4f2;
-  border-color: rgba(61, 180, 242, 0.3);
+  color: var(--au-primary);
+  border-color: rgba(74, 158, 255, 0.3);
 }
 
 /* Tooltip Portal */
@@ -176,9 +179,10 @@
   right: -300px; /* Reduced to avoid full hiding, transition handled by transform */
   width: 280px;
   height: 100vh;
-  background: rgba(14, 22, 33, 0.7); /* Deep translucent */
+  background: var(--au-bg);
+  opacity: 0.95;
   backdrop-filter: blur(30px) saturate(150%);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 1px solid var(--au-border);
   z-index: 9999;
   transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
@@ -202,7 +206,7 @@
 .au-social-title {
   font-size: 14px;
   font-weight: 800;
-  color: #fff;
+  color: var(--au-text);
   margin: 0;
   letter-spacing: -0.2px;
   opacity: 0.9;
@@ -216,15 +220,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--au-text-light);
   border-radius: 50%;
-  transition: all 0.3s;
+  transition: all var(--au-transition);
   background: rgba(255, 255, 255, 0.05);
 }
 
 .au-social-close:hover {
-  background: rgba(241, 66, 66, 0.2);
-  color: #f14242;
+  background: rgba(255, 77, 77, 0.2);
+  color: var(--au-error);
 }
 
 /* Original Tab Style */
@@ -232,30 +236,30 @@
   display: flex;
   padding: 10px 18px;
   gap: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--au-border);
   margin-bottom: 12px;
 }
 
 .au-filter {
   font-size: 11px;
   font-weight: 700;
-  color: #8fa0b1;
+  color: var(--au-text-light);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--au-transition);
   padding: 6px 10px;
   text-align: center;
-  border-radius: 4px;
+  border-radius: var(--au-border-radius);
   background: transparent;
 }
 
 .au-filter:hover {
-  color: #fff;
+  color: var(--au-text);
   background: rgba(255, 255, 255, 0.05);
 }
 
 .au-filter.active {
-  color: #fff;
-  background: rgba(61, 180, 242, 0.2); /* Soft highlight similar to AniList */
+  color: var(--au-text);
+  background: rgba(74, 158, 255, 0.2); /* Soft highlight similar to AniList */
   box-shadow: none !important;
   text-shadow: none !important;
 }
@@ -282,9 +286,10 @@
   top: 100%;
   left: 0;
   margin-top: 4px;
-  background: rgba(14, 22, 33, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: var(--au-bg);
+  opacity: 0.98;
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-border-radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   min-width: 150px;
   max-height: 300px;
@@ -297,9 +302,9 @@
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 600;
-  color: #8fa0b1;
+  color: var(--au-text-light);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -307,12 +312,13 @@
 
 .au-dropdown-item:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--au-text);
 }
 
 .au-dropdown-item.au-dropdown-empty {
   cursor: default;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--au-text-light);
+  opacity: 0.3;
   font-style: italic;
 }
 
@@ -336,24 +342,25 @@
   position: absolute;
   left: 10px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--au-text-light);
+  opacity: 0.3;
   pointer-events: none;
 }
 
 .au-social-search-input {
   width: 100%;
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-border-radius);
   padding: 8px 10px 8px 30px;
-  color: #fff;
+  color: var(--au-text);
   font-size: 12px;
   outline: none;
-  transition: all 0.3s;
+  transition: all var(--au-transition);
 }
 
 .au-social-search-input:focus {
-  border-color: rgba(61, 180, 242, 0.5);
+  border-color: var(--au-primary);
   background: rgba(0, 0, 0, 0.5);
 }
 
@@ -371,22 +378,22 @@
   font-weight: 600;
   padding: 4px 8px;
   background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.4);
-  border-radius: 4px;
+  color: var(--au-text-light);
+  border-radius: var(--au-border-radius);
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all var(--au-transition);
+  border: 1px solid var(--au-border);
 }
 
 .au-status-filter:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--au-text);
 }
 
 .au-status-filter.active {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--au-text);
+  border-color: var(--au-border);
 }
 
 .au-social-content {
@@ -395,7 +402,7 @@
   padding: 0 15px 20px;
   /* Scrollbar Styling */
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: var(--au-border) transparent;
 }
 
 .au-social-content::-webkit-scrollbar {
@@ -403,7 +410,7 @@
 }
 
 .au-social-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--au-border);
   border-radius: 10px;
 }
 
@@ -418,16 +425,17 @@
   gap: 14px;
   padding: 14px;
   margin-bottom: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
   border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--au-transition);
   animation: au-item-fade-in 0.5s ease backwards;
 }
 
 .au-friend-row:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--au-bg);
+  filter: brightness(1.1);
+  border-color: var(--au-primary);
   transform: scale(1.02);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
@@ -442,7 +450,7 @@
   border-radius: 12px;
   object-fit: cover;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--au-border);
 }
 
 .au-friend-info {
@@ -460,29 +468,32 @@
 .au-friend-name {
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--au-text);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color var(--au-transition);
 }
 
 .au-friend-name:hover {
-  color: #3db4f2;
+  color: var(--au-primary);
 }
 
 .au-bf-toggle {
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--au-text-light);
+  opacity: 0.3;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .au-bf-toggle.fa-star {
   color: #e0c56e;
   text-shadow: 0 0 10px rgba(224, 197, 110, 0.4);
+  opacity: 1;
   transform: scale(1.2);
 }
 
 .au-bf-toggle:hover {
   transform: scale(1.4);
+  opacity: 1;
 }
 
 .au-friend-status {
@@ -495,13 +506,14 @@
 
 .au-friend-date {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--au-text-light);
+  opacity: 0.6;
   margin-top: 4px;
 }
 
 .au-friend-note {
   font-size: 12px;
-  color: #e2e8f0;
+  color: var(--au-text);
   line-height: 1.5;
   margin-top: 10px;
   padding: 10px;
@@ -517,7 +529,8 @@
   border-radius: 20px;
   font-weight: 800;
   font-size: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--au-border);
+  color: var(--au-text);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
@@ -527,13 +540,14 @@
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--au-text-light);
+  opacity: 0.6;
   text-align: center;
 }
 
 .au-social-loading i {
   font-size: 32px;
-  color: #3db4f2;
+  color: var(--au-primary);
   margin-bottom: 15px;
   text-shadow: 0 0 15px rgba(61, 180, 242, 0.5);
 }
@@ -548,14 +562,14 @@
 
 .au-media-social-cl-btn {
   padding: 8px 14px;
-  background: rgba(61, 180, 242, 0.1);
-  border: 1px solid rgba(61, 180, 242, 0.3);
-  border-radius: 6px;
-  color: #3db4f2;
+  background: rgba(74, 158, 255, 0.1);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  border-radius: var(--au-border-radius);
+  color: var(--au-primary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -563,8 +577,8 @@
 }
 
 .au-media-social-cl-btn:hover {
-  background: rgba(61, 180, 242, 0.2);
-  border-color: #3db4f2;
+  background: rgba(74, 158, 255, 0.2);
+  border-color: var(--au-primary);
   transform: translateY(-1px);
 }
 
@@ -581,9 +595,10 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  background: rgba(14, 22, 33, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: var(--au-bg);
+  opacity: 0.98;
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-border-radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   min-width: 180px;
   max-height: 300px;
@@ -596,9 +611,9 @@
   padding: 10px 14px;
   font-size: 12px;
   font-weight: 600;
-  color: #8fa0b1;
+  color: var(--au-text-light);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--au-transition);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -606,21 +621,23 @@
 
 .au-media-social-cl-item:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--au-text);
 }
 
 .au-media-social-cl-item.active {
-  background: rgba(61, 180, 242, 0.2);
-  color: #3db4f2;
+  background: rgba(74, 158, 255, 0.2);
+  color: var(--au-primary);
   font-weight: 700;
 }
 
 .au-media-social-cl-item.au-media-social-cl-empty {
   cursor: default;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--au-text-light);
+  opacity: 0.3;
   font-style: italic;
 }
 
 .au-media-social-cl-item.au-media-social-cl-empty:hover {
   background: transparent;
 }
+

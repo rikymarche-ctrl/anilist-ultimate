@@ -92,7 +92,7 @@ export class CustomListTabManager {
 
     // Create menu
     const menuItems = [
-      '<div class="au-custom-list-item" data-list=""><i class="fa fa-times-circle"></i> Clear</div>',
+      '<div class="au-custom-list-item au-custom-list-clear" data-list=""><i class="fa fa-times-circle"></i> Clear</div>',
       ...listNames.map(
         (name) => `<div class="au-custom-list-item" data-list="${name}">${name}</div>`
       ),
@@ -198,25 +198,49 @@ export class CustomListTabManager {
   private updateUI(): void {
     if (!this.button) return;
 
-    const isActive = this.currentList !== null;
+    // Temporarily disconnect observer to avoid infinite loop
+    this.tabObserver?.disconnect();
 
-    // Update button state
-    this.button.classList.toggle('router-link-active', isActive);
+    try {
+      const isActive = this.currentList !== null;
+      
+      // Update container state
+      const feedToggle = document.querySelector(this.options.toggleSelector!);
+      if (feedToggle) {
+        feedToggle.classList.toggle('au-custom-active', isActive);
+      }
 
-    // Update label
-    const label = this.button.querySelector('.au-custom-list-label');
-    if (label) {
-      label.textContent = this.currentList || 'Custom';
-    }
+      // Update button state if changed
+      const hasActiveClass = this.button.classList.contains('active');
+      if (hasActiveClass !== isActive) {
+        this.button.classList.toggle('active', isActive);
+      }
 
-    // Deactivate native tabs if custom list is active
-    if (isActive) {
-      const nativeTabs = document.querySelectorAll('.feed-type-toggle .link');
-      nativeTabs.forEach((tab) => {
-        if (!tab.classList.contains('au-custom-list-btn')) {
-          tab.classList.remove('router-link-active');
-        }
-      });
+      // Update label if changed
+      const label = this.button.querySelector('.au-custom-list-label');
+      if (label && label.textContent !== (this.currentList || 'Custom')) {
+        label.textContent = this.currentList || 'Custom';
+      }
+
+      // Deactivate native tabs if custom list is active
+      if (isActive) {
+        const nativeTabs = document.querySelectorAll('.feed-type-toggle .link');
+        nativeTabs.forEach((tab) => {
+          if (!tab.classList.contains('au-custom-list-btn') && tab.classList.contains('router-link-active')) {
+            tab.classList.remove('router-link-active');
+          }
+        });
+      }
+    } finally {
+      // Re-observe
+      const feedToggle = document.querySelector(this.options.toggleSelector!);
+      if (feedToggle && this.tabObserver) {
+        this.tabObserver.observe(feedToggle, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+        });
+      }
     }
   }
 
