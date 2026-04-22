@@ -77,8 +77,9 @@
 /* Activity count (clickable number) */
 .au-activity-count {
   cursor: pointer;
-  text-decoration: underline;
   transition: opacity var(--au-transition);
+  font-weight: 700;
+  text-decoration: none !important;
 }
 
 .au-activity-count:hover {
@@ -126,8 +127,9 @@
 .au-notification-dropdown .notification .content,
 .au-notification-dropdown .notification .text {
   flex: 1;
-  white-space: normal;
-  word-break: break-word;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
   padding-left: 10px;
 }
 

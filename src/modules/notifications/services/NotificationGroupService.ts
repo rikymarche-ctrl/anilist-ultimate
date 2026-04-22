@@ -37,42 +37,39 @@ export class NotificationGroupService {
   /**
    * Generate smart notification text based on types
    */
-  public generateGroupText(group: NotificationGroup): { find: string; replace: string } {
+  public generateGroupText(group: NotificationGroup): string {
     const types = Array.from(group.types.keys());
     const isSingleType = types.length === 1;
     const count = group.count;
-    const countSpan = `<span class="au-activity-count" style="cursor: pointer;">${count}</span>`;
+    const countSpan = `<span class="au-activity-count" style="cursor: pointer; font-weight: 700;">${count}</span>`;
 
     if (isSingleType) {
       const type = types[0];
       switch (type) {
         case 'activity_like':
-          return { find: 'liked your activity', replace: `liked <b>${countSpan}</b> of your activities` };
+          return `liked <b>${countSpan}</b> of your activities`;
         case 'message':
-          return { find: 'sent you a message', replace: `sent you <b>${countSpan}</b> messages` };
+          return `sent you <b>${countSpan}</b> messages`;
         case 'thread_like':
-          return { find: 'liked your forum thread', replace: `liked <b>${countSpan}</b> of your forum threads` };
+          return `liked <b>${countSpan}</b> of your forum threads`;
         case 'reply_like':
-          return { find: 'liked your activity reply', replace: `liked <b>${countSpan}</b> of your activity replies` };
+          return `liked <b>${countSpan}</b> of your activity replies`;
         case 'activity_reply':
-          return { find: 'replied to your activity', replace: `replied <b>${countSpan}</b> times to your activity` };
+          return `replied <b>${countSpan}</b> times to your activity`;
+        case 'follow':
+          return `and <b>${countSpan}</b> others followed you`;
         default:
-          return { find: '', replace: `interacted <b>${countSpan}</b> times` };
+          return `interacted <b>${countSpan}</b> times`;
       }
     } else {
-      const firstNotifText = group.elements[0].textContent || '';
-      let findPattern = 'liked your activity';
-      if (firstNotifText.includes('sent you a message')) findPattern = 'sent you a message';
-      else if (firstNotifText.includes('liked your forum thread')) findPattern = 'liked your forum thread';
-
-      return { find: findPattern, replace: `interacted with you <b>${countSpan}</b> times` };
+      return `interacted with you <b>${countSpan}</b> times`;
     }
   }
 
   /**
    * Enhance notifications with activity details
    */
-  public async enhanceNotificationsWithActivityDetails(clones: HTMLElement[]): Promise<void> {
+  public async enhanceNotificationsWithActivityDetails(clones: HTMLElement[], hidePrefix: boolean = false): Promise<void> {
     const activityIds = clones
       .map(clone => this.fetchService.extractActivityId(clone))
       .filter((id): id is number => id !== null);
@@ -88,11 +85,11 @@ export class NotificationGroupService {
       const activityData = activityDetails.get(activityId);
       if (!activityData) return;
 
-      this.applyDetailsToClone(clone, activityData);
+      this.applyDetailsToClone(clone, activityData, hidePrefix);
     });
   }
 
-  private applyDetailsToClone(clone: HTMLElement, activityData: ActivityDetails): void {
+  private applyDetailsToClone(clone: HTMLElement, activityData: ActivityDetails, hidePrefix: boolean = false): void {
     const possibleSelectors = ['.details', '.text', '.content'];
     let textElement: Element | null = null;
 
@@ -145,11 +142,11 @@ export class NotificationGroupService {
         const replyTruncated = replyText.substring(0, 40) + (replyText.length > 40 ? '...' : '');
         newHTML = `replied to <i>"${originalTruncated}"</i> with <b>"${replyTruncated}"</b>`;
       } else if (isLike) {
-        newHTML = `liked: <i>"${originalTruncated}"</i>`;
+        newHTML = (hidePrefix ? '' : 'liked: ') + `<i>"${originalTruncated}"</i>`;
       } else if (isMessage) {
-        newHTML = `sent: <i>"${originalTruncated}"</i>`;
+        newHTML = (hidePrefix ? '' : 'sent: ') + `<i>"${originalTruncated}"</i>`;
       } else {
-        newHTML = `wrote: <i>"${originalTruncated}"</i>`;
+        newHTML = (hidePrefix ? '' : 'wrote: ') + `<i>"${originalTruncated}"</i>`;
       }
     }
 

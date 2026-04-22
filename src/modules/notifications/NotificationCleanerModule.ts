@@ -268,7 +268,11 @@ export class NotificationCleanerModule extends BaseModule {
     firstNotif.parentNode?.insertBefore(virtualNotif, firstNotif);
     firstNotif.parentNode?.insertBefore(dropdown, firstNotif);
 
-    this.groupService.enhanceNotificationsWithActivityDetails(Array.from(dropdown.querySelectorAll('.au-sub-notification')));
+    const isSingleType = group.types.size === 1;
+    this.groupService.enhanceNotificationsWithActivityDetails(
+      Array.from(dropdown.querySelectorAll('.au-sub-notification')), 
+      isSingleType
+    );
 
     group.elements.forEach(n => {
       n.style.display = 'none';
@@ -295,9 +299,15 @@ export class NotificationCleanerModule extends BaseModule {
     });
 
     this.groupService.injectUserLink(vn, group.user);
-    const { find, replace } = this.groupService.generateGroupText(group);
     const textEl = vn.querySelector('.details, .text, .content') || vn;
-    textEl.innerHTML = textEl.innerHTML.replace(find, replace);
+    const userLink = textEl.querySelector('a[href*="/user/"]');
+    const newActionText = this.groupService.generateGroupText(group);
+    
+    if (userLink) {
+      textEl.innerHTML = `<span class="au-notification-content">${userLink.outerHTML} ${newActionText}</span>`;
+    } else {
+      textEl.innerHTML = `<span class="au-notification-content">${newActionText}</span>`;
+    }
 
     vn.addEventListener('click', () => {
       const dropdown = vn.nextElementSibling as HTMLElement;
@@ -333,13 +343,17 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   private async addToExistingGroup(virtual: HTMLElement, notif: HTMLElement, user: string): Promise<void> {
-    const countEl = virtual.querySelector('.au-activity-count');
-    if (countEl) countEl.textContent = (parseInt(countEl.textContent || '0') + 1).toString();
+    const countEl = virtual.querySelector('.au-activity-count') as HTMLElement;
+    if (countEl) {
+      countEl.style.textDecoration = 'none';
+      countEl.textContent = (parseInt(countEl.textContent || '0') + 1).toString();
+    }
 
     const dropdown = virtual.nextElementSibling?.querySelector('.au-notification-dropdown-inner');
     if (dropdown) {
       const clone = notif.cloneNode(true) as HTMLElement;
       clone.classList.add('au-sub-notification');
+      clone.style.whiteSpace = 'nowrap';
       clone.setAttribute('data-au-processed', 'true');
       this.groupService.stripUsername(clone, user);
       dropdown.appendChild(clone);
