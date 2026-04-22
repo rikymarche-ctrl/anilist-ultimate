@@ -28,9 +28,10 @@ ricontrollare le uery coi voti delle persone nelle activity. mi sa che ci sono d
 
 ero fermo con una custom list  nell activity, ma penso anilist abbia mandato un refresh, la classica per aggiornare la pagina con le nuove interazioni, ma è tornato automaticamente su global. Bisogna gestirle!
 
-
 i Colori di anilist differeiscono da quellis celtio, il viola ecc
 
+
+nelle notifiche c è un modo di capire se il messagio sent da qualcuno è segreto o no?
 
 ---
 

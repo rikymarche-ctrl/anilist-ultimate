@@ -82,15 +82,17 @@ export class NotificationCleanerModule extends BaseModule {
     if (this.isProcessing) return;
 
     // Inject settings UI if on notifications page
-    const markAllButton = document.querySelector('.reset-btn');
+    const markAllButton = document.querySelector('.reset-btn, .reset-button, .mark-all, .mark-as-read');
     if (markAllButton && !document.querySelector('.au-compress-button')) {
       this.injectSettingsUI(markAllButton as HTMLElement);
     }
 
     // Inject search bar via filter service
-    this.filterService.injectSearchBar((query: string) => {
-      this.filterService.applySearchFilter(query);
-    });
+    if (!document.querySelector('.au-notification-search-wrapper')) {
+      this.filterService.injectSearchBar((query: string) => {
+        this.filterService.applySearchFilter(query);
+      });
+    }
 
     const container = document.querySelector('.notifications');
     if (container) {
@@ -132,10 +134,15 @@ export class NotificationCleanerModule extends BaseModule {
     });
 
     this.suspendObserver(this.OBSERVER_NAME);
+    this.isProcessing = false; // Force unlock for toggle
+    this.fullReset();
     this.clearVirtualNotifications();
-    
-    this.processNotifications();
-    this.resumeObserver(this.OBSERVER_NAME);
+
+    // Small delay to let DOM settle
+    setTimeout(() => {
+      this.processNotifications();
+      this.resumeObserver(this.OBSERVER_NAME);
+    }, 50);
   }
 
   private async processNotifications(): Promise<void> {
@@ -144,7 +151,7 @@ export class NotificationCleanerModule extends BaseModule {
       return;
     }
 
-    const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>('.notification:not(.au-virtual-notification):not(.au-sub-notification)'));
+    const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>('.notification:not(.au-virtual-notification):not(.au-sub-notification), .notification-item:not(.au-virtual-notification):not(.au-sub-notification)'));
     const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
 
     if (newNotifications.length === 0 && this.lastNotificationCount > 0) return;
@@ -163,7 +170,7 @@ export class NotificationCleanerModule extends BaseModule {
       for (const notification of newNotifications) {
         const text = notification.textContent || '';
         let notifType = notification.getAttribute('data-au-type') || this.groupService.detectNotificationType(text);
-        
+
         if (notifType) notification.setAttribute('data-au-type', notifType);
 
         const userLink = notification.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
@@ -178,7 +185,7 @@ export class NotificationCleanerModule extends BaseModule {
         if (!notifType || !this.enabled) {
           if (currentGroup && currentGroup.count > 1) groupsToProcess.push(currentGroup);
           currentGroup = null;
-          
+
           singleGroupsToProcess.push({
             user: username,
             types: new Map([[notifType || 'unknown', 1]]),
@@ -272,19 +279,19 @@ export class NotificationCleanerModule extends BaseModule {
   private createVirtualNotification(template: HTMLElement, group: NotificationGroup): HTMLElement {
     const vn = (template.tagName === 'A' ? document.createElement('div') : template.cloneNode(true)) as HTMLElement;
     if (template.tagName === 'A') {
-        vn.className = template.className;
-        vn.innerHTML = template.innerHTML;
+      vn.className = template.className;
+      vn.innerHTML = template.innerHTML;
     }
     vn.classList.add('au-virtual-notification');
-    
+
     // Convert activity links to spans inside virtual notif to prevent corruption
     vn.querySelectorAll('a').forEach(link => {
-        if (link.getAttribute('href')?.includes('/activity/')) {
-            const span = document.createElement('span');
-            span.className = link.className;
-            span.innerHTML = link.innerHTML;
-            link.parentNode?.replaceChild(span, link);
-        }
+      if (link.getAttribute('href')?.includes('/activity/')) {
+        const span = document.createElement('span');
+        span.className = link.className;
+        span.innerHTML = link.innerHTML;
+        link.parentNode?.replaceChild(span, link);
+      }
     });
 
     this.groupService.injectUserLink(vn, group.user);
@@ -293,10 +300,10 @@ export class NotificationCleanerModule extends BaseModule {
     textEl.innerHTML = textEl.innerHTML.replace(find, replace);
 
     vn.addEventListener('click', () => {
-        const dropdown = vn.nextElementSibling as HTMLElement;
-        if (dropdown && dropdown.classList.contains('au-notification-dropdown')) {
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-        }
+      const dropdown = vn.nextElementSibling as HTMLElement;
+      if (dropdown && dropdown.classList.contains('au-notification-dropdown')) {
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      }
     });
 
     return vn;
@@ -312,8 +319,8 @@ export class NotificationCleanerModule extends BaseModule {
     group.elements.forEach(notif => {
       const clone = (notif.tagName === 'A' ? document.createElement('div') : notif.cloneNode(true)) as HTMLElement;
       if (notif.tagName === 'A') {
-          clone.className = notif.className;
-          clone.innerHTML = notif.innerHTML;
+        clone.className = notif.className;
+        clone.innerHTML = notif.innerHTML;
       }
       clone.classList.add('au-sub-notification');
       clone.setAttribute('data-au-processed', 'true');
@@ -352,8 +359,8 @@ export class NotificationCleanerModule extends BaseModule {
     if (!id) return;
     notif.style.cursor = 'pointer';
     notif.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('a')) return;
-        window.location.href = `/activity/${id}`;
+      if ((e.target as HTMLElement).closest('a')) return;
+      window.location.href = `/activity/${id}`;
     });
   }
 

@@ -17,14 +17,39 @@ export class NotificationFilterService {
 
     const searchWrapper = document.createElement('div');
     searchWrapper.className = 'au-notification-search-wrapper';
+    searchWrapper.style.cssText = `
+      margin-bottom: 20px;
+      width: 100% !important;
+      grid-column: 1 / -1 !important;
+      display: block !important;
+      box-sizing: border-box;
+    `;
     searchWrapper.innerHTML = `
-      <div class="au-search-container">
-        <i class="fa fa-search au-search-icon"></i>
-        <input type="text" class="au-search-input" placeholder="Search notifications by user, content, or media..." />
+      <div class="au-search-container" style="
+        display: flex;
+        align-items: center;
+        background: var(--au-bg);
+        border-radius: 4px;
+        padding: 0 16px;
+        height: 45px;
+        width: 100% !important;
+        box-sizing: border-box;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      ">
+        <i class="fa fa-search au-search-icon" style="margin-right: 12px; color: var(--au-text-secondary);"></i>
+        <input type="text" class="au-search-input" placeholder="Search notifications by user, content, or media..." style="
+          flex: 1;
+          border: none;
+          background: transparent;
+          outline: none;
+          height: 100%;
+          color: var(--au-text);
+        " />
       </div>
     `;
 
-    container.parentNode?.insertBefore(searchWrapper, container);
+    container.insertAdjacentElement('afterbegin', searchWrapper);
     this.searchBar = searchWrapper;
 
     const input = searchWrapper.querySelector('input');

@@ -83,7 +83,7 @@ export class NotificationFetchService {
     const query = `query { ${aliases.join('\n')} }`;
 
     try {
-      const response = await this.apiClient.query<Record<string, ActivityData>>(query);
+      const response = await this.apiClient.query<Record<string, ActivityData>>(query, {}, true);
       const results = new Map<number, ActivityDetails>();
 
       Object.entries(response).forEach(([alias, activity]) => {

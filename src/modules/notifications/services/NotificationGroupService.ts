@@ -27,7 +27,10 @@ export class NotificationGroupService {
     if (text.includes('liked your activity reply')) return 'reply_like';
     if (text.includes('liked your forum comment')) return 'forum_comment_like';
     if (text.includes('replied to your activity')) return 'activity_reply';
+    if (text.includes('replied to your forum thread')) return 'thread_reply';
+    if (text.includes('replied to your forum comment')) return 'forum_comment_reply';
     if (text.includes('mentioned you')) return 'mention';
+    if (text.includes('followed you')) return 'follow';
     return null; // Not groupable
   }
 
@@ -129,21 +132,24 @@ export class NotificationGroupService {
       const isReply = originalHTML.toLowerCase().includes('replied');
       const isMessage = originalHTML.toLowerCase().includes('message');
 
-      let prefix = isLike ? 'liked: ' : isReply ? 'replied: ' : isMessage ? 'sent: ' : 'wrote: ';
-      
-      const patterns = [
-        new RegExp(`sent you a message\\.?`, 'i'),
-        new RegExp(`replied to your activity\\.?`, 'i'),
-        new RegExp(`liked your activity\\.?`, 'i'),
-        new RegExp(`liked your activity reply\\.?`, 'i')
-      ];
+      // Extract existing reply text if present (AniList often puts it after a colon)
+      let replyText = '';
+      const parts = textElement.textContent?.split(':');
+      if (parts && parts.length > 1) {
+        replyText = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
+      }
 
-      for (const pattern of patterns) {
-        if (pattern.test(originalHTML)) {
-          const truncatedText = activityData.text.substring(0, 50) + (activityData.text.length > 50 ? '...' : '');
-          newHTML = originalHTML.replace(pattern, `${prefix}<i>"${truncatedText}"</i>`);
-          break;
-        }
+      const originalTruncated = activityData.text.substring(0, 30) + (activityData.text.length > 30 ? '...' : '');
+      
+      if (isReply && replyText) {
+        const replyTruncated = replyText.substring(0, 40) + (replyText.length > 40 ? '...' : '');
+        newHTML = `replied to <i>"${originalTruncated}"</i> with <b>"${replyTruncated}"</b>`;
+      } else if (isLike) {
+        newHTML = `liked: <i>"${originalTruncated}"</i>`;
+      } else if (isMessage) {
+        newHTML = `sent: <i>"${originalTruncated}"</i>`;
+      } else {
+        newHTML = `wrote: <i>"${originalTruncated}"</i>`;
       }
     }
 
