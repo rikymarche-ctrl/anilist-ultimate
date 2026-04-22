@@ -39,3 +39,7 @@ coverage/
 # Temporary
 *.tmp
 .cache/
+vite.config.ts.timestamp-*
+*.backup
+*.mjs
+

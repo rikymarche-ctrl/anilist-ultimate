@@ -37,6 +37,13 @@ export class CustomListModule extends BaseModule {
     window.addEventListener('hashchange', () => this.handleRouting());
   }
 
+  /**
+   * Get module name
+   */
+  public getName(): string {
+    return 'customList';
+  }
+
   private injectLink(): void {
     if (!location.pathname.startsWith('/settings')) return;
 
@@ -146,7 +153,7 @@ export class CustomListModule extends BaseModule {
     }
   }
 
-  public override destroy(): void {
+  public override async destroy(): Promise<void> {
     super.destroy();
     this.deactivateManager();
     this.managerInstance = null;

@@ -1,0 +1,275 @@
+/**
+ * Configuration Manager
+ * Centralized configuration with runtime feature flags and persistence
+ */
+
+import { injectable, inject } from 'tsyringe';
+import type { AppConfig, ConfigChangeCallback } from './types';
+import { DEFAULT_CONFIG } from './defaults';
+import { TOKENS } from '@core/di/tokens';
+import type { IEventBus } from '@core/interfaces/IEventBus';
+import { EVENT_TYPES } from '@core/events/EventTypes';
+
+/**
+ * Configuration Manager Interface
+ */
+export interface IConfigManager {
+  /**
+   * Load configuration from storage
+   */
+  load(): Promise<void>;
+
+  /**
+   * Save configuration to storage
+   */
+  save(): Promise<void>;
+
+  /**
+   * Get a configuration value
+   */
+  get<K extends keyof AppConfig>(key: K): AppConfig[K];
+
+  /**
+   * Set a configuration value
+   */
+  set<K extends keyof AppConfig>(key: K, value: AppConfig[K]): Promise<void>;
+
+  /**
+   * Check if a feature is enabled
+   */
+  isFeatureEnabled(feature: keyof AppConfig['features']): boolean;
+
+  /**
+   * Enable/disable a feature
+   */
+  setFeature(feature: keyof AppConfig['features'], enabled: boolean): Promise<void>;
+
+  /**
+   * Watch for configuration changes
+   */
+  onChange<K extends keyof AppConfig>(key: K, callback: ConfigChangeCallback<K>): () => void;
+
+  /**
+   * Reset configuration to defaults
+   */
+  reset(): Promise<void>;
+
+  /**
+   * Get all configuration
+   */
+  getAll(): AppConfig;
+}
+
+/**
+ * Configuration Manager Implementation
+ * Manages application configuration with runtime control and persistence
+ */
+@injectable()
+export class ConfigManager implements IConfigManager {
+  /**
+   * Current configuration
+   */
+  private config: AppConfig;
+
+  /**
+   * Change listeners
+   * Map<configKey, Set<callback>>
+   */
+  private listeners = new Map<string, Set<ConfigChangeCallback<any>>>();
+
+  /**
+   * Storage key for configuration
+   */
+  private readonly STORAGE_KEY = 'anilist_ultimate_v2_config';
+
+  constructor(
+    @inject(TOKENS.Storage) private storage: any,
+    @inject(TOKENS.EventBus) private eventBus?: IEventBus
+  ) {
+    // Storage will be injected via DI in Phase 2
+    this.config = { ...DEFAULT_CONFIG };
+  }
+
+  /**
+   * Load configuration from storage
+   */
+  async load(): Promise<void> {
+    try {
+      const stored = await this.storage.get(this.STORAGE_KEY) as Partial<AppConfig> | null;
+
+      if (stored) {
+        // Merge stored config with defaults (in case new keys were added)
+        this.config = this.deepMerge(DEFAULT_CONFIG, stored);
+      }
+    } catch (error) {
+      console.error('[ConfigManager] Failed to load configuration:', error);
+      // Use defaults on error
+      this.config = { ...DEFAULT_CONFIG };
+    }
+  }
+
+  /**
+   * Save configuration to storage
+   */
+  async save(): Promise<void> {
+    try {
+      await this.storage.set(this.STORAGE_KEY, this.config);
+    } catch (error) {
+      console.error('[ConfigManager] Failed to save configuration:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a configuration value
+   */
+  get<K extends keyof AppConfig>(key: K): AppConfig[K] {
+    return this.config[key];
+  }
+
+  /**
+   * Set a configuration value
+   */
+  async set<K extends keyof AppConfig>(key: K, value: AppConfig[K]): Promise<void> {
+    const oldValue = this.config[key];
+
+    // Update config
+    this.config[key] = value;
+
+    // Persist to storage
+    await this.save();
+
+    // Notify listeners
+    this.notifyListeners(key, value, oldValue);
+
+    // Emit CONFIG_CHANGED event
+    this.eventBus?.emit(EVENT_TYPES.CONFIG_CHANGED, {
+      key: key as string,
+      value,
+      previousValue: oldValue,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Check if a feature is enabled
+   */
+  isFeatureEnabled(feature: keyof AppConfig['features']): boolean {
+    return this.config.features[feature] ?? false;
+  }
+
+  /**
+   * Enable/disable a feature
+   */
+  async setFeature(feature: keyof AppConfig['features'], enabled: boolean): Promise<void> {
+    const oldValue = this.config.features[feature];
+
+    // Update feature flag
+    this.config.features[feature] = enabled;
+
+    // Persist to storage
+    await this.save();
+
+    // Notify listeners (both specific feature and general features)
+    this.notifyListeners(`features.${feature}`, enabled, oldValue);
+    this.notifyListeners('features', this.config.features, { ...this.config.features, [feature]: oldValue });
+
+    // Emit CONFIG_CHANGED event
+    this.eventBus?.emit(EVENT_TYPES.CONFIG_CHANGED, {
+      key: `features.${feature}`,
+      value: enabled,
+      previousValue: oldValue,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Watch for configuration changes
+   */
+  onChange<K extends keyof AppConfig>(key: K, callback: ConfigChangeCallback<K>): () => void {
+    const keyStr = String(key);
+
+    if (!this.listeners.has(keyStr)) {
+      this.listeners.set(keyStr, new Set());
+    }
+
+    this.listeners.get(keyStr)!.add(callback);
+
+    // Return unsubscribe function
+    return () => {
+      this.listeners.get(keyStr)?.delete(callback);
+    };
+  }
+
+  /**
+   * Reset configuration to defaults
+   */
+  async reset(): Promise<void> {
+    const oldConfig = { ...this.config };
+
+    // Reset to defaults
+    this.config = { ...DEFAULT_CONFIG };
+
+    // Persist to storage
+    await this.save();
+
+    // Notify all listeners
+    Object.keys(this.config).forEach((key) => {
+      const configKey = key as keyof AppConfig;
+      this.notifyListeners(configKey, this.config[configKey], oldConfig[configKey]);
+    });
+  }
+
+  /**
+   * Get all configuration
+   */
+  getAll(): AppConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Notify change listeners
+   */
+  private notifyListeners<K extends keyof AppConfig>(key: K | string, newValue: any, oldValue?: any): void {
+    const listeners = this.listeners.get(String(key));
+
+    if (listeners && listeners.size > 0) {
+      listeners.forEach((callback) => {
+        try {
+          callback(newValue, oldValue);
+        } catch (error) {
+          console.error(`[ConfigManager] Listener error for "${String(key)}":`, error);
+        }
+      });
+    }
+  }
+
+  /**
+   * Deep merge two objects
+   */
+  private deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    const result = { ...target };
+
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        const targetValue = target[key];
+        const sourceValue = source[key];
+
+        if (this.isPlainObject(targetValue) && this.isPlainObject(sourceValue)) {
+          result[key] = this.deepMerge(targetValue as any, sourceValue as any);
+        } else if (sourceValue !== undefined) {
+          result[key] = sourceValue as any;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Check if value is a plain object
+   */
+  private isPlainObject(value: any): value is Record<string, any> {
+    return value !== null && typeof value === 'object' && value.constructor === Object;
+  }
+}

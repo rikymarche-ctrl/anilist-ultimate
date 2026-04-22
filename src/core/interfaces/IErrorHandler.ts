@@ -1,0 +1,23 @@
+/**
+ * Error Handler Interface
+ * Contract for error handling services
+ */
+
+import type { ErrorSeverity } from '@core/errors/ErrorHandler';
+
+export interface IErrorHandler {
+  /**
+   * Handle an error
+   */
+  handle(error: Error, context?: string, severity?: ErrorSeverity): void;
+
+  /**
+   * Wrap an async function with error handling
+   */
+  wrap<T extends (...args: any[]) => Promise<any>>(fn: T, context?: string): T;
+
+  /**
+   * Setup global error listeners
+   */
+  setupGlobalHandlers(): void;
+}

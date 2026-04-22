@@ -1,3 +1,4 @@
+import { injectable } from 'tsyringe';
 /**
  * Social Service
  * Handles batched fetching of friend activity and detailed social entries
@@ -7,16 +8,24 @@ import { anilistClient } from '@/api/AnilistClient';
 import { log } from '@core/logger';
 import { FriendActivity, SocialActivityDetailed, SocialFilter } from '@core/types';
 
+@injectable()
 export class SocialService {
   private static instance: SocialService;
   private friendCache: Map<number, FriendActivity[]> = new Map();
   private viewerId: number | null = null;
   private cacheDate: string = '';
 
-  private constructor() {
+  /**
+   * Constructor is now public for DI compatibility
+   * tsyringe will manage singleton lifecycle
+   */
+  constructor() {
     this.refreshCacheIfNeeded();
   }
 
+  /**
+   * @deprecated Use DI container to resolve SocialService instead
+   */
   public static getInstance(): SocialService {
     if (!SocialService.instance) {
       SocialService.instance = new SocialService();

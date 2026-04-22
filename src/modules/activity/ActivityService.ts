@@ -1,3 +1,4 @@
+import { injectable } from 'tsyringe';
 /**
  * Activity Service
  * Handles batched fetching of user scores for activity entries
@@ -13,12 +14,20 @@ export interface ActivityScoreData {
   format: ScoreFormat;
 }
 
+@injectable()
 export class ActivityService {
   private static instance: ActivityService;
   private scoreCache: Map<string, ActivityScoreData | null> = new Map(); // key: "userName-mediaId"
 
-  private constructor() {}
+  /**
+   * Constructor is now public for DI compatibility
+   * tsyringe will manage singleton lifecycle
+   */
+  constructor() {}
 
+  /**
+   * @deprecated Use DI container to resolve ActivityService instead
+   */
   public static getInstance(): ActivityService {
     if (!ActivityService.instance) {
       ActivityService.instance = new ActivityService();

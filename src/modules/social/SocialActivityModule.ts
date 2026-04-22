@@ -5,8 +5,9 @@
 
 import { log } from '@core/logger';
 import { SocialSidebar } from './components/SocialSidebar';
+import type { IModule } from '@core/interfaces/IModule';
 
-export class SocialActivityModule {
+export class SocialActivityModule implements IModule {
   private sidebar: SocialSidebar | null = null;
 
   public async init(): Promise<void> {
@@ -20,6 +21,13 @@ export class SocialActivityModule {
     } catch (e) {
       log.error('Failed to initialize Social Activity Module', e);
     }
+  }
+
+  /**
+   * Get module name
+   */
+  public getName(): string {
+    return 'socialActivity';
   }
 
   private initSidebar(): void {

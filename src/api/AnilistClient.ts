@@ -3,10 +3,11 @@
  * Handles all API communication with rate limiting
  */
 
+import { injectable } from 'tsyringe';
 import { GraphQLClient } from 'graphql-request';
 import { API_CONFIG, OAUTH_CONFIG } from '@core/constants';
 import { log } from '@core/logger';
-// GraphQLResponse type imported but reserved for future use
+import type { IApiClient } from '@core/interfaces/IApiClient';
 
 interface RequestQueueItem {
   query: string;
@@ -16,7 +17,12 @@ interface RequestQueueItem {
   retries: number;
 }
 
-export class AnilistClient {
+/**
+ * AnilistClient - GraphQL API client with rate limiting
+ * Implements IApiClient interface for dependency injection
+ */
+@injectable()
+export class AnilistClient implements IApiClient {
   private client: GraphQLClient;
   private queue: RequestQueueItem[] = [];
   private activeRequests = 0;
@@ -167,6 +173,15 @@ export class AnilistClient {
   }
 
   /**
+   * Execute a GraphQL mutation with rate limiting
+   * (Mutations use same queue as queries for rate limiting)
+   */
+  public async mutate<T>(mutation: string, variables: Record<string, any> = {}): Promise<T> {
+    // Mutations are treated the same as queries for rate limiting purposes
+    return this.query<T>(mutation, variables);
+  }
+
+  /**
    * Process the request queue
    */
   private async processQueue(): Promise<void> {
@@ -306,5 +321,8 @@ export class AnilistClient {
   }
 }
 
-// Singleton instance
+/**
+ * Singleton instance for backward compatibility
+ * Will be replaced by DI container resolution in Phase 4
+ */
 export const anilistClient = new AnilistClient();

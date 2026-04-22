@@ -1,0 +1,69 @@
+# AniList Ultimate v2 - Migration Status
+
+## 🚀 Progress: 80% Complete
+
+### ✅ Phase 1: Core Infrastructure
+- [x] Dependency Injection (TSyringe) setup
+- [x] Event Bus implementation
+- [x] Storage Manager refactor
+- [x] Configuration Manager refactor
+
+### ✅ Phase 2: Core Services
+- [x] Navigation Service (Centralized path detection)
+- [x] API Client (GraphQL abstraction)
+- [x] Logger implementation
+
+### ✅ Phase 3: Module Decoupling (Foundation)
+- [x] BaseModule class for shared logic
+- [x] Event-driven lifecycle management
+- [x] Cleanup of legacy global singletons (90%)
+
+### ✅ Phase 4: Activity Module Refactor
+- [x] ActivityEnhancer split into services
+- [x] ActivityStore integration
+
+### ✅ Phase 5: Social Module Refactor
+- [x] MediaSocialEnhancer refactor
+- [x] CustomLists integration
+
+### ✅ Phase 6: SRP Compliance (Major Refactor) 🟢 COMPLETED
+- [x] **CalendarModule** decomposition:
+  - `CalendarDomService` (UI/DOM)
+  - `CalendarDataService` (API/Data)
+  - `CalendarSocialService` (Friend Activity)
+- [x] **NotificationCleanerModule** decomposition:
+  - `NotificationFetchService` (GraphQL/Fetch)
+  - `NotificationGroupService` (Grouping/Surgery)
+  - `NotificationFilterService` (Search/Filtering)
+
+---
+
+## 🛠️ Remaining Tasks
+
+### 🕒 Phase 7: UI Component Standardization
+- [ ] Refactor `SettingsPanel` to use `BaseComponent` patterns
+- [ ] Standardize SCSS/CSS variable usage across all modules
+- [ ] Implement consistent loading states/skeletons
+
+### 🕒 Phase 8: Global Error Handling & Resilience
+- [ ] Implement `ErrorHandler` service
+- [ ] Add automatic retry logic for failed GraphQL queries
+- [ ] Create UI-facing error notifications via EventBus
+
+### 🕒 Phase 9: Vitest Infrastructure & Unit Testing
+- [ ] Set up testing environment for Services
+- [ ] Add unit tests for `CalendarDataService`
+- [ ] Add unit tests for `EventBus` and `NavigationService`
+
+### 🕒 Phase 10: Final Cleanup & Optimization
+- [ ] Remove all remaining `export const singleton = new Class()`
+- [ ] Enable `strict: true` in `tsconfig.json` (The final boss)
+- [ ] Production bundle optimization
+
+---
+
+## 📈 Recent Improvements
+- **Zero Build Errors**: Project compiles successfully with `tsc && vite build`.
+- **SRP Enforcement**: No more 1000-line monolithic modules.
+- **Lazy Resolution**: UI components now resolve services at runtime via `container.resolve`, preventing circular dependencies.
+- **Event-Driven Navigation**: Removed polling in favor of `onPageChange` subscriptions.

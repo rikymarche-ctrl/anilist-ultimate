@@ -23,12 +23,20 @@ export class ReviewEnhancerModule extends BaseModule {
     log.info('ReviewEnhancer: Initializing One-Shot Strategic Version');
     this.reviewService = ReviewService.getInstance();
 
-    this.watchPageNavigation(() => {
+    // Use centralized navigation events instead of polling
+    this.onPageChange(() => {
       this.fullReset();
       this.startObservation();
     });
 
     this.startObservation();
+  }
+
+  /**
+   * Get module name
+   */
+  public getName(): string {
+    return 'reviewEnhancer';
   }
 
   private fullReset(): void {
@@ -235,7 +243,7 @@ export class ReviewEnhancerModule extends BaseModule {
     return `au-review-rating--${ScoreFormatter.getLabel(rating)}`;
   }
 
-  public destroy(): void {
+  public async destroy(): Promise<void> {
     super.destroy();
     this.fullReset();
   }

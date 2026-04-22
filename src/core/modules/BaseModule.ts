@@ -5,18 +5,30 @@
  */
 
 import { log } from '../logger';
+import type { IModule } from '../interfaces/IModule';
+import { container } from '../di/container';
+import { TOKENS } from '../di/tokens';
+import type { IEventBus, EventSubscription } from '../interfaces/IEventBus';
+import type { PageChangedEvent } from '../events/GlobalEvents';
+import { EVENT_TYPES } from '../events/EventTypes';
 
-export abstract class BaseModule {
+export abstract class BaseModule implements IModule {
   protected observers: Map<string, MutationObserver> = new Map();
   protected urlCheckInterval: number | null = null;
   protected lastPath: string = window.location.pathname;
   private observerTimeouts: Map<string, number> = new Map();
   private suspendedObservers: Set<string> = new Set();
+  private eventSubscriptions: EventSubscription[] = [];
 
   /**
    * Initialize the module
    */
   public abstract init(): Promise<void>;
+
+  /**
+   * Get module name (for identification and logging)
+   */
+  public abstract getName(): string;
 
   /**
    * Safe cleanup of common resources (observers, per-page stuff)
@@ -30,12 +42,16 @@ export abstract class BaseModule {
 
     this.observerTimeouts.forEach(timeout => window.clearTimeout(timeout));
     this.observerTimeouts.clear();
+
+    // Unsubscribe from all events
+    this.eventSubscriptions.forEach(sub => sub.unsubscribe());
+    this.eventSubscriptions = [];
   }
 
   /**
    * Full destruction
    */
-  public destroy(): void {
+  public async destroy(): Promise<void> {
     this.cleanup();
     if (this.urlCheckInterval) {
       window.clearInterval(this.urlCheckInterval);
@@ -124,7 +140,39 @@ export abstract class BaseModule {
   }
 
   /**
+   * Subscribe to page navigation events
+   * @param callback Function to call when page changes
+   */
+  protected onPageChange(callback: (event?: PageChangedEvent) => void): void {
+    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
+    const unsubscribe = eventBus.on<PageChangedEvent>(EVENT_TYPES.PAGE_CHANGED, callback);
+    this.eventSubscriptions.push(unsubscribe);
+  }
+
+  /**
+   * Subscribe to any event via EventBus
+   * @param eventType Event type to listen to
+   * @param handler Event handler function
+   */
+  protected subscribe<T>(eventType: string, handler: (data?: T) => void): void {
+    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
+    const unsubscribe = eventBus.on<T>(eventType, handler);
+    this.eventSubscriptions.push(unsubscribe);
+  }
+
+  /**
+   * Emit an event via EventBus
+   * @param eventType Event type to emit
+   * @param data Event data
+   */
+  protected emit<T>(eventType: string, data?: T): void {
+    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
+    eventBus.emit<T>(eventType, data);
+  }
+
+  /**
    * Centralized URL change detection
+   * @deprecated Use onPageChange() instead to leverage the centralized NavigationService
    */
   protected watchPageNavigation(callback: (path: string) => void): void {
     if (this.urlCheckInterval) return;

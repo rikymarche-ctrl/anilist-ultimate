@@ -27,6 +27,13 @@ export class SocialEnhancerModule extends BaseModule {
     this.processCards();
   }
 
+  /**
+   * Get module name
+   */
+  public getName(): string {
+    return 'socialEnhancer';
+  }
+
   private startObservation(): void {
     this.registerObserver(this.observerName, document.body, { childList: true, subtree: true }, () => {
       this.processCards();
@@ -99,7 +106,7 @@ export class SocialEnhancerModule extends BaseModule {
     }
   }
 
-  public override destroy(): void {
+  public override async destroy(): Promise<void> {
     super.destroy();
     if (this.batchTimeout) clearTimeout(this.batchTimeout);
     this.pendingCards.clear();

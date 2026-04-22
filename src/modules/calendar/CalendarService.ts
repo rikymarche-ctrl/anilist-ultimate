@@ -3,13 +3,23 @@
  * Fetches and transforms anime schedule data
  */
 
+import { injectable, inject } from 'tsyringe';
 import { anilistClient } from '@/api/AnilistClient';
 import { USER_ANIME_LIST_QUERY, UPDATE_PROGRESS_MUTATION } from '@/api/queries/calendar';
 import { log } from '@core/logger';
 import { DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, MediaListResponse } from '@core/types';
+import { TOKENS } from '@core/di/tokens';
+import type { IEventBus } from '@core/interfaces/IEventBus';
+import { EVENT_TYPES } from '@core/events/EventTypes';
 
+/**
+ * CalendarService - Anime schedule fetching and transformation
+ */
+@injectable()
 export class CalendarService {
+  constructor(@inject(TOKENS.EventBus) private eventBus: IEventBus) {}
+
   /**
    * Fetch user's currently watching anime with airing schedules
    */
@@ -103,6 +113,14 @@ export class CalendarService {
       });
 
       log.success('Progress updated successfully');
+
+      // Emit PROGRESS_UPDATED event
+      this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
+        animeId: mediaId,
+        progress: newProgress,
+        timestamp: new Date(),
+      });
+
       return true;
     } catch (error) {
       log.error('Failed to update progress', error);
@@ -218,5 +236,4 @@ export class CalendarService {
   }
 }
 
-// Singleton instance
-export const calendarService = new CalendarService();
+// Singleton instance is now handled by DI container

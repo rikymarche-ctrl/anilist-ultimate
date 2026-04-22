@@ -16,7 +16,9 @@ export class ForumEnhancerModule extends BaseModule {
   public async init(): Promise<void> {
     log.info('ForumEnhancer: Initializing...');
 
-    this.watchPageNavigation((path) => {
+    // Use centralized navigation events instead of polling
+    this.onPageChange((event) => {
+      const path = event?.path || window.location.pathname;
       if (this.shouldRun(path)) {
         this.startObservation();
       } else {
@@ -27,6 +29,13 @@ export class ForumEnhancerModule extends BaseModule {
     if (this.shouldRun(window.location.pathname)) {
       this.startObservation();
     }
+  }
+
+  /**
+   * Get module name
+   */
+  public getName(): string {
+    return 'forumEnhancer';
   }
 
   private shouldRun(path: string): boolean {
@@ -101,7 +110,7 @@ export class ForumEnhancerModule extends BaseModule {
     return null;
   }
 
-  public override destroy(): void {
+  public override async destroy(): Promise<void> {
     this.stopObservation();
     
     // Unwrap title

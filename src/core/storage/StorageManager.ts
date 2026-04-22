@@ -3,10 +3,17 @@
  * Handles chrome.storage operations with type safety
  */
 
+import { injectable } from 'tsyringe';
 import type { StorageArea } from '@core/types';
 import { STORAGE_PREFIX } from '@core/constants';
+import type { IStorageService } from '@core/interfaces/IStorageService';
 
-export class StorageManager {
+/**
+ * StorageManager - Chrome storage wrapper with type safety
+ * Implements IStorageService interface for dependency injection
+ */
+@injectable()
+export class StorageManager implements IStorageService {
   private area: StorageArea;
 
   constructor(area: StorageArea = 'sync') {
@@ -225,7 +232,10 @@ export class StorageManager {
   }
 }
 
-// Singleton instances
+/**
+ * Singleton instances for backward compatibility
+ * Will be replaced by DI container resolution in Phase 4
+ */
 export const syncStorage = new StorageManager('sync');
 export const localStorage = new StorageManager('local');
 

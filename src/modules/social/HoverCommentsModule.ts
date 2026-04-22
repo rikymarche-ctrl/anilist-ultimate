@@ -5,6 +5,7 @@
 
 import { CommentTooltip } from './CommentTooltip';
 import { log } from '@core/logger';
+import type { IModule } from '@core/interfaces/IModule';
 // CSS will be loaded dynamically after page stabilization
 
 const ICON_COMMENT_SVG = `<svg class="au-comment-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M512 240c0 114.9-114.6 208-256 208c-37.1 0-72.3-6.4-104.1-17.9c-11.9 8.7-31.3 20.6-54.3 30.6C73.6 471.1 44.7 480 16 480c-6.5 0-12.3-3.9-14.8-9.9c-2.5-6-1.1-12.8 3.4-17.4l4.1-4.1c10.1-10.1 16.6-23.3 18.2-38.1C11.2 367.1 0 306.7 0 240C0 125.1 114.6 32 256 32s256 93.1 256 208z"/></svg>`;
@@ -121,7 +122,7 @@ div.following a, div[class="following"] a, div[class^="following"] a { position:
 .tooltip-refresh-btn:hover { background: rgba(61, 180, 242, 0.4); }
 `;
 
-export class HoverCommentsModule {
+export class HoverCommentsModule implements IModule {
   private tooltip: CommentTooltip;
   private pollingInterval: any = null;
   private processedPages = new Set<number>();
@@ -159,6 +160,13 @@ export class HoverCommentsModule {
     } else {
       window.addEventListener('load', () => startAfterWait());
     }
+  }
+
+  /**
+   * Get module name
+   */
+  public getName(): string {
+    return 'hoverComments';
   }
 
   /**

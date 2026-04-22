@@ -3,10 +3,17 @@
  * Consistent logging with styling and levels
  */
 
+import { injectable } from 'tsyringe';
 import { DEBUG } from './constants';
 import type { LogLevel } from './types';
+import type { ILogger } from './interfaces/ILogger';
 
-class Logger {
+/**
+ * Logger - Styled console logging with levels
+ * Implements ILogger interface for dependency injection
+ */
+@injectable()
+class Logger implements ILogger {
   private enabled: boolean;
   private prefix: string;
 
@@ -152,10 +159,15 @@ class Logger {
   }
 }
 
-// Singleton instance
+/**
+ * Singleton instance for backward compatibility
+ * Will be replaced by DI container resolution in Phase 4
+ */
 export const logger = new Logger();
 
-// Export convenience methods
+/**
+ * Convenience methods for backward compatibility
+ */
 export const log = {
   debug: (msg: string, ...data: any[]) => logger.debug(msg, ...data),
   info: (msg: string, ...data: any[]) => logger.info(msg, ...data),

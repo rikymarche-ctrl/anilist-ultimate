@@ -100,22 +100,6 @@ export const DEFAULT_CALENDAR_PREFERENCES = {
 };
 
 // ============================================================================
-// Module Configuration
-// ============================================================================
-
-export const DEFAULT_MODULE_CONFIG = {
-  calendar: true,
-  hoverComments: true,
-  notificationCleaner: true,
-  reviewEnhancer: true,
-  friendActivity: true,
-  listEditor: true,
-  socialActivity: true,
-  forumEnhancer: true,
-  activityScore: true,
-};
-
-// ============================================================================
 // UI Constants
 // ============================================================================
 
@@ -176,20 +160,4 @@ export const DEBUG = {
   },
 } as const;
 
-// ============================================================================
-// Feature Flags (for gradual rollout)
-// ============================================================================
-
-export const FEATURE_FLAGS = {
-  ENABLE_CALENDAR: true,
-  ENABLE_HOVER_COMMENTS: true,
-  ENABLE_NOTIFICATION_CLEANER: true,
-  ENABLE_REVIEW_ENHANCER: true,
-  ENABLE_FRIEND_ACTIVITY: true,
-  ENABLE_LIST_EDITOR: false,
-  ENABLE_SOCIAL_ACTIVITY: true,
-  ENABLE_FORUM_ENHANCER: true,
-  ENABLE_ACTIVITY_SCORE: true,
-  ENABLE_WEB_COMPONENTS: true,
-  ENABLE_VIRTUAL_SCROLL: false, // For future optimization
-} as const;
+// Note: Feature flags have been migrated to ConfigManager (see src/core/config/)

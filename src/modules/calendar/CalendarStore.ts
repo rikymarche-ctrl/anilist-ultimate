@@ -1,3 +1,4 @@
+import { injectable } from 'tsyringe';
 /**
  * Calendar State Management
  * Central store for calendar data and preferences
@@ -34,6 +35,7 @@ const initialState: CalendarState = {
   countdownInterval: null,
 };
 
+@injectable()
 export class CalendarStore extends Store<CalendarState> {
   constructor() {
     super(initialState);

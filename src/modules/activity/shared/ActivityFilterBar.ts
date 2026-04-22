@@ -1,0 +1,202 @@
+/**
+ * Activity Filter Bar
+ * Reusable component for activity filtering UI
+ * Shared between ActivityEnhancerModule and MediaSocialEnhancer
+ */
+
+import { injectable } from 'tsyringe';
+import type { ActivityType } from '../ActivityUtils';
+
+export interface FilterBarOptions {
+  /**
+   * Available filter buttons
+   */
+  filters: Array<{ type: ActivityType; label: string }>;
+
+  /**
+   * Whether to show search input
+   */
+  showSearch?: boolean;
+
+  /**
+   * Callback when filters change
+   */
+  onFilterChange?: (activeFilters: Set<ActivityType>) => void;
+
+  /**
+   * Callback when search query changes
+   */
+  onSearchChange?: (query: string) => void;
+}
+
+/**
+ * Activity Filter Bar Component
+ * Manages filter UI and user interactions
+ */
+@injectable()
+export class ActivityFilterBar {
+  private activeFilters: Set<ActivityType> = new Set(['all']);
+  private searchQuery: string = '';
+  private container: HTMLElement | null = null;
+  private options: FilterBarOptions;
+
+  constructor() {
+    this.options = {
+      filters: [
+        { type: 'all', label: 'All' },
+        { type: 'watched', label: 'Watched' },
+        { type: 'read', label: 'Read' },
+        { type: 'completed', label: 'Completed' },
+        { type: 'plans', label: 'Plans' },
+        { type: 'dropped', label: 'Dropped' },
+        { type: 'paused', label: 'Paused' },
+        { type: 'text', label: 'Text posts' },
+      ],
+      showSearch: true,
+    };
+  }
+
+  /**
+   * Configure filter bar options
+   */
+  configure(options: Partial<FilterBarOptions>): void {
+    this.options = { ...this.options, ...options };
+  }
+
+  /**
+   * Create and return the filter bar element
+   */
+  create(): HTMLElement {
+    const bar = document.createElement('div');
+    bar.className = 'au-activity-bar';
+
+    // Build filter buttons HTML
+    const filterButtonsHTML = this.options.filters
+      .map(
+        ({ type, label }) =>
+          `<button class="au-filter-btn" data-filter="${type}">${label}</button>`
+      )
+      .join('');
+
+    // Build search input HTML
+    const searchHTML = this.options.showSearch
+      ? `
+      <div class="au-search-container">
+        <i class="fas fa-search au-search-icon"></i>
+        <input type="text" class="au-search-input" id="au-activity-search" placeholder="Search..." />
+      </div>
+    `
+      : '';
+
+    bar.innerHTML = `
+      <div class="au-activity-bar__left">
+        ${filterButtonsHTML}
+      </div>
+      ${searchHTML}
+    `;
+
+    this.container = bar;
+    this.attachEvents();
+    this.updateUI();
+
+    return bar;
+  }
+
+  /**
+   * Attach event listeners
+   */
+  private attachEvents(): void {
+    if (!this.container) return;
+
+    // Filter button clicks
+    const filterBtns = this.container.querySelectorAll('.au-filter-btn');
+    filterBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = btn.getAttribute('data-filter') as ActivityType;
+        this.toggleFilter(filter);
+      });
+    });
+
+    // Search input
+    if (this.options.showSearch) {
+      const searchInput = this.container.querySelector(
+        '#au-activity-search'
+      ) as HTMLInputElement;
+      searchInput?.addEventListener('input', (e) => {
+        this.searchQuery = (e.target as HTMLInputElement).value.toLowerCase();
+        this.options.onSearchChange?.(this.searchQuery);
+      });
+    }
+  }
+
+  /**
+   * Toggle filter (single-select logic)
+   */
+  private toggleFilter(filter: ActivityType): void {
+    this.activeFilters.clear();
+    this.activeFilters.add(filter);
+    this.updateUI();
+    this.options.onFilterChange?.(new Set(this.activeFilters));
+  }
+
+  /**
+   * Update UI to reflect active filters
+   */
+  private updateUI(): void {
+    if (!this.container) return;
+
+    this.container.querySelectorAll('.au-filter-btn').forEach((btn) => {
+      const f = btn.getAttribute('data-filter') as ActivityType;
+      btn.classList.toggle('active', this.activeFilters.has(f));
+    });
+  }
+
+  /**
+   * Get current active filters
+   */
+  getActiveFilters(): Set<ActivityType> {
+    return new Set(this.activeFilters);
+  }
+
+  /**
+   * Get current search query
+   */
+  getSearchQuery(): string {
+    return this.searchQuery;
+  }
+
+  /**
+   * Set active filter programmatically
+   */
+  setFilter(filter: ActivityType): void {
+    this.toggleFilter(filter);
+  }
+
+  /**
+   * Reset to default state
+   */
+  reset(): void {
+    this.activeFilters.clear();
+    this.activeFilters.add('all');
+    this.searchQuery = '';
+    this.updateUI();
+
+    // Clear search input if exists
+    const searchInput = this.container?.querySelector(
+      '#au-activity-search'
+    ) as HTMLInputElement;
+    if (searchInput) {
+      searchInput.value = '';
+    }
+  }
+
+  /**
+   * Destroy and clean up
+   */
+  destroy(): void {
+    this.container?.remove();
+    this.container = null;
+    this.activeFilters.clear();
+    this.searchQuery = '';
+  }
+}

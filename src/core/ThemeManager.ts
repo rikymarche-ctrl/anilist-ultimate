@@ -3,18 +3,31 @@
  * Automatically detects Anilist theme and applies corresponding AU theme
  */
 
+import { singleton } from 'tsyringe';
 import { log } from './logger';
 import { CSS_CLASSES } from './constants';
 
+/**
+ * ThemeManager - Automatic theme detection and application
+ * Uses singleton pattern for global theme management
+ */
+@singleton()
 export class ThemeManager {
   private static instance: ThemeManager;
   private observer: MutationObserver | null = null;
   private lastTheme: string | null = null;
 
-  private constructor() {
+  /**
+   * Constructor is now public for DI compatibility
+   * tsyringe @singleton() decorator will manage singleton lifecycle
+   */
+  constructor() {
     this.init();
   }
 
+  /**
+   * @deprecated Use DI container to resolve ThemeManager instead
+   */
   public static getInstance(): ThemeManager {
     if (!ThemeManager.instance) {
       ThemeManager.instance = new ThemeManager();

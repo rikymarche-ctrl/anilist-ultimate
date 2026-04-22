@@ -5,7 +5,9 @@
 
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { calendarStore } from '../CalendarStore';
-import { calendarService } from '../CalendarService';
+import { container } from '@core/di/container';
+import { TOKENS } from '@core/di/tokens';
+import type { CalendarService } from '../CalendarService';
 import { anilistClient } from '../../../api';
 import { SocialRenderer } from '../../social/SocialRenderer';
 import type { AnimeEntry, CardOptions } from '@core/types';
@@ -42,6 +44,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     card.innerHTML = this.getCardHTML(anime, options);
 
     // Add status classes
+    const calendarService = container.resolve<CalendarService>(TOKENS.CalendarService);
     if (calendarService.hasAired(anime)) {
       card.classList.add('anime-card--aired');
     } else if (calendarService.isAiringSoon(anime)) {
@@ -237,6 +240,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private getTimeHTML(anime: AnimeEntry, timeFormat: 'release' | 'countdown'): string {
     let timeText: string;
 
+    const calendarService = container.resolve<CalendarService>(TOKENS.CalendarService);
     if (timeFormat === 'countdown') {
       timeText = calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
     } else {
@@ -550,6 +554,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     const { anime } = this.props;
 
+    const calendarService = container.resolve<CalendarService>(TOKENS.CalendarService);
     if (timeFormat === 'countdown') {
       timeElement.textContent = calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
     } else {

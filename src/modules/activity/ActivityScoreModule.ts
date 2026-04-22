@@ -26,7 +26,9 @@ export class ActivityScoreModule extends BaseModule {
   public async init(): Promise<void> {
     log.info('ActivityScore: Initializing...');
 
-    this.watchPageNavigation((path) => {
+    // Use centralized navigation events instead of polling
+    this.onPageChange((event) => {
+      const path = event?.path || window.location.pathname;
       if (this.shouldRun(path)) {
         this.startObservation();
       } else {
@@ -37,6 +39,13 @@ export class ActivityScoreModule extends BaseModule {
     if (this.shouldRun(window.location.pathname)) {
       this.startObservation();
     }
+  }
+
+  /**
+   * Get module name
+   */
+  public getName(): string {
+    return 'activityScore';
   }
 
   private shouldRun(path: string): boolean {
@@ -163,7 +172,7 @@ export class ActivityScoreModule extends BaseModule {
     }
   }
 
-  public override destroy(): void {
+  public override async destroy(): Promise<void> {
     this.stopObservation();
     document.querySelectorAll('.au-activity-rating').forEach(el => el.remove());
     document.querySelectorAll('[data-au-score-enhanced]').forEach(el => el.removeAttribute('data-au-score-enhanced'));
