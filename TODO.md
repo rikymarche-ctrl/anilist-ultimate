@@ -35,6 +35,9 @@ implementare il fatto che il resize della pagina non distrugga gli elementi
 
 vorrei fare un rework grafico alla social activity dal calendario (le custom lists non funzionano per nulla qua)
 
+
+estensione funzionalità social con avatar anche a anime e manga in progress
+
 ---
 
 *Last Updated: 2026-04-23*

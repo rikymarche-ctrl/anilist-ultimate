@@ -24,6 +24,7 @@ import './styles/main.css';
 import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
+import './styles/astra.css';
 
 /**
  * Initialize the global debug object

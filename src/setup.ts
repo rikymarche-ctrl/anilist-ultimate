@@ -48,6 +48,9 @@ import { SocialActivityModule } from '@/modules/social/SocialActivityModule';
 import { SocialEnhancerModule } from '@/modules/social/SocialEnhancerModule';
 import { CustomListModule } from '@/modules/social/CustomListModule';
 import { MediaSocialEnhancer } from '@/modules/social/MediaSocialEnhancer';
+import { AstraModule } from '@/modules/astra/AstraModule';
+import { AstraService } from '@/modules/astra/AstraService';
+import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
 
 // Shared Components
@@ -137,6 +140,10 @@ export async function setupDI(): Promise<void> {
   container.registerSingleton(TOKENS.NotificationFetchService, NotificationFetchService);
   container.registerSingleton(TOKENS.NotificationGroupService, NotificationGroupService);
   container.registerSingleton(TOKENS.NotificationFilterService, NotificationFilterService);
+
+  // Astra Services
+  container.registerSingleton(TOKENS.AstraService, AstraService);
+  container.registerSingleton(TOKENS.AstraRatingModal, AstraRatingModal);
 
   // ============================================================================
   // Initialize Critical Services
@@ -288,6 +295,13 @@ export async function setupDI(): Promise<void> {
           CustomListService.getInstance()
         );
       },
+    },
+    {
+      name: 'astra',
+      description: 'Advanced scoring system (Astra)',
+      enabled: true, // Always enabled for now
+      factory: () => new AstraModule(container.resolve(TOKENS.AstraService)),
+      pageMatch: (path) => path.includes('/user/') || path.includes('/astra'),
     },
   ];
 
