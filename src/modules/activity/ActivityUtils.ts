@@ -46,10 +46,10 @@ export function getTimeAgo(timestamp: number): string {
  */
 export function getActivityType(text: string): ActivityType {
   const lower = text.toLowerCase();
-  if (lower.includes('watched episode') || lower.includes('watched ep')) return 'watched';
-  if (lower.includes('read chapter') || lower.includes('read ch')) return 'read';
+  if (lower.includes('watched') || lower.includes('watch') || lower.includes(' ep')) return 'watched';
+  if (lower.includes('read') || lower.includes('reading') || lower.includes(' ch')) return 'read';
   if (lower.includes('completed')) return 'completed';
-  if (lower.includes('plans to')) return 'plans';
+  if (lower.includes('plans') || lower.includes('planning')) return 'plans';
   if (lower.includes('dropped')) return 'dropped';
   if (lower.includes('paused')) return 'paused';
   return 'text';

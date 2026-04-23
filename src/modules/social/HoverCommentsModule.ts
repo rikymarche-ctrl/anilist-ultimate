@@ -193,14 +193,17 @@ export class HoverCommentsModule extends BaseModule {
 
   private injectIcon(link: HTMLAnchorElement, username: string, mediaId: number, notes: string): void {
     if (link.hasAttribute('data-au-comment-injected')) return;
-    link.setAttribute('data-au-comment-injected', 'true');
-    link.style.position = 'relative';
+    const anchor = link.closest('.activity-entry, .user-status-row, .following-list-item') as HTMLElement || link;
+    anchor.style.position = 'relative';
 
     const iconContainer = document.createElement('div');
     iconContainer.className = 'comment-icon-ghost';
+    if (window.location.pathname.endsWith('/social')) {
+      iconContainer.classList.add('au-in-social-feed');
+    }
     iconContainer.innerHTML = `<span class="anilist-comment-icon">${this.ICON_SVG}</span>`;
 
-    link.appendChild(iconContainer);
+    anchor.appendChild(iconContainer);
 
     const icon = iconContainer.querySelector('.anilist-comment-icon') as HTMLElement;
 

@@ -156,19 +156,10 @@ export class ActivityEnhancerModule extends BaseModule {
 
     // Configure filter bar
     this.filterBar.configure({
-      filters: [
-        { type: 'all', label: 'All' },
-        { type: 'watched', label: 'Watched' },
-        { type: 'read', label: 'Read' },
-        { type: 'completed', label: 'Completed' },
-        { type: 'plans', label: 'Plans' },
-        { type: 'dropped', label: 'Dropped' },
-        { type: 'paused', label: 'Paused' },
-        { type: 'text', label: 'Text posts' },
-      ],
+      filters: ActivityFilterBar.getStandardFilters('all'),
       showSearch: true,
-      onFilterChange: () => this.checkAndProcess(),
-      onSearchChange: () => this.checkAndProcess(),
+      onFilterChange: () => this.applyFilters(),
+      onSearchChange: () => this.applyFilters(),
     });
 
     // Create and inject

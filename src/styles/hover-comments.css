@@ -29,6 +29,10 @@
   z-index: 10;
 }
 
+.comment-icon-ghost.au-in-social-feed {
+  right: 100px;
+}
+
 .comment-icon-ghost .anilist-comment-icon {
   pointer-events: auto;
   width: 24px;

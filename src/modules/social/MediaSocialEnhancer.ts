@@ -136,7 +136,7 @@ export class MediaSocialEnhancer extends BaseModule {
     
     if (feed) {
       this.suspendObserver(this.OBSERVER_NAME);
-      this.applyFilters(feedSelector);
+      this.applyFilters();
       this.resumeObserver(this.OBSERVER_NAME);
     }
   }
@@ -157,27 +157,28 @@ export class MediaSocialEnhancer extends BaseModule {
 
     if (!header) return;
 
-    // Configure filter bar
+    const isManga = window.location.pathname.includes('/manga/');
+
     this.filterBar.configure({
-      filters: [
-        { type: 'all', label: 'All' },
-        { type: 'watched', label: 'Watched' },
-        { type: 'completed', label: 'Completed' },
-        { type: 'plans', label: 'Plans' },
-        { type: 'text', label: 'Text posts' },
-      ],
-      showSearch: false,
-      onFilterChange: () => this.checkAndProcess(),
+      filters: ActivityFilterBar.getStandardFilters(isManga ? 'manga' : 'anime', false),
+      showSearch: true,
+      onFilterChange: () => this.applyFilters(),
+      onSearchChange: () => this.applyFilters(),
     });
 
     // Create and inject
     const bar = this.filterBar.create();
     bar.style.marginTop = '15px';
     bar.style.marginBottom = '15px';
+    bar.style.width = '100%';
+    bar.style.display = 'flex';
+    bar.style.clear = 'both';
     
     // If on Overview, inject after the header tabs if possible
     const tabs = header.querySelector('.feed-type-toggle');
     if (tabs) {
+      // Force the header to wrap so the bar goes to a new line
+      (header as HTMLElement).style.flexWrap = 'wrap';
       tabs.insertAdjacentElement('afterend', bar);
     } else {
       header.insertAdjacentElement('afterend', bar);
@@ -221,19 +222,21 @@ export class MediaSocialEnhancer extends BaseModule {
   /**
    * Apply filters using shared renderer
    */
-  private applyFilters(feedSelector: string): void {
+  private applyFilters(): void {
     if (this.tabManager.isActive()) {
       this.renderer.hideNativeActivities();
       return;
     }
 
     const activeFilters = this.filterBar.getActiveFilters();
+    const searchQuery = this.filterBar.getSearchQuery();
 
+    // Use a more inclusive selector that works across both Social and Overview pages
     this.renderer.configure({
-      activitySelector: `${feedSelector} .activity-entry, ${feedSelector} .activity-anime, ${feedSelector} .activity-manga`,
+      activitySelector: '.activity-entry, .activity-anime, .activity-manga, .activity-text',
     });
 
-    this.renderer.applyFilters(activeFilters, '');
+    this.renderer.applyFilters(activeFilters, searchQuery);
   }
 
   /**

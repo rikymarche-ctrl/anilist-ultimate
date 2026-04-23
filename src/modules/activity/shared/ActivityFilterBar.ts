@@ -57,6 +57,35 @@ export class ActivityFilterBar {
   }
 
   /**
+   * Get standard filter set based on context
+   */
+  public static getStandardFilters(type: 'anime' | 'manga' | 'all' = 'all', includeTextPosts: boolean = true): Array<{ type: ActivityType; label: string }> {
+    const filters: Array<{ type: ActivityType; label: string }> = [
+      { type: 'all', label: 'All' }
+    ];
+
+    if (type === 'anime' || type === 'all') {
+      filters.push({ type: 'watched', label: 'Watched' });
+    }
+    if (type === 'manga' || type === 'all') {
+      filters.push({ type: 'read', label: 'Read' });
+    }
+
+    filters.push(
+      { type: 'completed', label: 'Completed' },
+      { type: 'paused', label: 'Paused' },
+      { type: 'dropped', label: 'Dropped' },
+      { type: 'plans', label: 'Plans' }
+    );
+
+    if (includeTextPosts) {
+      filters.push({ type: 'text', label: 'Text posts' });
+    }
+
+    return filters;
+  }
+
+  /**
    * Configure filter bar options
    */
   configure(options: Partial<FilterBarOptions>): void {
@@ -82,7 +111,12 @@ export class ActivityFilterBar {
     const searchHTML = this.options.showSearch
       ? `
       <div class="au-search-container">
-        <i class="fas fa-search au-search-icon"></i>
+        <span class="au-search-icon">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </span>
         <input type="text" class="au-search-input" id="au-activity-search" placeholder="Search..." />
       </div>
     `
