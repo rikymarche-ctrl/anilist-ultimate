@@ -24,6 +24,8 @@ export interface AstraSeason {
   startDate?: string;
   endDate?: string;
   notes?: string;
+  isSeriesFinale?: boolean;
+  episodeNotes?: Record<number, { text: string; score?: number }>;
 }
 
 export interface AstraSection {
@@ -44,15 +46,24 @@ export const DEFAULT_SECTIONS: AstraSection[] = [
   { id: 'consistency', name: 'Consistency', weight: 2 },
 ];
 
+export interface AstraSettings {
+  enableSeriesFinale: boolean;
+}
+
+export const DEFAULT_SETTINGS: AstraSettings = {
+  enableSeriesFinale: true,
+};
+
 @singleton()
 @injectable()
 export class AstraService {
   private works: AstraWork[] = [];
   private sections: AstraSection[] = DEFAULT_SECTIONS;
+  private settings: AstraSettings = DEFAULT_SETTINGS;
   private isLoaded = false;
   private readonly STORAGE_KEY = 'au_astra_data';
 
-  constructor() {}
+  constructor() { }
 
   /**
    * Initialize and load data from storage
@@ -64,6 +75,7 @@ export class AstraService {
       const data = await this.getFromStorage();
       if (data) {
         this.works = data.works || [];
+        this.settings = data.settings || DEFAULT_SETTINGS;
         // Merge stored sections with defaults to ensure new IDs appear during development
         const storedSections = data.sections || [];
         const merged = [...DEFAULT_SECTIONS];
@@ -72,17 +84,6 @@ export class AstraService {
           if (idx >= 0) merged[idx] = s;
         });
         this.sections = merged;
-
-        // Ensure all works have the necessary score keys for the current sections
-        this.works.forEach(work => {
-          work.seasons.forEach(season => {
-            this.sections.forEach(sec => {
-              if (season.scores[sec.id] === undefined) {
-                season.scores[sec.id] = null;
-              }
-            });
-          });
-        });
       }
       this.isLoaded = true;
       log.info(`[AstraService] Loaded ${this.works.length} works`);
@@ -100,6 +101,11 @@ export class AstraService {
     return this.works;
   }
 
+  async getWork(mediaId: number): Promise<AstraWork | undefined> {
+    await this.init();
+    return this.works.find(w => w.mediaId === mediaId);
+  }
+
   /**
    * Get a single work by mediaId
    */
@@ -112,6 +118,15 @@ export class AstraService {
    */
   getSections(): AstraSection[] {
     return this.sections;
+  }
+
+  getSettings(): AstraSettings {
+    return this.settings;
+  }
+
+  async updateSettings(settings: Partial<AstraSettings>): Promise<void> {
+    this.settings = { ...this.settings, ...settings };
+    await this.persist();
   }
 
   /**
@@ -159,7 +174,7 @@ export class AstraService {
   /**
    * Calculate overall score for a season
    */
-  calcSeasonOverall(scores: Record<string, number | null>, skip?: string[]): number | null {
+  calcSeasonOverall(scores: Record<string, number | null>, skip?: string[], isSeriesFinale?: boolean): number | null {
     const skipSet = new Set(skip || []);
     let num = 0, den = 0;
 
@@ -168,8 +183,13 @@ export class AstraService {
       const v = scores[s.id];
       if (v === null || v === undefined || v === 0) continue;
 
-      num += v * s.weight;
-      den += s.weight;
+      let weight = s.weight;
+      if (s.id === 'finale' && isSeriesFinale) {
+        weight *= 2;
+      }
+
+      num += v * weight;
+      den += weight;
     }
 
     if (den === 0) return null;
@@ -183,7 +203,7 @@ export class AstraService {
     const subs = work.seasons
       .map(s => this.calcSeasonOverall(s.scores, s.skip))
       .filter((v): v is number => v !== null);
-    
+
     if (!subs.length) return null;
     return Math.round((subs.reduce((a, b) => a + b, 0) / subs.length) * 10) / 10;
   }
@@ -194,12 +214,13 @@ export class AstraService {
   createDefaultSeason(label = 'Season 1'): AstraSeason {
     const scores: Record<string, number | null> = {};
     this.sections.forEach(s => scores[s.id] = null);
-    
+
     return {
       id: `s_${Math.random().toString(36).slice(2, 7)}`,
       label,
       scores,
-      skip: []
+      skip: [],
+      episodeNotes: {}
     };
   }
 
@@ -212,6 +233,7 @@ export class AstraService {
         [this.STORAGE_KEY]: {
           works: this.works,
           sections: this.sections,
+          settings: this.settings,
           lastUpdated: Date.now()
         }
       });
@@ -249,7 +271,7 @@ export class AstraService {
 
       this.works = data.works;
       if (data.sections) this.sections = data.sections;
-      
+
       await this.persist();
       return true;
     } catch (error) {

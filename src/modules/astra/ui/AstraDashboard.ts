@@ -5,20 +5,22 @@ import { container } from '@core/di/container';
 import { TOKENS } from '@core/di/tokens';
 
 export class AstraDashboard extends BaseComponent {
-  private service: AstraService;
+  private service: AstraService | null = null;
 
   constructor() {
     super({});
-    this.service = container.resolve<AstraService>(TOKENS.AstraService);
   }
 
   protected render(): HTMLElement {
+    if (!this.service) {
+      this.service = container.resolve<AstraService>(TOKENS.AstraService);
+    }
     const works = this.service.getWorks();
     const sections = this.service.getSections();
 
-    const container = this.createElement('div', { class: 'astra-dashboard' });
+    const dashboardEl = this.createElement('div', { class: 'astra-dashboard' });
 
-    container.innerHTML = `
+    dashboardEl.innerHTML = `
       <header class="astra-dashboard-header">
         <div class="astra-dashboard-title-box">
           <h1 class="astra-dashboard-title">Astra Dashboard</h1>
@@ -61,13 +63,13 @@ export class AstraDashboard extends BaseComponent {
       </div>
     `;
 
-    this.attachDashboardEvents(container);
-    return container;
+    this.attachDashboardEvents(dashboardEl);
+    return dashboardEl;
   }
 
   private renderRow(work: AstraWork): string {
-    const sections = this.service.getSections();
-    const overall = this.service.calcSeriesOverall(work);
+    const sections = this.service!.getSections();
+    const overall = this.service!.calcSeriesOverall(work);
     const lastSeason = work.seasons[work.seasons.length - 1];
 
     return `
@@ -91,7 +93,7 @@ export class AstraDashboard extends BaseComponent {
   }
 
   private calculateGlobalAverage(works: AstraWork[]): number {
-    const scores = works.map(w => this.service.calcSeriesOverall(w)).filter((v): v is number => v !== null);
+    const scores = works.map(w => this.service!.calcSeriesOverall(w)).filter((v): v is number => v !== null);
     if (!scores.length) return 0;
     return scores.reduce((a, b) => a + b, 0) / scores.length;
   }
@@ -102,7 +104,7 @@ export class AstraDashboard extends BaseComponent {
     const fileInput = el.querySelector('#astra-import-file') as HTMLInputElement;
 
     exportBtn?.addEventListener('click', () => {
-      const data = this.service.exportJSON();
+      const data = this.service!.exportJSON();
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -120,7 +122,7 @@ export class AstraDashboard extends BaseComponent {
 
       const reader = new FileReader();
       reader.onload = async (re) => {
-        const success = await this.service.importJSON(re.target?.result as string);
+        const success = await this.service!.importJSON(re.target?.result as string);
         if (success) {
           window.location.reload();
         } else {

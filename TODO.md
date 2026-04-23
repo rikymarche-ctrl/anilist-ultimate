@@ -23,20 +23,15 @@
 - [ ] **Private Messages**: nelle notifiche capire se il messaggio "sent" è segreto (occhiolino png) o pubblico.
 - [ ] **Spam Protection**: se spammo merge/unmerge si fuckuppa tutto.
 
-
-
 nell activity c è renderizzato malissimo per le custom lists. usare cloni
-
 
 controlalre bene se tra i cambi pagina tutto funziona perfettamente
 
 implementare il fatto che il resize della pagina non distrugga gli elementi
 
-
 vorrei fare un rework grafico alla social activity dal calendario (le custom lists non funzionano per nulla qua)
 
-
-estensione funzionalità social con avatar anche a anime e manga in progress
+estensione funzionalità social con avatar anche a anime e manga in progress, essenzialmente il bottone a pillola
 
 ---
 
