@@ -14,7 +14,7 @@ export interface NotificationGroup {
 @injectable()
 export class NotificationGroupService {
   constructor(
-    @inject(TOKENS.NotificationFetchService) private fetchService: NotificationFetchService
+    @inject(TOKENS.NotificationFetchService) public fetchService: NotificationFetchService
   ) {}
 
   /**
@@ -91,13 +91,13 @@ export class NotificationGroupService {
 
   private applyDetailsToClone(clone: HTMLElement, activityData: ActivityDetails, hidePrefix: boolean = false): void {
     const possibleSelectors = ['.details', '.text', '.content'];
-    let textElement: Element | null = null;
+    let textElement: HTMLElement | null = null;
 
     for (const selector of possibleSelectors) {
       const elements = clone.querySelectorAll(selector);
       for (const el of Array.from(elements)) {
         if (el.textContent?.trim().length) {
-          textElement = el;
+          textElement = el as HTMLElement;
           break;
         }
       }
@@ -107,52 +107,60 @@ export class NotificationGroupService {
     if (!textElement) textElement = clone;
 
     const originalHTML = textElement.innerHTML;
-    let newHTML = originalHTML;
+    const originalText = textElement.textContent || '';
+    let newContentHTML = '';
 
+    // Handle Media Activity (Airing/Watched/Read)
     if (activityData.mediaId) {
       const patterns = [
-        new RegExp(`liked your activity\\.?`, 'i'),
-        new RegExp(`liked your activity\\s*`, 'i'),
-        new RegExp(`liked your\\s+`, 'i')
+        /liked your activity\.?/i,
+        /liked your activity\s*/i,
+        /liked your\s+/i
       ];
 
       for (const pattern of patterns) {
         if (pattern.test(originalHTML)) {
-          // Format as link
           const mediaLink = `<a href="/anime/${activityData.mediaId}" class="title au-title">${activityData.mediaTitle}</a>`;
-          newHTML = originalHTML.replace(pattern, `liked: ${activityData.status?.replace(/_/g, ' ').toLowerCase()} ${mediaLink}`);
+          const action = activityData.status?.replace(/_/g, ' ').toLowerCase() || 'watched';
+          newContentHTML = `liked: ${action} ${mediaLink}`;
           break;
         }
       }
-    } else if (activityData.text) {
-      const isLike = originalHTML.toLowerCase().includes('liked');
+    } 
+    // Handle Text/Message/Reply Activity
+    else if (activityData.text) {
       const isReply = originalHTML.toLowerCase().includes('replied');
-      const isMessage = originalHTML.toLowerCase().includes('message');
-
-      // Extract existing reply text if present (AniList often puts it after a colon)
+      
+      // Extract reply text from DOM if possible
       let replyText = '';
-      const parts = textElement.textContent?.split(':');
-      if (parts && parts.length > 1) {
+      const parts = originalText.split(':');
+      if (parts.length > 1) {
         replyText = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
       }
 
-      const originalTruncated = activityData.text.substring(0, 30) + (activityData.text.length > 30 ? '...' : '');
-      
+      const contentTruncated = activityData.text.substring(0, 30) + (activityData.text.length > 30 ? '...' : '');
+
       if (isReply && replyText) {
         const replyTruncated = replyText.substring(0, 40) + (replyText.length > 40 ? '...' : '');
-        newHTML = `replied to <i>"${originalTruncated}"</i> with <b>"${replyTruncated}"</b>`;
-      } else if (isLike) {
-        newHTML = (hidePrefix ? '' : 'liked: ') + `<i>"${originalTruncated}"</i>`;
-      } else if (isMessage) {
-        newHTML = (hidePrefix ? '' : 'sent: ') + `<i>"${originalTruncated}"</i>`;
+        newContentHTML = `replied to <i>"${contentTruncated}"</i> with <b>"${replyTruncated}"</b>`;
+      } else if (isReply) {
+        newContentHTML = `replied to <i>"${contentTruncated}"</i>`;
+      } else if (!activityData.status) {
+        // Simple Like or Message
+        const label = originalHTML.toLowerCase().includes('message') ? 'sent: ' : 'liked: ';
+        newContentHTML = (hidePrefix ? '' : label) + `<i>"${contentTruncated}"</i>`;
       } else {
-        newHTML = (hidePrefix ? '' : 'wrote: ') + `<i>"${originalTruncated}"</i>`;
+        newContentHTML = (hidePrefix ? '' : 'wrote: ') + `<i>"${contentTruncated}"</i>`;
       }
     }
 
-    if (newHTML !== originalHTML) {
-      textElement.innerHTML = newHTML;
-      // Re-enable added links
+    // Apply changes if we have a new format
+    if (newContentHTML) {
+      const timeEl = textElement.querySelector('.time');
+      const timeHTML = timeEl ? timeEl.outerHTML : '';
+      textElement.innerHTML = `${timeHTML}<span class="au-notification-content">${newContentHTML}</span>`;
+      
+      // Restore pointer events for links
       textElement.querySelectorAll('a').forEach(link => {
         link.style.pointerEvents = 'auto';
         link.style.cursor = 'pointer';
@@ -225,7 +233,10 @@ export class NotificationGroupService {
     const virtualNotifs = document.querySelectorAll<HTMLElement>('.au-virtual-notification');
     for (const vn of Array.from(virtualNotifs)) {
       const userLink = vn.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
-      if (userLink && userLink.textContent?.trim() === username) return vn;
+      if (userLink) {
+        const vnUsername = userLink.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
+        if (vnUsername === username) return vn;
+      }
     }
     return null;
   }

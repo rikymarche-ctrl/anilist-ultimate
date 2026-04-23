@@ -66,17 +66,17 @@ export class MediaSocialEnhancer extends BaseModule {
   }
 
   /**
-   * Check if on media social page
+   * Check if on media social page or overview page
    */
   private isOnMediaSocialPage(): boolean {
-    return /^\/(anime|manga)\/\d+\/social/.test(window.location.pathname);
+    return /^\/(anime|manga)\/\d+/.test(window.location.pathname);
   }
 
   /**
    * Extract media ID from URL
    */
   private extractMediaId(): void {
-    const match = window.location.pathname.match(/\/(anime|manga)\/(\d+)\//);
+    const match = window.location.pathname.match(/\/(anime|manga)\/(\d+)/);
     this.mediaId = match ? parseInt(match[2], 10) : null;
     this.logger.info(`[MediaSocialEnhancer] Media ID: ${this.mediaId}`);
   }
@@ -118,21 +118,25 @@ export class MediaSocialEnhancer extends BaseModule {
    * Check and process page
    */
   private checkAndProcess(): void {
+    const isSocialPage = window.location.pathname.endsWith('/social');
+    
     // Inject filter bar
     if (!document.querySelector('.au-activity-bar')) {
-      this.injectFilterBar();
+      this.injectFilterBar(isSocialPage);
     }
 
     // Inject custom lists tab
     if (!document.querySelector('.au-custom-list-btn')) {
-      this.injectCustomListsTab();
+      this.injectCustomListsTab(isSocialPage);
     }
 
     // Apply filters
-    const feed = document.querySelector('.activity-feed');
+    const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
+    const feed = document.querySelector(feedSelector);
+    
     if (feed) {
       this.suspendObserver(this.OBSERVER_NAME);
-      this.applyFilters();
+      this.applyFilters(feedSelector);
       this.resumeObserver(this.OBSERVER_NAME);
     }
   }
@@ -140,11 +144,20 @@ export class MediaSocialEnhancer extends BaseModule {
   /**
    * Inject filter bar using shared component
    */
-  private injectFilterBar(): void {
-    const header = document.querySelector('.section-header');
+  private injectFilterBar(isSocialPage: boolean): void {
+    let header: Element | null = null;
+    
+    if (isSocialPage) {
+      header = document.querySelector('.section-header');
+    } else {
+      // On Overview, find the header that specifically belongs to the Social/Activity section
+      const headers = Array.from(document.querySelectorAll('.section-header'));
+      header = headers.find(h => h.textContent?.includes('Recent Activity')) || null;
+    }
+
     if (!header) return;
 
-    // Configure filter bar with fewer filters for media pages
+    // Configure filter bar
     this.filterBar.configure({
       filters: [
         { type: 'all', label: 'All' },
@@ -153,7 +166,7 @@ export class MediaSocialEnhancer extends BaseModule {
         { type: 'plans', label: 'Plans' },
         { type: 'text', label: 'Text posts' },
       ],
-      showSearch: false, // No search on media pages
+      showSearch: false,
       onFilterChange: () => this.checkAndProcess(),
     });
 
@@ -161,44 +174,63 @@ export class MediaSocialEnhancer extends BaseModule {
     const bar = this.filterBar.create();
     bar.style.marginTop = '15px';
     bar.style.marginBottom = '15px';
-    header.insertAdjacentElement('afterend', bar);
+    
+    // If on Overview, inject after the header tabs if possible
+    const tabs = header.querySelector('.feed-type-toggle');
+    if (tabs) {
+      tabs.insertAdjacentElement('afterend', bar);
+    } else {
+      header.insertAdjacentElement('afterend', bar);
+    }
 
-    this.logger.success('[MediaSocialEnhancer] Filter bar injected');
+    this.logger.success(`[MediaSocialEnhancer] Filter bar injected on ${isSocialPage ? 'Social' : 'Overview'} page`);
   }
 
   /**
    * Inject custom lists tab using shared component
    */
-  private async injectCustomListsTab(): Promise<void> {
-    // Configure tab manager with media-specific scope attribute
+  private async injectCustomListsTab(isSocialPage: boolean): Promise<void> {
+    // Determine the correct toggle container
+    let toggleSelector = '.feed-type-toggle';
+    
+    if (!isSocialPage) {
+      // On Overview, find the toggle that has Self/Following/Global
+      const toggles = Array.from(document.querySelectorAll('.feed-type-toggle'));
+      const socialToggle = toggles.find(t => t.textContent?.includes('Following'));
+      if (socialToggle) {
+        // We might need a unique way to identify it if there are multiple
+        socialToggle.classList.add('au-social-toggle');
+        toggleSelector = '.au-social-toggle';
+      }
+    }
+
+    // Configure tab manager
     this.tabManager.configure({
-      toggleSelector: '.feed-type-toggle',
-      scopeAttribute: 'data-v-4f9e87dc', // Media social scope
+      toggleSelector: toggleSelector,
+      scopeAttribute: 'data-v-4f9e87dc',
       onListChange: (listName) => this.handleListChange(listName),
     });
 
     // Inject
     const success = await this.tabManager.inject();
     if (success) {
-      this.logger.success('[MediaSocialEnhancer] Custom lists tab injected');
+      this.logger.success(`[MediaSocialEnhancer] Custom lists tab injected on ${isSocialPage ? 'Social' : 'Overview'}`);
     }
   }
 
   /**
    * Apply filters using shared renderer
    */
-  private applyFilters(): void {
-    // If custom list is active, hide native activities
+  private applyFilters(feedSelector: string): void {
     if (this.tabManager.isActive()) {
       this.renderer.hideNativeActivities();
       return;
     }
 
-    // Apply filters to native activities
     const activeFilters = this.filterBar.getActiveFilters();
 
     this.renderer.configure({
-      activitySelector: '.activity-entry',
+      activitySelector: `${feedSelector} .activity-entry, ${feedSelector} .activity-anime, ${feedSelector} .activity-manga`,
     });
 
     this.renderer.applyFilters(activeFilters, '');
@@ -263,12 +295,21 @@ export class MediaSocialEnhancer extends BaseModule {
    * Create container for custom activities
    */
   private createCustomActivitiesContainer(): void {
-    const feed = document.querySelector('.activity-feed');
+    const isSocialPage = window.location.pathname.endsWith('/social');
+    const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
+    const feed = document.querySelector(feedSelector);
+    
     if (!feed) return;
 
     const container = document.createElement('div');
     container.className = 'au-custom-activities-container';
-    feed.appendChild(container);
+    
+    // On Overview, we usually want to prepend to the sidebar activities
+    if (isSocialPage) {
+      feed.appendChild(container);
+    } else {
+      feed.prepend(container);
+    }
 
     this.customActivitiesContainer = container;
   }

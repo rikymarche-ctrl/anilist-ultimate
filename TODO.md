@@ -1,37 +1,39 @@
-# AniList Ultimate v2 - Project Roadmap & TODO
-
-## ✅ Completed Features
-
-- **[Calendar Module]** Full rework with Grid/List modes, release countdowns, and real-time settings.
-- **[Social Sidebar]** Premium glassmorphic restyling, server-side status filtering, and local friend search.
-- **[Social Popups]** Floating bubbles on cards with friend avatars and profile deep linking.
-- **[Notification Cleaner]** Search functionality and visual grouping of notifications.
-- **[Activity Score]** Integrated review-style score badges into activities.
-- **[Global Settings]** Reactive settings panel for all modules.
+# AniList Ultimate - TODO
 
 ## 🛠️ In Progress / Stabilization
 
+- [ ] **Notification Cleaner Stability**: se scrollo troppo in basso nelle notifiche a un certo punto smette di mergarle. Investigate race condition o batching del DOM.
+- [ ] **Activity Filter Refresh**: quando in un activity seleziono tipo una lista e cambio pagina, BISOGNA FARE IL REFRESH DEI FILTRI, altrimenti si bugga.
+- [ ] **Custom List Auto-Reset**: ero fermo con una custom list nell activity, ma penso anilist abbia mandato un refresh (quello per le nuove interazioni), ma è tornato automaticamente su global. Bisogna gestirle!
 - [ ] **Hover Comments Stabilization**: Fix layout regressions and performance during rapid scrolling.
-- [ ] **Code Cleanup**: Remove legacy experimental JS timers and unused CSS classes.
 
-## 📈 Activity Feed & Social Enhancements
+## 📈 Notification Cleaner (Progress Update)
 
-- [ ] **Reply Text Fix**: In activities marked as "replied", show `replied to "Original Text (max 100 chars)" with "Reply Text"` instead of just the original post content.
-- [ ] **Custom OAuth Client ID**: Set up a dedicated AniList OAuth application and update `OAUTH_CONFIG` to remove the public placeholder.
-- [ ] **Custom List Integration**: Finalize filtering modules and FIX rendering/cloning logic for custom activities to ensure 100% native fidelity.
-- [ ] **Caching System**: Implement a robust caching layer for API responses (Reviews, Scores, Activity Data) to prevent rate limiting and improve performance.
-- [ ] **Activity Score Module**: Improve handling of private profiles and missing media to avoid 'Not Found' API errors.
+- [X] **Consecutive Grouping**: ora mergia solo se sono consecutivi (se un altro utente si intrufola, le divide).
+- [X] **Timestamp Range**: implementato `[Recente] - [Vecchio]`. Stile piccolo (1.1rem), grigio (lighter text), opacità 0.8.
+- [X] **Virtual Card Behavior**: i padri aprono solo il dropdown, i figli hanno il link all'attività originale.
+- [X] **Reply Logic**: sistemata la parte col "with", ora estrae la risposta reale.
+- [X] **Robust ID**: uso di `data-au-user` per evitare che si rompa il match tra batch diversi.
 
-quando in un activity seleziono tipo uina lsita e cambio pagina, BISOGNA FARE IL REFRESH DEI FILTIR, altrimenti si bugga.
+## 📊 Notes & Ideas
 
-ricontrollare le uery coi voti delle persone nelle activity. mi sa che ci sono degli errori
+- [ ] **Query Voti**: ricontrollare le query coi voti delle persone nelle activity. mi sa che ci sono degli errori.
+- [ ] **Colori**: i Colori di anilist differiscono da quelli scelti (viola ecc).
+- [ ] **Caching**: anche le notifiche si possono cachare dai.
+- [ ] **Private Messages**: nelle notifiche capire se il messaggio "sent" è segreto (occhiolino png) o pubblico.
+- [ ] **Spam Protection**: se spammo merge/unmerge si fuckuppa tutto.
 
-ero fermo con una custom list  nell activity, ma penso anilist abbia mandato un refresh, la classica per aggiornare la pagina con le nuove interazioni, ma è tornato automaticamente su global. Bisogna gestirle!
-
-i Colori di anilist differeiscono da quellis celtio, il viola ecc
 
 
-nelle notifiche c è un modo di capire se il messagio sent da qualcuno è segreto o no?
+nell activity c è renderizzato malissimo per le custom lists. usare cloni
+
+
+controlalre bene se tra i cambi pagina tutto funziona perfettamente
+
+implementare il fatto che il resize della pagina non distrugga gli elementi
+
+
+vorrei fare un rework grafico alla social activity dal calendario (le custom lists non funzionano per nulla qua)
 
 ---
 

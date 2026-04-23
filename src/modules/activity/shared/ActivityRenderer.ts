@@ -205,11 +205,17 @@ export class ActivityRenderer {
         cover.style.display = 'none';
       }
 
-      // 5. Update Replies/Likes (Inconsistent on AniList, so we normalize)
+      // 5. Update Replies/Likes
       const replies = clone.querySelector('.activity-replies, .replies') as HTMLElement;
       if (replies) {
-        // Just keeping the structure but resetting counts if we don't have them
-        // or keeping them if it's a clone of a dummy
+        const count = replies.querySelector('.count');
+        if (count) count.textContent = (activity.replyCount || 0).toString();
+      }
+
+      const likes = clone.querySelector('.activity-likes, .likes') as HTMLElement;
+      if (likes) {
+        const count = likes.querySelector('.count');
+        if (count) count.textContent = (activity.likeCount || 0).toString();
       }
 
       // Cleanup some native elements we don't support or need to hide

@@ -151,9 +151,15 @@ export class NotificationCleanerModule extends BaseModule {
       return;
     }
 
-    const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>('.notification:not(.au-virtual-notification):not(.au-sub-notification), .notification-item:not(.au-virtual-notification):not(.au-sub-notification)'));
-    const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
+    const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>(
+      '.notification:not(.au-virtual-notification):not(.au-sub-notification), ' +
+      '.notification-item:not(.au-virtual-notification):not(.au-sub-notification)'
+    ));
+    
+    // Immediate tagging pass
+    currentNotifications.forEach(n => this.extractUsernameFromNotif(n));
 
+    const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
     if (newNotifications.length === 0 && this.lastNotificationCount > 0) return;
 
     this.lastNotificationCount = currentNotifications.length;
@@ -167,64 +173,75 @@ export class NotificationCleanerModule extends BaseModule {
       const groupsToProcess: NotificationGroup[] = [];
       const singleGroupsToProcess: NotificationGroup[] = [];
 
+      // Pre-calculate visible notifications map for faster lookup
+      const visibleNotifs = Array.from(document.querySelectorAll<HTMLElement>(
+        '.notification:not(.au-hidden-notification):not(.au-sub-notification), ' +
+        '.notification-item:not(.au-hidden-notification):not(.au-sub-notification)'
+      ));
+
       for (const notification of newNotifications) {
+        const username = this.extractUsernameFromNotif(notification);
+        if (!username) {
+          notification.setAttribute('data-au-processed', 'true');
+          continue;
+        }
+
         const text = notification.textContent || '';
         let notifType = notification.getAttribute('data-au-type') || this.groupService.detectNotificationType(text);
-
         if (notifType) notification.setAttribute('data-au-type', notifType);
 
-        const userLink = notification.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
-        if (!userLink) {
-          notification.setAttribute('data-au-processed', 'true');
-          continue;
-        }
-
-        const username = userLink.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
         const time = notification.querySelector('.time')?.textContent?.trim() || '';
 
-        if (!notifType || !this.enabled) {
-          if (currentGroup && currentGroup.count > 1) groupsToProcess.push(currentGroup);
-          currentGroup = null;
+        // Find preceding visible notification (could be from previous batch)
+        const idx = visibleNotifs.indexOf(notification);
+        const prevVisible = idx > 0 ? visibleNotifs[idx - 1] : null;
+        const prevUser = prevVisible ? this.extractUsernameFromNotif(prevVisible) : null;
 
-          singleGroupsToProcess.push({
-            user: username,
-            types: new Map([[notifType || 'unknown', 1]]),
-            count: 1,
-            elements: [notification],
-            firstTime: time,
-            latestTime: time
-          });
-          notification.setAttribute('data-au-processed', 'true');
-          continue;
-        }
-
-        const existingVirtual = this.groupService.findVirtualNotificationForUser(username);
-        if (existingVirtual) {
-          await this.addToExistingGroup(existingVirtual, notification, username);
-          notification.setAttribute('data-au-processed', 'true');
-          continue;
-        }
-
-        if (currentGroup && currentGroup.user === username) {
-          currentGroup.count++;
-          currentGroup.elements.push(notification);
-          currentGroup.latestTime = time;
-          currentGroup.types.set(notifType, (currentGroup.types.get(notifType) || 0) + 1);
-        } else {
-          if (currentGroup) {
-            if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
-            else singleGroupsToProcess.push(currentGroup);
+        // Merging logic
+        if (prevVisible && prevUser === username) {
+          if (prevVisible.classList.contains('au-virtual-notification')) {
+            await this.addToExistingGroup(prevVisible, notification, username);
+            notification.setAttribute('data-au-processed', 'true');
+            continue;
+          } else if (currentGroup && currentGroup.user === username) {
+            currentGroup.count++;
+            currentGroup.elements.push(notification);
+            currentGroup.latestTime = time;
+            currentGroup.types.set(notifType || 'unknown', (currentGroup.types.get(notifType || 'unknown') || 0) + 1);
+            continue;
+          } else {
+            // Check if prevVisible is a single notification (not yet in a group)
+            if (currentGroup) {
+               if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
+               else singleGroupsToProcess.push(currentGroup);
+            }
+            
+            currentGroup = {
+              user: username,
+              types: new Map([[notifType || 'unknown', 2]]), 
+              count: 2,
+              elements: [prevVisible, notification],
+              firstTime: prevVisible.querySelector('.time')?.textContent?.trim() || time,
+              latestTime: time,
+            };
+            continue;
           }
-
-          currentGroup = {
-            user: username,
-            types: new Map([[notifType, 1]]),
-            count: 1,
-            elements: [notification],
-            firstTime: time,
-            latestTime: time,
-          };
         }
+
+        // Standard: Not consecutive, close previous group and start new one
+        if (currentGroup) {
+          if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
+          else singleGroupsToProcess.push(currentGroup);
+        }
+
+        currentGroup = {
+          user: username,
+          types: new Map([[notifType || 'unknown', 1]]),
+          count: 1,
+          elements: [notification],
+          firstTime: time,
+          latestTime: time,
+        };
       }
 
       if (currentGroup) {
@@ -232,7 +249,7 @@ export class NotificationCleanerModule extends BaseModule {
         else singleGroupsToProcess.push(currentGroup);
       }
 
-      // Grouping
+      // Process groups
       for (const group of groupsToProcess) {
         await this.performGrouping(group);
       }
@@ -270,7 +287,7 @@ export class NotificationCleanerModule extends BaseModule {
 
     const isSingleType = group.types.size === 1;
     this.groupService.enhanceNotificationsWithActivityDetails(
-      Array.from(dropdown.querySelectorAll('.au-sub-notification')), 
+      Array.from(dropdown.querySelectorAll('.au-sub-notification')),
       isSingleType
     );
 
@@ -298,23 +315,45 @@ export class NotificationCleanerModule extends BaseModule {
       }
     });
 
+    vn.setAttribute('data-au-user', group.user);
     this.groupService.injectUserLink(vn, group.user);
     const textEl = vn.querySelector('.details, .text, .content') || vn;
     const userLink = textEl.querySelector('a[href*="/user/"]');
     const newActionText = this.groupService.generateGroupText(group);
-    
+
     if (userLink) {
       textEl.innerHTML = `<span class="au-notification-content">${userLink.outerHTML} ${newActionText}</span>`;
     } else {
       textEl.innerHTML = `<span class="au-notification-content">${newActionText}</span>`;
     }
 
-    vn.addEventListener('click', () => {
+    vn.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('a')) return;
       const dropdown = vn.nextElementSibling as HTMLElement;
       if (dropdown && dropdown.classList.contains('au-notification-dropdown')) {
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
       }
     });
+
+    // Add timestamp range (Recent - Oldest)
+    const firstTime = template.querySelector('.time')?.textContent?.trim();
+    const lastNotif = group.elements[group.elements.length - 1];
+    const lastTime = lastNotif.querySelector('.time')?.textContent?.trim();
+
+    if (firstTime) {
+      const timeContainer = document.createElement('div');
+      timeContainer.className = 'time';
+      timeContainer.style.position = 'absolute';
+      timeContainer.style.top = '10px';
+      timeContainer.style.right = '12px';
+      timeContainer.style.fontSize = '1.1rem';
+      timeContainer.style.color = 'var(--color-text-lighter)';
+      timeContainer.style.opacity = '0.8';
+      timeContainer.textContent = (lastTime && lastTime !== firstTime) 
+        ? `${firstTime} - ${lastTime}` 
+        : firstTime;
+      vn.appendChild(timeContainer);
+    }
 
     return vn;
   }
@@ -364,8 +403,12 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   private extractUsernameFromNotif(notif: HTMLElement): string {
+    const attr = notif.getAttribute('data-au-user');
+    if (attr) return attr;
     const link = notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
-    return link?.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
+    const user = link?.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
+    if (user) notif.setAttribute('data-au-user', user);
+    return user;
   }
 
   private setupSingleClick(notif: HTMLElement): void {

@@ -14,44 +14,45 @@
   align-items: center;
 }
 
-/* The Ghost Container Strategy (Zero Width) */
+/* The Ghost Container Strategy (Fixed Middle Position) */
 .comment-icon-ghost {
-  display: inline-block;
+  position: absolute !important;
+  right: 125px;
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
   width: 0;
-  height: 20px;
   overflow: visible;
-  position: relative;
-  vertical-align: middle;
-  margin: 0;
   pointer-events: none;
-  /* Ignore for layout engine */
+  z-index: 10;
 }
 
 .comment-icon-ghost .anilist-comment-icon {
-  position: absolute;
-  left: 8px;
-  /* Offset into the gap between status and score */
-  top: 50%;
-  transform: translateY(-50%);
   pointer-events: auto;
-  /* Re-enable for interactions */
   width: 24px;
   height: 24px;
+  display: flex;
+  align-items: center;
   justify-content: center;
   transition: all var(--au-transition);
 }
 
-/* Row Hover Glow Effect */
+.comment-icon-ghost .anilist-comment-icon .au-comment-svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Row Hover Effect */
 .anilist-comment-icon.row-hover {
   color: var(--au-primary);
   opacity: 1;
-  filter: drop-shadow(0 0 3px var(--au-primary));
 }
 
 .comment-icon-ghost .anilist-comment-icon:hover {
   color: var(--au-primary);
-  transform: translateY(-50%) scale(1.15);
-  filter: drop-shadow(0 0 8px var(--au-primary));
+  /* Removed scale and drop-shadow */
 }
 
 /* Row Stability */
@@ -85,7 +86,7 @@
 
 /* Tooltip - Premium Styles */
 #anilist-tooltip {
-  width: 300px;
+  width: 275px;
   max-height: 500px;
   overflow-y: auto;
   position: absolute;
@@ -103,6 +104,25 @@
   transition: all var(--au-transition);
   transform: translateX(10px);
   pointer-events: none;
+}
+
+/* Custom Scrollbar for Tooltip */
+#anilist-tooltip::-webkit-scrollbar {
+  width: 5px;
+}
+
+#anilist-tooltip::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+#anilist-tooltip::-webkit-scrollbar-thumb {
+  background: var(--au-primary);
+  border-radius: 10px;
+}
+
+#anilist-tooltip::-webkit-scrollbar-thumb:hover {
+  background: #60adff;
 }
 
 #anilist-tooltip.visible {

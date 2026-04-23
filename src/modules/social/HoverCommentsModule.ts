@@ -122,59 +122,85 @@ export class HoverCommentsModule extends BaseModule {
     });
   }
 
-  private injectIconsIfMissing(_mediaId: number): void {
+  private notesCache: Record<string, string> = {};
+
+  private injectIconsIfMissing(mediaId: number): void {
     const followingSection = this.findFollowingSection();
     if (!followingSection) return;
 
     const userLinks = Array.from(followingSection.querySelectorAll<HTMLAnchorElement>('a[href^="/user/"]:not([data-au-comment-injected])'));
     if (userLinks.length === 0) return;
 
-    // For new links, we'd need to fetch notes again or use a cache. 
-    // To keep it simple and lean, we let the next full scan handle it if processedMediaId changes, 
-    // or we could implement a small cache.
+    userLinks.forEach(link => {
+      const username = this.extractUsername(link);
+      if (username && this.notesCache[username]) {
+        this.injectIcon(link, username, mediaId, this.notesCache[username]);
+      }
+    });
+
+    // If there are still new links without cache, trigger a re-process
+    const remaining = followingSection.querySelectorAll('a[href^="/user/"]:not([data-au-comment-injected])').length;
+    if (remaining > 0) {
+      this.processedMediaId = null; // Force full re-process on next poll
+    }
   }
 
   private async fetchBatchNotes(usernames: string[], mediaId: number): Promise<Record<string, string>> {
     const results: Record<string, string> = {};
     
-    // AniList GraphQL doesn't easily support batching multiple MediaList queries in one call for different users 
-    // without complex alias generation. We'll use parallel individual calls via the rate-limited apiClient.
-    const promises = usernames.map(async (username) => {
-      try {
-        const query = `
-          query ($userName: String, $mediaId: Int) {
-            MediaList(userName: $userName, mediaId: $mediaId) {
-              notes
-            }
-          }
-        `;
-        const data = await this.apiClient.query<any>(query, { userName: username, mediaId });
-        if (data?.MediaList?.notes) {
-          results[username] = data.MediaList.notes;
-        }
-      } catch (e) {
-        // Ignore failures for individual users
-      }
-    });
+    // Filter out users already in cache
+    const usersToFetch = usernames.filter(u => !this.notesCache[u]);
+    if (usersToFetch.length === 0) return this.notesCache;
 
-    await Promise.all(promises);
-    return results;
+    this.logger.info(`[HoverComments] Batch fetching notes for ${usersToFetch.length} new users...`);
+
+    try {
+      // Build a batched query using aliases
+      const aliasParts = usersToFetch.map((username, index) => {
+        // Alaliases must start with a letter and only contain alphanumeric characters/underscores
+        const safeAlias = `user_${index}`;
+        return `${safeAlias}: MediaList(userName: "${username}", mediaId: ${mediaId}) { notes }`;
+      });
+
+      const query = `query { ${aliasParts.join('\n')} }`;
+      const data = await this.apiClient.query<any>(query, {});
+
+      usersToFetch.forEach((username, index) => {
+        const safeAlias = `user_${index}`;
+        const notes = data?.[safeAlias]?.notes;
+        if (notes) {
+          this.notesCache[username] = notes;
+          results[username] = notes;
+        }
+      });
+    } catch (error) {
+      this.logger.error('[HoverComments] Batch fetch failed', error);
+      // Fallback to sequential if batching fails for some reason (e.g. one bad username)
+      for (const username of usersToFetch) {
+        try {
+          const query = `query ($u: String, $m: Int) { MediaList(userName: $u, mediaId: $m) { notes } }`;
+          const data = await this.apiClient.query<any>(query, { u: username, m: mediaId });
+          if (data?.MediaList?.notes) {
+            this.notesCache[username] = data.MediaList.notes;
+          }
+          await new Promise(r => setTimeout(r, 100));
+        } catch (e) {}
+      }
+    }
+
+    return this.notesCache;
   }
 
   private injectIcon(link: HTMLAnchorElement, username: string, mediaId: number, notes: string): void {
     if (link.hasAttribute('data-au-comment-injected')) return;
     link.setAttribute('data-au-comment-injected', 'true');
+    link.style.position = 'relative';
 
     const iconContainer = document.createElement('div');
-    iconContainer.className = 'comment-icon-column';
+    iconContainer.className = 'comment-icon-ghost';
     iconContainer.innerHTML = `<span class="anilist-comment-icon">${this.ICON_SVG}</span>`;
 
-    const scoreEl = link.querySelector('div[class*="score"]');
-    if (scoreEl) {
-      scoreEl.parentNode!.insertBefore(iconContainer, scoreEl);
-    } else {
-      link.appendChild(iconContainer);
-    }
+    link.appendChild(iconContainer);
 
     const icon = iconContainer.querySelector('.anilist-comment-icon') as HTMLElement;
 
@@ -207,7 +233,16 @@ export class HoverCommentsModule extends BaseModule {
   }
 
   private findFollowingSection(): HTMLElement | null {
-    return document.querySelector('div.following, div[class*="following"], .following') as HTMLElement;
+    // 1. Check for the standard sidebar following list
+    const sidebar = document.querySelector('div.following, div[class*="following"], .following');
+    if (sidebar) return sidebar as HTMLElement;
+
+    // 2. If on social page, also look for the main activity feed
+    if (window.location.pathname.endsWith('/social')) {
+      return document.querySelector('.activity-feed') as HTMLElement;
+    }
+
+    return null;
   }
 
   public override async destroy(): Promise<void> {

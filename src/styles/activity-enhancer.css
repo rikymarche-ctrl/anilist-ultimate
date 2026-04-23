@@ -97,25 +97,26 @@
   }
 }
 
-/* "Squeezed" Container */
-.feed-type-toggle {
-  height: 24px !important;
-  display: flex !important;
-  align-items: center !important;
-  padding: 0 !important;
+/* "Squeezed" Container - More specific to avoid breaking native overview layout */
+.activity-feed-header .feed-type-toggle,
+.media-social-filter .feed-type-toggle {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0;
   overflow: hidden;
 }
 
 /* Custom Tab Styling */
 .au-custom-list-btn {
   cursor: pointer;
-  display: flex !important;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   padding: 0 8px !important;
-  height: 24px !important;
-  border-radius: 0 !important;
+  height: 24px;
+  border-radius: 0;
   transition: all var(--au-transition);
   font-weight: 400;
   font-size: 1.2rem !important;
@@ -124,9 +125,32 @@
   white-space: nowrap;
 }
 
+/* Fix for misaligned icons in media activities */
+.activities .activity-entry .replies,
+.activities .activity-entry .likes {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+.activities .activity-entry .replies .fa,
+.activities .activity-entry .likes .fa,
+.activities .activity-entry .replies svg,
+.activities .activity-entry .likes svg {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 1.2rem !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Active state color */
 .au-custom-list-btn.active {
-  background: #0f161f !important;
+  background: rgba(15, 22, 31, 0.8) !important;
   border-radius: 0 4px 4px 0 !important;
 }
 
