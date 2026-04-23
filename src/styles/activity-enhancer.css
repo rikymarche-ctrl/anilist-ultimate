@@ -9,14 +9,15 @@
   justify-content: space-between;
   padding: 8px 16px;
   border-radius: var(--au-border-radius);
-  margin: -4px 0 16px 0;
-  width: 100%;
   box-sizing: border-box;
   border: none;
   animation: au-slide-down 0.2s ease-out;
   background: var(--au-bg) !important;
   flex: 0 0 100% !important;
+  flex-basis: 100% !important;
+  margin: 4px 0 10px 0 !important;
   clear: both !important;
+  width: 100% !important;
 }
 
 .au-activity-bar__left {
@@ -27,7 +28,7 @@
 
 /* Filter Buttons */
 .au-filter-btn {
-  padding: 3px 8px;
+  padding: 2px 8px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--au-border-radius);
@@ -58,11 +59,12 @@
   border-radius: var(--au-border-radius);
   padding: 3px 10px;
   transition: all var(--au-transition);
-  width: 140px;
+  width: 150px;
+  margin-left: auto; /* Anchor right, expand left */
 }
 
 .au-search-container:focus-within {
-  width: 200px;
+  width: 180px; /* Max 30px expansion */
   border-color: var(--au-primary);
   background: rgba(0, 0, 0, 0.3);
 }
@@ -109,15 +111,27 @@
 }
 
 /* "Squeezed" Container - More specific to avoid breaking native overview layout */
-.activity-feed-header .feed-type-toggle,
-.media-social-filter .feed-type-toggle {
-  height: 24px;
-  display: flex;
-  align-items: center;
-  padding: 0;
-  overflow: visible !important;
+.feed-type-toggle {
+  height: auto !important;
+  min-height: 20px !important;
+  display: flex !important;
+  flex-direction: row !important;
   flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
   width: auto !important;
+}
+
+.feed-type-toggle > * {
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 4px 14px !important;
+  min-width: max-content !important;
+  overflow: visible !important;
 }
 
 /* Custom Tab Styling */
@@ -127,8 +141,8 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 0 8px !important;
-  height: 24px;
+  padding: 4px 12px !important;
+  height: 100%;
   border-radius: 0;
   transition: all var(--au-transition);
   font-weight: 400;
@@ -207,8 +221,10 @@
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
   border-radius: 6px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
-  min-width: 160px !important;
+  width: 130px !important;
+  min-width: 130px !important;
   max-height: 400px;
+  right: 115px;
   overflow-y: auto;
   z-index: 999999 !important;
   padding: 6px 0 !important;
@@ -217,8 +233,8 @@
 }
 
 .au-custom-list-item {
-  padding: 8px 16px !important;
-  font-size: 1.3rem !important;
+  padding: 6px 12px !important;
+  font-size: 1.2rem !important;
   font-weight: 400 !important;
   color: var(--color-text-light) !important;
   background: transparent !important;
@@ -229,13 +245,14 @@
   gap: 10px;
 }
 
-.au-custom-list-item:nth-child(even) {
-  background: rgba(255, 255, 255, 0.03) !important;
+.au-custom-list-item.selected {
+  color: rgb(var(--color-blue)) !important;
+  font-weight: 700 !important;
 }
 
 .au-custom-list-item:hover {
   background: rgba(255, 255, 255, 0.05) !important;
-  color: var(--color-blue) !important;
+  color: rgb(var(--color-blue)) !important;
   padding-left: 20px !important; /* Subtle slide effect */
 }
 
@@ -334,7 +351,24 @@
 }
 
 /* Filter Bar Adjustments for Media Pages */
-.media-social-filter+.au-activity-bar {
-  margin-top: 15px;
-  margin-bottom: 20px;
+.media-social-filter + .au-activity-bar {
+  margin-top: 20px !important;
+  margin-bottom: 15px !important;
+}
+
+/* Static Search Bar for Media Pages */
+.au-media-social-bar .au-activity-search {
+  transition: none !important;
+  width: 160px !important;
+  margin-right: 0 !important;
+}
+
+.au-media-social-bar .au-activity-search:focus-within {
+  width: 160px !important;
+}
+
+/* Home Page Symmetry */
+.home-page-container {
+  margin-top: 10px;
+  margin-bottom: 10px;
 }

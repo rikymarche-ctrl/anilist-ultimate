@@ -231,6 +231,14 @@ export class CustomListTabManager {
           }
         });
       }
+
+      // Update menu items selection state
+      if (this.menu) {
+        this.menu.querySelectorAll('.au-custom-list-item').forEach((item) => {
+          const listName = item.getAttribute('data-list') || null;
+          item.classList.toggle('selected', listName === this.currentList);
+        });
+      }
     } finally {
       // Re-observe
       const feedToggle = document.querySelector(this.options.toggleSelector!);

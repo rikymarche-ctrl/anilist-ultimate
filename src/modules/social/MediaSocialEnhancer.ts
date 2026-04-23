@@ -168,20 +168,25 @@ export class MediaSocialEnhancer extends BaseModule {
 
     // Create and inject
     const bar = this.filterBar.create();
-    bar.style.marginTop = '15px';
-    bar.style.marginBottom = '15px';
+    bar.classList.add('au-media-social-bar');
+    bar.style.setProperty('margin-top', '20px', 'important');
+    bar.style.setProperty('margin-bottom', '15px', 'important');
     bar.style.width = '100%';
-    bar.style.display = 'flex';
-    bar.style.clear = 'both';
+    bar.style.flexBasis = '100%';
+    bar.style.order = '10'; // Ensure it stays at the bottom
     
-    // If on Overview, inject after the header tabs if possible
+    // Inject into the header but force it to a new line
+    (header as HTMLElement).style.display = 'flex';
+    (header as HTMLElement).style.flexWrap = 'wrap';
+    (header as HTMLElement).style.alignItems = 'center';
+    (header as HTMLElement).style.justifyContent = 'space-between';
+
     const tabs = header.querySelector('.feed-type-toggle');
     if (tabs) {
-      // Force the header to wrap so the bar goes to a new line
-      (header as HTMLElement).style.flexWrap = 'wrap';
-      tabs.insertAdjacentElement('afterend', bar);
+      // If tabs exist, keep them in place and just append the bar
+      header.appendChild(bar);
     } else {
-      header.insertAdjacentElement('afterend', bar);
+      header.appendChild(bar);
     }
 
     this.logger.success(`[MediaSocialEnhancer] Filter bar injected on ${isSocialPage ? 'Social' : 'Overview'} page`);

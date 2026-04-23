@@ -17,7 +17,7 @@
 /* The Ghost Container Strategy (Fixed Middle Position) */
 .comment-icon-ghost {
   position: absolute !important;
-  right: 125px;
+  right: 122px;
   top: 0 !important;
   bottom: 0 !important;
   height: 100% !important;
@@ -30,7 +30,7 @@
 }
 
 .comment-icon-ghost.au-in-social-feed {
-  right: 100px;
+  right: 115px;
 }
 
 .comment-icon-ghost .anilist-comment-icon {
@@ -46,6 +46,8 @@
 .comment-icon-ghost .anilist-comment-icon .au-comment-svg {
   width: 18px !important;
   height: 18px !important;
+  shape-rendering: geometricPrecision;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 /* Row Hover Effect */

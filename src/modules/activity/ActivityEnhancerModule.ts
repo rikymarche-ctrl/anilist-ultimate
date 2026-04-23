@@ -173,6 +173,9 @@ export class ActivityEnhancerModule extends BaseModule {
       feedWrap.prepend(bar);
     }
 
+    bar.style.setProperty('margin-top', '-2px', 'important');
+    bar.style.setProperty('margin-bottom', '18px', 'important');
+
     this.logger.success('[ActivityEnhancer] Filter bar injected');
   }
 
