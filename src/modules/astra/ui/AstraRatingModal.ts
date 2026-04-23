@@ -28,7 +28,7 @@ export class AstraRatingModal {
       title: media.title.userPreferred,
       type: 'anime',
       cover: media.coverImage.extraLarge || media.coverImage.large,
-      status: media.mediaListEntry?.status?.toLowerCase() || 'planning',
+      status: media.mediaListEntry?.status || 'PLANNING',
       tags: [],
       notes: '',
       updatedAt: Date.now(),
@@ -129,11 +129,12 @@ export class AstraRatingModal {
                     <div class="astra-input-box">
                       <span class="astra-label-sm">Status</span>
                       <select class="astra-select" id="astra-status">
-                        <option value="watching" ${work.status === 'watching' ? 'selected' : ''}>Watching</option>
-                        <option value="completed" ${work.status === 'completed' ? 'selected' : ''}>Completed</option>
-                        <option value="paused" ${work.status === 'paused' ? 'selected' : ''}>Paused</option>
-                        <option value="dropped" ${work.status === 'dropped' ? 'selected' : ''}>Dropped</option>
-                        <option value="planning" ${work.status === 'planning' ? 'selected' : ''}>Planning</option>
+                        <option value="CURRENT" ${work.status === 'CURRENT' ? 'selected' : ''}>Watching</option>
+                        <option value="COMPLETED" ${work.status === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+                        <option value="PAUSED" ${work.status === 'PAUSED' ? 'selected' : ''}>Paused</option>
+                        <option value="DROPPED" ${work.status === 'DROPPED' ? 'selected' : ''}>Dropped</option>
+                        <option value="PLANNING" ${work.status === 'PLANNING' ? 'selected' : ''}>Planning</option>
+                        <option value="REPEATING" ${work.status === 'REPEATING' ? 'selected' : ''}>Repeating</option>
                       </select>
                     </div>
                     <div class="astra-input-box">
@@ -144,7 +145,61 @@ export class AstraRatingModal {
                         <button class="astra-step-btn" data-step-field="progress" data-step="1">+</button>
                       </div>
                     </div>
-                    <span class="astra-muted">/ ${meta.totalEpisodes || '?'}</span>
+                    <span class="astra-muted" style="margin-bottom: 8px;">/ ${meta.totalEpisodes || '?'}</span>
+
+                    <div class="astra-quick-divider"></div>
+
+                    <div class="astra-input-box astra-input-box--stacked">
+                      <div class="astra-stacked-field">
+                        <span class="astra-label-xs">Start</span>
+                        <input type="date" class="astra-date-input astra-date-input--mini" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}">
+                      </div>
+                      <div class="astra-stacked-field">
+                        <span class="astra-label-xs">Finish</span>
+                        <input type="date" class="astra-date-input astra-date-input--mini" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}">
+                      </div>
+                    </div>
+
+                    <div class="astra-input-box">
+                      <span class="astra-label-sm">Rewatches</span>
+                      <div class="astra-stepper">
+                        <button class="astra-step-btn" data-step-field="repeat" data-step="-1">-</button>
+                        <input type="number" class="astra-number-input" id="astra-repeat" value="${entry?.repeat || 0}">
+                        <button class="astra-step-btn" data-step-field="repeat" data-step="1">+</button>
+                      </div>
+                    </div>
+
+                    <div class="astra-quick-divider"></div>
+
+                    <div class="astra-input-box">
+                      <span class="astra-label-sm">Custom Lists</span>
+                      <div class="astra-dropdown" id="astra-lists-dropdown">
+                        <button class="astra-dropdown-trigger">
+                          <i class="fa fa-list-ul"></i>
+                          <span class="astra-dropdown-label">Manage Lists</span>
+                          <i class="fa fa-chevron-down"></i>
+                        </button>
+                        <div class="astra-dropdown-menu">
+                          <div class="astra-dropdown-scroll">
+                            ${allCustomLists.map((listName: string) => `
+                              <label class="astra-dropdown-item">
+                                <input type="checkbox" class="astra-custom-list-cb" data-name="${listName}" ${entryCustomLists[listName] ? 'checked' : ''}>
+                                <span>${listName}</span>
+                              </label>
+                            `).join('')}
+                          </div>
+                          <div class="astra-dropdown-divider"></div>
+                          <label class="astra-dropdown-item astra-dropdown-item--special">
+                            <input type="checkbox" id="astra-hide-cb" ${entry?.hiddenFromStatusLists ? 'checked' : ''}>
+                            <span>Hide from status lists</span>
+                          </label>
+                          <label class="astra-dropdown-item astra-dropdown-item--special">
+                            <input type="checkbox" id="astra-private-cb" ${entry?.private ? 'checked' : ''}>
+                            <span>Private</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -156,24 +211,6 @@ export class AstraRatingModal {
                       ${sections.map(s => this.renderScoreInput(s, season.scores[s.id], season.isSeriesFinale)).join('')}
                     </div>
 
-                    <div class="astra-advanced-grid">
-                      <div class="astra-input-box">
-                        <span class="astra-label-sm">Start Date</span>
-                        <input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}">
-                      </div>
-                      <div class="astra-input-box">
-                        <span class="astra-label-sm">Finish Date</span>
-                        <input type="date" class="astra-date-input" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}">
-                      </div>
-                      <div class="astra-input-box">
-                        <span class="astra-label-sm">Rewatches</span>
-                        <div class="astra-stepper">
-                          <button class="astra-step-btn" data-step-field="repeat" data-step="-1">-</button>
-                          <input type="number" class="astra-number-input" id="astra-repeat" value="${entry?.repeat || 0}">
-                          <button class="astra-step-btn" data-step-field="repeat" data-step="1">+</button>
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   <div class="astra-form-footer">
@@ -193,28 +230,6 @@ export class AstraRatingModal {
                     ${AstraRadarChart.getHTML(season.scores, sections, season.skip, 250)}
                   </div>
 
-                  <div class="astra-custom-lists-container">
-                    <span class="astra-label-sm">Custom Lists</span>
-                    <div class="astra-lists-scroll">
-                      ${allCustomLists.map((listName: string) => `
-                        <label class="astra-list-option">
-                          <input type="checkbox" class="astra-custom-list-cb" data-name="${listName}" ${entryCustomLists[listName] ? 'checked' : ''}>
-                          <span>${listName}</span>
-                        </label>
-                      `).join('')}
-                    </div>
-
-                    <div class="astra-list-option--special">
-                      <label class="astra-list-option">
-                        <input type="checkbox" id="astra-hide-cb" ${entry?.hiddenFromStatusLists ? 'checked' : ''}>
-                        <span>Hide from status lists</span>
-                      </label>
-                      <label class="astra-list-option">
-                        <input type="checkbox" id="astra-private-cb" ${entry?.private ? 'checked' : ''}>
-                        <span>Private</span>
-                      </label>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -261,9 +276,10 @@ export class AstraRatingModal {
             ` : ''}
             ${isFinale && isSeriesFinale ? `<span class="astra-finale-type">Series</span>` : ''}
           </div>
-          <span class="astra-score-val" style="color: ${AstraRadarChart.getScoreColor(value)}">
-            ${(value === null || value === undefined) ? '—' : value.toFixed(1)}
-          </span>
+          <input type="number" class="astra-score-num-input" 
+            min="0" max="10" step="0.1" 
+            value="${(value === null || value === undefined) ? '0.0' : value.toFixed(1)}"
+            style="color: ${AstraRadarChart.getScoreColor(value)}">
         </div>
         <div class="astra-slider-row">
           <input type="range" class="astra-slider" min="0" max="10" step="0.1" value="${value || 0}">
@@ -310,20 +326,75 @@ export class AstraRatingModal {
       });
     });
 
-    // Sliders
+    // Dropdown
+    const dropdown = this.overlay!.querySelector('#astra-lists-dropdown');
+    const trigger = dropdown?.querySelector('.astra-dropdown-trigger');
+    trigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown?.classList.toggle('active');
+    });
+
+    document.addEventListener('click', () => {
+      dropdown?.classList.remove('active');
+    }, { once: false });
+
+    dropdown?.querySelector('.astra-dropdown-menu')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Sliders & Number Inputs
+    const scoreInputs = this.overlay!.querySelectorAll('.astra-score-num-input');
+    
     sliders.forEach(slider => {
       const el = slider as HTMLInputElement;
       el.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
         const val = parseFloat(target.value);
-        const id = target.closest('.astra-score-input')?.getAttribute('data-id');
+        const parent = target.closest('.astra-score-input');
+        const id = parent?.getAttribute('data-id');
         if (id) {
           this.currentWork!.seasons[this.currentSeasonIdx].scores[id] = val;
+          
+          // Sync number input
+          const numInput = parent?.querySelector('.astra-score-num-input') as HTMLInputElement;
+          if (numInput) numInput.value = val.toFixed(1);
+          
           this.updateLivePreview();
           this.updateSliderTrack(target);
         }
       });
       this.updateSliderTrack(el);
+    });
+
+    scoreInputs.forEach(input => {
+      const el = input as HTMLInputElement;
+      el.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        let val = parseFloat(target.value);
+        if (isNaN(val)) val = 0;
+        val = Math.max(0, Math.min(10, val));
+        
+        const parent = target.closest('.astra-score-input');
+        const id = parent?.getAttribute('data-id');
+        if (id) {
+          this.currentWork!.seasons[this.currentSeasonIdx].scores[id] = val;
+          
+          // Sync slider
+          const slider = parent?.querySelector('.astra-slider') as HTMLInputElement;
+          if (slider) {
+            slider.value = val.toString();
+            this.updateSliderTrack(slider);
+          }
+          
+          this.updateLivePreview();
+        }
+      });
+
+      el.addEventListener('blur', (e) => {
+        const target = e.target as HTMLInputElement;
+        const val = parseFloat(target.value) || 0;
+        target.value = Math.max(0, Math.min(10, val)).toFixed(1);
+      });
     });
 
     // Finale Toggle
@@ -389,7 +460,7 @@ export class AstraRatingModal {
       try {
         await anilistClient.query(GQL_SAVE, {
           mediaId: this.currentWork!.mediaId,
-          status: statusSelect.value.toUpperCase(),
+          status: statusSelect.value,
           progress: parseInt(progressInput.value),
           score: Math.round(overall * 10),
           repeat,
@@ -485,11 +556,13 @@ export class AstraRatingModal {
     sections.forEach(s => {
       const row = this.overlay!.querySelector(`.astra-score-input[data-id="${s.id}"]`);
       if (row) {
-        const valDisplay = row.querySelector('.astra-score-val') as HTMLElement;
+        const numInput = row.querySelector('.astra-score-num-input') as HTMLInputElement;
         const val = season.scores[s.id];
-        if (valDisplay) {
-          valDisplay.textContent = (val === undefined || val === null) ? '—' : val.toFixed(1);
-          valDisplay.style.color = AstraRadarChart.getScoreColor(val);
+        if (numInput) {
+          if (document.activeElement !== numInput) {
+            numInput.value = (val === undefined || val === null) ? '0.0' : val.toFixed(1);
+          }
+          numInput.style.color = AstraRadarChart.getScoreColor(val);
         }
       }
     });

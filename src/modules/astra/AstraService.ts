@@ -150,7 +150,7 @@ export class AstraService {
         id: `w_${Math.random().toString(36).slice(2, 11)}`,
         title: 'Unknown',
         type: 'anime',
-        status: 'planning',
+        status: 'PLANNING',
         tags: [],
         seasons: [this.createDefaultSeason()],
         notes: '',
