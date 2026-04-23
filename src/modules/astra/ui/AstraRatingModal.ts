@@ -120,8 +120,10 @@ export class AstraRatingModal {
           </div>
 
           <div class="astra-form">
-            <div class="astra-field-group">
-              ${sections.map(s => this.renderScoreInput(s, season.scores[s.id])).join('')}
+            <div class="astra-form-scroll">
+              <div class="astra-field-group">
+                ${sections.map(s => this.renderScoreInput(s, season.scores[s.id])).join('')}
+              </div>
             </div>
             
             <div class="astra-form-footer">
@@ -190,6 +192,7 @@ export class AstraRatingModal {
 
     const close = () => {
       this.overlay!.classList.remove('astra-modal-overlay--open');
+      document.body.style.overflow = '';
     };
 
     closeBtn?.addEventListener('click', close);
@@ -198,6 +201,8 @@ export class AstraRatingModal {
     this.overlay!.addEventListener('click', (e) => {
       if (e.target === this.overlay) close();
     });
+
+    document.body.style.overflow = 'hidden';
 
     sliders.forEach(slider => {
       slider.addEventListener('input', (e) => {
@@ -271,7 +276,8 @@ export class AstraRatingModal {
       if (row) {
         const valEl = row.querySelector('.astra-score-val') as HTMLElement;
         const v = season.scores[s.id];
-        valEl.textContent = v === null ? '—' : v.toFixed(1);
+        const isNum = typeof v === 'number' && !isNaN(v);
+        valEl.textContent = isNum ? v.toFixed(1) : '—';
         valEl.style.color = AstraRadarChart.getScoreColor(v);
       }
     });

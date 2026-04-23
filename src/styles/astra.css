@@ -110,9 +110,35 @@
   gap: 20px;
 }
 
+.astra-form-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 12px;
+  margin-bottom: 8px;
+}
+
+/* Custom Scrollbar for Astra */
+.astra-form-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.astra-form-scroll::-webkit-scrollbar-track {
+  background: var(--astra-bg-elev);
+  border-radius: 3px;
+}
+
+.astra-form-scroll::-webkit-scrollbar-thumb {
+  background: var(--astra-border);
+  border-radius: 3px;
+}
+
+.astra-form-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--astra-muted);
+}
+
 .astra-field-group {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 

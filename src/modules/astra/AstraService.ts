@@ -40,6 +40,8 @@ export const DEFAULT_SECTIONS: AstraSection[] = [
   { id: 'enjoyment', name: 'Enjoyment', weight: 3 },
   { id: 'finale', name: 'Finale', weight: 2 },
   { id: 'bullshit', name: 'Bullshit', weight: 1 },
+  { id: 'originality', name: 'Originality', weight: 2 },
+  { id: 'consistency', name: 'Consistency', weight: 2 },
 ];
 
 @singleton()
@@ -62,7 +64,25 @@ export class AstraService {
       const data = await this.getFromStorage();
       if (data) {
         this.works = data.works || [];
-        this.sections = data.sections || DEFAULT_SECTIONS;
+        // Merge stored sections with defaults to ensure new IDs appear during development
+        const storedSections = data.sections || [];
+        const merged = [...DEFAULT_SECTIONS];
+        storedSections.forEach((s: AstraSection) => {
+          const idx = merged.findIndex(m => m.id === s.id);
+          if (idx >= 0) merged[idx] = s;
+        });
+        this.sections = merged;
+
+        // Ensure all works have the necessary score keys for the current sections
+        this.works.forEach(work => {
+          work.seasons.forEach(season => {
+            this.sections.forEach(sec => {
+              if (season.scores[sec.id] === undefined) {
+                season.scores[sec.id] = null;
+              }
+            });
+          });
+        });
       }
       this.isLoaded = true;
       log.info(`[AstraService] Loaded ${this.works.length} works`);
