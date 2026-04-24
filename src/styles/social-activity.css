@@ -63,9 +63,10 @@
 .media-card:hover .au-social-stack,
 .anime-card:hover .au-social-stack {
   gap: 4px;
-  flex-direction: row; /* Switch to normal row for easier reading when elevated */
-  flex-wrap: wrap;
-  max-width: 220px; /* Allow wrapping into a grid if many friends */
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap-reverse; /* New rows appear ABOVE the first row */
+  max-width: 340px; /* Fits roughly 10 avatars of 30px + gaps */
   justify-content: center;
 }
 

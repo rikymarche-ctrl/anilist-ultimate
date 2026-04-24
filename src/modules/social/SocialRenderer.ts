@@ -14,18 +14,18 @@ export class SocialRenderer {
     const { socialShowAvatars } = calendarStore.getState().preferences;
     if (!socialShowAvatars || !activities || activities.length === 0) return '';
     
-    // Render up to 8 for the magnified hover effect
-    const totalToRender = Math.min(activities.length, 8);
+    // Render up to 50 for the grid effect
+    const totalToRender = Math.min(activities.length, 50);
     let html = '<div class="au-social-stack">';
     
     for (let i = 0; i < totalToRender; i++) {
       const u = activities[i].user;
       const extraClass = i >= max ? 'au-social-avatar-extra' : '';
-      html += `<div class="friend-avatar ${extraClass}" title="${u.name}" data-user-name="${u.name}" style="background-image:url(${u.avatar.medium}); z-index:${20-i}"></div>`;
+      html += `<div class="friend-avatar ${extraClass}" title="${u.name}" data-user-name="${u.name}" style="background-image:url(${u.avatar.medium}); z-index:${50-i}"></div>`;
     }
     
-    if (activities.length > max) {
-      html += `<div class="friend-avatar extra-count" style="z-index:5">+${activities.length - max}</div>`;
+    if (activities.length > 50) {
+      html += `<div class="friend-avatar extra-count" style="z-index:5">+${activities.length - 50}</div>`;
     }
     
     html += '</div>';
