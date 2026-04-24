@@ -52,22 +52,18 @@
 }
 
 .au-social-stack {
-  display: flex;
-  flex-direction: row-reverse;
-  margin-bottom: 0;
-  transition: all 0.3s ease;
-  gap: -8px;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap-reverse !important;
+  justify-content: center !important;
+  gap: 4px;
+  width: 100%;
 }
 
 .media-preview-card:hover .au-social-stack, 
 .media-card:hover .au-social-stack,
 .anime-card:hover .au-social-stack {
-  gap: 4px;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap-reverse; /* New rows appear ABOVE the first row */
   max-width: 340px; /* Fits roughly 10 avatars of 30px + gaps */
-  justify-content: center;
 }
 
 .au-social-avatar-extra {
