@@ -11,6 +11,7 @@ import { TOKENS } from '@core/di/tokens';
 import { anilistClient } from '@/api/AnilistClient';
 import { calendarStore } from './CalendarStore';
 import { CSS_CLASSES } from '@core/constants';
+import { container } from '@core/di/container';
 import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import { CalendarDomService } from './services/CalendarDomService';
 import { CalendarDataService } from './services/CalendarDataService';
@@ -85,6 +86,10 @@ export class CalendarModule extends BaseModule {
       // 1. Inject UI via DOM Service
       const calendarContainer = await this.domService.injectCalendar(
         () => this.handleSettingsClick(),
+        () => {
+          const eventBus = container.resolve<any>(TOKENS.EventBus);
+          eventBus.emit('astra:open');
+        },
         (mediaId) => this.handleMarkWatched(mediaId)
       );
 
@@ -107,7 +112,7 @@ export class CalendarModule extends BaseModule {
   }
 
   private async handleUnauthenticated(): Promise<void> {
-    const calendarContainer = await this.domService.injectCalendar(() => {}, async () => {});
+    const calendarContainer = await this.domService.injectCalendar(() => {}, () => {}, async () => {});
     if (calendarContainer) {
       this.domService.showAuthPrompt();
     }

@@ -13,6 +13,7 @@ export class CalendarDomService {
    */
   public async injectCalendar(
     onSettingsClick: () => void,
+    onAstraClick: () => void,
     onMarkWatched: (mediaId: number) => Promise<void>
   ): Promise<HTMLElement | null> {
     const headerElement = await this.findAiringSection();
@@ -35,7 +36,7 @@ export class CalendarDomService {
     // Add settings button
     const parentHeader = (headerElement.closest('.section-header') || headerElement.parentElement) as HTMLElement;
     if (parentHeader) {
-      this.injectSettingsButton(parentHeader, onSettingsClick);
+      this.injectSettingsButton(parentHeader, onSettingsClick, onAstraClick);
     }
 
     // Find and clear container
@@ -70,12 +71,17 @@ export class CalendarDomService {
     return calendarContainer;
   }
 
-  private injectSettingsButton(parentHeader: HTMLElement, onClick: () => void): void {
+  private injectSettingsButton(parentHeader: HTMLElement, onSettingsClick: () => void, onAstraClick: () => void): void {
     if (parentHeader.querySelector('.calendar-header__actions')) return;
 
     const actionsContainer = document.createElement('div');
     actionsContainer.className = 'calendar-header__actions';
     actionsContainer.innerHTML = `
+      <button class="calendar-header__settings calendar-header__astra" title="Astra Dashboard">
+        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+          <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
+        </svg>
+      </button>
       <button class="calendar-header__settings" title="Calendar settings">
         <i class="fa fa-cog"></i>
       </button>
@@ -86,7 +92,8 @@ export class CalendarDomService {
     parentHeader.querySelectorAll('.view-selector, .grid-icon, .list-icon, [class*="view-selector"]')
       .forEach(el => (el as HTMLElement).style.display = 'none');
 
-    actionsContainer.querySelector('.calendar-header__settings')?.addEventListener('click', onClick);
+    actionsContainer.querySelector('.calendar-header__settings:not(.calendar-header__astra)')?.addEventListener('click', onSettingsClick);
+    actionsContainer.querySelector('.calendar-header__astra')?.addEventListener('click', onAstraClick);
   }
 
   private clearNativeAiringContent(container: HTMLElement, headerElement: HTMLElement): void {

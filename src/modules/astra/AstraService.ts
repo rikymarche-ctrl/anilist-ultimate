@@ -5,7 +5,8 @@ export interface AstraWork {
   id: string;
   mediaId: number;
   title: string;
-  type: 'anime' | 'manga';
+  type: 'anime' | 'manga' | 'novel';
+  country?: string; // JP, CN, KR, etc.
   cover?: string;
   coverColor?: string;
   anilistUrl?: string;
@@ -28,22 +29,29 @@ export interface AstraSeason {
   episodeNotes?: Record<number, { text: string; score?: number }>;
 }
 
-export interface AstraSection {
+export interface AstraSubSection {
   id: string;
   name: string;
   weight: number;
 }
 
+export interface AstraSection {
+  id: string;
+  name: string;
+  weight: number;
+  subSections?: AstraSubSection[];
+}
+
 export const DEFAULT_SECTIONS: AstraSection[] = [
-  { id: 'story', name: 'Story', weight: 3 },
-  { id: 'characters', name: 'Characters', weight: 3 },
-  { id: 'visuals', name: 'Visuals', weight: 2 },
-  { id: 'audio', name: 'Audio', weight: 1 },
-  { id: 'enjoyment', name: 'Enjoyment', weight: 3 },
-  { id: 'finale', name: 'Finale', weight: 2 },
-  { id: 'bullshit', name: 'Bullshit', weight: 1 },
-  { id: 'originality', name: 'Originality', weight: 2 },
-  { id: 'consistency', name: 'Consistency', weight: 2 },
+  { id: 'story', name: 'Story', weight: 3, subSections: [] },
+  { id: 'characters', name: 'Characters', weight: 3, subSections: [] },
+  { id: 'visuals', name: 'Visuals', weight: 2, subSections: [] },
+  { id: 'audio', name: 'Audio', weight: 1, subSections: [] },
+  { id: 'enjoyment', name: 'Enjoyment', weight: 3, subSections: [] },
+  { id: 'finale', name: 'Finale', weight: 2, subSections: [] },
+  { id: 'bullshit', name: 'Bullshit', weight: 1, subSections: [] },
+  { id: 'originality', name: 'Originality', weight: 2, subSections: [] },
+  { id: 'consistency', name: 'Consistency', weight: 2, subSections: [] },
 ];
 
 export interface AstraSettings {
@@ -172,6 +180,35 @@ export class AstraService {
   }
 
   /**
+   * Update sections and weights
+   */
+  async updateSections(sections: AstraSection[]): Promise<void> {
+    this.sections = sections;
+    await this.persist();
+  }
+
+  /**
+   * Calculate score for a single section (possibly from sub-sections)
+   */
+  calcSectionScore(section: AstraSection, scores: Record<string, number | null>): number | null {
+    if (!section.subSections || section.subSections.length === 0) {
+      return scores[section.id] || null;
+    }
+
+    let num = 0, den = 0;
+    for (const sub of section.subSections) {
+      const v = scores[`${section.id}_${sub.id}`];
+      if (v !== null && v !== undefined && v > 0) {
+        num += v * sub.weight;
+        den += sub.weight;
+      }
+    }
+
+    if (den === 0) return null;
+    return num / den;
+  }
+
+  /**
    * Calculate overall score for a season
    */
   calcSeasonOverall(scores: Record<string, number | null>, skip?: string[], isSeriesFinale?: boolean): number | null {
@@ -180,7 +217,8 @@ export class AstraService {
 
     for (const s of this.sections) {
       if (skipSet.has(s.id)) continue;
-      const v = scores[s.id];
+      
+      const v = this.calcSectionScore(s, scores);
       if (v === null || v === undefined || v === 0) continue;
 
       let weight = s.weight;

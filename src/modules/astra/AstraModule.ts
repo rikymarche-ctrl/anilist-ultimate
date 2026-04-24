@@ -2,13 +2,15 @@ import { injectable, inject } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
+import { container } from '@core/di/container';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
 
 @injectable()
 export class AstraModule extends BaseModule {
   constructor(
-    @inject(TOKENS.AstraService) private service: AstraService
+    @inject(TOKENS.AstraService) private service: AstraService,
+    @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard
   ) {
     super();
   }
@@ -35,11 +37,18 @@ export class AstraModule extends BaseModule {
       }
     });
 
+    // Listen for global open event (from Calendar or other modules)
+    const eventBus = container.resolve<any>(TOKENS.EventBus);
+    eventBus.on('astra:open', () => {
+      this.dashboard.open();
+    });
+
     log.success('[Astra] Module initialized');
     log.groupEnd();
   }
 
   private injectAstraTab(): void {
+
     const nav = document.querySelector('.user .nav');
     if (!nav || nav.querySelector('.astra-tab')) return;
 

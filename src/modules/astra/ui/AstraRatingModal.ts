@@ -1,9 +1,11 @@
 import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '../../../core/di/tokens';
-import { AstraService, AstraWork } from '../AstraService';
+import { AstraSection, AstraService, AstraSubSection, AstraWork } from '../AstraService';
 import { AstraRadarChart } from './AstraRadarChart';
 import { anilistClient } from '../../../api/AnilistClient';
 import { log } from '../../../core/logger';
+import { container } from '../../../core/di/container';
+import { AstraDashboard } from './AstraDashboard';
 
 @injectable()
 @singleton()
@@ -22,11 +24,14 @@ export class AstraRatingModal {
     if (!data) return;
 
     const { media, allCustomLists } = data;
+    const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase();
+
     this.currentWork = await this.astraService.getWork(mediaId) || {
       id: `w_${Math.random().toString(36).slice(2, 11)}`,
       mediaId,
       title: media.title.userPreferred,
-      type: 'anime',
+      type: mediaType as any,
+      country: media.countryOfOrigin,
       cover: media.coverImage.extraLarge || media.coverImage.large,
       status: media.mediaListEntry?.status || 'PLANNING',
       tags: [],
@@ -52,7 +57,7 @@ export class AstraRatingModal {
         }
       }
       Media(id: $id) {
-        id title { userPreferred } type format episodes status
+        id title { userPreferred } type format episodes status countryOfOrigin
         nextAiringEpisode { episode }
         coverImage { large extraLarge color }
         mediaListEntry { 
@@ -100,7 +105,12 @@ export class AstraRatingModal {
     this.overlay.innerHTML = `
       <div class="astra-modal">
         <nav class="astra-modal-nav">
-          <div class="astra-nav-brand"><i class="fa fa-compass"></i></div>
+          <div class="astra-nav-brand" id="astra-dashboard-link" title="Go to Astra Dashboard" style="cursor: pointer;">
+            <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
+              <rect x="11" y="14" width="2" height="3" rx="1" opacity="0.6"/>
+            </svg>
+          </div>
           <button class="astra-nav-item ${this.activeTab === 'rating' ? 'active' : ''}" data-tab="rating">
             <i class="fa fa-sliders"></i>
             <span>Rating</span>
@@ -108,6 +118,10 @@ export class AstraRatingModal {
           <button class="astra-nav-item ${this.activeTab === 'journal' ? 'active' : ''}" data-tab="journal">
             <i class="fa fa-book"></i>
             <span>Journal</span>
+          </button>
+          <div class="astra-nav-spacer"></div>
+          <button class="astra-modal-close" title="Close modal">
+            <i class="fa fa-times"></i>
           </button>
         </nav>
 
@@ -208,7 +222,7 @@ export class AstraRatingModal {
                 <div class="astra-form">
                   <div class="astra-form-scroll">
                     <div class="astra-field-group">
-                      ${sections.map(s => this.renderScoreInput(s, season.scores[s.id], season.isSeriesFinale)).join('')}
+                      ${sections.map(s => this.renderScoreInput(s, season.scores, season.isSeriesFinale)).join('')}
                     </div>
 
                   </div>
@@ -247,7 +261,7 @@ export class AstraRatingModal {
           </div>
 
           <footer class="astra-modal-footer">
-            <button class="astra-btn astra-btn--secondary" id="astra-cancel">Cancel</button>
+            <div class="astra-footer-spacer"></div>
             <button class="astra-btn astra-btn--primary" id="astra-save">Save Entry</button>
           </footer>
         </div>
@@ -259,10 +273,25 @@ export class AstraRatingModal {
     this.overlay.classList.add('astra-modal-overlay--open');
   }
 
-  private renderScoreInput(section: any, value: number | null, isSeriesFinale?: boolean): string {
+  private renderScoreInput(section: AstraSection, seasonScores: Record<string, number | null>, isSeriesFinale?: boolean): string {
+    if (section.subSections && section.subSections.length > 0) {
+      return `
+        <div class="astra-score-group" data-id="${section.id}">
+          <div class="astra-score-group-header">
+            <span class="astra-score-group-title">${section.name}</span>
+            <span class="astra-group-avg" id="avg-${section.id}">—</span>
+          </div>
+          <div class="astra-sub-sections">
+            ${section.subSections.map(sub => this.renderSubSectionInput(section.id, sub, seasonScores[`${section.id}_${sub.id}`])).join('')}
+          </div>
+        </div>
+      `;
+    }
+
     const isFinale = section.id === 'finale';
     const settings = this.astraService.getSettings();
     const showToggle = isFinale && settings.enableSeriesFinale;
+    const value = seasonScores[section.id];
 
     return `
       <div class="astra-score-input" data-id="${section.id}">
@@ -288,9 +317,52 @@ export class AstraRatingModal {
     `;
   }
 
+  private renderSubSectionInput(parentId: string, sub: AstraSubSection, value: number | null): string {
+    const fullId = `${parentId}_${sub.id}`;
+    return `
+      <div class="astra-score-input astra-score-input--sub" data-id="${fullId}">
+        <div class="astra-score-label">
+          <div class="astra-label-left">
+            <span class="astra-sub-label">${sub.name} <small>w${sub.weight}</small></span>
+          </div>
+          <input type="number" class="astra-score-num-input" 
+            min="0" max="10" step="0.1" 
+            value="${(value === null || value === undefined) ? '0.0' : value.toFixed(1)}"
+            style="color: ${AstraRadarChart.getScoreColor(value)}">
+        </div>
+        <div class="astra-slider-row">
+          <input type="range" class="astra-slider" min="0" max="10" step="0.1" value="${value || 0}">
+        </div>
+      </div>
+    `;
+  }
+
+  public close(): void {
+    if (!this.overlay) return;
+    this.overlay.classList.remove('astra-modal-overlay--open');
+    setTimeout(() => {
+      this.overlay?.remove();
+      this.overlay = null;
+      
+      // Only reset overflow if no other Astra modals are open
+      if (!document.querySelector('.astra-modal-overlay')) {
+        document.body.style.overflow = '';
+      }
+    }, 300);
+  }
+
   private attachEvents(): void {
-    const closeBtn = this.overlay!.querySelector('.astra-modal-close');
-    const cancelBtn = this.overlay!.querySelector('#astra-cancel');
+    if (!this.overlay) return;
+
+    // Dashboard link
+    const dashboardLink = this.overlay.querySelector('#astra-dashboard-link');
+    dashboardLink?.addEventListener('click', () => {
+      this.close();
+      const dashboard = container.resolve<AstraDashboard>(TOKENS.AstraDashboard as any);
+      dashboard.open();
+    });
+
+    const closeBtns = this.overlay!.querySelectorAll('.astra-modal-close');
     const saveBtn = this.overlay!.querySelector('#astra-save');
     const navItems = this.overlay!.querySelectorAll('.astra-nav-item');
     const sliders = this.overlay!.querySelectorAll('.astra-slider');
@@ -304,8 +376,7 @@ export class AstraRatingModal {
       document.body.style.overflow = '';
     };
 
-    closeBtn?.addEventListener('click', close);
-    cancelBtn?.addEventListener('click', close);
+    closeBtns.forEach(btn => btn.addEventListener('click', close));
     
     this.overlay!.addEventListener('click', (e) => {
       if (e.target === this.overlay) close();
@@ -554,16 +625,42 @@ export class AstraRatingModal {
     }
 
     sections.forEach(s => {
+      const val = this.astraService.calcSectionScore(s, season.scores);
+      
+      // Update group avg if exists
+      const groupAvg = this.overlay!.querySelector(`#avg-${s.id}`) as HTMLElement;
+      if (groupAvg) {
+        groupAvg.textContent = (val === null || val === undefined) ? '—' : val.toFixed(1);
+        groupAvg.style.color = AstraRadarChart.getScoreColor(val);
+      }
+
       const row = this.overlay!.querySelector(`.astra-score-input[data-id="${s.id}"]`);
       if (row) {
         const numInput = row.querySelector('.astra-score-num-input') as HTMLInputElement;
-        const val = season.scores[s.id];
         if (numInput) {
           if (document.activeElement !== numInput) {
             numInput.value = (val === undefined || val === null) ? '0.0' : val.toFixed(1);
           }
           numInput.style.color = AstraRadarChart.getScoreColor(val);
         }
+      }
+
+      // Handle sub-sections inputs
+      if (s.subSections) {
+        s.subSections.forEach(sub => {
+          const subId = `${s.id}_${sub.id}`;
+          const subRow = this.overlay!.querySelector(`.astra-score-input[data-id="${subId}"]`);
+          if (subRow) {
+            const subVal = season.scores[subId];
+            const subNumInput = subRow.querySelector('.astra-score-num-input') as HTMLInputElement;
+            if (subNumInput) {
+              if (document.activeElement !== subNumInput) {
+                subNumInput.value = (subVal === undefined || subVal === null) ? '0.0' : subVal.toFixed(1);
+              }
+              subNumInput.style.color = AstraRadarChart.getScoreColor(subVal);
+            }
+          }
+        });
       }
     });
   }
