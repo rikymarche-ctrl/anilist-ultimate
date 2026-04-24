@@ -1832,7 +1832,7 @@
 }
 
 .pill-section:hover {
-  background-color: var(--astra-accent);
+  background-color: #3db4f2; /* AniList Official Blue */
   color: white;
 }
 
