@@ -33,6 +33,9 @@ vorrei fare un rework grafico alla social activity dal calendario (le custom lis
 
 estensione funzionalità social con avatar anche a anime e manga in progress, essenzialmente il bottone a pillola
 
+
+l icona dei commenti fa schifo, pochissima definziiione. INoltre i commenti devono NON saprire anche quando hovero il loro popup, non solo l cione nuvoletta!
+
 ---
 
 *Last Updated: 2026-04-23*

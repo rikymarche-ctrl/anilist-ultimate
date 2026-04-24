@@ -34,6 +34,7 @@ export class AstraRatingModal {
       country: media.countryOfOrigin,
       cover: media.coverImage.extraLarge || media.coverImage.large,
       status: media.mediaListEntry?.status || 'PLANNING',
+      customLists: media.mediaListEntry?.customLists || [],
       tags: [],
       notes: '',
       updatedAt: Date.now(),
@@ -520,6 +521,7 @@ export class AstraRatingModal {
       this.overlay!.querySelectorAll('.astra-custom-list-cb:checked').forEach(cb => {
         customLists.push((cb as HTMLInputElement).dataset.name!);
       });
+      this.currentWork!.customLists = customLists;
 
       await this.astraService.saveWork(this.currentWork!);
       const overall = this.astraService.calcSeasonOverall(currentSeason.scores, currentSeason.skip, currentSeason.isSeriesFinale) || 0;

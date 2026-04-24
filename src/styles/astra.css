@@ -1086,7 +1086,9 @@
 .astra-filter-group {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .astra-filter-label {
@@ -1099,7 +1101,14 @@
 
 .astra-filter-chips {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.astra-filter-chips::-webkit-scrollbar {
+  display: none;
 }
 
 .astra-chip {
@@ -1149,7 +1158,6 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border-bottom: 1px solid var(--astra-border-soft);
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -1896,4 +1904,79 @@
 
 .media-preview-card:hover .action-pill {
   transform: translateY(0) scale(1);
+}
+
+/* Empty State */
+.astra-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin: 40px 0;
+}
+
+.astra-empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+  color: #3db4f2;
+  opacity: 0.6;
+}
+
+.astra-empty-state h2 {
+  font-size: 24px;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.astra-empty-state p {
+  color: var(--astra-muted, #8ba0b2);
+  max-width: 400px;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.astra-empty-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.astra-btn--lg {
+  padding: 14px 32px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+
+.astra-btn--loading {
+  pointer-events: none !important;
+  opacity: 0.7 !important;
+}
+
+/* Custom List Tags & Danger Buttons */
+.astra-mini-tag--list {
+  background: rgba(61, 180, 242, 0.15);
+  color: #3db4f2;
+  border: 1px solid rgba(61, 180, 242, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.astra-btn--danger {
+  background: rgba(235, 87, 87, 0.1);
+  color: #eb5757;
+  border: 1px solid rgba(235, 87, 87, 0.2);
+}
+
+.astra-btn--danger:hover {
+  background: #eb5757;
+  color: white;
+  border-color: #eb5757;
 }

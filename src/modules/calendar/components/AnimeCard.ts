@@ -531,28 +531,34 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private positionAndShowBubble(): void {
     if (!this.socialBubble) return;
 
-    const cardRect = this.element.getBoundingClientRect();
-    const bubbleWidth = this.socialBubble.offsetWidth || 300;
-    const bubbleHeight = this.socialBubble.offsetHeight || 100;
+    // Make bubble visible off-screen to calculate height
+    this.socialBubble.style.left = '-9999px';
+    this.socialBubble.style.top = '-9999px';
+    this.socialBubble.style.transform = 'none';
+    this.socialBubble.classList.add('visible');
 
-    // ALWAYS center the bubble on the card
-    let left = cardRect.left + (cardRect.width / 2) - (bubbleWidth / 2);
+    // Force reflow
+    void this.socialBubble.offsetHeight;
+
+    const cardRect = this.element.getBoundingClientRect();
+    const bubbleHeight = this.socialBubble.offsetHeight;
+
+    // Calculate center of card horizontally
+    const cardCenterX = cardRect.left + (cardRect.width / 2);
+
+    // Position above card
     let top = cardRect.top - bubbleHeight - 3; // 3px gap
 
-    // NO CLAMP - always keep centered even if it goes off-screen
-    // const padding = 10;
-    // const viewportWidth = window.innerWidth;
-    // left = Math.max(padding, Math.min(left, viewportWidth - bubbleWidth - padding));
-
-    // Prevent from going off-screen vertically (show below if not enough space above)
+    // Prevent from going off-screen vertically
     const padding = 10;
     if (top < padding) {
       top = cardRect.bottom + 3;
     }
 
-    this.socialBubble.style.left = `${left}px`;
+    // Use transform to center perfectly - this ALWAYS centers regardless of bubble width
+    this.socialBubble.style.left = `${cardCenterX}px`;
     this.socialBubble.style.top = `${top}px`;
-    this.socialBubble.classList.add('visible');
+    this.socialBubble.style.transform = 'translateX(-50%)';
   }
 
   /**

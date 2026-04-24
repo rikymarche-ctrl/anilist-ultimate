@@ -52,7 +52,8 @@ export class SocialRenderer {
     // 1. Remove existing if any
     card.querySelector('.au-social-wrapper')?.remove();
 
-    if (activities.length === 0) return;
+    // Show wrapper even with 0 activities (to display social button)
+    // if (activities.length === 0) return;
 
     // 2. Find target container (usually .cover or .image)
     const target = card.querySelector('.cover, .image, .image-container');

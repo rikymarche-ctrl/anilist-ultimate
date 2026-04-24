@@ -19,6 +19,7 @@ export class AstraDashboard extends BaseComponent {
     country: 'all',
     activeTab: 'dashboard' as 'dashboard' | 'settings'
   };
+  private renderProcessId = 0;
 
   constructor() {
     super({});
@@ -102,6 +103,7 @@ export class AstraDashboard extends BaseComponent {
 
   private renderDashboardTab(): string {
     const sections = this.service!.getSections();
+    const works = this.service!.getWorks();
     return `
       <div class="astra-dashboard">
         <header class="astra-dashboard-header">
@@ -109,6 +111,13 @@ export class AstraDashboard extends BaseComponent {
             <h1 class="astra-dashboard-title">Astra Dashboard</h1>
           </div>
           <div class="astra-dashboard-actions">
+            <button class="astra-btn astra-btn--primary" id="astra-sync-anilist" title="Sync all lists from AniList">
+              <i class="fa fa-sync"></i> Sync
+            </button>
+            <button class="astra-btn astra-btn--danger" id="astra-clear-all" title="Reset Astra Database (Delete All)">
+              <i class="fa fa-trash"></i>
+            </button>
+            <div class="astra-action-divider"></div>
             <button class="astra-btn astra-btn--ghost" id="astra-toggle-stats" title="Toggle Analytics">
               <i class="fa fa-chart-line"></i> ${this.state.showStats ? 'Hide' : 'Stats'}
             </button>
@@ -157,32 +166,55 @@ export class AstraDashboard extends BaseComponent {
             </div>
 
             <div class="astra-filter-group">
-              <span class="astra-filter-label">Status</span>
-              <div class="astra-filter-chips" data-filter="status">
+              <span class="astra-filter-label">List</span>
+              <div class="astra-filter-chips" data-filter="status" id="astra-list-filters">
                 <button class="astra-chip ${this.state.status === 'all' ? 'active' : ''}" data-val="all">All</button>
-                <button class="astra-chip ${this.state.status === 'CURRENT' ? 'active' : ''}" data-val="CURRENT">Watching</button>
-                <button class="astra-chip ${this.state.status === 'COMPLETED' ? 'active' : ''}" data-val="COMPLETED">Done</button>
+                <!-- Dynamic List Chips -->
               </div>
             </div>
           </div>
         </div>
 
         <div class="astra-table-wrap">
-          <table class="astra-table">
-            <thead>
-              <tr>
-                <th style="width: 65px">Cover</th>
-                <th data-sort="title" style="width: auto">Title</th>
-                <th data-sort="type" style="width: 80px">Type</th>
-                <th data-sort="score" style="width: 85px">Overall</th>
-                ${sections.map(s => `<th data-sort="score-${s.id}" style="width: 85px">${s.name}</th>`).join('')}
-                <th style="width: 100px">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="astra-table-body">
-              <!-- Dynamic Rows -->
-            </tbody>
-          </table>
+          ${works.length > 0 ? `
+            <table class="astra-table">
+              <thead>
+                <tr>
+                  <th style="width: 65px">Cover</th>
+                  <th data-sort="title" style="width: auto">Title</th>
+                  <th data-sort="type" style="width: 80px">Type</th>
+                  <th data-sort="score" style="width: 85px">Overall</th>
+                  ${sections.map(s => `<th data-sort="score-${s.id}" style="width: 85px">${s.name}</th>`).join('')}
+                  <th style="width: 100px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="astra-table-body">
+                <!-- Dynamic Rows -->
+              </tbody>
+            </table>
+          ` : this.renderEmptyState()}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderEmptyState(): string {
+    return `
+      <div class="astra-empty-state">
+        <div class="astra-empty-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
+          </svg>
+        </div>
+        <h2>Welcome to Astra</h2>
+        <p>Your dashboard is currently empty. Start by importing your collection from AniList or creating a new entry.</p>
+        <div class="astra-empty-actions">
+          <button class="astra-btn astra-btn--primary astra-btn--lg" id="astra-empty-sync">
+            <i class="fa fa-sync"></i> Import from AniList
+          </button>
+          <button class="astra-btn astra-btn--secondary astra-btn--lg" id="astra-import-manual">
+            <i class="fa fa-upload"></i> Import JSON
+          </button>
         </div>
       </div>
     `;
@@ -318,20 +350,50 @@ export class AstraDashboard extends BaseComponent {
     // Update Table Body
     const tbody = this.overlay.querySelector('#astra-table-body');
     if (tbody) {
-      tbody.innerHTML = sortedWorks.length > 0 ? sortedWorks.map(w => this.renderRow(w)).join('') : `
-        <tr>
-          <td colspan="${5 + sections.length}" style="text-align: center; padding: 48px; color: var(--astra-muted)">
-            No entries found matching filters.
-          </td>
-        </tr>
-      `;
-
-      // Re-attach row events since we replaced innerHTML
-      this.attachRowEvents(tbody as HTMLElement);
+      tbody.innerHTML = '';
+      
+      this.renderProcessId++;
+      const currentProcessId = this.renderProcessId;
+      
+      if (sortedWorks.length > 0) {
+        this.renderChunks(sortedWorks, 0, 50, currentProcessId, tbody as HTMLElement);
+      } else {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${5 + sections.length}" style="text-align: center; padding: 48px; color: var(--astra-muted)">
+              No entries found matching filters.
+            </td>
+          </tr>
+        `;
+      }
     }
 
-    // Update active chips
-    this.overlay.querySelectorAll('.astra-chip').forEach(chip => {
+    // Update List Chips
+    const listContainer = this.overlay.querySelector('#astra-list-filters');
+    if (listContainer) {
+      const allLists = Array.from(new Set(works.flatMap(w => w.customLists || []))).sort();
+      listContainer.innerHTML = `
+        <button class="astra-chip ${this.state.status === 'all' ? 'active' : ''}" data-val="all">All</button>
+        ${allLists.map(list => `
+          <button class="astra-chip ${this.state.status === list ? 'active' : ''}" data-val="${list}">${list}</button>
+        `).join('')}
+      `;
+
+      // Re-attach chip events
+      listContainer.querySelectorAll('.astra-chip').forEach(chip => {
+        chip.addEventListener('click', (e) => {
+          const target = e.currentTarget as HTMLElement;
+          const val = target.getAttribute('data-val');
+          if (val) {
+            this.state.status = val;
+            this.updateDashboardDynamic();
+          }
+        });
+      });
+    }
+
+    // Update active chips for other filters
+    this.overlay.querySelectorAll('.astra-filter-chips:not(#astra-list-filters) .astra-chip').forEach(chip => {
       const filterType = chip.parentElement?.getAttribute('data-filter');
       const val = chip.getAttribute('data-val');
       if (filterType && (this.state as any)[filterType] === val) {
@@ -342,11 +404,34 @@ export class AstraDashboard extends BaseComponent {
     });
   }
 
+  private renderChunks(works: AstraWork[], start: number, count: number, processId: number, container: HTMLElement): void {
+    if (processId !== this.renderProcessId || !this.overlay) return;
+
+    const chunk = works.slice(start, start + count);
+    if (chunk.length === 0) return;
+
+    const html = chunk.map(w => this.renderRow(w)).join('');
+    container.insertAdjacentHTML('beforeend', html);
+
+    // Initial event attachment for the first chunk (using delegation)
+    if (start === 0) {
+      this.attachRowEvents(container);
+    }
+
+    if (start + count < works.length) {
+      requestAnimationFrame(() => {
+        this.renderChunks(works, start + count, count, processId, container);
+      });
+    }
+  }
+
   private getFilteredWorks(works: AstraWork[]): AstraWork[] {
     return works.filter(w => {
       const matchSearch = !this.state.search || w.title.toLowerCase().includes(this.state.search.toLowerCase());
       const matchType = this.state.type === 'all' || w.type === this.state.type;
-      const matchStatus = this.state.status === 'all' || (w.status || '').toUpperCase() === this.state.status;
+      const matchStatus = this.state.status === 'all' || 
+                         (w.status || '').toUpperCase() === this.state.status ||
+                         (w.customLists || []).includes(this.state.status);
       const matchCountry = this.state.country === 'all' || w.country === this.state.country;
       return matchSearch && matchType && matchStatus && matchCountry;
     });
@@ -359,7 +444,20 @@ export class AstraDashboard extends BaseComponent {
     sorted.sort((a, b) => {
       let valA: any, valB: any;
 
-      if (field === 'title') {
+      if (field === 'updated') {
+        // Priority: Watching > Planning > Others
+        const getPriority = (status: string) => {
+          if (status === 'CURRENT') return 3;
+          if (status === 'PLANNING') return 2;
+          return 1;
+        };
+        const pA = getPriority(a.status);
+        const pB = getPriority(b.status);
+        if (pA !== pB) return dir === 'desc' ? pB - pA : pA - pB;
+        
+        valA = a.updatedAt || 0;
+        valB = b.updatedAt || 0;
+      } else if (field === 'title') {
         valA = a.title;
         valB = b.title;
       } else if (field === 'score') {
@@ -394,6 +492,7 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-table-title">${work.title}</div>
           <div class="astra-table-sub">
             ${work.country ? `<span class="astra-mini-tag">${work.country}</span> ` : ''}
+            ${(work.customLists || []).map(l => `<span class="astra-mini-tag astra-mini-tag--list">${l}</span>`).join(' ')}
             ${work.seasons.length} part(s) • Last: ${lastSeason.label}
           </div>
         </td>
@@ -544,6 +643,49 @@ export class AstraDashboard extends BaseComponent {
       };
       reader.readAsText(file);
     });
+
+    // Sync from AniList
+    const syncBtn = this.overlay.querySelector('#astra-sync-anilist');
+    const emptySyncBtn = this.overlay.querySelector('#astra-empty-sync');
+    const importManualBtn = this.overlay.querySelector('#astra-import-manual');
+
+    const handleSync = async (btn: HTMLElement) => {
+      const originalHTML = btn.innerHTML;
+      btn.classList.add('astra-btn--loading');
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Syncing...';
+      (btn as HTMLButtonElement).disabled = true;
+
+      try {
+        const apiClient = container.resolve<any>(TOKENS.ApiClient);
+        const toast = container.resolve<any>(TOKENS.ToastService);
+        
+        const result = await this.service!.syncWithAniList(apiClient);
+        toast.success(`Sync complete! Added ${result.added} entries.`);
+        
+        this.renderDashboard(); // Full re-render to handle empty -> non-empty transition
+      } catch (err) {
+        console.error(err);
+        alert('Failed to sync with AniList. Check your connection or login status.');
+      } finally {
+        btn.classList.remove('astra-btn--loading');
+        btn.innerHTML = originalHTML;
+        (btn as HTMLButtonElement).disabled = false;
+      }
+    };
+
+    syncBtn?.addEventListener('click', () => handleSync(syncBtn as HTMLElement));
+    emptySyncBtn?.addEventListener('click', () => handleSync(emptySyncBtn as HTMLElement));
+    importManualBtn?.addEventListener('click', () => fileInput.click());
+
+    // Clear All
+    this.overlay.querySelector('#astra-clear-all')?.addEventListener('click', async () => {
+      if (confirm('DANGER: This will delete ALL your Astra ratings and entries. This cannot be undone. Are you sure?')) {
+        await this.service!.clearAllWorks();
+        const toast = container.resolve<any>(TOKENS.ToastService);
+        toast.success('Astra database has been reset.');
+        this.renderDashboard();
+      }
+    });
   }
 
   private attachSettingsEvents(): void {
@@ -659,28 +801,32 @@ export class AstraDashboard extends BaseComponent {
   }
 
   private attachRowEvents(el: HTMLElement): void {
-    el.querySelectorAll('.astra-edit-row').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const mediaId = parseInt((e.currentTarget as HTMLElement).closest('.astra-row')?.getAttribute('data-media-id') || '0');
-        if (mediaId) {
-          this.close();
-          const modal = container.resolve<any>(TOKENS.AstraRatingModal);
-          modal.open(mediaId);
-        }
-      });
-    });
+    // Use event delegation on the tbody container
+    el.addEventListener('click', async (e) => {
+      const target = e.target as HTMLElement;
+      const row = target.closest('.astra-row') as HTMLElement;
+      if (!row) return;
 
-    el.querySelectorAll('.astra-delete-row').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const row = (e.currentTarget as HTMLElement).closest('.astra-row') as HTMLElement;
-        const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
+      const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
+      if (!mediaId) return;
+
+      // Edit Button
+      if (target.closest('.astra-edit-row')) {
+        this.close();
+        const modal = container.resolve<any>(TOKENS.AstraRatingModal);
+        modal.open(mediaId);
+        return;
+      }
+
+      // Delete Button
+      if (target.closest('.astra-delete-row')) {
         const title = row.querySelector('.astra-table-title')?.textContent || 'this entry';
-
         if (confirm(`Are you sure you want to delete ${title}? This cannot be undone.`)) {
           await this.service!.deleteWork(mediaId);
           this.updateDashboardDynamic();
         }
-      });
+        return;
+      }
     });
   }
 }

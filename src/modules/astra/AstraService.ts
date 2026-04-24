@@ -11,6 +11,7 @@ export interface AstraWork {
   coverColor?: string;
   anilistUrl?: string;
   status: string;
+  customLists: string[];
   tags: string[];
   seasons: AstraSeason[];
   notes: string;
@@ -138,6 +139,113 @@ export class AstraService {
   }
 
   /**
+   * Sync all user works from AniList
+   */
+  async syncWithAniList(apiClient: any): Promise<{ added: number, updated: number }> {
+    await this.init();
+    
+    try {
+      const userId = await apiClient.getCurrentUserId();
+      
+      const query = `
+        query ($userId: Int, $type: MediaType) {
+          MediaListCollection(userId: $userId, type: $type) {
+            lists {
+              name
+              entries {
+                mediaId
+                status
+                score(format: POINT_10)
+                media {
+                  title { romaji english native }
+                  type
+                  format
+                  countryOfOrigin
+                  coverImage { large medium }
+                  siteUrl
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const [animeRes, mangaRes] = await Promise.all([
+        apiClient.query(query, { userId, type: 'ANIME' }),
+        apiClient.query(query, { userId, type: 'MANGA' })
+      ]);
+
+      let added = 0;
+      let updated = 0;
+
+      const processResult = (result: any) => {
+        const collection = result?.MediaListCollection;
+        if (!collection?.lists) return;
+
+        for (const list of collection.lists) {
+          const listName = list.name;
+          for (const entry of list.entries) {
+            const existing = this.getWorkByMediaId(entry.mediaId);
+            
+            if (existing) {
+              const newTitle = entry.media.title.english || entry.media.title.romaji || entry.media.title.native;
+              if (existing.status !== entry.status || existing.title !== newTitle) {
+                if (existing.title !== newTitle) existing.title = newTitle;
+                existing.status = entry.status;
+                updated++;
+              }
+              // Sync list name
+              existing.customLists = [listName];
+            } else {
+              const media = entry.media;
+              const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
+              
+              const newWork: AstraWork = {
+                id: `w_${Math.random().toString(36).slice(2, 11)}`,
+                mediaId: entry.mediaId,
+                title: media.title.english || media.title.romaji || media.title.native,
+                type: type as any,
+                country: media.countryOfOrigin,
+                cover: media.coverImage.large || media.coverImage.medium,
+                anilistUrl: media.siteUrl,
+                status: entry.status,
+                customLists: [listName],
+                tags: [],
+                seasons: [this.createDefaultSeason()],
+                notes: '',
+                updatedAt: Date.now()
+              };
+              
+              // Seed enjoyment if AniList score exists
+              if (entry.score > 0) {
+                newWork.seasons[0].scores['enjoyment'] = entry.score;
+              }
+              
+              this.works.push(newWork);
+              added++;
+            }
+          }
+        }
+      };
+
+      processResult(animeRes);
+      processResult(mangaRes);
+
+      if (added > 0 || updated > 0) {
+        // Sort by updatedAt or mediaId to keep it consistent
+        this.works.sort((a, b) => b.updatedAt - a.updatedAt);
+        await this.persist();
+      }
+
+      log.info(`[AstraService] Sync complete: +${added} added, ~${updated} updated`);
+      return { added, updated };
+    } catch (error) {
+      log.error('[AstraService] Sync failed', error);
+      throw error;
+    }
+  }
+
+  /**
    * Save or update a work
    */
   async saveWork(work: Partial<AstraWork> & { mediaId: number }): Promise<AstraWork> {
@@ -177,6 +285,15 @@ export class AstraService {
   async deleteWork(mediaId: number): Promise<void> {
     this.works = this.works.filter(w => w.mediaId !== mediaId);
     await this.persist();
+  }
+
+  /**
+   * Delete ALL works (Reset)
+   */
+  async clearAllWorks(): Promise<void> {
+    this.works = [];
+    await this.persist();
+    log.info('[AstraService] All works cleared');
   }
 
   /**
