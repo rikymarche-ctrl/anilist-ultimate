@@ -624,8 +624,16 @@
   max-height: 100%;
   overflow-y: auto;
   padding-right: 8px;
-  padding-bottom: 80px;
-  /* Extra space to ensure last ep is not hidden by footer button */
+  padding-bottom: 80px; /* Extra space to ensure last ep is not hidden by footer button */
+}
+
+.astra-form-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 4px;
+  padding-bottom: 80px; /* Space for the footer button in rating tab */
+  scrollbar-width: thin;
+  scrollbar-color: var(--astra-accent-a20) transparent;
 }
 
 .astra-ep-row {
@@ -1865,7 +1873,7 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  pointer-events: none; /* Keep none to allow clicking through to avatars/cover */
+  pointer-events: none;
   transition: opacity 0.2s ease;
   z-index: 50;
   background: rgba(0, 0, 0, 0.4);
@@ -1882,7 +1890,8 @@
   background: rgba(10, 10, 15, 0.75);
   /* Darker and more transparent */
   border: 1px solid rgba(255, 255, 255, 0.08);
-  pointer-events: auto; /* Catch clicks only on the pill itself */
+  pointer-events: auto;
+  /* Catch clicks only on the pill itself */
 }
 
 .media-preview-card:hover .action-pill {
