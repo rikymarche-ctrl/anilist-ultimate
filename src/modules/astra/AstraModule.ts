@@ -202,9 +202,24 @@ export class AstraModule extends BaseModule {
             
             this.toast.success(`Updated ${entry.media.title.romaji} to Ep ${newProgress}`);
             
-            // Optional: Update the native UI text if found
+            // 3. Update the native UI text robustly
+            // Strategy A: Look for .progress element (standard on some pages)
             const progressEl = card.querySelector('.progress');
-            if (progressEl) progressEl.textContent = `${newProgress}`;
+            if (progressEl) {
+              progressEl.textContent = `${newProgress}`;
+            }
+
+            // Strategy B: Look for "Progress: X/Y" text nodes (common on home page)
+            // We look for the parent of the native plus button or just scan .info
+            const infoContainer = card.querySelector('.info');
+            if (infoContainer) {
+              const html = infoContainer.innerHTML;
+              if (html.includes('Progress:')) {
+                // Regex to find "Progress: [number]" and replace with new progress
+                // We use a group to capture the possible "/" part too
+                infoContainer.innerHTML = html.replace(/Progress: (\d+)/, `Progress: ${newProgress}`);
+              }
+            }
           }
         } catch (err) {
           log.error('[Astra] Failed to increment progress', err);

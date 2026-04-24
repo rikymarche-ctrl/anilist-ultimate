@@ -13,21 +13,23 @@ export class SocialRenderer {
   public static getAvatarsHTML(activities: FriendActivity[], max: number = 3): string {
     const { socialShowAvatars } = calendarStore.getState().preferences;
     if (!socialShowAvatars || !activities || activities.length === 0) return '';
-    
-    // Render up to 50 for the grid effect
+
+    // Render up to 50 for the stack effect
     const totalToRender = Math.min(activities.length, 50);
     let html = '<div class="au-social-stack">';
-    
+
     for (let i = 0; i < totalToRender; i++) {
       const u = activities[i].user;
       const extraClass = i >= max ? 'au-social-avatar-extra' : '';
       html += `<div class="friend-avatar ${extraClass}" title="${u.name}" data-user-name="${u.name}" style="background-image:url(${u.avatar.medium}); z-index:${50-i}"></div>`;
     }
-    
-    if (activities.length > 50) {
-      html += `<div class="friend-avatar extra-count" style="z-index:5">+${activities.length - 50}</div>`;
+
+    // Show +X badge if there are more than max visible avatars
+    if (activities.length > max) {
+      const extraCount = Math.min(activities.length - max, 50 - max);
+      html += `<div class="friend-avatar extra-count" style="z-index:5">+${extraCount}</div>`;
     }
-    
+
     html += '</div>';
     return html;
   }
@@ -69,7 +71,7 @@ export class SocialRenderer {
     // but allowed specific elements (avatars and button) to work
     wrapper.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      if (target.classList.contains('friend-avatar')) {
+      if (target.classList.contains('au-friend-avatar')) {
         const userName = target.getAttribute('data-user-name');
         if (userName) {
           e.stopPropagation();

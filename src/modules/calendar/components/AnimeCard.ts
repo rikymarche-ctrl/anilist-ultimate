@@ -17,6 +17,8 @@ interface AnimeCardProps {
 }
 
 export class AnimeCard extends BaseComponent<AnimeCardProps> {
+  private socialBubble: HTMLElement | null = null;
+
   protected render(): HTMLElement {
     const { anime, options } = this.props;
     const { layoutMode, fullWidthImages, titleAlignment } = options;
@@ -59,12 +61,22 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     return card;
   }
 
+  protected onMount(): void {
+    // Create social portal AFTER component is mounted
+    const { anime } = this.props;
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+
+    if (socialEnabled && socialShowAvatars) {
+      this.createSocialPortal(anime);
+    }
+  }
+
   private getCardHTML(anime: AnimeEntry, options: CardOptions): string {
     const { layoutMode, showTime, showEpisodeNumbers, timeFormat } = options;
     const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
 
     const showPillSocial = socialEnabled && !socialShowAvatars;
-    const showFloatingSocial = socialEnabled && socialShowAvatars;
+    // Social portal created in onMount(), not inline
 
     const socialSectionHTML = showPillSocial ? `
       <div class="pill-separator"></div>
@@ -227,12 +239,6 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       <div class="anime-card__container">
         ${cardContentHTML}
       </div>
-      ${showFloatingSocial ? `
-        <div class="au-social-wrapper" id="friends-${anime.mediaId}">
-          ${SocialRenderer.getAvatarsHTML(anime.friendActivity || [])}
-          ${SocialRenderer.getSocialButtonHTML()}
-        </div>
-      ` : ''}
     `;
   }
 
@@ -264,7 +270,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         return;
       }
 
-      // Only block if we clicked specifically on a button (pill-section) 
+      // Only block if we clicked specifically on a button (pill-section)
       // or inside the social activity bubble
       if (target.closest('[data-action]') || target.closest('.au-social-wrapper')) {
         return;
@@ -453,5 +459,109 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    */
   public show(): void {
     this.element.classList.remove('anime-card--hidden');
+  }
+
+  /**
+   * Create social bubble as portal (position: fixed outside calendar)
+   */
+  private createSocialPortal(anime: AnimeEntry): void {
+    // Create bubble element
+    const bubble = document.createElement('div');
+    bubble.className = 'au-social-bubble-portal';
+    bubble.innerHTML = `
+      ${SocialRenderer.getAvatarsHTML(anime.friendActivity || [])}
+      ${SocialRenderer.getSocialButtonHTML()}
+    `;
+
+    document.body.appendChild(bubble);
+    this.socialBubble = bubble;
+
+    // Handle mouse enter/leave on card
+    this.addEventListener(this.element, 'mouseenter', () => {
+      this.positionAndShowBubble();
+    });
+
+    this.addEventListener(this.element, 'mouseleave', (e) => {
+      // Check if mouse is moving to bubble
+      const relatedTarget = e.relatedTarget as HTMLElement;
+      if (!bubble.contains(relatedTarget)) {
+        bubble.classList.remove('visible');
+      }
+    });
+
+    // Keep bubble visible when hovering it
+    bubble.addEventListener('mouseenter', () => {
+      bubble.classList.add('visible');
+    });
+
+    bubble.addEventListener('mouseleave', () => {
+      bubble.classList.remove('visible');
+    });
+
+    // Handle avatar clicks
+    bubble.querySelectorAll('.friend-avatar').forEach(avatar => {
+      avatar.addEventListener('click', (e) => {
+        const userName = (avatar as HTMLElement).getAttribute('data-user-name');
+        if (userName) {
+          e.stopPropagation();
+          window.open(`/user/${userName}`, '_blank');
+        }
+      });
+    });
+
+    // Handle social button click
+    const socialBtn = bubble.querySelector('[data-action="social-activity"]');
+    if (socialBtn) {
+      socialBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
+          detail: {
+            mediaId: anime.mediaId,
+            title: anime.cleanTitle,
+            element: this.element
+          }
+        }));
+      });
+    }
+  }
+
+  /**
+   * Position and show the social bubble portal
+   */
+  private positionAndShowBubble(): void {
+    if (!this.socialBubble) return;
+
+    const cardRect = this.element.getBoundingClientRect();
+    const bubbleWidth = this.socialBubble.offsetWidth || 300;
+    const bubbleHeight = this.socialBubble.offsetHeight || 100;
+
+    // ALWAYS center the bubble on the card
+    let left = cardRect.left + (cardRect.width / 2) - (bubbleWidth / 2);
+    let top = cardRect.top - bubbleHeight - 3; // 3px gap
+
+    // NO CLAMP - always keep centered even if it goes off-screen
+    // const padding = 10;
+    // const viewportWidth = window.innerWidth;
+    // left = Math.max(padding, Math.min(left, viewportWidth - bubbleWidth - padding));
+
+    // Prevent from going off-screen vertically (show below if not enough space above)
+    const padding = 10;
+    if (top < padding) {
+      top = cardRect.bottom + 3;
+    }
+
+    this.socialBubble.style.left = `${left}px`;
+    this.socialBubble.style.top = `${top}px`;
+    this.socialBubble.classList.add('visible');
+  }
+
+  /**
+   * Cleanup: remove portal on unmount
+   */
+  protected onUnmount(): void {
+    if (this.socialBubble) {
+      this.socialBubble.remove();
+      this.socialBubble = null;
+    }
   }
 }

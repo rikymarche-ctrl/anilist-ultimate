@@ -19,51 +19,61 @@
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease, visibility 0.3s ease;
 }
 
-/* Clipping Fixes */
-.media-preview-card:hover, .media-card:hover, .anime-card:hover,
-.media-preview-card:hover .cover, .media-card:hover .cover,
-.media-preview-card:hover .image, .media-card:hover .image,
-.media-preview-card:hover .image-container, .media-card:hover .image-container,
-.calendar-day, .calendar-grid, .calendar-column {
-  overflow: visible !important;
-}
+/* Portal bubbles use fixed positioning - no clipping needed */
 
-/* Elevated State on Card Hover */
-.media-preview-card:hover .au-social-wrapper, 
-.media-card:hover .au-social-wrapper,
-.anime-card:hover .au-social-wrapper {
-  opacity: 1;
-  visibility: visible;
-  top: auto;
-  bottom: 100%; /* Placed exactly at the top of the card */
-  right: 50%;
-  left: auto;
-  transform: translateX(50%);
-  align-items: center;
+/* Social bubble portal - created via JavaScript with position: fixed */
+.au-social-bubble-portal {
+  position: fixed !important;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
   z-index: 10000 !important;
   background: rgba(14, 22, 33, 0.95);
   backdrop-filter: blur(16px);
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 24px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* Invisible bridge to prevent bubble from closing when mouse moves from card to bubble */
+.au-social-bubble-portal::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.au-social-bubble-portal.visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 .au-social-stack {
   display: flex !important;
   flex-direction: row !important;
-  flex-wrap: wrap-reverse !important;
+  flex-wrap: wrap !important;
   justify-content: center !important;
-  gap: 4px;
-  width: 100%;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 360px !important; /* Fit ~8 larger avatars */
 }
 
-.media-preview-card:hover .au-social-stack, 
+.media-preview-card:hover .au-social-stack,
 .media-card:hover .au-social-stack,
 .anime-card:hover .au-social-stack {
-  max-width: 340px; /* Fits roughly 10 avatars of 30px + gaps */
+  padding: 4px 0;
 }
 
 .au-social-avatar-extra {
@@ -71,40 +81,36 @@
 }
 
 /* Magnification: Reveal extra friends when the bubble is hovered */
+.au-social-bubble-portal:hover .au-social-avatar-extra,
 .au-social-wrapper:hover .au-social-avatar-extra {
   display: block !important;
 }
 
+.au-social-bubble-portal:hover .extra-count,
 .au-social-wrapper:hover .extra-count {
   display: none !important;
 }
 
+.au-social-bubble-portal:hover .au-social-stack,
 .au-social-wrapper:hover .au-social-stack {
-  gap: 6px;
+  gap: 10px !important;
 }
 
 .au-social-button {
-  display: none !important;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   background: var(--au-primary);
-  opacity: 0.9;
+  opacity: 0.95;
   color: white;
   border-radius: 50%;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0,0,0,0.5);
   transition: all var(--au-transition);
   border: 1px solid rgba(255,255,255,0.2);
-}
-
-.media-preview-card:hover .au-social-button,
-.media-card:hover .au-social-button,
-.anime-card:hover .au-social-button {
-  display: flex !important;
 }
 
 .au-social-button:hover {
@@ -129,8 +135,8 @@
 }
 
 .friend-avatar {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 2px solid var(--au-bg);
   background-size: cover;
@@ -138,21 +144,13 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all var(--au-transition);
-  margin-right: -8px; /* Stack effect */
+  margin-right: 0;
 }
 
 .friend-avatar:hover {
-  transform: translateY(-4px) scale(1.2);
+  transform: translateY(-2px) scale(1.1);
   z-index: 100 !important;
   border-color: var(--au-primary);
-}
-
-.media-preview-card:hover .friend-avatar,
-.media-card:hover .friend-avatar,
-.anime-card:hover .friend-avatar {
-  width: 30px;
-  height: 30px;
-  margin-right: 0; /* Clear the overlap on hover */
 }
 
 /* Extra count badge */

@@ -12,8 +12,8 @@
   margin: 10px 0 20px 0; /* Reduced top margin */
   padding: 0;
   background: var(--cal-background);
-  border-radius: 6px;
-  overflow: visible; /* Changed from hidden to allow elevated bubbles */
+  border-radius: 5px; /* Subtle rounded corners */
+  overflow: hidden; /* Hide overflow for rounded corners to work */
   position: relative;
   z-index: 10;
 }
@@ -97,6 +97,8 @@
   gap: 2px;
   width: 100%;
   background: var(--cal-background);
+  border-radius: 5px;
+  overflow: hidden;
 }
 
 .calendar-grid--loading {
