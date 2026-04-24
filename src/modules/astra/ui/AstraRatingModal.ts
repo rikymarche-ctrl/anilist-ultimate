@@ -106,11 +106,12 @@ export class AstraRatingModal {
     this.overlay.innerHTML = `
       <div class="astra-modal">
         <nav class="astra-modal-nav">
-          <div class="astra-nav-brand" id="astra-dashboard-link" title="Go to Astra Dashboard" style="cursor: pointer;">
-            <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <div class="astra-nav-back" id="astra-dashboard-link" title="Go to Astra Dashboard">
+            <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; transform: rotate(-90deg);">
               <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
               <rect x="11" y="14" width="2" height="3" rx="1" opacity="0.6"/>
             </svg>
+            <div class="astra-nav-back-text">Back to Dashboard</div>
           </div>
           <button class="astra-nav-item ${this.activeTab === 'rating' ? 'active' : ''}" data-tab="rating">
             <i class="fa fa-sliders"></i>
@@ -231,7 +232,7 @@ export class AstraRatingModal {
                   <div class="astra-form-footer">
                     <div class="astra-notes-area">
                       <span class="astra-label-sm">Rating Notes</span>
-                      <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes}</textarea>
+                      <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes || ''}</textarea>
                     </div>
                     <div class="astra-overall-box">
                       <span class="astra-overall-label">Weighted Score</span>
@@ -373,8 +374,13 @@ export class AstraRatingModal {
 
     const close = () => {
       this.overlay!.classList.remove('astra-modal-overlay--open');
-      setTimeout(() => this.overlay!.remove(), 300);
-      document.body.style.overflow = '';
+      setTimeout(() => {
+        this.overlay!.remove();
+        // Only reset overflow if NO other Astra modals (like Dashboard) are open
+        if (!document.querySelector('.astra-modal-overlay')) {
+          document.body.style.overflow = '';
+        }
+      }, 300);
     };
 
     closeBtns.forEach(btn => btn.addEventListener('click', close));

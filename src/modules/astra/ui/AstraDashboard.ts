@@ -121,6 +121,9 @@ export class AstraDashboard extends BaseComponent {
             <button class="astra-btn astra-btn--ghost" id="astra-toggle-stats" title="Toggle Analytics">
               <i class="fa fa-chart-line"></i> ${this.state.showStats ? 'Hide' : 'Stats'}
             </button>
+            <button class="astra-btn astra-btn--ghost" id="astra-export-wrapped" title="Export Stats as PNG">
+              <i class="fa fa-image"></i> Export Wrapped
+            </button>
             <div class="astra-action-divider"></div>
             <button class="astra-btn astra-btn--secondary" id="astra-export">
               <i class="fa fa-download"></i> Export
@@ -305,43 +308,70 @@ export class AstraDashboard extends BaseComponent {
     if (statsContainer) {
       const anime = works.filter(w => w.type === 'anime');
       const manga = works.filter(w => w.type === 'manga');
-      const novel = works.filter(w => w.type === 'novel');
+      
+      const totalDays = anime.reduce((acc, w) => acc + ((w.episodes || 0) * (w.duration || 24)), 0) / (60 * 24);
+      const totalChapters = manga.reduce((acc, w) => acc + (w.chapters || 0), 0);
+      
+      const genreMap: Record<string, number> = {};
+      works.forEach(w => (w.genres || []).forEach(g => genreMap[g] = (genreMap[g] || 0) + 1));
+      const topGenres = Object.entries(genreMap).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      
+      const topSeries = [...works].sort((a, b) => (this.service!.calcSeriesOverall(b) || 0) - (this.service!.calcSeriesOverall(a) || 0)).slice(0, 5);
 
       statsContainer.innerHTML = `
-        <div class="astra-stat-card">
-          <span class="astra-stat-label">Total Entries</span>
-          <span class="astra-stat-val">${works.length}</span>
-          <div class="astra-stat-sub">${anime.length}A • ${manga.length}M • ${novel.length}N</div>
-        </div>
-        <div class="astra-stat-card">
-          <span class="astra-stat-label">Global Mean</span>
-          <span class="astra-stat-val">${this.calculateGlobalAverage(works).toFixed(2)}</span>
-          <div class="astra-stat-sub">Across all formats</div>
-        </div>
-        <div class="astra-stat-card">
-          <span class="astra-stat-label">Mean Score</span>
-          <div class="astra-stat-row">
-            <div class="astra-stat-mini">
-              <span class="label">TV</span>
-              <span class="val">${this.calculateGlobalAverage(anime).toFixed(1)}</span>
-            </div>
-            <div class="astra-stat-mini">
-              <span class="label">PRINT</span>
-              <span class="val">${this.calculateGlobalAverage([...manga, ...novel]).toFixed(1)}</span>
+        <div class="astra-stat-card astra-stat-card--anime">
+          <div class="astra-stat-header">
+             <i class="fa fa-tv"></i> Anime Stats
+          </div>
+          <div class="astra-stat-body">
+            <div class="astra-stat-main">${anime.length}</div>
+            <div class="astra-stat-label">Total Anime</div>
+            <div class="astra-stat-grid">
+               <div class="astra-stat-item"><span>${totalDays.toFixed(1)}</span> Days</div>
+               <div class="astra-stat-item"><span>${this.calculateGlobalAverage(anime).toFixed(1)}</span> Mean</div>
             </div>
           </div>
         </div>
-        <div class="astra-stat-card">
-          <span class="astra-stat-label">Regional</span>
-          <div class="astra-stat-row">
-            <div class="astra-stat-mini">
-              <span class="label">JP</span>
-              <span class="val">${works.filter(w => w.country === 'JP').length}</span>
+        <div class="astra-stat-card astra-stat-card--manga">
+          <div class="astra-stat-header">
+             <i class="fa fa-book"></i> Manga Stats
+          </div>
+          <div class="astra-stat-body">
+            <div class="astra-stat-main">${manga.length}</div>
+            <div class="astra-stat-label">Total Manga</div>
+            <div class="astra-stat-grid">
+               <div class="astra-stat-item"><span>${totalChapters}</span> Chaps</div>
+               <div class="astra-stat-item"><span>${this.calculateGlobalAverage(manga).toFixed(1)}</span> Mean</div>
             </div>
-            <div class="astra-stat-mini">
-              <span class="label">KR/CN</span>
-              <span class="val">${works.filter(w => w.country === 'KR' || w.country === 'CN').length}</span>
-            </div>
+          </div>
+        </div>
+        <div class="astra-stat-card astra-stat-card--genres">
+          <div class="astra-stat-header">
+             <i class="fa fa-tags"></i> Top Genres
+          </div>
+          <div class="astra-stat-body">
+             <div class="astra-genre-list">
+               ${topGenres.length > 0 ? topGenres.map(([g, count]) => `
+                 <div class="astra-genre-item">
+                   <span class="name">${g}</span>
+                   <span class="count">${count}</span>
+                 </div>
+               `).join('') : `
+                 <div class="astra-stat-sub" style="margin-top: 10px; opacity: 0.5">
+                   Sync with AniList to update metadata
+                 </div>
+               `}
+             </div>
+          </div>
+        </div>
+        <div class="astra-stat-card astra-stat-card--top">
+          <div class="astra-stat-header">
+             <i class="fa fa-crown"></i> Hall of Fame
+          </div>
+          <div class="astra-top-series">
+             ${topSeries.map((w, i) => `
+               <img src="${w.cover}" title="${w.title} (${this.service!.calcSeriesOverall(w)})" class="astra-top-thumb" style="z-index: ${5-i}">
+             `).join('')}
           </div>
         </div>
       `;
@@ -413,11 +443,7 @@ export class AstraDashboard extends BaseComponent {
     const html = chunk.map(w => this.renderRow(w)).join('');
     container.insertAdjacentHTML('beforeend', html);
 
-    // Initial event attachment for the first chunk (using delegation)
-    if (start === 0) {
-      this.attachRowEvents(container);
-    }
-
+    // Rows are rendered in chunks, but events are delegated from the parent
     if (start + count < works.length) {
       requestAnimationFrame(() => {
         this.renderChunks(works, start + count, count, processId, container);
@@ -487,9 +513,9 @@ export class AstraDashboard extends BaseComponent {
 
     return `
       <tr class="astra-row" data-media-id="${work.mediaId}">
-        <td><img src="${work.cover}" class="astra-table-cover" loading="lazy"></td>
+        <td><img src="${work.cover}" class="astra-table-cover astra-cover-preview" loading="lazy"></td>
         <td>
-          <div class="astra-table-title">${work.title}</div>
+          <div class="astra-table-title astra-edit-row">${work.title}</div>
           <div class="astra-table-sub">
             ${work.country ? `<span class="astra-mini-tag">${work.country}</span> ` : ''}
             ${(work.customLists || []).map(l => `<span class="astra-mini-tag astra-mini-tag--list">${l}</span>`).join(' ')}
@@ -508,9 +534,9 @@ export class AstraDashboard extends BaseComponent {
     }).join('')}
         <td>
           <div class="astra-row-actions">
-            <button class="astra-icon-btn astra-edit-row" title="Edit Rating">
-              <i class="fa fa-pencil"></i>
-            </button>
+            <a href="${work.anilistUrl}" target="_blank" class="astra-icon-btn astra-external-link" title="Open on AniList">
+              <i class="fa fa-external-link"></i>
+            </a>
             <button class="astra-icon-btn astra-delete-row" title="Delete Entry" style="color: var(--astra-score-bad)">
               <i class="fa fa-trash"></i>
             </button>
@@ -610,10 +636,61 @@ export class AstraDashboard extends BaseComponent {
       });
     });
 
+    // Delegated Row Events (Table Title, Image Preview, Delete)
+    this.overlay.querySelector('.astra-modal--dashboard')?.addEventListener('click', async (e) => {
+      const target = e.target as HTMLElement;
+      
+      // Handle Row Actions
+      const row = target.closest('.astra-row') as HTMLElement;
+      if (row) {
+        const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
+        if (mediaId) {
+          // Edit Trigger (Title)
+          if (target.closest('.astra-edit-row')) {
+            const modal = container.resolve<any>(TOKENS.AstraRatingModal);
+            modal.open(mediaId);
+            const checkClosed = setInterval(() => {
+              if (!document.querySelector('.astra-modal-overlay')) {
+                clearInterval(checkClosed);
+                this.updateDashboardDynamic();
+              }
+            }, 500);
+            return;
+          }
+
+          // Cover Preview
+          if (target.closest('.astra-cover-preview')) {
+            const img = target.closest('img') as HTMLImageElement;
+            this.showFullPreview(img.src, row.querySelector('.astra-table-title')?.textContent || '');
+            return;
+          }
+
+          // External Link (Icon)
+          if (target.closest('.astra-external-link')) {
+            // Let the default link behavior happen
+            return;
+          }
+
+          // Delete Button
+          if (target.closest('.astra-delete-row')) {
+            const title = row.querySelector('.astra-table-title')?.textContent || 'this entry';
+            if (confirm(`Are you sure you want to delete ${title}? This cannot be undone.`)) {
+              await this.service!.deleteWork(mediaId);
+              this.updateDashboardDynamic();
+            }
+            return;
+          }
+        }
+      }
+    });
+
     // Import/Export
+    const exportWrappedBtn = this.overlay.querySelector('#astra-export-wrapped');
     const exportBtn = this.overlay.querySelector('#astra-export');
     const importBtn = this.overlay.querySelector('#astra-import');
     const fileInput = this.overlay.querySelector('#astra-import-file') as HTMLInputElement;
+
+    exportWrappedBtn?.addEventListener('click', () => this.exportWrappedAsImage());
 
     exportBtn?.addEventListener('click', () => {
       const data = this.service!.exportJSON();
@@ -800,33 +877,223 @@ export class AstraDashboard extends BaseComponent {
     });
   }
 
-  private attachRowEvents(el: HTMLElement): void {
-    // Use event delegation on the tbody container
-    el.addEventListener('click', async (e) => {
-      const target = e.target as HTMLElement;
-      const row = target.closest('.astra-row') as HTMLElement;
-      if (!row) return;
+  // Row events are now handled via delegation in attachDashboardEvents
 
-      const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
-      if (!mediaId) return;
+  private showFullPreview(src: string, title: string): void {
+    const overlay = document.createElement('div');
+    overlay.className = 'astra-preview-overlay';
+    overlay.innerHTML = `
+      <div class="astra-preview-content">
+        <img src="${src.replace('large', 'extraLarge')}" class="astra-preview-img">
+        <div class="astra-preview-title">${title}</div>
+        <button class="astra-preview-close"><i class="fa fa-times"></i></button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
 
-      // Edit Button
-      if (target.closest('.astra-edit-row')) {
-        this.close();
-        const modal = container.resolve<any>(TOKENS.AstraRatingModal);
-        modal.open(mediaId);
-        return;
-      }
-
-      // Delete Button
-      if (target.closest('.astra-delete-row')) {
-        const title = row.querySelector('.astra-table-title')?.textContent || 'this entry';
-        if (confirm(`Are you sure you want to delete ${title}? This cannot be undone.`)) {
-          await this.service!.deleteWork(mediaId);
-          this.updateDashboardDynamic();
-        }
-        return;
-      }
+    overlay.addEventListener('click', () => {
+      overlay.remove();
     });
+  }
+
+  private async exportWrappedAsImage(): Promise<void> {
+    if (!this.service) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 800; // Taller for more content
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // --- BACKGROUND ---
+    // Deep Space Gradient
+    const bgGrad = ctx.createRadialGradient(600, 400, 100, 600, 400, 800);
+    bgGrad.addColorStop(0, '#1a2c3e');
+    bgGrad.addColorStop(1, '#0b1622');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Subtle Grid Pattern
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < canvas.width; i += 40) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+    }
+    for (let i = 0; i < canvas.height; i += 40) {
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+    }
+
+    // Accent Glows
+    const drawGlow = (x: number, y: number, color: string) => {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 400);
+      g.addColorStop(0, color);
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = 'source-over';
+    };
+    drawGlow(1000, 100, 'rgba(61, 180, 242, 0.1)');
+    drawGlow(200, 700, 'rgba(168, 85, 247, 0.08)');
+
+    // --- HEADER ---
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 60px "Inter", "Segoe UI", sans-serif';
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = 'rgba(61, 180, 242, 0.5)';
+    ctx.fillText('ASTRA WRAPPED', 60, 100);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#3db4f2';
+    ctx.font = 'bold 24px "Inter", sans-serif';
+    ctx.fillText(`${new Date().getFullYear()} COLLECTION SUMMARY`, 65, 140);
+
+    const works = this.service.getWorks();
+    const anime = works.filter(w => w.type === 'anime');
+    const manga = works.filter(w => w.type === 'manga');
+    const totalDays = anime.reduce((acc, w) => acc + ((w.episodes || 0) * (w.duration || 24)), 0) / (60 * 24);
+    const totalChapters = manga.reduce((acc, w) => acc + (w.chapters || 0), 0);
+
+    // --- CARDS ---
+    const drawCard = (x: number, y: number, w: number, h: number, title: string, val: string, sub: string, accent: string) => {
+      // Card Shadow
+      ctx.shadowBlur = 30;
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      
+      // Card Background
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 24); else ctx.rect(x, y, w, h);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Card Border
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Content
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = 'bold 16px "Inter", sans-serif';
+      ctx.fillText(title.toUpperCase(), x + 35, y + 50);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 80px "JetBrains Mono", monospace';
+      ctx.fillText(val, x + 35, y + 130);
+
+      ctx.fillStyle = accent;
+      ctx.font = '800 20px "Inter", sans-serif';
+      ctx.fillText(sub, x + 35, y + 175);
+    };
+
+    drawCard(60, 200, 520, 220, 'Anime Watched', anime.length.toString(), `⏱ ${totalDays.toFixed(1)} Days of Content`, '#3db4f2');
+    drawCard(620, 200, 520, 220, 'Manga Read', manga.length.toString(), `📖 ${totalChapters} Chapters Read`, '#e85d75');
+
+    // --- GENRES ---
+    const genreMap: Record<string, number> = {};
+    works.forEach(w => (w.genres || []).forEach(g => genreMap[g] = (genreMap[g] || 0) + 1));
+    const topGenres = Object.entries(genreMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 24px "Inter", sans-serif';
+    ctx.fillText('TOP GENRES', 60, 480);
+
+    topGenres.forEach(([g, count], i) => {
+      const x = 60 + (i % 2) * 280;
+      const y = 520 + Math.floor(i / 2) * 50;
+      
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, 260, 40, 8); else ctx.rect(x, y, 260, 40);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px "Inter", sans-serif';
+      ctx.fillText(g, x + 15, y + 26);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = 'bold 14px "Inter", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(count.toString(), x + 245, y + 26);
+      ctx.textAlign = 'left';
+    });
+
+    if (topGenres.length === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.font = 'italic 18px "Inter", sans-serif';
+      ctx.fillText('Sync with AniList to reveal your genre preferences.', 60, 540);
+    }
+
+    // --- HALL OF FAME ---
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 24px "Inter", sans-serif';
+    ctx.fillText('HALL OF FAME', 620, 480);
+    
+    const topSeries = [...works].sort((a, b) => (this.service!.calcSeriesOverall(b) || 0) - (this.service!.calcSeriesOverall(a) || 0)).slice(0, 5);
+    
+    let loadedCount = 0;
+    if (topSeries.length === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillText('Rate some series to fill your Hall of Fame!', 620, 540);
+      this.downloadCanvas(canvas);
+      return;
+    }
+
+    topSeries.forEach((w, i) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const x = 620 + (i * 105);
+        const y = 510;
+        const w_img = 95;
+        const h_img = 140;
+
+        ctx.save();
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w_img, h_img, 12); else ctx.rect(x, y, w_img, h_img);
+        ctx.clip();
+        
+        ctx.drawImage(img, x, y, w_img, h_img);
+        ctx.restore();
+
+        // Rating badge
+        ctx.fillStyle = '#3db4f2';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x + 5, y + 5, 40, 20, 4); else ctx.rect(x + 5, y + 5, 40, 20);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText((this.service!.calcSeriesOverall(w) || 0).toFixed(1), x + 25, y + 19);
+        ctx.textAlign = 'left';
+
+        loadedCount++;
+        if (loadedCount === topSeries.length) this.finishCanvas(canvas, ctx);
+      };
+      img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === topSeries.length) this.finishCanvas(canvas, ctx);
+      };
+      img.src = w.cover || '';
+    });
+  }
+
+  private finishCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): void {
+    // Watermark
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.font = 'bold 16px "Inter", sans-serif';
+    ctx.fillText('GENERATED BY ASTRA ULTIMATE', 920, 770);
+    
+    this.downloadCanvas(canvas);
+  }
+
+  private downloadCanvas(canvas: HTMLCanvasElement): void {
+    const link = document.createElement('a');
+    link.download = `astra-wrapped-${new Date().getFullYear()}.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
+    link.click();
   }
 }

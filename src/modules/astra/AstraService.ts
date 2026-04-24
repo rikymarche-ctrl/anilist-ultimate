@@ -16,6 +16,10 @@ export interface AstraWork {
   seasons: AstraSeason[];
   notes: string;
   updatedAt: number;
+  genres?: string[];
+  episodes?: number;
+  chapters?: number;
+  duration?: number;
 }
 
 export interface AstraSeason {
@@ -163,6 +167,10 @@ export class AstraService {
                   countryOfOrigin
                   coverImage { large medium }
                   siteUrl
+                  genres
+                  episodes
+                  chapters
+                  duration
                 }
               }
             }
@@ -196,6 +204,10 @@ export class AstraService {
               }
               // Sync list name
               existing.customLists = [listName];
+              existing.genres = entry.media.genres || [];
+              existing.episodes = entry.media.episodes;
+              existing.chapters = entry.media.chapters;
+              existing.duration = entry.media.duration;
             } else {
               const media = entry.media;
               const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
@@ -213,7 +225,11 @@ export class AstraService {
                 tags: [],
                 seasons: [this.createDefaultSeason()],
                 notes: '',
-                updatedAt: Date.now()
+                updatedAt: Date.now(),
+                genres: media.genres || [],
+                episodes: media.episodes,
+                chapters: media.chapters,
+                duration: media.duration
               };
               
               // Seed enjoyment if AniList score exists
