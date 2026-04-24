@@ -304,7 +304,9 @@ export async function setupDI(): Promise<void> {
       enabled: true, // Always enabled for now
       factory: () => new AstraModule(
         container.resolve(TOKENS.AstraService),
-        container.resolve(TOKENS.AstraDashboard)
+        container.resolve(TOKENS.AstraDashboard),
+        container.resolve(TOKENS.ApiClient),
+        container.resolve(TOKENS.ToastService)
       ),
       pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra'),
     },

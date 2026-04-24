@@ -5,12 +5,15 @@ import { TOKENS } from '@core/di/tokens';
 import { container } from '@core/di/container';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
+import { calendarStore } from '../calendar/CalendarStore';
 
 @injectable()
 export class AstraModule extends BaseModule {
   constructor(
     @inject(TOKENS.AstraService) private service: AstraService,
-    @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard
+    @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard,
+    @inject(TOKENS.ApiClient) private apiClient: any,
+    @inject(TOKENS.ToastService) private toast: any
   ) {
     super();
   }
@@ -44,6 +47,10 @@ export class AstraModule extends BaseModule {
     });
 
     log.success('[Astra] Module initialized');
+    
+    // Initialize Progress Enhancer for home page cards
+    this.initProgressEnhancer();
+
     log.groupEnd();
   }
 
@@ -83,5 +90,151 @@ export class AstraModule extends BaseModule {
 
   public getName(): string {
     return 'astra';
+  }
+
+  private initProgressEnhancer(): void {
+    const observerName = 'astra-progress-enhancer';
+    
+    // Register observer to handle dynamically loaded cards (lazy loading/scroll)
+    this.registerObserver(observerName, document.body, { childList: true, subtree: true }, () => {
+      this.enhanceNativeCards();
+    });
+
+    // Initial run
+    this.enhanceNativeCards();
+  }
+
+  private enhanceNativeCards(): void {
+    // Only enhance on home page or user lists
+    const path = window.location.pathname;
+    const isHome = path === '/' || path === '/home';
+    const isUserList = path.includes('/animelist') || path.includes('/mangalist');
+    
+    if (!isHome && !isUserList) return;
+
+    const cards = document.querySelectorAll('.media-preview-card, .media-card');
+    cards.forEach(card => {
+      if (card.querySelector('.au-pill-wrapper') || card.hasAttribute('data-astra-processed')) return;
+      card.setAttribute('data-astra-processed', 'true');
+
+      // Extract media ID from link
+      const link = card.querySelector('a.cover')?.getAttribute('href') || (card as HTMLAnchorElement).href;
+      if (!link) return;
+
+      const match = link.match(/\/(anime|manga)\/(\d+)/);
+      if (!match) return;
+
+      const mediaId = parseInt(match[2]);
+
+      // Check Social Rules (same as Calendar)
+      const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+      const showPillSocial = socialEnabled && !socialShowAvatars;
+
+      const socialSectionHTML = showPillSocial ? `
+        <div class="pill-separator"></div>
+        <div class="pill-section" data-action="social-activity" title="Social Activity">
+          <i class="fa fa-users"></i>
+        </div>
+      ` : '';
+
+      // Find cover container for injection
+      const cover = card.querySelector('.cover') || card.querySelector('.image');
+      if (!cover) return;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'au-pill-wrapper';
+      wrapper.innerHTML = `
+        <div class="action-pill" style="${showPillSocial ? 'width: 130px;' : ''}">
+          <div class="pill-section" data-action="mark-watched" title="Increment Progress">
+            <i class="fa fa-plus"></i>
+          </div>
+          <div class="pill-separator"></div>
+          <div class="pill-section" data-action="edit-entry" title="Quick Rate (Astra)">
+            <i class="fa fa-pencil"></i>
+          </div>
+          ${socialSectionHTML}
+        </div>
+      `;
+
+      cover.appendChild(wrapper);
+
+      // Attach Event Handlers
+      const markWatched = wrapper.querySelector('[data-action="mark-watched"]');
+      const editEntry = wrapper.querySelector('[data-action="edit-entry"]');
+      const socialBtn = wrapper.querySelector('[data-action="social-activity"]');
+
+      markWatched?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const icon = markWatched.querySelector('i');
+        if (icon) {
+          icon.className = 'fa fa-spinner fa-spin';
+          (markWatched as HTMLElement).style.pointerEvents = 'none';
+        }
+
+        try {
+          const userId = await this.apiClient.getCurrentUserId();
+          
+          // Fetch current progress
+          const data = await this.apiClient.query(`
+            query ($mediaId: Int, $userId: Int) {
+              MediaList(mediaId: $mediaId, userId: $userId) {
+                id
+                progress
+                media { title { romaji } }
+              }
+            }
+          `, { mediaId, userId });
+
+          if (data?.MediaList) {
+            const entry = data.MediaList;
+            const newProgress = entry.progress + 1;
+            
+            await this.apiClient.mutate(`
+              mutation ($id: Int, $progress: Int) {
+                SaveMediaListEntry(id: $id, progress: $progress) {
+                  id
+                  progress
+                }
+              }
+            `, { id: entry.id, progress: newProgress });
+            
+            this.toast.success(`Updated ${entry.media.title.romaji} to Ep ${newProgress}`);
+            
+            // Optional: Update the native UI text if found
+            const progressEl = card.querySelector('.progress');
+            if (progressEl) progressEl.textContent = `${newProgress}`;
+          }
+        } catch (err) {
+          log.error('[Astra] Failed to increment progress', err);
+          this.toast.error('Failed to update progress');
+        } finally {
+          if (icon) {
+            icon.className = 'fa fa-plus';
+            (markWatched as HTMLElement).style.pointerEvents = 'auto';
+          }
+        }
+      });
+
+      editEntry?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const modal = container.resolve<any>(TOKENS.AstraRatingModal);
+        modal.open(mediaId);
+      });
+
+      socialBtn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const titleEl = card.querySelector('.title');
+        const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
+
+        window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
+          detail: { mediaId, title, element: card }
+        }));
+      });
+    });
   }
 }

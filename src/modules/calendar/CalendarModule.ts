@@ -16,6 +16,7 @@ import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import { CalendarDomService } from './services/CalendarDomService';
 import { CalendarDataService } from './services/CalendarDataService';
 import { CalendarSocialService } from './services/CalendarSocialService';
+import { SettingsPanel } from './components/SettingsPanel';
 
 @injectable()
 export class CalendarModule extends BaseModule {
@@ -121,10 +122,8 @@ export class CalendarModule extends BaseModule {
   private handleSettingsClick(): void {
     // Note: SettingsPanel logic could eventually move to a dedicated UI service
     log.info('[Calendar] Settings click handled');
-    import('./components/SettingsPanel').then(({ SettingsPanel }) => {
-      const panel = new SettingsPanel({ onClose: () => {} });
-      panel.mount(document.body);
-    });
+    const panel = new SettingsPanel({ onClose: () => {} });
+    panel.mount(document.body);
   }
 
   private async handleMarkWatched(mediaId: number): Promise<void> {

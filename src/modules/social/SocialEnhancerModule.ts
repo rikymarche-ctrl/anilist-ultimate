@@ -64,10 +64,10 @@ export class SocialEnhancerModule extends BaseModule {
   }
 
   private extractMediaId(card: HTMLElement): number | null {
-    // Usually the card is an <a> or has an <a> descendant
-    const link = card.classList.contains('media-preview-card') || card.classList.contains('media-card') 
-      ? (card as HTMLAnchorElement).href 
-      : card.querySelector<HTMLAnchorElement>('a')?.href;
+    // Robust extraction: check element itself if it's a link, then check children (cover or generic a)
+    const link = (card as any).href || 
+                 card.querySelector<HTMLAnchorElement>('a.cover')?.href || 
+                 card.querySelector<HTMLAnchorElement>('a')?.href;
       
     if (!link) return null;
 
