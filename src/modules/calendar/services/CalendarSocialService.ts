@@ -1,11 +1,15 @@
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { SocialService } from '../../social/SocialService';
 import { calendarStore } from '../CalendarStore';
 import { log } from '@core/logger';
 import { AnimeEntry } from '@core/types';
+import { TOKENS } from '@core/di/tokens';
 
 @injectable()
 export class CalendarSocialService {
+  constructor(
+    @inject(TOKENS.SocialService) private socialService: SocialService
+  ) {}
   /**
    * Load friend activity for current calendar entries
    */
@@ -16,13 +20,12 @@ export class CalendarSocialService {
     log.info('[CalendarSocial] Fetching friend activity in batch...');
     
     const mediaIds = entries.map(e => e.mediaId);
-    const socialService = SocialService.getInstance();
 
     try {
-      const socialMap = await socialService.getFriendActivityBatch(mediaIds);
+      const socialMap = await this.socialService.getFriendActivityBatch(mediaIds);
       
       const updates = new Map<number, Partial<AnimeEntry>>();
-      socialMap.forEach((activity, mediaId) => {
+      socialMap.forEach((activity: any[], mediaId: number) => {
         updates.set(mediaId, { friendActivity: activity });
       });
 

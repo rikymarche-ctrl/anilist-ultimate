@@ -3,14 +3,25 @@
  * Core module for managing social features in the calendar
  */
 
+import { injectable, inject } from 'tsyringe';
 import { log } from '@core/logger';
+import { BaseModule } from '@core/modules/BaseModule';
+import { TOKENS } from '@core/di/tokens';
+import type { IEventBus } from '@core/interfaces/IEventBus';
+import { container } from '@core/di/container';
 import { SocialSidebar } from './components/SocialSidebar';
-import type { IModule } from '@core/interfaces/IModule';
 
-export class SocialActivityModule implements IModule {
+@injectable()
+export class SocialActivityModule extends BaseModule {
   private sidebar: SocialSidebar | null = null;
 
-  public async init(): Promise<void> {
+  constructor(
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+  ) {
+    super(eventBus);
+  }
+
+  public override async init(): Promise<void> {
     log.info('Initializing Social Activity Module');
     
     try {
@@ -33,7 +44,7 @@ export class SocialActivityModule implements IModule {
   private initSidebar(): void {
     if (this.sidebar) return;
 
-    this.sidebar = new SocialSidebar({});
+    this.sidebar = container.resolve(SocialSidebar);
     
     // We mount to document.body to ensure it's always on top and not clipped
     this.sidebar.mount(document.body);

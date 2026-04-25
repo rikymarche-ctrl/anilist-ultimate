@@ -8,6 +8,7 @@ import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import { ReviewService } from './ReviewService';
 import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import '../../styles/review-enhancer.css';
@@ -22,9 +23,10 @@ export class ReviewEnhancerModule extends BaseModule {
   private isBatching: boolean = false;
 
   constructor(
-    @inject(TOKENS.ReviewService) private reviewService: ReviewService
+    @inject(TOKENS.ReviewService) private reviewService: ReviewService,
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
-    super();
+    super(eventBus);
   }
 
   public async init(): Promise<void> {

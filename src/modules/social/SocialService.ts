@@ -1,36 +1,25 @@
-import { injectable } from 'tsyringe';
+import { injectable, singleton, inject } from 'tsyringe';
 /**
  * Social Service
  * Handles batched fetching of friend activity and detailed social entries
  */
 
-import { anilistClient } from '@/api/AnilistClient';
+import { TOKENS } from '@core/di/tokens';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
 import { FriendActivity, SocialActivityDetailed, SocialFilter } from '@core/types';
 
 @injectable()
+@singleton()
 export class SocialService {
-  private static instance: SocialService;
   private friendCache: Map<number, FriendActivity[]> = new Map();
   private viewerId: number | null = null;
   private cacheDate: string = '';
 
-  /**
-   * Constructor is now public for DI compatibility
-   * tsyringe will manage singleton lifecycle
-   */
-  constructor() {
+  constructor(
+    @inject(TOKENS.ApiClient) private api: IApiClient
+  ) {
     this.refreshCacheIfNeeded();
-  }
-
-  /**
-   * @deprecated Use DI container to resolve SocialService instead
-   */
-  public static getInstance(): SocialService {
-    if (!SocialService.instance) {
-      SocialService.instance = new SocialService();
-    }
-    return SocialService.instance;
   }
 
   private refreshCacheIfNeeded(): void {
@@ -60,9 +49,9 @@ export class SocialService {
     if (pendingIds.length === 0) return results;
 
     // Fetch Viewer ID if not already known
-    if (this.viewerId === null && anilistClient.isAuthenticated()) {
+    if (this.viewerId === null && this.api.isAuthenticated()) {
       try {
-        this.viewerId = await anilistClient.getCurrentUserId();
+        this.viewerId = await this.api.getCurrentUserId();
       } catch (e) {
         log.warn('[SocialService] Failed to fetch Viewer ID');
       }
@@ -86,7 +75,7 @@ export class SocialService {
       const query = `query { ${aliases.join('\n')} }`;
 
       try {
-        const response = await anilistClient.query<Record<string, any>>(query);
+        const response = await this.api.query<Record<string, any>>(query);
         
         chunk.forEach(id => {
           const alias = `m${id}`;
@@ -165,7 +154,7 @@ export class SocialService {
       variables.isFollowing = true;
     } else if (filter === 'self') {
       if (!this.viewerId) {
-        this.viewerId = await anilistClient.getCurrentUserId();
+        this.viewerId = await this.api.getCurrentUserId();
       }
       if (this.viewerId) {
         variables.userId = this.viewerId;
@@ -175,7 +164,7 @@ export class SocialService {
     }
 
     try {
-      const response = await anilistClient.query<any>(query, variables);
+      const response = await this.api.query<any>(query, variables);
       return {
         nodes: response.Page.mediaList,
         hasNextPage: response.Page.pageInfo.hasNextPage
@@ -192,7 +181,7 @@ export class SocialService {
   public async getAllFollowings(): Promise<any[]> {
     if (!this.viewerId) {
       try {
-        this.viewerId = await anilistClient.getCurrentUserId();
+        this.viewerId = await this.api.getCurrentUserId();
         log.info('[SocialService] Viewer ID fetched:', this.viewerId);
       } catch (e) {
         log.error('[SocialService] Failed to get viewer ID', e);
@@ -223,7 +212,7 @@ export class SocialService {
 
     while (hasNextPage) {
       try {
-        const response = await anilistClient.query<any>(query, { userId: this.viewerId, page });
+        const response = await this.api.query<any>(query, { userId: this.viewerId, page });
         const pageData = response.Page;
         allFollowing = [...allFollowing, ...pageData.following];
         hasNextPage = pageData.pageInfo.hasNextPage;

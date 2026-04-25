@@ -11,13 +11,14 @@ import { DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, MediaListResponse } from '@core/types';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 
 /**
  * CalendarService - Anime schedule fetching and transformation
  */
 @injectable()
-export class CalendarService {
+export class CalendarService implements ICalendarService {
   constructor(@inject(TOKENS.EventBus) private eventBus: IEventBus) {}
 
   /**

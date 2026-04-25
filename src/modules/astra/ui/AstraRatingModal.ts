@@ -1,10 +1,9 @@
-import { injectable, singleton, inject } from 'tsyringe';
-import { TOKENS } from '../../../core/di/tokens';
+import { injectable, singleton, inject, container } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
 import { AstraSection, AstraService, AstraSubSection, AstraWork } from '../AstraService';
 import { AstraRadarChart } from './AstraRadarChart';
-import { anilistClient } from '../../../api/AnilistClient';
-import { log } from '../../../core/logger';
-import { container } from '../../../core/di/container';
+import type { IApiClient } from '@core/interfaces/IApiClient';
+import { log } from '@core/logger';
 import { AstraDashboard } from './AstraDashboard';
 
 @injectable()
@@ -16,8 +15,13 @@ export class AstraRatingModal {
   private activeTab: string = 'rating';
 
   constructor(
-    @inject(TOKENS.AstraService) private astraService: AstraService
+    @inject(TOKENS.AstraService) private astraService: AstraService,
+    @inject(TOKENS.ApiClient) private api: IApiClient
   ) {}
+
+  private get dashboard(): AstraDashboard {
+    return container.resolve<AstraDashboard>(TOKENS.AstraDashboard);
+  }
 
   public async open(mediaId: number): Promise<void> {
     const data = await this.fetchAniListData(mediaId);
@@ -72,7 +76,7 @@ export class AstraRatingModal {
     }`;
 
     try {
-      const resp = await anilistClient.query(GQL, { id: mediaId }) as any;
+      const resp = await this.api.query(GQL, { id: mediaId }) as any;
       return {
         media: resp.Media,
         allCustomLists: resp.Viewer?.mediaListOptions?.animeList?.customLists || []
@@ -360,8 +364,7 @@ export class AstraRatingModal {
     const dashboardLink = this.overlay.querySelector('#astra-dashboard-link');
     dashboardLink?.addEventListener('click', () => {
       this.close();
-      const dashboard = container.resolve<AstraDashboard>(TOKENS.AstraDashboard as any);
-      dashboard.open();
+      this.dashboard.open();
     });
 
     const closeBtns = this.overlay!.querySelectorAll('.astra-modal-close');
@@ -537,7 +540,7 @@ export class AstraRatingModal {
       }`;
 
       try {
-        await anilistClient.query(GQL_SAVE, {
+        await this.api.query(GQL_SAVE, {
           mediaId: this.currentWork!.mediaId,
           status: statusSelect.value,
           progress: parseInt(progressInput.value),

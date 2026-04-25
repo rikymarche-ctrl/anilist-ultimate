@@ -3,7 +3,9 @@
  * Displays all anime airing on a specific day
  */
 
+import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
+import { container } from '@core/di/container';
 import { AnimeCard } from './AnimeCard';
 import { ABBREVIATED_DAYS, DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, CardOptions } from '@core/types';
@@ -15,9 +17,16 @@ interface DayColumnProps {
   isToday?: boolean;
 }
 
+@injectable()
 export class DayColumn extends BaseComponent<DayColumnProps> {
   private animeCards: AnimeCard[] = [];
   private isExpanded: boolean = false;
+
+  constructor(
+    @inject('DayColumnProps') props: DayColumnProps
+  ) {
+    super(props);
+  }
 
   protected render(): HTMLElement {
     const { day, entries, isToday, cardOptions } = this.props;
@@ -86,20 +95,35 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
     } else {
       // Create all anime cards
       this.animeCards = entries.map((anime, index) => {
-        const card = new AnimeCard({
-          anime,
-          options: this.props.cardOptions,
-        });
-        card.mount(entriesContainer);
+        try {
+          const props = {
+            anime,
+            options: this.props.cardOptions,
+          };
+          
+          const child = container.createChildContainer();
+          child.register('AnimeCardProps', { useValue: props });
+          const card = child.resolve(AnimeCard);
+          
+          card.mount(entriesContainer);
 
-        // Hide cards beyond maxCardsPerDay limit (if not expanded)
-        const maxCards = this.props.cardOptions.maxCardsPerDay;
-        if (maxCards > 0 && index >= maxCards && !this.isExpanded) {
-          card.hide();
+          // Hide cards beyond maxCardsPerDay limit (if not expanded)
+          const maxCards = this.props.cardOptions.maxCardsPerDay;
+          if (maxCards > 0 && index >= maxCards && !this.isExpanded) {
+            card.hide();
+          }
+
+          return card;
+        } catch (error: any) {
+          console.error('[DayColumn] Failed to resolve AnimeCard', error, anime);
+          const errorPlaceholder = document.createElement('div');
+          errorPlaceholder.className = 'anime-card-error-placeholder';
+          errorPlaceholder.innerHTML = `<i class="fa fa-bug"></i> Card Error: ${error.message || 'Unknown'}`;
+          errorPlaceholder.style.cssText = 'padding: 10px; background: rgba(255,0,0,0.1); border-radius: 4px; font-size: 10px; color: #ff8888; margin-bottom: 4px;';
+          entriesContainer.appendChild(errorPlaceholder);
+          return null;
         }
-
-        return card;
-      });
+      }).filter((c): c is AnimeCard => c !== null);
 
       // Show expand/collapse button if we're limiting
       const maxCards = this.props.cardOptions.maxCardsPerDay;

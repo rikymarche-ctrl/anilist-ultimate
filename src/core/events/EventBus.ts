@@ -4,56 +4,8 @@
  */
 
 import { injectable } from 'tsyringe';
-
-/**
- * Event handler function type
- */
-export type EventHandler<T = any> = (data?: T) => void | Promise<void>;
-
-/**
- * Event subscription object
- */
-export interface EventSubscription {
-  /**
-   * Unsubscribe from the event
-   */
-  unsubscribe: () => void;
-}
-
-/**
- * Event Bus Interface
- */
-export interface IEventBus {
-  /**
-   * Subscribe to an event
-   */
-  on<T = any>(event: string, handler: EventHandler<T>): EventSubscription;
-
-  /**
-   * Subscribe to an event once (auto-unsubscribe after first emit)
-   */
-  once<T = any>(event: string, handler: EventHandler<T>): EventSubscription;
-
-  /**
-   * Unsubscribe from an event
-   */
-  off<T = any>(event: string, handler: EventHandler<T>): void;
-
-  /**
-   * Emit an event
-   */
-  emit<T = any>(event: string, data?: T): void;
-
-  /**
-   * Clear all handlers for an event
-   */
-  clear(event?: string): void;
-
-  /**
-   * Get number of listeners for an event
-   */
-  listenerCount(event: string): number;
-}
+import { IEventBus, EventHandler, EventSubscription } from '../interfaces/IEventBus';
+import { AppEventMap } from './EventTypes';
 
 /**
  * Event Bus Implementation
@@ -89,7 +41,9 @@ export class EventBus implements IEventBus {
   /**
    * Subscribe to an event
    */
-  on<T = any>(event: string, handler: EventHandler<T>): EventSubscription {
+  on<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): EventSubscription;
+  on(event: string, handler: EventHandler<any>): EventSubscription;
+  on(event: string, handler: EventHandler<any>): EventSubscription {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set());
     }
@@ -109,8 +63,10 @@ export class EventBus implements IEventBus {
   /**
    * Subscribe to an event once (auto-unsubscribe after first emit)
    */
-  once<T = any>(event: string, handler: EventHandler<T>): EventSubscription {
-    const wrapper: EventHandler<T> = (data) => {
+  once<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): EventSubscription;
+  once(event: string, handler: EventHandler<any>): EventSubscription;
+  once(event: string, handler: EventHandler<any>): EventSubscription {
+    const wrapper: EventHandler<any> = (data) => {
       this.off(event, wrapper);
       return handler(data);
     };
@@ -122,7 +78,9 @@ export class EventBus implements IEventBus {
   /**
    * Unsubscribe from an event
    */
-  off<T = any>(event: string, handler: EventHandler<T>): void {
+  off<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): void;
+  off(event: string, handler: EventHandler<any>): void;
+  off(event: string, handler: EventHandler<any>): void {
     const handlers = this.handlers.get(event);
     if (handlers) {
       handlers.delete(handler);
@@ -141,7 +99,9 @@ export class EventBus implements IEventBus {
   /**
    * Emit an event
    */
-  emit<T = any>(event: string, data?: T): void {
+  emit<K extends keyof AppEventMap>(event: K, data?: AppEventMap[K]): void;
+  emit(event: string, data?: any): void;
+  emit(event: string, data?: any): void {
     const handlers = this.handlers.get(event);
 
     if (this.debugMode) {

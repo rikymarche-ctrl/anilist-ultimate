@@ -4,11 +4,13 @@
  * Reduced from 687 lines to ~250 lines (64% reduction)
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import type { ILogger } from '@core/interfaces/ILogger';
+import { TOKENS } from '@core/di/tokens';
+import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import { CustomListService } from '../social/CustomListService';
-import { anilistClient } from '../../api/AnilistClient';
 import type { AniListActivity } from './ActivityUtils';
 import {
   ActivityFilterBar,
@@ -28,13 +30,15 @@ export class ActivityEnhancerModule extends BaseModule {
   private isProcessing = false;
 
   constructor(
-    private logger: ILogger,
-    private filterBar: ActivityFilterBar,
-    private renderer: ActivityRenderer,
-    private tabManager: CustomListTabManager,
-    private customListService: CustomListService
+    @inject(TOKENS.Logger) private logger: ILogger,
+    @inject(TOKENS.ActivityFilterBar) private filterBar: ActivityFilterBar,
+    @inject(TOKENS.ActivityRenderer) private renderer: ActivityRenderer,
+    @inject(TOKENS.ActivityTabManager) private tabManager: CustomListTabManager,
+    @inject(TOKENS.CustomListService) private customListService: CustomListService,
+    @inject(TOKENS.ApiClient) private api: IApiClient,
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
-    super();
+    super(eventBus);
   }
 
   /**
@@ -68,7 +72,7 @@ export class ActivityEnhancerModule extends BaseModule {
    */
   private isOnActivityPage(): boolean {
     const path = window.location.pathname;
-    return path === '/' || path === '/home' || path.includes('/user/');
+    return path === '/' || path === '/home';
   }
 
   /**
@@ -347,7 +351,7 @@ export class ActivityEnhancerModule extends BaseModule {
     `;
 
     try {
-      const response = await anilistClient.query<{
+      const response = await this.api.query<{
         Page: { activities: AniListActivity[] };
       }>(query, {
         userIds,

@@ -4,7 +4,8 @@
  * Shared between ActivityEnhancerModule and MediaSocialEnhancer
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
 import type { ILogger } from '@core/interfaces/ILogger';
 import type { CustomListService } from '@/modules/social/CustomListService';
 
@@ -40,8 +41,8 @@ export class CustomListTabManager {
   };
 
   constructor(
-    private logger: ILogger,
-    private customListService: CustomListService
+    @inject(TOKENS.Logger) private logger: ILogger,
+    @inject(TOKENS.CustomListService) private customListService: CustomListService
   ) {}
 
   /**

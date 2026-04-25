@@ -8,6 +8,7 @@ import { BaseModule } from '@core/modules/BaseModule';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ILogger } from '@core/interfaces/ILogger';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import { CommentTooltip } from './CommentTooltip';
 import '../../styles/hover-comments.css';
 
@@ -21,9 +22,10 @@ export class HoverCommentsModule extends BaseModule {
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
-    @inject(TOKENS.Logger) private logger: ILogger
+    @inject(TOKENS.Logger) private logger: ILogger,
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
-    super();
+    super(eventBus);
     this.tooltip = new CommentTooltip({
       onRefresh: () => window.location.reload(),
     });
@@ -184,7 +186,9 @@ export class HoverCommentsModule extends BaseModule {
             this.notesCache[username] = data.MediaList.notes;
           }
           await new Promise(r => setTimeout(r, 100));
-        } catch (e) {}
+        } catch (e) {
+          // Skip if individual fetch fails
+        }
       }
     }
 

@@ -3,6 +3,7 @@
  * Displays detailed activity entries for a specific media
  */
 
+import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { SocialService } from '../SocialService';
 import { SocialActivityDetailed, SocialFilter } from '@core/types';
@@ -10,11 +11,10 @@ import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import { BestFriendService } from '../BestFriendService';
 import { CustomListService } from '../CustomListService';
 import { log } from '@core/logger';
+import { TOKENS } from '@core/di/tokens';
 
+@injectable()
 export class SocialSidebar extends BaseComponent {
-  private socialService = SocialService.getInstance();
-  private bestFriendService = BestFriendService.getInstance();
-  private customListService = CustomListService.getInstance();
   private currentMediaId: number | null = null;
   private currentFilter: SocialFilter = 'self';
   private currentCustomList: string | null = null; // New: track selected custom list
@@ -25,6 +25,15 @@ export class SocialSidebar extends BaseComponent {
   private isLoading = false;
   private currentAnchor: HTMLElement | null = null;
   private currentAnimeTitle: string = '';
+  private lastLoadedNodes: SocialActivityDetailed[] = [];
+
+  constructor(
+    @inject(TOKENS.SocialService) private socialService: SocialService,
+    @inject(TOKENS.BestFriendService) private bestFriendService: BestFriendService,
+    @inject(TOKENS.CustomListService) private customListService: CustomListService
+  ) {
+    super({});
+  }
 
   protected render(): HTMLElement {
     const sidebar = this.createElement('div', {
@@ -332,7 +341,7 @@ export class SocialSidebar extends BaseComponent {
 
       // Filter by Best Friends (legacy)
       if (this.currentFilter === 'friends') {
-        processedNodes = nodes.filter(node => this.bestFriendService.isBestFriend(node.user.id));
+        processedNodes = nodes.filter((node: SocialActivityDetailed) => this.bestFriendService.isBestFriend(node.user.id));
 
         if (processedNodes.length === 0 && hasNextPage && page < 5) {
           this.isLoading = false;
@@ -343,8 +352,8 @@ export class SocialSidebar extends BaseComponent {
       // Filter by Custom List
       if (this.currentCustomList) {
         const listUsers = this.customListService.getList(this.currentCustomList);
-        const userIds = new Set(listUsers.map(u => u.id));
-        processedNodes = nodes.filter(node => userIds.has(node.user.id));
+        const userIds = new Set(listUsers.map((u: any) => u.id));
+        processedNodes = nodes.filter((node: SocialActivityDetailed) => userIds.has(node.user.id));
 
         if (processedNodes.length === 0 && hasNextPage && page < 5) {
           this.isLoading = false;
@@ -372,14 +381,12 @@ export class SocialSidebar extends BaseComponent {
     }
   }
 
-  private lastLoadedNodes: SocialActivityDetailed[] = [];
-
   private refreshEntries(): void {
     let filtered = this.lastLoadedNodes;
-    
+
     if (this.searchQuery) {
-      filtered = filtered.filter(node => 
-        node.user.name.toLowerCase().includes(this.searchQuery) || 
+      filtered = filtered.filter(node =>
+        node.user.name.toLowerCase().includes(this.searchQuery) ||
         (node.notes && node.notes.toLowerCase().includes(this.searchQuery))
       );
     }
@@ -474,7 +481,7 @@ export class SocialSidebar extends BaseComponent {
       row.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
         const userName = row.getAttribute('data-user-name');
-        
+
         // If clicking name/avatar specifically, stay with profile
         if (target.closest('.au-friend-avatar-link') || target.hasAttribute('data-profile-link')) {
           window.open(`/user/${userName}`, '_blank');

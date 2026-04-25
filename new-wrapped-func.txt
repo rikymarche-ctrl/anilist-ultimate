@@ -1,0 +1,379 @@
+  private async exportWrappedAsImage(): Promise<void> {
+    if (!this.service) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 1920;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Get and calculate stats
+    const works = this.service.getWorks();
+    const activeWorks = works.filter(w => ['COMPLETED', 'CURRENT'].includes(w.status));
+    const completedWorks = works.filter(w => w.status === 'COMPLETED');
+    const anime = activeWorks.filter(w => w.type === 'anime');
+    const manga = activeWorks.filter(w => w.type === 'manga');
+    const completedAnime = completedWorks.filter(w => w.type === 'anime');
+    const completedManga = completedWorks.filter(w => w.type === 'manga');
+
+    const stats = {
+      animeCount: anime.length,
+      mangaCount: manga.length,
+      totalEpisodes: completedAnime.reduce((acc, w) => acc + (w.episodes || 0), 0),
+      totalChapters: completedManga.reduce((acc, w) => acc + (w.chapters || 0), 0),
+      animeDays: completedAnime.reduce((acc, w) => acc + ((w.episodes || 0) * (w.duration || 24)), 0) / (60 * 24),
+      completed: completedWorks.length,
+      watching: works.filter(w => w.status === 'CURRENT').length,
+      planning: works.filter(w => w.status === 'PLANNING').length,
+      dropped: works.filter(w => w.status === 'DROPPED').length,
+      paused: works.filter(w => w.status === 'PAUSED').length,
+      rewatching: works.filter(w => w.status === 'REPEATING').length,
+    };
+
+    // Calculate mean scores
+    const animeScores = anime.map(w => this.service!.calcSeriesOverall(w)).filter((s): s is number => s !== null && s > 0);
+    const mangaScores = manga.map(w => this.service!.calcSeriesOverall(w)).filter((s): s is number => s !== null && s > 0);
+    const allScores = [...animeScores, ...mangaScores];
+    const animeMean = animeScores.length ? animeScores.reduce((a, b) => a + b, 0) / animeScores.length * 10 : 0;
+    const mangaMean = mangaScores.length ? mangaScores.reduce((a, b) => a + b, 0) / mangaScores.length * 10 : 0;
+    const overallMean = allScores.length ? allScores.reduce((a, b) => a + b, 0) / allScores.length * 10 : 0;
+
+    // Monthly data
+    const monthlyData = new Array(12).fill(0);
+    activeWorks.forEach(w => {
+      const month = new Date(w.updatedAt).getMonth();
+      monthlyData[month]++;
+    });
+    const mostActiveMonthIndex = monthlyData.indexOf(Math.max(...monthlyData));
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Genres
+    const genreMap: Record<string, number> = {};
+    activeWorks.forEach(w => (w.genres || []).forEach(g => genreMap[g] = (genreMap[g] || 0) + 1));
+    const topGenres = Object.entries(genreMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+    // ============ DRAW ============
+
+    // Epic background
+    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bg.addColorStop(0, '#0a0e27');
+    bg.addColorStop(0.3, '#1a1b4b');
+    bg.addColorStop(0.7, '#1e1b4b');
+    bg.addColorStop(1, '#0f0a1e');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Multiple liquid blobs
+    const blobs = [
+      { x: 300, y: 250, r: 700, color: 'rgba(59, 130, 246, 0.2)' },
+      { x: 1600, y: 150, r: 600, color: 'rgba(139, 92, 246, 0.15)' },
+      { x: 1000, y: 800, r: 650, color: 'rgba(6, 182, 212, 0.12)' },
+      { x: 100, y: 900, r: 500, color: 'rgba(236, 72, 153, 0.1)' },
+    ];
+    blobs.forEach(blob => {
+      const grad = ctx.createRadialGradient(blob.x, blob.y, 0, blob.x, blob.y, blob.r);
+      grad.addColorStop(0, blob.color);
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // Noise texture
+    for (let i = 0; i < 2000; i++) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.03})`;
+      ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
+    }
+
+    // Helper: Rounded rect with arcs
+    const roundRect = (x: number, y: number, w: number, h: number, r: number | number[]) => {
+      const radius = Array.isArray(r) ? r : [r, r, r, r];
+      ctx.beginPath();
+      ctx.moveTo(x + radius[0], y);
+      ctx.lineTo(x + w - radius[1], y);
+      ctx.arc(x + w - radius[1], y + radius[1], radius[1], -Math.PI/2, 0);
+      ctx.lineTo(x + w, y + h - radius[2]);
+      ctx.arc(x + w - radius[2], y + h - radius[2], radius[2], 0, Math.PI/2);
+      ctx.lineTo(x + radius[3], y + h);
+      ctx.arc(x + radius[3], y + h - radius[3], radius[3], Math.PI/2, Math.PI);
+      ctx.lineTo(x, y + radius[0]);
+      ctx.arc(x + radius[0], y + radius[0], radius[0], Math.PI, -Math.PI/2);
+      ctx.closePath();
+    };
+
+    // Title with glow
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = 'rgba(59, 130, 246, 0.6)';
+    ctx.font = 'bold 80px Arial, sans-serif';
+    ctx.fillText('YOUR 2024 WRAPPED', 70, 95);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = 'bold 26px Arial';
+    ctx.fillText('Your Ultimate Anime & Manga Year in Review', 70, 135);
+
+    // Helper: Premium card with gradient
+    const drawPremiumCard = (x: number, y: number, w: number, h: number, title: string, value: string, subtitle: string, color1: string, color2: string) => {
+      // Shadow
+      ctx.shadowBlur = 40;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowOffsetY = 10;
+
+      // Background gradient
+      roundRect(x, y, w, h, 20);
+      const cardGrad = ctx.createLinearGradient(x, y, x, y + h);
+      cardGrad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+      cardGrad.addColorStop(1, 'rgba(255, 255, 255, 0.03)');
+      ctx.fillStyle = cardGrad;
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Border glow
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Top accent
+      roundRect(x, y, w, 5, [20, 20, 0, 0]);
+      const accentGrad = ctx.createLinearGradient(x, y, x + w, y);
+      accentGrad.addColorStop(0, color1);
+      accentGrad.addColorStop(1, color2);
+      ctx.fillStyle = accentGrad;
+      ctx.fill();
+
+      // Content
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText(title, x + 30, y + 50);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 70px Arial';
+      ctx.fillText(value, x + 30, y + 125);
+
+      // Subtitle with gradient
+      const subGrad = ctx.createLinearGradient(x + 30, y + 150, x + 30 + 300, y + 150);
+      subGrad.addColorStop(0, color1);
+      subGrad.addColorStop(1, color2);
+      ctx.fillStyle = subGrad;
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText(subtitle, x + 30, y + 160);
+    };
+
+    // Main cards
+    drawPremiumCard(70, 180, 560, 190, '📺 ANIME', stats.animeCount.toString(),
+      `${stats.totalEpisodes} eps • ${stats.animeDays.toFixed(1)} days • ${animeMean.toFixed(1)}`,
+      '#3b82f6', '#06b6d4');
+
+    drawPremiumCard(660, 180, 560, 190, '📖 MANGA', stats.mangaCount.toString(),
+      `${stats.totalChapters} chapters • ${mangaMean.toFixed(1)}`,
+      '#ec4899', '#f43f5e');
+
+    drawPremiumCard(1250, 180, 600, 190, '📅 ACTIVITY', activeWorks.length.toString(),
+      `Most active: ${monthNames[mostActiveMonthIndex]} • ${overallMean.toFixed(1)} mean`,
+      '#8b5cf6', '#a855f7');
+
+    // Helper: Compact stat card
+    const drawCompactCard = (x: number, y: number, w: number, h: number, label: string, value: string, color: string) => {
+      roundRect(x, y, w, h, 12);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Left accent
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, 5, h);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = 'bold 15px Arial';
+      ctx.fillText(label, x + 22, y + 35);
+
+      ctx.fillStyle = color;
+      ctx.font = 'bold 48px Arial';
+      ctx.fillText(value, x + 22, y + 85);
+    };
+
+    // Status grid
+    const y2 = 400;
+    const cw = 270;
+    const gap = 20;
+    drawCompactCard(70, y2, cw, 120, 'COMPLETED', stats.completed.toString(), '#10b981');
+    drawCompactCard(70 + cw + gap, y2, cw, 120, 'WATCHING', stats.watching.toString(), '#3b82f6');
+    drawCompactCard(70 + (cw + gap) * 2, y2, cw, 120, 'PLANNING', stats.planning.toString(), '#f59e0b');
+    drawCompactCard(70 + (cw + gap) * 3, y2, cw, 120, 'DROPPED', stats.dropped.toString(), '#ef4444');
+
+    const y3 = y2 + 140;
+    drawCompactCard(70, y3, cw, 120, 'PAUSED', stats.paused.toString(), '#6366f1');
+    drawCompactCard(70 + cw + gap, y3, cw, 120, 'REWATCHING', stats.rewatching.toString(), '#06b6d4');
+    drawCompactCard(70 + (cw + gap) * 2, y3, cw, 120, 'MEAN SCORE', overallMean.toFixed(1), '#ffffff');
+    drawCompactCard(70 + (cw + gap) * 3, y3, cw, 120, 'TOTAL', activeWorks.length.toString(), '#a855f7');
+
+    // Genre Radar Chart
+    const y4 = y3 + 160;
+    roundRect(70, y4, 850, 280, 16);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText('🎭 GENRE DISTRIBUTION', 95, y4 + 40);
+
+    // Radar chart
+    const radarCenterX = 280;
+    const radarCenterY = y4 + 170;
+    const radarRadius = 100;
+    const radarGenres = topGenres.slice(0, 6);
+    const maxGenreCount = Math.max(...radarGenres.map(g => g[1]), 1);
+
+    // Draw radar grid
+    for (let i = 1; i <= 5; i++) {
+      const r = (radarRadius / 5) * i;
+      ctx.beginPath();
+      for (let j = 0; j < 6; j++) {
+        const angle = (Math.PI * 2 * j / 6) - Math.PI / 2;
+        const x = radarCenterX + Math.cos(angle) * r;
+        const y = radarCenterY + Math.sin(angle) * r;
+        if (j === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.stroke();
+    }
+
+    // Draw axes
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI * 2 * i / 6) - Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(radarCenterX, radarCenterY);
+      ctx.lineTo(
+        radarCenterX + Math.cos(angle) * radarRadius,
+        radarCenterY + Math.sin(angle) * radarRadius
+      );
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.stroke();
+    }
+
+    // Draw data polygon
+    if (radarGenres.length > 0) {
+      ctx.beginPath();
+      radarGenres.forEach(([genre, count], i) => {
+        const angle = (Math.PI * 2 * i / 6) - Math.PI / 2;
+        const r = (count / maxGenreCount) * radarRadius;
+        const x = radarCenterX + Math.cos(angle) * r;
+        const y = radarCenterY + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      const radarGrad = ctx.createLinearGradient(radarCenterX - radarRadius, radarCenterY - radarRadius,
+                                                 radarCenterX + radarRadius, radarCenterY + radarRadius);
+      radarGrad.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+      radarGrad.addColorStop(1, 'rgba(236, 72, 153, 0.3)');
+      ctx.fillStyle = radarGrad;
+      ctx.fill();
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Labels
+      const radarColors = ['#3b82f6', '#ec4899', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4'];
+      radarGenres.forEach(([genre, count], i) => {
+        const angle = (Math.PI * 2 * i / 6) - Math.PI / 2;
+        const labelR = radarRadius + 35;
+        const x = radarCenterX + Math.cos(angle) * labelR;
+        const y = radarCenterY + Math.sin(angle) * labelR;
+
+        ctx.fillStyle = radarColors[i];
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(genre, x, y);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText(count.toString(), x, y + 15);
+      });
+      ctx.textAlign = 'left';
+    }
+
+    // Genres list
+    const listX = 500;
+    topGenres.slice(0, 8).forEach(([genre, count], i) => {
+      const ly = y4 + 70 + Math.floor(i / 2) * 50;
+      const lx = listX + (i % 2) * 180;
+
+      const radarColors = ['#3b82f6', '#ec4899', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4'];
+      ctx.fillStyle = radarColors[i % 6];
+      ctx.fillRect(lx, ly - 12, 4, 20);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText(genre, lx + 12, ly);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.textAlign = 'right';
+      ctx.fillText(count.toString(), lx + 160, ly);
+      ctx.textAlign = 'left';
+    });
+
+    // Monthly chart
+    roundRect(950, y4, 900, 280, 16);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText('📈 MONTHLY ACTIVITY', 975, y4 + 40);
+
+    const chartX = 975;
+    const chartY = y4 + 70;
+    const chartW = 850;
+    const chartH = 180;
+    const max = Math.max(...monthlyData, 1);
+    const barW = chartW / 12;
+    const monthsShort = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
+    monthlyData.forEach((value, i) => {
+      const barH = Math.max((value / max) * chartH, 3);
+      const barX = chartX + i * barW;
+      const barY = chartY + chartH - barH;
+
+      roundRect(barX + 8, barY, barW - 16, barH, 6);
+      const barGrad = ctx.createLinearGradient(barX, barY, barX, barY + barH);
+      barGrad.addColorStop(0, '#3b82f6');
+      barGrad.addColorStop(0.5, '#8b5cf6');
+      barGrad.addColorStop(1, '#ec4899');
+      ctx.fillStyle = barGrad;
+      ctx.fill();
+
+      // Value on top
+      if (value > 0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(value.toString(), barX + barW / 2, barY - 5);
+      }
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = 'bold 13px Arial';
+      ctx.fillText(monthsShort[i], barX + barW / 2, chartY + chartH + 20);
+    });
+    ctx.textAlign = 'left';
+
+    // Footer
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('✨ Generated by AniList Ultimate', canvas.width - 70, canvas.height - 40);
+    ctx.textAlign = 'left';
+
+    this.downloadCanvas(canvas);
+  }

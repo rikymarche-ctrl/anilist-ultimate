@@ -1,0 +1,217 @@
+/**
+ * Anilist Ultimate - Base Components
+ * Shared UI elements across all modules
+ */
+
+/* ============================================================================
+   Badges
+   ============================================================================ */
+
+.au-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  background: var(--au-border);
+  color: var(--au-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.au-score-badge {
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 800;
+  font-size: 10px;
+  background: var(--au-primary);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.au-score-badge.low { background: var(--au-error); }
+.au-score-badge.mid, .au-score-badge.medium { background: var(--au-warning); }
+.au-score-badge.high { background: var(--au-success); }
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+
+.au-btn {
+  padding: 8px 16px;
+  border-radius: var(--au-border-radius);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--au-transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  outline: none;
+  background: var(--au-bg-elev);
+  color: var(--au-text);
+}
+
+.au-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--au-shadow);
+  filter: brightness(1.1);
+}
+
+.au-btn--primary {
+  background: var(--au-primary);
+  color: #fff;
+}
+
+.au-btn--secondary {
+  background: transparent;
+  border-color: var(--au-border);
+  color: var(--au-text-light);
+}
+
+.au-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--au-text-light);
+}
+
+.au-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--au-text);
+}
+
+.au-btn--danger {
+  background: var(--au-error);
+  color: #fff;
+}
+
+.au-btn--xs { padding: 2px 6px; font-size: 10px; }
+.au-btn--sm { padding: 4px 10px; font-size: 11px; }
+.au-btn--lg { padding: 12px 24px; font-size: 15px; }
+
+/* Icon Button */
+.au-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--au-text-light);
+  cursor: pointer;
+  transition: all var(--au-transition);
+  border: none;
+  font-size: 14px;
+}
+
+.au-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--au-text);
+  transform: scale(1.1);
+}
+
+/* ============================================================================
+   Inputs
+   ============================================================================ */
+
+.au-input {
+  background: var(--au-bg-elev);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-border-radius);
+  padding: 8px 12px;
+  color: var(--au-text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--au-transition);
+}
+
+.au-input:focus {
+  border-color: var(--au-primary);
+}
+
+.au-textarea {
+  resize: none;
+  min-height: 80px;
+}
+
+/* ============================================================================
+   Cards & Containers
+   ============================================================================ */
+
+.au-card {
+  background: var(--au-bg);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-radius-lg);
+  padding: 16px;
+  box-shadow: var(--au-shadow);
+}
+
+.au-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.au-modal-overlay--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============================================================================
+   Utilities
+   ============================================================================ */
+
+.au-border-box {
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-border-radius);
+}
+
+.au-muted {
+  color: var(--au-text-light);
+  opacity: 0.7;
+}
+
+/* ============================================================================
+   Animations
+   ============================================================================ */
+
+@keyframes au-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes au-slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes au-slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes au-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.au-animate-fade { animation: au-fade-in var(--au-transition) forwards; }
+.au-animate-slide { animation: au-slide-up var(--au-transition) forwards; }

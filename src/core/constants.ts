@@ -97,6 +97,7 @@ export const DEFAULT_CALENDAR_PREFERENCES = {
   openInNewTab: false,
   socialEnabled: true,
   socialShowAvatars: true,
+  showEmptyToday: true,
 };
 
 // ============================================================================

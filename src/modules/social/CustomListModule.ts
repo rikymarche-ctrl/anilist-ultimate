@@ -3,14 +3,25 @@
  * Handles injection and routing for the Custom User List Manager in Settings
  */
 
+import { injectable, inject } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
+import { TOKENS } from '@core/di/tokens';
+import type { IEventBus } from '@core/interfaces/IEventBus';
+import { container } from '@core/di/container';
 import { CustomListManager } from './components/CustomListManager';
 
+@injectable()
 export class CustomListModule extends BaseModule {
   private observerName = 'au-settings-router';
   private managerInstance: CustomListManager | null = null;
   private isManagerActive = false;
+
+  constructor(
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+  ) {
+    super(eventBus);
+  }
 
   public async init(): Promise<void> {
     log.info('CustomListModule: Initializing...');
@@ -110,7 +121,7 @@ export class CustomListModule extends BaseModule {
 
     // 3. Render Manager
     if (!this.managerInstance) {
-      this.managerInstance = new CustomListManager({});
+      this.managerInstance = container.resolve(CustomListManager);
       auContainer.appendChild(this.managerInstance.getElement());
     }
   }

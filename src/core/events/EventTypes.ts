@@ -96,6 +96,11 @@ export const EVENT_TYPES = {
   USER_AUTHENTICATED: 'auth:user-authenticated',
   USER_LOGGED_OUT: 'auth:user-logged-out',
   AUTH_STATE_CHANGED: 'auth:state-changed',
+
+  // ============================================================================
+  // Astra Events
+  // ============================================================================
+  ASTRA_OPEN: 'astra:open',
 } as const;
 
 /**
@@ -255,4 +260,69 @@ export interface UserAuthenticatedEvent {
   userId: number;
   userName: string;
   timestamp: Date;
+}
+
+/**
+ * AppEventMap - Centralized mapping of events to payloads
+ */
+export interface AppEventMap {
+  [EVENT_TYPES.MODULE_INITIALIZED]: ModuleInitializedEvent;
+  [EVENT_TYPES.MODULE_DESTROYED]: ModuleDestroyedEvent;
+  [EVENT_TYPES.MODULE_ERROR]: ModuleErrorEvent;
+
+  [EVENT_TYPES.CALENDAR_LOADED]: CalendarLoadedEvent;
+  [EVENT_TYPES.CALENDAR_UPDATED]: CalendarUpdatedEvent;
+  [EVENT_TYPES.CALENDAR_LOADING]: undefined;
+  [EVENT_TYPES.CALENDAR_ERROR]: { error: any };
+  [EVENT_TYPES.CALENDAR_SETTINGS_CHANGED]: any;
+
+  [EVENT_TYPES.PROGRESS_UPDATED]: ProgressUpdatedEvent;
+  [EVENT_TYPES.EPISODE_MARKED_WATCHED]: EpisodeMarkedWatchedEvent;
+
+  [EVENT_TYPES.FRIEND_ACTIVITY_LOADED]: FriendActivityLoadedEvent;
+  [EVENT_TYPES.FRIEND_ACTIVITY_UPDATED]: FriendActivityLoadedEvent;
+  [EVENT_TYPES.CUSTOM_LIST_CREATED]: CustomListUpdatedEvent;
+  [EVENT_TYPES.CUSTOM_LIST_UPDATED]: CustomListUpdatedEvent;
+  [EVENT_TYPES.CUSTOM_LIST_DELETED]: { listName: string };
+  [EVENT_TYPES.USER_ADDED_TO_LIST]: UserListChangeEvent;
+  [EVENT_TYPES.USER_REMOVED_FROM_LIST]: UserListChangeEvent;
+
+  [EVENT_TYPES.ACTIVITY_FILTER_CHANGED]: ActivityFilterChangedEvent;
+  [EVENT_TYPES.ACTIVITY_SEARCH_CHANGED]: ActivitySearchChangedEvent;
+  [EVENT_TYPES.ACTIVITY_LOADED]: { count: number };
+
+  [EVENT_TYPES.REVIEW_LOADED]: { id: number; score: number };
+  [EVENT_TYPES.REVIEW_RATING_DISPLAYED]: { id: number };
+
+  [EVENT_TYPES.NOTIFICATIONS_GROUPED]: { count: number };
+  [EVENT_TYPES.NOTIFICATIONS_FILTERED]: { query: string; results: number };
+
+  [EVENT_TYPES.THEME_CHANGED]: ThemeChangedEvent;
+  [EVENT_TYPES.THEME_DETECTED]: { theme: string };
+
+  [EVENT_TYPES.PAGE_CHANGED]: PageChangedEvent;
+  [EVENT_TYPES.URL_CHANGED]: URLChangedEvent;
+  [EVENT_TYPES.SPA_NAVIGATION]: { path: string };
+
+  [EVENT_TYPES.ERROR_OCCURRED]: ErrorEvent;
+  [EVENT_TYPES.API_ERROR]: APIErrorEvent;
+  [EVENT_TYPES.STORAGE_ERROR]: { error: any; key?: string };
+  [EVENT_TYPES.MODULE_INITIALIZATION_ERROR]: { moduleName: string; error: any };
+
+  [EVENT_TYPES.CONFIG_LOADED]: { config: any };
+  [EVENT_TYPES.CONFIG_UPDATED]: ConfigUpdatedEvent;
+  [EVENT_TYPES.CONFIG_CHANGED]: { key: string; value: any };
+  [EVENT_TYPES.FEATURE_FLAG_CHANGED]: FeatureFlagChangedEvent;
+
+  [EVENT_TYPES.AUTH_TOKEN_RECEIVED]: AuthTokenReceivedEvent;
+  [EVENT_TYPES.AUTH_TOKEN_EXPIRED]: undefined;
+  [EVENT_TYPES.AUTH_REQUIRED]: undefined;
+  [EVENT_TYPES.USER_AUTHENTICATED]: UserAuthenticatedEvent;
+  [EVENT_TYPES.USER_LOGGED_OUT]: undefined;
+  [EVENT_TYPES.AUTH_STATE_CHANGED]: { authenticated: boolean; userId?: number };
+
+  [EVENT_TYPES.ASTRA_OPEN]: undefined;
+  
+  // Generic fallback for string-based events (for compatibility)
+  [key: string]: any;
 }

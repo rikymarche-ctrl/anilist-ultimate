@@ -5,6 +5,8 @@
 
 import { log } from '@core/logger';
 
+import { injectable, singleton } from 'tsyringe';
+
 export interface CustomListUser {
   id: number;
   name: string;
@@ -15,19 +17,13 @@ export interface CustomLists {
   [listName: string]: CustomListUser[];
 }
 
+@injectable()
+@singleton()
 export class CustomListService {
-  private static instance: CustomListService;
   private STORAGE_KEY = 'au_custom_user_lists';
   private lists: CustomLists = {};
 
-  private constructor() {}
-
-  public static getInstance(): CustomListService {
-    if (!CustomListService.instance) {
-      CustomListService.instance = new CustomListService();
-    }
-    return CustomListService.instance;
-  }
+  constructor() {}
 
   /**
    * Initializes the service by loading data from storage

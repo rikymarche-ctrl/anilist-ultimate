@@ -8,7 +8,7 @@ import type { ModuleMetadata } from '@core/interfaces/IModule';
 /**
  * Module decorator metadata storage
  */
-const MODULE_METADATA = new Map<Function, Partial<ModuleMetadata>>();
+const MODULE_METADATA = new Map<new (...args: any[]) => any, Partial<ModuleMetadata>>();
 
 /**
  * Module decorator options
@@ -49,13 +49,13 @@ export function Module(options: ModuleDecoratorOptions = {}) {
 /**
  * Get module metadata from decorated class
  */
-export function getModuleMetadata(target: Function): Partial<ModuleMetadata> | undefined {
+export function getModuleMetadata(target: new (...args: any[]) => any): Partial<ModuleMetadata> | undefined {
   return MODULE_METADATA.get(target);
 }
 
 /**
  * Check if class has @Module decorator
  */
-export function isModule(target: Function): boolean {
+export function isModule(target: new (...args: any[]) => any): boolean {
   return MODULE_METADATA.has(target);
 }

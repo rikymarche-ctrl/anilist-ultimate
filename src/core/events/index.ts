@@ -3,7 +3,8 @@
  * Barrel export for event bus and event types
  */
 
-export { EventBus, type IEventBus, type EventHandler, type EventSubscription } from './EventBus';
+export { EventBus } from './EventBus';
+export { type IEventBus, type EventHandler, type EventSubscription } from '../interfaces/IEventBus';
 export { EVENT_TYPES, type EventType } from './EventTypes';
 
 // Export all event payload types

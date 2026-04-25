@@ -6,11 +6,11 @@
 
 import { log } from '../logger';
 import type { IModule } from '../interfaces/IModule';
-import { container } from '../di/container';
+import { inject } from 'tsyringe';
 import { TOKENS } from '../di/tokens';
 import type { IEventBus, EventSubscription } from '../interfaces/IEventBus';
-import type { PageChangedEvent } from '../events/GlobalEvents';
-import { EVENT_TYPES } from '../events/EventTypes';
+import { EVENT_TYPES, AppEventMap } from '../events/EventTypes';
+import type { PageChangedEvent } from '../events/EventTypes';
 
 export abstract class BaseModule implements IModule {
   protected observers: Map<string, MutationObserver> = new Map();
@@ -19,6 +19,10 @@ export abstract class BaseModule implements IModule {
   private observerTimeouts: Map<string, number> = new Map();
   private suspendedObservers: Set<string> = new Set();
   private eventSubscriptions: EventSubscription[] = [];
+
+  constructor(
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+  ) {}
 
   /**
    * Initialize the module
@@ -114,7 +118,7 @@ export abstract class BaseModule implements IModule {
     log.debug(`BaseModule: Registered observer "${name}"`);
   }
 
-  private disconnectObserver(name: string): void {
+  protected disconnectObserver(name: string): void {
     this.observers.get(name)?.disconnect();
     this.observers.delete(name);
   }
@@ -144,8 +148,7 @@ export abstract class BaseModule implements IModule {
    * @param callback Function to call when page changes
    */
   protected onPageChange(callback: (event?: PageChangedEvent) => void): void {
-    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
-    const unsubscribe = eventBus.on<PageChangedEvent>(EVENT_TYPES.PAGE_CHANGED, callback);
+    const unsubscribe = this.eventBus.on(EVENT_TYPES.PAGE_CHANGED, callback);
     this.eventSubscriptions.push(unsubscribe);
   }
 
@@ -154,9 +157,8 @@ export abstract class BaseModule implements IModule {
    * @param eventType Event type to listen to
    * @param handler Event handler function
    */
-  protected subscribe<T>(eventType: string, handler: (data?: T) => void): void {
-    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
-    const unsubscribe = eventBus.on<T>(eventType, handler);
+  protected subscribe<K extends keyof AppEventMap>(eventType: K, handler: (data?: AppEventMap[K]) => void): void {
+    const unsubscribe = this.eventBus.on(eventType, handler);
     this.eventSubscriptions.push(unsubscribe);
   }
 
@@ -165,9 +167,8 @@ export abstract class BaseModule implements IModule {
    * @param eventType Event type to emit
    * @param data Event data
    */
-  protected emit<T>(eventType: string, data?: T): void {
-    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
-    eventBus.emit<T>(eventType, data);
+  protected emit<K extends keyof AppEventMap>(eventType: K, data?: AppEventMap[K]): void {
+    this.eventBus.emit(eventType, data);
   }
 
   /**

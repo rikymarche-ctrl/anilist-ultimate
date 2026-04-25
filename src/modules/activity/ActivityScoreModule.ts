@@ -3,21 +3,26 @@
  * Injects user ratings into activity feed entries
  */
 
+import { injectable, inject } from 'tsyringe';
 import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
+import { TOKENS } from '@core/di/tokens';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import { ActivityService, ActivityScoreData } from './ActivityService';
 import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import '../../styles/activity-score.css';
 
+@injectable()
 export class ActivityScoreModule extends BaseModule {
-  private activityService: ActivityService;
   private readonly OBSERVER_NAME = 'activity-score-continuous';
   private pendingQueue: Map<string, { userName: string; mediaId: number; elements: HTMLElement[] }> = new Map();
   private batchTimer: number | null = null;
 
-  constructor() {
-    super();
-    this.activityService = ActivityService.getInstance();
+  constructor(
+    @inject(TOKENS.ActivityService) private activityService: ActivityService,
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+  ) {
+    super(eventBus);
   }
 
   /**
@@ -49,7 +54,7 @@ export class ActivityScoreModule extends BaseModule {
   }
 
   private shouldRun(path: string): boolean {
-    return path === '/' || path === '/home' || path.includes('/user/') || path.includes('/social');
+    return path === '/' || path === '/home';
   }
 
   private startObservation(): void {

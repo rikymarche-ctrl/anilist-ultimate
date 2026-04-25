@@ -60,7 +60,7 @@ export class AstraRadarChart {
         const lx = 50 + Math.cos(angle) * 42;
         const ly = 50 + Math.sin(angle) * 42;
 
-        let transform = 'translate(-50%, -50%)';
+        const transform = 'translate(-50%, -50%)';
 
         return `
           <div class="astra-radar-label-abs" style="left: ${lx}%; top: ${ly}%; transform: ${transform};">

@@ -9,6 +9,7 @@ import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import { storage } from '@core/storage/StorageManager';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import { NotificationFetchService } from './services/NotificationFetchService';
 import { NotificationGroupService, NotificationGroup } from './services/NotificationGroupService';
 import { NotificationFilterService } from './services/NotificationFilterService';
@@ -25,9 +26,10 @@ export class NotificationCleanerModule extends BaseModule {
   constructor(
     @inject(TOKENS.NotificationFetchService) private fetchService: NotificationFetchService,
     @inject(TOKENS.NotificationGroupService) private groupService: NotificationGroupService,
-    @inject(TOKENS.NotificationFilterService) private filterService: NotificationFilterService
+    @inject(TOKENS.NotificationFilterService) private filterService: NotificationFilterService,
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
-    super();
+    super(eventBus);
   }
 
   /**
@@ -187,7 +189,7 @@ export class NotificationCleanerModule extends BaseModule {
         }
 
         const text = notification.textContent || '';
-        let notifType = notification.getAttribute('data-au-type') || this.groupService.detectNotificationType(text);
+        const notifType = notification.getAttribute('data-au-type') || this.groupService.detectNotificationType(text);
         if (notifType) notification.setAttribute('data-au-type', notifType);
 
         const time = notification.querySelector('.time')?.textContent?.trim() || '';

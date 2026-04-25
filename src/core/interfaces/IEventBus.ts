@@ -3,6 +3,8 @@
  * Contract for event-driven communication
  */
 
+import type { AppEventMap } from '../events/EventTypes';
+
 export type EventHandler<T = any> = (data?: T) => void | Promise<void>;
 
 export interface EventSubscription {
@@ -13,22 +15,26 @@ export interface IEventBus {
   /**
    * Subscribe to an event
    */
-  on<T = any>(event: string, handler: EventHandler<T>): EventSubscription;
+  on<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): EventSubscription;
+  on(event: string, handler: EventHandler<any>): EventSubscription;
 
   /**
    * Subscribe to an event once
    */
-  once<T = any>(event: string, handler: EventHandler<T>): EventSubscription;
+  once<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): EventSubscription;
+  once(event: string, handler: EventHandler<any>): EventSubscription;
 
   /**
    * Unsubscribe from an event
    */
-  off<T = any>(event: string, handler: EventHandler<T>): void;
+  off<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): void;
+  off(event: string, handler: EventHandler<any>): void;
 
   /**
    * Emit an event
    */
-  emit<T = any>(event: string, data?: T): void;
+  emit<K extends keyof AppEventMap>(event: K, data?: AppEventMap[K]): void;
+  emit(event: string, data?: any): void;
 
   /**
    * Clear all handlers for an event

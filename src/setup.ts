@@ -26,7 +26,6 @@ import { ToastService } from '@core/services/ToastService';
 
 // Feature Services
 import { CalendarService } from '@/modules/calendar/CalendarService';
-import { CalendarStore } from '@/modules/calendar/CalendarStore';
 import { CalendarDomService } from '@/modules/calendar/services/CalendarDomService';
 import { CalendarDataService } from '@/modules/calendar/services/CalendarDataService';
 import { CalendarSocialService } from '@/modules/calendar/services/CalendarSocialService';
@@ -126,16 +125,19 @@ export async function setupDI(): Promise<void> {
 
   // Calendar Services
   container.registerSingleton(TOKENS.CalendarService, CalendarService);
-  container.registerSingleton(TOKENS.CalendarStore, CalendarStore);
   container.registerSingleton(TOKENS.CalendarDomService, CalendarDomService);
   container.registerSingleton(TOKENS.CalendarDataService, CalendarDataService);
   container.registerSingleton(TOKENS.CalendarSocialService, CalendarSocialService);
 
   // Social Services
   container.registerSingleton(TOKENS.SocialService, SocialService);
+  container.registerSingleton(TOKENS.CustomListService, CustomListService);
 
   // Activity Services
   container.registerSingleton(TOKENS.ActivityService, ActivityService);
+  container.registerSingleton(TOKENS.ActivityFilterBar, ActivityFilterBar);
+  container.registerSingleton(TOKENS.ActivityRenderer, ActivityRenderer);
+  container.registerSingleton(TOKENS.ActivityTabManager, CustomListTabManager);
 
   // Notification Services
   container.registerSingleton(TOKENS.NotificationFetchService, NotificationFetchService);
@@ -183,131 +185,76 @@ export async function setupDI(): Promise<void> {
       name: 'calendar',
       description: 'Airing schedule calendar',
       enabled: config.isFeatureEnabled('calendar'),
-      factory: () => {
-        return new CalendarModule(
-          container.resolve(TOKENS.CalendarDomService),
-          container.resolve(TOKENS.CalendarDataService),
-          container.resolve(TOKENS.CalendarSocialService),
-          container.resolve(TOKENS.Config)
-        );
-      },
+      factory: () => container.resolve(CalendarModule),
       pageMatch: (path) => path === '/' || path === '/home',
     },
     {
       name: 'hoverComments',
       description: 'Hover to see comments on activity feed',
       enabled: config.isFeatureEnabled('hoverComments'),
-      factory: () => {
-        return new HoverCommentsModule(
-          container.resolve(TOKENS.ApiClient),
-          container.resolve(TOKENS.Logger)
-        );
-      },
+      factory: () => container.resolve(HoverCommentsModule),
     },
 
     {
       name: 'notificationCleaner',
       description: 'Enhanced notification management',
       enabled: config.isFeatureEnabled('notificationCleaner'),
-      factory: () => {
-        return new NotificationCleanerModule(
-          container.resolve(TOKENS.NotificationFetchService),
-          container.resolve(TOKENS.NotificationGroupService),
-          container.resolve(TOKENS.NotificationFilterService)
-        );
-      },
+      factory: () => container.resolve(NotificationCleanerModule),
       pageMatch: (path) => path.startsWith('/notifications'),
     },
     {
       name: 'reviewEnhancer',
       description: 'Show review ratings on cards',
       enabled: config.isFeatureEnabled('reviewEnhancer'),
-      factory: () => {
-        return new ReviewEnhancerModule(
-          container.resolve(TOKENS.ReviewService)
-        );
-      },
+      factory: () => container.resolve(ReviewEnhancerModule),
     },
     {
       name: 'activityEnhancer',
       description: 'Enhanced activity feed',
       enabled: config.isFeatureEnabled('socialActivity'),
-      factory: () => {
-        // Create shared components
-        const filterBar = new ActivityFilterBar();
-        const rendererComponent = new ActivityRenderer(logger);
-        const tabManager = new CustomListTabManager(logger, CustomListService.getInstance());
-
-        // Create module with injected dependencies
-        return new ActivityEnhancerModule(
-          logger,
-          filterBar,
-          rendererComponent,
-          tabManager,
-          CustomListService.getInstance()
-        );
-      },
+      factory: () => container.resolve(ActivityEnhancerModule),
     },
     {
       name: 'forumEnhancer',
       description: 'Enhanced forum features',
       enabled: config.isFeatureEnabled('forumEnhancer'),
-      factory: () => new ForumEnhancerModule(),
+      factory: () => container.resolve(ForumEnhancerModule),
     },
     {
       name: 'activityScore',
       description: 'Show scores in activity feed',
       enabled: config.isFeatureEnabled('activityScore'),
-      factory: () => new ActivityScoreModule(),
+      factory: () => container.resolve(ActivityScoreModule),
     },
     {
       name: 'socialActivity',
       description: 'Social activity sidebar',
       enabled: config.isFeatureEnabled('friendActivity'),
-      factory: () => new SocialActivityModule(),
+      factory: () => container.resolve(SocialActivityModule),
     },
     {
       name: 'socialEnhancer',
       description: 'Social features enhancer',
       enabled: config.isFeatureEnabled('friendActivity'),
-      factory: () => new SocialEnhancerModule(),
+      factory: () => container.resolve(SocialEnhancerModule),
     },
     {
       name: 'customList',
       description: 'Custom list management',
       enabled: config.isFeatureEnabled('friendActivity'),
-      factory: () => new CustomListModule(),
+      factory: () => container.resolve(CustomListModule),
     },
     {
       name: 'mediaSocialEnhancer',
       description: 'Media page social enhancements',
       enabled: config.isFeatureEnabled('friendActivity'),
-      factory: () => {
-        // Create shared components
-        const filterBar = new ActivityFilterBar();
-        const rendererComponent = new ActivityRenderer(logger);
-        const tabManager = new CustomListTabManager(logger, CustomListService.getInstance());
-
-        // Create module with injected dependencies
-        return new MediaSocialEnhancer(
-          logger,
-          filterBar,
-          rendererComponent,
-          tabManager,
-          CustomListService.getInstance()
-        );
-      },
+      factory: () => container.resolve(MediaSocialEnhancer),
     },
     {
       name: 'astra',
       description: 'Advanced scoring system (Astra)',
-      enabled: true, // Always enabled for now
-      factory: () => new AstraModule(
-        container.resolve(TOKENS.AstraService),
-        container.resolve(TOKENS.AstraDashboard),
-        container.resolve(TOKENS.ApiClient),
-        container.resolve(TOKENS.ToastService)
-      ),
+      enabled: true,
+      factory: () => container.resolve(AstraModule),
       pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra'),
     },
   ];

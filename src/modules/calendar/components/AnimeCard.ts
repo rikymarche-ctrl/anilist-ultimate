@@ -3,11 +3,11 @@
  * Displays individual anime entry with cover, title, episode info
  */
 
+import { injectable, inject, container } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { calendarStore } from '../CalendarStore';
-import { container } from '@core/di/container';
 import { TOKENS } from '@core/di/tokens';
-import type { CalendarService } from '../CalendarService';
+import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { SocialRenderer } from '../../social/SocialRenderer';
 import type { AnimeEntry, CardOptions } from '@core/types';
 
@@ -16,59 +16,167 @@ interface AnimeCardProps {
   options: CardOptions;
 }
 
+@injectable()
 export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private socialBubble: HTMLElement | null = null;
+  /** AbortController for portal-related card hover listeners — aborted on destroySocialPortal() */
+  private portalAbortController: AbortController | null = null;
+
+  constructor(
+    @inject('AnimeCardProps') props: AnimeCardProps
+  ) {
+    super(props);
+  }
+
+  private get calendarService(): ICalendarService {
+    return container.resolve<ICalendarService>(TOKENS.CalendarService);
+  }
 
   protected render(): HTMLElement {
-    const { anime, options } = this.props;
-    const { layoutMode, fullWidthImages, titleAlignment } = options;
+    try {
+      const { anime, options } = this.props;
+      const classList = [`anime-card`, `anime-card--${options.layoutMode}`];
 
-    const classList = [`anime-card`, `anime-card--${layoutMode}`];
+      if (options.layoutMode === 'standard' && options.fullWidthImages) {
+        classList.push('anime-card--full-width-images');
+      }
 
-    // Apply full width images class
-    if (fullWidthImages) {
-      classList.push('anime-card--full-width-images');
+      if (options.titleAlignment === 'center') {
+        classList.push('anime-card--title-center');
+      }
+
+      const card = this.createElement('div', {
+        class: classList.join(' '),
+      });
+      card.setAttribute('data-media-id', anime.mediaId.toString());
+
+      // Add status classes
+      if (this.calendarService.hasAired(anime)) {
+        card.classList.add('anime-card--aired');
+      } else if (this.calendarService.isAiringSoon(anime)) {
+        card.classList.add('anime-card--airing-soon');
+      }
+
+      const isBehind = (anime.progress || 0) < anime.episode - 1;
+      if (isBehind) {
+        card.classList.add('anime-card--is-behind');
+      }
+
+      card.innerHTML = this.getCardHTML(anime, options);
+      return card;
+    } catch (error: any) {
+      console.error('[AnimeCard] Render failed', error);
+      const errEl = this.createElement('div', { class: 'anime-card anime-card--error' });
+      errEl.innerHTML = `<div style="font-size: 9px; padding: 5px; color: #ff8888;">Render Error: ${error.message}</div>`;
+      return errEl;
     }
-
-    // Apply title alignment class
-    if (titleAlignment === 'center') {
-      classList.push('anime-card--title-center');
-    }
-
-    const card = this.createElement('div', {
-      class: classList.join(' '),
-    });
-
-    card.setAttribute('data-media-id', anime.mediaId.toString());
-
-    // Build card HTML
-    card.innerHTML = this.getCardHTML(anime, options);
-
-    // Add status classes
-    const calendarService = container.resolve<CalendarService>(TOKENS.CalendarService);
-    if (calendarService.hasAired(anime)) {
-      card.classList.add('anime-card--aired');
-    } else if (calendarService.isAiringSoon(anime)) {
-      card.classList.add('anime-card--airing-soon');
-    }
-
-    // Add behind class — the red dot is rendered inside the episode text in getCardHTML
-    const episodesBehind = Math.max(0, anime.episode - 1 - anime.progress);
-    if (episodesBehind > 0) {
-      card.classList.add('anime-card--is-behind');
-    }
-
-    return card;
   }
 
   protected onMount(): void {
-    // Create social portal AFTER component is mounted
-    const { anime } = this.props;
+    // subscribeToSelector fires only when the relevant booleans actually change
+    calendarStore.subscribeToSelector(
+      state => ({
+        socialEnabled: state.preferences.socialEnabled,
+        socialShowAvatars: state.preferences.socialShowAvatars,
+      }),
+      (curr, prev) => {
+        if (curr.socialEnabled !== prev.socialEnabled || curr.socialShowAvatars !== prev.socialShowAvatars) {
+          // 1. Surgically patch the pill (immediate, no rerender needed)
+          this.refreshPillSocialButton();
+          // 2. Sync the floating portal
+          this.destroySocialPortal();
+          this.syncSocialPortal();
+        }
+      }
+    );
+
+    this.syncSocialPortal();
+  }
+
+  public override update(props: Partial<AnimeCardProps>): void {
+    const prevProps = { ...this.props };
+
+    // 1. Destroy portal BEFORE rerender so it's not left orphaned
+    this.destroySocialPortal();
+
+    // 2. Standard update cycle (calls rerender() which replaces this.element)
+    super.update(props);
+
+    // 3. Recreate portal linked to the new element, if needed
+    if (this.shouldUpdate(prevProps, this.props)) {
+      this.syncSocialPortal();
+    }
+  }
+
+  /**
+   * Destroy social portal and its event bindings cleanly
+   */
+  private destroySocialPortal(): void {
+    // Abort card hover listeners first (prevents stuck-visible bubble)
+    this.portalAbortController?.abort();
+    this.portalAbortController = null;
+
+    if (this.socialBubble) {
+      this.socialBubble.classList.remove('visible');
+      this.socialBubble.remove();
+      this.socialBubble = null;
+    }
+  }
+
+  /**
+   * Synchronize the social portal based on current preferences.
+   * Always starts fresh (portal was destroyed before this call).
+   */
+  private syncSocialPortal(): void {
     const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    const { anime } = this.props;
 
     if (socialEnabled && socialShowAvatars) {
+      // socialBubble is guaranteed null here (destroyed before update cycle)
       this.createSocialPortal(anime);
     }
+    // If not enabled/avatars off: nothing to do, portal is already null
+  }
+
+  /**
+   * Surgically update the social button inside the action pill(s) without full rerender.
+   * Guaranteed immediate DOM update, bypasses shouldUpdate/JSON comparison.
+   */
+  private refreshPillSocialButton(): void {
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    const showPillSocial = socialEnabled && !socialShowAvatars;
+
+    this.element.querySelectorAll<HTMLElement>('.action-pill').forEach(pill => {
+      // Remove existing social separator + button (the separator immediately before the social btn)
+      const existingSocialBtn = pill.querySelector<HTMLElement>('[data-action="social-activity"]');
+      if (existingSocialBtn) {
+        // The sibling immediately before it is the pill-separator
+        existingSocialBtn.previousElementSibling?.remove();
+        existingSocialBtn.remove();
+      }
+
+      if (showPillSocial) {
+        const separator = document.createElement('div');
+        separator.className = 'pill-separator';
+
+        const socialBtn = document.createElement('div');
+        socialBtn.className = 'pill-section';
+        socialBtn.setAttribute('data-action', 'social-activity');
+        socialBtn.innerHTML = '<i class="fa fa-users"></i>';
+
+        socialBtn.addEventListener('mouseenter', (e) => this.showCardTooltip('Social Activity', e));
+        socialBtn.addEventListener('mousemove', (e) => this.moveCardTooltip(e));
+        socialBtn.addEventListener('mouseleave', () => this.hideCardTooltip());
+        socialBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          this.handleSocialActivity();
+        });
+
+        pill.appendChild(separator);
+        pill.appendChild(socialBtn);
+      }
+    });
   }
 
   private getCardHTML(anime: AnimeEntry, options: CardOptions): string {
@@ -245,11 +353,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private getTimeHTML(anime: AnimeEntry, timeFormat: 'release' | 'countdown'): string {
     let timeText: string;
 
-    const calendarService = container.resolve<CalendarService>(TOKENS.CalendarService);
     if (timeFormat === 'countdown') {
-      timeText = calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
+      timeText = this.calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
     } else {
-      timeText = calendarService.formatAiringTime(anime.airingAt);
+      timeText = this.calendarService.formatAiringTime(anime.airingAt);
     }
 
     return `<span class="anime-card__time">${timeText}</span>`;
@@ -371,8 +478,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   private handleEditEntry(): void {
     const { anime } = this.props;
-    const astraModal = container.resolve<any>(TOKENS.AstraRatingModal);
-    astraModal.open(anime.mediaId);
+    const modal = container.resolve<any>(TOKENS.AstraRatingModal);
+    modal.open(anime.mediaId);
   }
 
   private async handleMarkWatched(): Promise<void> {
@@ -439,11 +546,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     const { anime } = this.props;
 
-    const calendarService = container.resolve<CalendarService>(TOKENS.CalendarService);
     if (timeFormat === 'countdown') {
-      timeElement.textContent = calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
+      timeElement.textContent = this.calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
     } else {
-      timeElement.textContent = calendarService.formatAiringTime(anime.airingAt);
+      timeElement.textContent = this.calendarService.formatAiringTime(anime.airingAt);
     }
   }
 
@@ -476,18 +582,22 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     document.body.appendChild(bubble);
     this.socialBubble = bubble;
 
-    // Handle mouse enter/leave on card
-    this.addEventListener(this.element, 'mouseenter', () => {
-      this.positionAndShowBubble();
-    });
+    // Create a fresh AbortController for this portal's card-hover listeners
+    this.portalAbortController = new AbortController();
+    const { signal } = this.portalAbortController;
 
-    this.addEventListener(this.element, 'mouseleave', (e) => {
-      // Check if mouse is moving to bubble
-      const relatedTarget = e.relatedTarget as HTMLElement;
-      if (!bubble.contains(relatedTarget)) {
+    // Handle mouse enter/leave on card — using { signal } so they're removed atomically on destroy
+    this.element.addEventListener('mouseenter', () => {
+      this.positionAndShowBubble();
+    }, { signal });
+
+    this.element.addEventListener('mouseleave', (e) => {
+      // If mouse is going to the bubble itself, keep it visible
+      const relatedTarget = e.relatedTarget as HTMLElement | null;
+      if (!relatedTarget || !bubble.contains(relatedTarget)) {
         bubble.classList.remove('visible');
       }
-    });
+    }, { signal });
 
     // Keep bubble visible when hovering it
     bubble.addEventListener('mouseenter', () => {

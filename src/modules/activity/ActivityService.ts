@@ -1,10 +1,11 @@
-import { injectable } from 'tsyringe';
+import { injectable, singleton, inject } from 'tsyringe';
 /**
  * Activity Service
  * Handles batched fetching of user scores for activity entries
  */
 
-import { anilistClient } from '@/api/AnilistClient';
+import { TOKENS } from '@core/di/tokens';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
 
 import { ScoreFormat } from '@core/types';
@@ -15,25 +16,13 @@ export interface ActivityScoreData {
 }
 
 @injectable()
+@singleton()
 export class ActivityService {
-  private static instance: ActivityService;
   private scoreCache: Map<string, ActivityScoreData | null> = new Map(); // key: "userName-mediaId"
 
-  /**
-   * Constructor is now public for DI compatibility
-   * tsyringe will manage singleton lifecycle
-   */
-  constructor() {}
-
-  /**
-   * @deprecated Use DI container to resolve ActivityService instead
-   */
-  public static getInstance(): ActivityService {
-    if (!ActivityService.instance) {
-      ActivityService.instance = new ActivityService();
-    }
-    return ActivityService.instance;
-  }
+  constructor(
+    @inject(TOKENS.ApiClient) private api: IApiClient
+  ) {}
 
   /**
    * Fetch scores for a batch of User-Media pairs
@@ -69,7 +58,7 @@ export class ActivityService {
       const query = `query { ${aliases.join('\n')} }`;
 
       try {
-        const response = await anilistClient.query<Record<string, { score: number; user: { mediaListOptions: { scoreFormat: ScoreFormat } } } | null>>(query, {}, true);
+        const response = await this.api.query<Record<string, { score: number; user: { mediaListOptions: { scoreFormat: ScoreFormat } } } | null>>(query, {}, true);
         
         chunk.forEach((p, idx) => {
           const data = response[`s${idx}`];

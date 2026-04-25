@@ -4,7 +4,8 @@
  * Shared between ActivityEnhancerModule and MediaSocialEnhancer
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
 import type { ILogger } from '@core/interfaces/ILogger';
 import type { ActivityType, AniListActivity } from '../ActivityUtils';
 import { getActivityType, getTimeAgo } from '../ActivityUtils';
@@ -32,7 +33,9 @@ export class ActivityRenderer {
     showScores: false,
   };
 
-  constructor(private logger: ILogger) { }
+  constructor(
+    @inject(TOKENS.Logger) private logger: ILogger
+  ) { }
 
   /**
    * Configure renderer options
@@ -243,10 +246,6 @@ export class ActivityRenderer {
   private renderManualHTML(activity: AniListActivity, timeAgo: string, userName: string, userAvatar: string, userUrl: string): string {
     const isListActivity = activity.type?.includes('LIST');
     const isTextActivity = activity.type === 'TEXT';
-
-    let activityClass = 'activity-entry';
-    if (isListActivity) activityClass += ` activity-${activity.media?.type?.toLowerCase() || 'anime'}`;
-    if (isTextActivity) activityClass += ' activity-text';
 
     if (isListActivity && activity.media) {
       const status = activity.status?.toLowerCase() || 'watched';

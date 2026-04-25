@@ -8,6 +8,7 @@
    ============================================================================ */
 
 @import './calendar.css';
+@import './base/components.css';
 @import './settings-panel.css';
 @import './hover-comments.css';
 @import './notification-cleaner.css';
@@ -26,7 +27,10 @@
 
   --au-transition: 200ms ease;
   --au-border-radius: 4px;
+  --au-radius-lg: 12px;
+  --au-radius-xl: 20px;
   --au-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --au-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
 
   /* Calendar Colors (v1 compatible) */
   --cal-text: #e5e7eb;
@@ -43,7 +47,9 @@
   --au-text: #e5e7eb;
   --au-text-light: #9ca3af;
   --au-bg: #151f2e;
+  --au-bg-elev: #1a2433;
   --au-border: rgba(49, 54, 68, 0.6);
+  --au-border-soft: rgba(255, 255, 255, 0.05);
 }
 
 /* ============================================================================

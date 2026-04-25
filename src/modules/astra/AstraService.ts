@@ -19,6 +19,7 @@ export interface AstraWork {
   genres?: string[];
   episodes?: number;
   chapters?: number;
+  progress?: number;
   duration?: number;
 }
 
@@ -160,6 +161,7 @@ export class AstraService {
                 mediaId
                 status
                 score(format: POINT_10)
+                progress
                 media {
                   title { romaji english native }
                   type
@@ -207,6 +209,7 @@ export class AstraService {
               existing.genres = entry.media.genres || [];
               existing.episodes = entry.media.episodes;
               existing.chapters = entry.media.chapters;
+              existing.progress = entry.progress;
               existing.duration = entry.media.duration;
             } else {
               const media = entry.media;
@@ -229,6 +232,7 @@ export class AstraService {
                 genres: media.genres || [],
                 episodes: media.episodes,
                 chapters: media.chapters,
+                progress: entry.progress,
                 duration: media.duration
               };
               

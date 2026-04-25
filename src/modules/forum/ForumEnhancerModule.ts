@@ -3,12 +3,22 @@
  * Adds direct links to media pages from forum tags
  */
 
+import { injectable, inject } from 'tsyringe';
 import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
+import { TOKENS } from '@core/di/tokens';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import '../../styles/forum-enhancer.css';
 
+@injectable()
 export class ForumEnhancerModule extends BaseModule {
   private readonly OBSERVER_NAME = 'forum-enhancer-continuous';
+
+  constructor(
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+  ) {
+    super(eventBus);
+  }
 
   /**
    * Initialize the module

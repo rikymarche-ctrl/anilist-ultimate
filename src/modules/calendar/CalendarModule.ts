@@ -11,7 +11,9 @@ import { TOKENS } from '@core/di/tokens';
 import { anilistClient } from '@/api/AnilistClient';
 import { calendarStore } from './CalendarStore';
 import { CSS_CLASSES } from '@core/constants';
+import { EVENT_TYPES } from '@core/events/EventTypes';
 import { container } from '@core/di/container';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import { CalendarDomService } from './services/CalendarDomService';
 import { CalendarDataService } from './services/CalendarDataService';
@@ -27,9 +29,10 @@ export class CalendarModule extends BaseModule {
     @inject(TOKENS.CalendarDomService) private domService: CalendarDomService,
     @inject(TOKENS.CalendarDataService) private dataService: CalendarDataService,
     @inject(TOKENS.CalendarSocialService) private socialService: CalendarSocialService,
-    @inject(TOKENS.Config) private config: IConfigManager
+    @inject(TOKENS.Config) private config: IConfigManager,
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
-    super();
+    super(eventBus);
   }
 
   /**
@@ -49,15 +52,21 @@ export class CalendarModule extends BaseModule {
       this.userId = await anilistClient.getCurrentUserId();
       log.info('[Calendar] Initializing for user', { userId: this.userId });
 
-      // Initial injection
+      // 1. Setup MutationObserver for late-loading React sections
+      this.setupSectionDetection();
+
+      // 2. Initial injection attempt
       await this.runInjectionFlow();
 
-      // Subscribe to navigation events (Event-Driven reactivity)
+      // 3. Subscribe to navigation events (Event-Driven reactivity)
       this.onPageChange(async (event) => {
         const path = event?.path || window.location.pathname;
         log.debug('[Calendar] Page changed, checking injection', { path });
         const isHomePage = path === '/' || path === '/home';
+        
         if (isHomePage) {
+          // Reset processed state on page change to allow re-injection
+          this.isProcessing = false;
           // Delay to let React/DOM settle
           setTimeout(() => this.runInjectionFlow(), 500);
         }
@@ -69,6 +78,35 @@ export class CalendarModule extends BaseModule {
     } finally {
       log.groupEnd();
     }
+  }
+
+  /**
+   * Setup observer to watch for the Airing section being added to the DOM
+   */
+  private setupSectionDetection(): void {
+    log.debug('[Calendar] Setting up section detection observer');
+    
+    this.registerObserver(
+      'airing-section-detector',
+      document.body,
+      { childList: true, subtree: true },
+      async () => {
+        // Only run if on home page and calendar doesn't exist
+        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+        if (!isHomePage) return;
+
+        const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+        if (calendarExists) return;
+
+        // Try to find the section
+        const section = await this.domService.findAiringSection();
+        if (section) {
+          log.info('[Calendar] Airing section detected via mutation, triggering injection');
+          this.runInjectionFlow();
+        }
+      },
+      500 // Throttle to 500ms
+    );
   }
 
   /**
@@ -88,8 +126,7 @@ export class CalendarModule extends BaseModule {
       const calendarContainer = await this.domService.injectCalendar(
         () => this.handleSettingsClick(),
         () => {
-          const eventBus = container.resolve<any>(TOKENS.EventBus);
-          eventBus.emit('astra:open');
+          this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN);
         },
         (mediaId) => this.handleMarkWatched(mediaId)
       );
@@ -120,9 +157,11 @@ export class CalendarModule extends BaseModule {
   }
 
   private handleSettingsClick(): void {
-    // Note: SettingsPanel logic could eventually move to a dedicated UI service
-    log.info('[Calendar] Settings click handled');
-    const panel = new SettingsPanel({ onClose: () => {} });
+    const child = container.createChildContainer();
+    child.register('SettingsPanelProps', {
+      useValue: { onClose: () => { /* handled by component */ } }
+    });
+    const panel = child.resolve(SettingsPanel);
     panel.mount(document.body);
   }
 

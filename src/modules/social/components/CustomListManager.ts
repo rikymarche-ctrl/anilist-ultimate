@@ -3,29 +3,31 @@
  * The main UI for managing user groupings in Settings
  */
 
+import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { SocialService } from '../SocialService';
 import { CustomListService, CustomListUser } from '../CustomListService';
 import { log } from '@core/logger';
-import { anilistClient } from '@/api/AnilistClient';
+import { TOKENS } from '@core/di/tokens';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 
-export class CustomListManager extends BaseComponent<{}> {
-  private socialService!: SocialService;
-  private listService!: CustomListService;
-  
+@injectable()
+export class CustomListManager extends BaseComponent<Record<string, never>> {
   private allFollowings: CustomListUser[] = [];
   private currentListName: string = 'Best Friends';
   private searchQuery: string = '';
   private isLoading = true;
-  private isManagingList = false; // New: track if we're in "manage mode"
+  private isManagingList = false;
 
-  private ensureServices(): void {
-    if (!this.socialService) this.socialService = SocialService.getInstance();
-    if (!this.listService) this.listService = CustomListService.getInstance();
+  constructor(
+    @inject(TOKENS.SocialService) private socialService: SocialService,
+    @inject(TOKENS.CustomListService) private listService: CustomListService,
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient
+  ) {
+    super({});
   }
 
   protected render(): HTMLElement {
-    this.ensureServices();
     const container = this.createElement('div', { class: 'au-custom-lists-manager' });
 
     // Show loading state initially
@@ -49,7 +51,6 @@ export class CustomListManager extends BaseComponent<{}> {
   }
 
   private renderInitial(container: HTMLElement): void {
-    this.ensureServices();
     const lists = this.listService.getLists();
 
     container.innerHTML = `
@@ -67,8 +68,8 @@ export class CustomListManager extends BaseComponent<{}> {
 
       <div class="au-cl-lists-overview">
         ${Object.keys(lists).map(name => {
-          const userCount = lists[name].length;
-          return `
+      const userCount = lists[name].length;
+      return `
             <div class="au-cl-list-card" data-list="${name}">
               <div class="au-cl-list-info">
                 <h4 class="au-cl-list-name">${name}</h4>
@@ -84,7 +85,7 @@ export class CustomListManager extends BaseComponent<{}> {
               </div>
             </div>
           `;
-        }).join('')}
+    }).join('')}
       </div>
 
       <div class="au-cl-content" style="display: none;">
@@ -99,7 +100,6 @@ export class CustomListManager extends BaseComponent<{}> {
   private async loadData(): Promise<void> {
     try {
       this.isLoading = true;
-      this.ensureServices();
 
       // Save services to local variables to prevent 'this' context loss during await
       const socialService = this.socialService;
@@ -107,7 +107,7 @@ export class CustomListManager extends BaseComponent<{}> {
 
       await listService.init();
       const followings = await socialService.getAllFollowings();
-      
+
       this.allFollowings = followings.map(f => ({
         id: f.id,
         name: f.name,
@@ -134,7 +134,7 @@ export class CustomListManager extends BaseComponent<{}> {
       `;
 
       content.querySelector('.au-cl-login-btn')?.addEventListener('click', () => {
-        window.open(anilistClient.getAuthUrl(), '_blank');
+        window.open(this.apiClient.getAuthUrl(), '_blank');
       });
     }
   }
@@ -187,7 +187,6 @@ export class CustomListManager extends BaseComponent<{}> {
   }
 
   private refreshGrid(): void {
-    this.ensureServices();
     const content = this.element.querySelector('.au-cl-content') as HTMLElement;
     if (!content || this.isLoading || !this.isManagingList) return;
 
@@ -207,15 +206,15 @@ export class CustomListManager extends BaseComponent<{}> {
     content.innerHTML = `
       <div class="au-cl-grid">
         ${filtered.map(user => {
-          const isActive = listService.isUserInList(currentListName, user.id);
-          return `
+      const isActive = listService.isUserInList(currentListName, user.id);
+      return `
             <div class="au-cl-user-card ${isActive ? 'active' : ''}" data-user-id="${user.id}">
               <div class="au-cl-avatar" style="background-image: url('${user.avatar}')"></div>
               <div class="au-cl-name">${user.name}</div>
               <div class="au-cl-checkbox"></div>
             </div>
           `;
-        }).join('')}
+    }).join('')}
       </div>
     `;
 

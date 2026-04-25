@@ -1,6 +1,7 @@
 import { injectable } from 'tsyringe';
 import { log } from '@core/logger';
 import { CSS_CLASSES } from '@core/constants';
+import { container } from '@core/di/container';
 import { CalendarGrid } from '../components/CalendarGrid';
 
 @injectable()
@@ -9,68 +10,101 @@ export class CalendarDomService {
   private calendarGrid: CalendarGrid | null = null;
 
   /**
-   * Inject the calendar into the AniList page
+   * Inject the calendar container into the AniList DOM
    */
   public async injectCalendar(
     onSettingsClick: () => void,
     onAstraClick: () => void,
     onMarkWatched: (mediaId: number) => Promise<void>
   ): Promise<HTMLElement | null> {
-    const headerElement = await this.findAiringSection();
+    log.debug('[CalendarDomService] Starting injection flow...');
 
+    const headerElement = await this.findAiringSection();
     if (!headerElement) {
-      log.warn('[CalendarDom] Airing section not found, cannot replace');
+      log.warn('[CalendarDomService] Native Airing section not found in DOM');
       return null;
     }
 
-    // Replace header text
+    const targetContainer = this.findAiringContainer(headerElement);
+    if (!targetContainer) {
+      log.warn('[CalendarDomService] Could not find a suitable container for the calendar');
+      return null;
+    }
+
+    log.info('[CalendarDomService] Found target container', {
+      tag: targetContainer.tagName,
+      id: targetContainer.id,
+      classes: targetContainer.className
+    });
+
+    // Clean up existing instance if any
+    if (this.calendarGrid) {
+      log.debug('[CalendarDomService] Unmounting previous grid instance');
+      this.calendarGrid.unmount();
+      this.calendarGrid = null;
+    }
+
+    // Prepare header (re-using the native H2/H3)
     const actualHeader = headerElement.tagName.toLowerCase() === 'h2' || headerElement.tagName.toLowerCase() === 'h3'
       ? headerElement
       : headerElement.querySelector<HTMLElement>('h2, h3');
-
+    
     if (actualHeader) {
       actualHeader.innerHTML = 'AU - Calendar';
       actualHeader.className = 'au-calendar-title';
     }
 
-    // Add settings button
+    // Add settings buttons to the header
     const parentHeader = (headerElement.closest('.section-header') || headerElement.parentElement) as HTMLElement;
     if (parentHeader) {
       this.injectSettingsButton(parentHeader, onSettingsClick, onAstraClick);
     }
 
-    // Find and clear container
-    const container = this.findAiringContainer(headerElement);
-    if (!container) {
-      log.error('[CalendarDom] Container for Airing section not found');
-      return null;
-    }
+    // Clear native content from the container
+    this.clearNativeAiringContent(targetContainer, headerElement);
 
-    this.clearNativeAiringContent(container, headerElement);
-
-    // Create and mount calendar
+    // Create our calendar wrapper
     const calendarContainer = document.createElement('div');
     calendarContainer.id = CSS_CLASSES.CALENDAR;
-    calendarContainer.className = `${CSS_CLASSES.CONTAINER} ${CSS_CLASSES.CALENDAR}`;
+    calendarContainer.className = 'anilist-calendar';
 
+    // Grid container where components will mount
     const gridContainer = document.createElement('div');
     gridContainer.className = 'calendar-grid-container';
     calendarContainer.appendChild(gridContainer);
 
+    // Insert into DOM
     const sectionHeader = headerElement.closest('.section-header');
-    if (sectionHeader && sectionHeader.parentNode === container) {
-      container.insertBefore(calendarContainer, sectionHeader.nextSibling);
+    if (sectionHeader && sectionHeader.parentNode === targetContainer) {
+      log.debug('[CalendarDomService] Inserting after section header');
+      targetContainer.insertBefore(calendarContainer, sectionHeader.nextSibling);
     } else {
-      container.appendChild(calendarContainer);
+      log.debug('[CalendarDomService] Appending to target container');
+      targetContainer.appendChild(calendarContainer);
     }
 
     this.containerElement = calendarContainer;
-    this.calendarGrid = new CalendarGrid({ onMarkWatched });
-    this.calendarGrid.mount(gridContainer);
+    
+    // Resolve and mount the grid component
+    try {
+      log.debug('[CalendarDomService] Resolving CalendarGrid from child container');
+      const child = container.createChildContainer();
+      child.register('CalendarGridProps', { useValue: { onMarkWatched } });
+      this.calendarGrid = child.resolve(CalendarGrid);
+      
+      log.debug('[CalendarDomService] Mounting CalendarGrid');
+      this.calendarGrid.mount(gridContainer);
+    } catch (error) {
+      log.error('[CalendarDomService] Failed to initialize CalendarGrid component', error);
+      calendarContainer.innerHTML = `<div class="calendar-error" style="padding: 20px; text-align: center; color: var(--au-error);">Failed to load calendar components. Check console for details.</div>`;
+    }
 
     return calendarContainer;
   }
 
+  /**
+   * Inject settings and dashboard buttons into the header
+   */
   private injectSettingsButton(parentHeader: HTMLElement, onSettingsClick: () => void, onAstraClick: () => void): void {
     if (parentHeader.querySelector('.calendar-header__actions')) return;
 
@@ -88,7 +122,7 @@ export class CalendarDomService {
     `;
     parentHeader.appendChild(actionsContainer);
 
-    // Hide native view switchers
+    // Hide native view switchers often present in list headers
     parentHeader.querySelectorAll('.view-selector, .grid-icon, .list-icon, [class*="view-selector"]')
       .forEach(el => (el as HTMLElement).style.display = 'none');
 
@@ -96,22 +130,52 @@ export class CalendarDomService {
     actionsContainer.querySelector('.calendar-header__astra')?.addEventListener('click', onAstraClick);
   }
 
+  /**
+   * Remove native AniList airing grid content
+   */
   private clearNativeAiringContent(container: HTMLElement, headerElement: HTMLElement): void {
     const sectionHeader = headerElement.closest('.section-header');
+    
+    log.debug('[CalendarDomService] Clearing native content from container', {
+      childCount: container.children.length
+    });
+
     Array.from(container.children).forEach(child => {
-      if (child !== sectionHeader && child.querySelector('.section-header') !== sectionHeader) {
+      // Don't remove the section header
+      if (child === sectionHeader || child.querySelector('.section-header') === sectionHeader) {
+        return;
+      }
+      
+      // Don't remove our own calendar if it was already there
+      if ((child as HTMLElement).id === CSS_CLASSES.CALENDAR) {
+        return;
+      }
+
+      // Check if it's a native card grid or list
+      const isNativeGrid = child.classList.contains('grid-wrap') || 
+                           child.classList.contains('list-preview') ||
+                           child.querySelectorAll('.media-preview-card').length > 0;
+      
+      if (isNativeGrid) {
+        log.debug('[CalendarDomService] Removing native grid element');
+        child.remove();
+      } else if (container.classList.contains('list-preview-wrap') || container.tagName === 'SECTION') {
+        // If we are in a wrap or section, be more aggressive but careful
+        log.debug('[CalendarDomService] Removing non-header child from section');
         child.remove();
       }
     });
   }
 
+  /**
+   * Find the "Airing" section header on the home page
+   */
   public findAiringSection(): Promise<HTMLElement | null> {
     return new Promise((resolve) => {
-      // Robust multi-strategy search (from original code)
       const findText = (s: string, t: string) => 
         Array.from(document.querySelectorAll<HTMLElement>(s)).filter(el => el.textContent?.trim().includes(t));
 
-      let airing = findText('h2', 'Airing')[0] || 
+      const airing = findText('h2', 'Airing')[0] || 
                    Array.from(document.querySelectorAll<HTMLElement>('.section-header')).find(h => h.textContent?.includes('Airing')) ||
                    Array.from(document.querySelectorAll<HTMLElement>('.home section')).find(s => s.textContent?.includes('Airing'))?.querySelector<HTMLElement>('h2, h3, .section-header');
 
@@ -119,18 +183,32 @@ export class CalendarDomService {
     });
   }
 
+  /**
+   * Find the container element that holds the airing grid
+   */
   private findAiringContainer(headerElement: HTMLElement): HTMLElement | null {
     const sectionHeader = headerElement.closest('.section-header');
+    
+    // Strategy 1: Look for the list wrapper (most common)
     if (sectionHeader) {
       const wrap = sectionHeader.closest('.list-preview-wrap') || sectionHeader.closest('.list-preview');
       if (wrap) return wrap as HTMLElement;
+      
+      // Strategy 2: Use the parent of the header if it looks like a section
+      const parent = sectionHeader.parentElement;
+      if (parent && (parent.tagName === 'SECTION' || parent.classList.contains('home'))) {
+        return parent;
+      }
     }
 
+    // Strategy 3: Ancestor with cards
     let current = headerElement.parentElement;
     for (let i = 0; i < 5 && current; i++) {
       if (current.querySelectorAll('.media-preview-card').length > 0) return current;
       current = current.parentElement;
     }
+
+    // Strategy 4: Closest section
     return headerElement.closest('section') || headerElement.parentElement?.parentElement || null;
   }
 
@@ -146,9 +224,6 @@ export class CalendarDomService {
         </div>
       </div>
     `;
-    this.containerElement.querySelector('.calendar-auth-prompt__btn')?.addEventListener('click', () => {
-       // Note: anilistClient call will be handled by orchestrator/AuthService
-    });
   }
 
   public getGrid(): CalendarGrid | null { return this.calendarGrid; }

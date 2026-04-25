@@ -22,7 +22,8 @@
 /* Social wrapper for native cards - bubble style above card */
 .au-social-wrapper {
   position: absolute;
-  bottom: calc(100% + 3px); /* Position above card with 3px gap */
+  bottom: calc(100% + 3px);
+  /* Position above card with 3px gap */
   left: 50%;
   transform: translateX(-50%);
   background: rgba(14, 22, 33, 0.95);
@@ -96,7 +97,8 @@
   align-items: center !important;
   gap: 8px !important;
   width: 100% !important;
-  max-width: 360px !important; /* Fit ~8 larger avatars */
+  max-width: 360px !important;
+  /* Fit ~8 larger avatars */
 }
 
 /* Show wrapper on card hover */
@@ -144,9 +146,9 @@
   justify-content: center;
   font-size: 13px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   transition: all var(--au-transition);
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .au-social-button:hover {
@@ -160,7 +162,8 @@
   top: 6px;
   left: 6px;
   display: flex;
-  gap: -8px; /* Negative gap for stack effect */
+  gap: -8px;
+  /* Negative gap for stack effect */
   z-index: 5;
   transition: opacity var(--au-transition);
   pointer-events: auto;
@@ -211,7 +214,8 @@
 .au-social-sidebar {
   position: fixed;
   top: 0;
-  right: -300px; /* Reduced to avoid full hiding, transition handled by transform */
+  right: -300px;
+  /* Reduced to avoid full hiding, transition handled by transform */
   width: 280px;
   height: 100vh;
   background: var(--au-bg);
@@ -294,7 +298,8 @@
 
 .au-filter.active {
   color: var(--au-text);
-  background: rgba(74, 158, 255, 0.2); /* Soft highlight similar to AniList */
+  background: rgba(74, 158, 255, 0.2);
+  /* Soft highlight similar to AniList */
   box-shadow: none !important;
   text-shadow: none !important;
 }
@@ -451,8 +456,15 @@
 
 /* Entrance Animation for Rows */
 @keyframes au-item-fade-in {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .au-friend-row {
@@ -559,17 +571,8 @@
   font-style: italic;
 }
 
-.au-score-badge {
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-weight: 800;
-  font-size: 10px;
-  background: var(--au-border);
-  color: var(--au-text);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-.au-social-loading, .au-social-empty {
+.au-social-loading,
+.au-social-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -675,4 +678,3 @@
 .au-media-social-cl-item.au-media-social-cl-empty:hover {
   background: transparent;
 }
-

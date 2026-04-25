@@ -17,6 +17,8 @@
 
 ## 📊 Notes & Ideas
 
+IMPORTANTE. IL LOGIN ORA UTILIZZA IL NUMRO FISSO
+
 - [ ] **Query Voti**: ricontrollare le query coi voti delle persone nelle activity. mi sa che ci sono degli errori.
 - [ ] **Colori**: i Colori di anilist differiscono da quelli scelti (viola ecc).
 - [ ] **Caching**: anche le notifiche si possono cachare dai.
@@ -33,9 +35,12 @@ vorrei fare un rework grafico alla social activity dal calendario (le custom lis
 
 estensione funzionalità social con avatar anche a anime e manga in progress, essenzialmente il bottone a pillola
 
-
 l icona dei commenti fa schifo, pochissima definziiione. INoltre i commenti devono NON saprire anche quando hovero il loro popup, non solo l cione nuvoletta!
 
----
+Le notifiche hanno un botto di problemi ziocantaS
 
-*Last Updated: 2026-04-23*
+nel calendario se showfriend avatars è on ma non ci sono amici, non si vede nemmeno l avatr generale per aprire la social activity!
+
+filtri condizionali ai criteri per il voto. se do 3 alla grafica a un anime del 1990 non deve influire come se lo dessi ad uno di oggi. Per questo magari fare ad esempio un filtro condizionale che permette al voto di allontanarsi di un massimo di 2 voti dalla media pesata senza se stesso. qualcosa del genere. se tutti fossero csoì ci sarebbero problemi però, quindi andrebbe data una priorità, anche se altissimamente improbabile
+
+in astra, aggiungere i Private, quelli defautl di anilist, come sezione

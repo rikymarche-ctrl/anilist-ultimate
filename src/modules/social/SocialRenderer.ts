@@ -48,12 +48,12 @@ export class SocialRenderer {
   /**
    * Injects the social UI into a native AniList card
    */
-  public static injectIntoCard(card: HTMLElement, mediaId: number, activities: FriendActivity[]): void {
+  public static injectIntoCard(card: HTMLElement, mediaId: number, activities: FriendActivity[] = []): void {
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    if (!socialEnabled || !socialShowAvatars) return;
+
     // 1. Remove existing if any
     card.querySelector('.au-social-wrapper')?.remove();
-
-    // Show wrapper even with 0 activities (to display social button)
-    // if (activities.length === 0) return;
 
     // 2. Find target container (usually .cover or .image)
     const target = card.querySelector('.cover, .image, .image-container');
@@ -72,7 +72,7 @@ export class SocialRenderer {
     // but allowed specific elements (avatars and button) to work
     wrapper.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      if (target.classList.contains('au-friend-avatar')) {
+      if (target.classList.contains('friend-avatar')) {
         const userName = target.getAttribute('data-user-name');
         if (userName) {
           e.stopPropagation();

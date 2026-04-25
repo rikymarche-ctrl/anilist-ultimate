@@ -83,6 +83,7 @@ export interface CalendarPreferences {
   openInNewTab: boolean;
   socialEnabled: boolean;
   socialShowAvatars: boolean;
+  showEmptyToday: boolean;
 }
 
 // ============================================================================

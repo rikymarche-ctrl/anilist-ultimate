@@ -3,139 +3,156 @@
  * Main calendar UI - orchestrates day columns
  */
 
+import { injectable } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
+import { container } from '@core/di/container';
 import { DayColumn } from './DayColumn';
 import { CalendarSkeleton } from './CalendarSkeleton';
 import { calendarStore } from '../CalendarStore';
 import { DAYS_OF_WEEK, TIME } from '@core/constants';
 import { log } from '@core/logger';
-import type { CardOptions } from '@core/types';
+import type { DayOfWeek } from '@core/types';
 
 interface CalendarGridProps {
   onMarkWatched: (mediaId: number) => Promise<void>;
 }
 
+@injectable()
 export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   private dayColumns: DayColumn[] = [];
-  private unsubscribe?: () => void;
+  private unsubscribe: (() => void) | null = null;
+
+  constructor() {
+    super({
+      onMarkWatched: async () => { }
+    });
+  }
 
   protected render(): HTMLElement {
     const state = calendarStore.getState();
     const { preferences, loading, entries } = state;
+    const { hideEmptyDays, showEmptyToday } = preferences;
 
-    // Show skeleton if loading and no entries
-    if (loading && entries.length === 0) {
-      const skeleton = new CalendarSkeleton({});
-      return skeleton.getElement();
-    }
+    log.debug('[CalendarGrid] Rendering grid', { 
+      loading, 
+      entryCount: entries.length, 
+      hideEmptyDays 
+    });
 
-    const grid = this.createElement('div', { class: 'calendar-grid' });
+    // Reset column tracking
+    this.dayColumns = [];
 
-    // Apply layout mode class
-    grid.classList.add(`calendar-grid--${preferences.layoutMode}`);
+    try {
+      // Show skeleton while loading if no data yet
+      if (loading && entries.length === 0) {
+        return new CalendarSkeleton({}).getElement();
+      }
 
-    // Apply column justify class
-    if (preferences.columnJustify === 'center') {
-      grid.classList.add('calendar-grid--center-justify');
-    }
+      const grid = this.createElement('div', { class: 'calendar-grid' });
+      
+      // Determine which days to show
+      const orderedDays = this.getOrderedDays(preferences.startDay);
+      let daysToShow = orderedDays;
 
-    // Group entries by day
-    const entriesByDay = calendarStore.getEntriesByDay();
+      if (hideEmptyDays) {
+        daysToShow = this.getNonEmptyDays(entries, orderedDays);
+      }
 
-    // Get ordered days based on start day preference
-    const orderedDays = this.getOrderedDays(preferences.startDay);
+      const today = DAYS_OF_WEEK[new Date().getDay()];
 
-    // Get today's day name
-    const today = DAYS_OF_WEEK[new Date().getDay()];
+      // Fallback: if all days are empty, show at least today if requested
+      if (daysToShow.length === 0) {
+        if (showEmptyToday) {
+          daysToShow = [today];
+        } else if (!loading) {
+          return this.renderEmptyState();
+        } else {
+          return new CalendarSkeleton({}).getElement();
+        }
+      }
 
-    // Create card options
-    const cardOptions: CardOptions = {
-      layoutMode: preferences.layoutMode,
-      showTime: preferences.showTime,
-      showEpisodeNumbers: preferences.showEpisodeNumbers,
-      timeFormat: preferences.timeFormat,
-      fullWidthImages: preferences.fullWidthImages,
-      titleAlignment: preferences.titleAlignment,
-      columnJustify: preferences.columnJustify,
-      maxCardsPerDay: preferences.maxCardsPerDay,
-      openInNewTab: preferences.openInNewTab,
-      onMarkWatched: this.props.onMarkWatched,
-    };
+      // Track days count for CSS grid layout
+      grid.classList.add(`days-count-${daysToShow.length}`);
 
-    // Filter days if hideEmptyDays is enabled
-    let daysToShow = orderedDays;
-    if (preferences.hideEmptyDays) {
-      daysToShow = orderedDays.filter((day) => {
-        const entries = entriesByDay[day] || [];
-        return entries.length > 0;
+      // Create day columns
+      const entriesByDay = calendarStore.getEntriesByDay();
+      
+      daysToShow.forEach((day) => {
+        const props = {
+          day,
+          entries: entriesByDay[day] || [],
+          isToday: day === today,
+          cardOptions: {
+            layoutMode: preferences.layoutMode,
+            showTime: preferences.showTime,
+            showEpisodeNumbers: preferences.showEpisodeNumbers,
+            timeFormat: preferences.timeFormat,
+            fullWidthImages: preferences.fullWidthImages,
+            titleAlignment: preferences.titleAlignment,
+            columnJustify: preferences.columnJustify,
+            maxCardsPerDay: preferences.maxCardsPerDay,
+            openInNewTab: preferences.openInNewTab
+          },
+          onMarkWatched: this.props.onMarkWatched,
+        };
+
+        const child = container.createChildContainer();
+        child.register('DayColumnProps', { useValue: props });
+        const column = child.resolve(DayColumn);
+        
+        this.dayColumns.push(column);
+        grid.appendChild(column.getElement());
       });
 
-      // If all days are empty, show at least today
-      if (daysToShow.length === 0) {
-        daysToShow = [today];
-      }
+      return grid;
+    } catch (error: any) {
+      log.error('[CalendarGrid] Render failed', error);
+      const errorEl = this.createElement('div', { class: 'calendar-grid__error' });
+      errorEl.innerHTML = `
+        <div class="calendar-grid__error-content">
+          <i class="fa fa-exclamation-triangle"></i>
+          <p>Failed to render calendar grid.</p>
+          <div class="calendar-error-details" style="font-size: 10px; opacity: 0.7; margin: 10px 0; font-family: monospace;">
+            ${error.message || 'Unknown error'}
+          </div>
+          <button class="calendar-grid__retry-btn">Retry</button>
+        </div>
+      `;
+      errorEl.querySelector('.calendar-grid__retry-btn')?.addEventListener('click', () => {
+        this.rerender();
+      });
+      return errorEl;
     }
+  }
 
-    // Add days-count class to grid for responsive layout
-    grid.classList.remove(
-      'days-count-1',
-      'days-count-2',
-      'days-count-3',
-      'days-count-4',
-      'days-count-5',
-      'days-count-6',
-      'days-count-7'
-    );
-    grid.classList.add(`days-count-${daysToShow.length}`);
-
-    // Create day columns
-    this.dayColumns = daysToShow
-      .map((day) => {
-        const entries = entriesByDay[day] || [];
-
-        const column = new DayColumn({
-          day,
-          entries,
-          cardOptions,
-          isToday: day === today,
-        });
-
-        column.mount(grid);
-        return column;
-      })
-      .filter((col): col is DayColumn => col !== null);
-
-    return grid;
+  /**
+   * Renders an empty state when no anime are airing
+   */
+  private renderEmptyState(): HTMLElement {
+    const empty = this.createElement('div', { class: 'calendar-grid__empty' });
+    empty.innerHTML = `
+      <div class="calendar-grid__empty-content">
+        <i class="fa fa-calendar-xmark"></i>
+        <h3>No anime airing this week</h3>
+        <p>Your watching list doesn't have any airing episodes scheduled for the next 7 days.</p>
+      </div>
+    `;
+    return empty;
   }
 
   protected attachEvents(): void {
-    // Unsubscribe from existing listener if any before re-subscribing
     if (this.unsubscribe) {
       this.unsubscribe();
     }
 
     // Subscribe to store changes
     this.unsubscribe = calendarStore.subscribe((state, prevState) => {
-      // Check if we need to re-render
       const shouldRerender =
         state.loading !== prevState.loading ||
         state.entries !== prevState.entries ||
-        state.preferences.layoutMode !== prevState.preferences.layoutMode ||
-        state.preferences.hideEmptyDays !== prevState.preferences.hideEmptyDays ||
-        state.preferences.startDay !== prevState.preferences.startDay ||
-        state.preferences.showTime !== prevState.preferences.showTime ||
-        state.preferences.showEpisodeNumbers !== prevState.preferences.showEpisodeNumbers ||
-        state.preferences.fullWidthImages !== prevState.preferences.fullWidthImages ||
-        state.preferences.titleAlignment !== prevState.preferences.titleAlignment ||
-        state.preferences.columnJustify !== prevState.preferences.columnJustify ||
-        state.preferences.maxCardsPerDay !== prevState.preferences.maxCardsPerDay ||
-        state.preferences.timeFormat !== prevState.preferences.timeFormat ||
-        state.preferences.openInNewTab !== prevState.preferences.openInNewTab ||
-        state.preferences.socialEnabled !== prevState.preferences.socialEnabled ||
-        state.preferences.socialShowAvatars !== prevState.preferences.socialShowAvatars;
+        JSON.stringify(state.preferences) !== JSON.stringify(prevState.preferences);
 
       if (shouldRerender) {
-        log.debug('Calendar preferences changed, re-rendering grid');
         this.rerender();
       }
     });
@@ -171,11 +188,21 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   }
 
   /**
+   * Filter days that have at least one entry
+   */
+  private getNonEmptyDays(entries: any[], orderedDays: string[]): string[] {
+    const daysWithEntries = new Set(entries.map(e => e.airingAt.getDay()));
+    return orderedDays.filter(dayName => {
+      const dayIndex = DAYS_OF_WEEK.indexOf(dayName as DayOfWeek);
+      return daysWithEntries.has(dayIndex);
+    });
+  }
+
+  /**
    * Update countdown timers in all cards
    */
   private updateCountdowns(): void {
     const { preferences } = calendarStore.getState();
-
     if (preferences.timeFormat === 'countdown') {
       this.dayColumns.forEach((column) => {
         column.updateCardTimes('countdown');
@@ -183,52 +210,19 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
     }
   }
 
-  /**
-   * Show loading state (no-op as it's handled by render)
-   */
   public showLoading(): void { }
-
-  /**
-   * Hide loading state (no-op as it's handled by render)
-   */
   public hideLoading(): void { }
 
-  /**
-   * Show error message
-   */
   public showError(message: string): void {
-    const errorEl = this.createElement('div', { class: 'calendar-grid__error' });
-    errorEl.innerHTML = `
-      <div class="calendar-grid__error-content">
-        <i class="fa fa-exclamation-circle"></i>
-        <p>${message}</p>
-        <button class="calendar-grid__retry-btn">Retry</button>
-      </div>
-    `;
-
-    this.element.appendChild(errorEl);
-
-    // Add retry button handler
-    const retryBtn = errorEl.querySelector('.calendar-grid__retry-btn');
-    if (retryBtn) {
-      this.addEventListener(retryBtn as HTMLElement, 'click', () => {
-        errorEl.remove();
-        // Trigger reload event (handled by parent module)
-        this.element.dispatchEvent(new CustomEvent('retry'));
-      });
-    }
+    log.error('[CalendarGrid] Error reported', { message });
+    this.rerender(); // Use render-based error handling
   }
 
   protected onUnmount(): void {
-    // Stop countdown interval
     calendarStore.stopCountdownInterval();
-
-    // Unsubscribe from store
     if (this.unsubscribe) {
       this.unsubscribe();
     }
-
-    // Clean up day columns
     this.dayColumns.forEach((column) => column.unmount());
     this.dayColumns = [];
   }

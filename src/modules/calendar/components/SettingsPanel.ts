@@ -3,64 +3,66 @@
  * Modal panel for calendar preferences
  */
 
+import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { calendarStore } from '../CalendarStore';
 import { log } from '@core/logger';
-import { anilistClient } from '../../../api';
+import { TOKENS } from '@core/di/tokens';
+import { html, map, when } from '@core/utils/Template';
 import type { CalendarPreferences } from '@core/types';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 
 interface SettingsPanelProps {
   onClose: () => void;
 }
 
+@injectable()
 export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   private unsubscribe?: () => void;
   private pendingChanges: Partial<CalendarPreferences> = {};
   private activeTab: string = 'layout';
 
+  constructor(
+    @inject('SettingsPanelProps') props: SettingsPanelProps,
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient
+  ) {
+    super(props);
+  }
+
   protected render(): HTMLElement {
-    // Ensure activeTab is set even if called from constructor
     if (!this.activeTab) this.activeTab = 'layout';
-    
-    const overlay = this.createElement('div', { class: 'settings-overlay' });
-    const panel = this.createElement('div', { class: 'settings-panel' });
     const prefs = calendarStore.getState().preferences;
 
-    // Header
-    panel.appendChild(this.renderHeader());
-
-    // Tabs Navigation
-    panel.appendChild(this.renderTabsNav());
-
-    // Content Area
-    const content = this.createElement('div', { class: 'settings-panel__content' });
-    content.appendChild(this.renderLayoutTab(prefs));
-    content.appendChild(this.renderDisplayTab(prefs));
-    content.appendChild(this.renderWeekTab(prefs));
-    content.appendChild(this.renderSocialTab(prefs));
-    content.appendChild(this.renderAccountTab());
-    panel.appendChild(content);
-
-    // Footer
-    panel.appendChild(this.renderFooter());
-
-    overlay.appendChild(panel);
-    return overlay;
+    return html`
+      <div class="settings-overlay">
+        <div class="settings-panel">
+          ${this.renderHeader()}
+          ${this.renderTabsNav()}
+          <div class="settings-panel__content">
+            ${this.renderLayoutTab(prefs)}
+            ${this.renderDisplayTab(prefs)}
+            ${this.renderWeekTab(prefs)}
+            ${this.renderSocialTab(prefs)}
+            ${this.renderAccountTab()}
+          </div>
+          ${this.renderFooter()}
+        </div>
+      </div>
+    `;
   }
 
   private renderHeader(): HTMLElement {
-    const header = this.createElement('div', { class: 'settings-panel__header' });
-    header.innerHTML = `
-      <h2>Calendar Settings</h2>
-      <button class="settings-panel__close" aria-label="Close">
-        <i class="fa fa-times"></i>
-      </button>
+    return html`
+      <div class="settings-panel__header">
+        <h2>Calendar Settings</h2>
+        <button class="settings-panel__close" aria-label="Close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
     `;
-    return header;
   }
 
   private renderTabsNav(): HTMLElement {
-    const nav = this.createElement('div', { class: 'settings-panel__tabs' });
     const tabs = [
       { id: 'layout', label: 'Layout' },
       { id: 'display', label: 'Display' },
@@ -69,198 +71,190 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
       { id: 'account', label: 'Account' }
     ];
 
-    tabs.forEach(tab => {
-      const btn = this.createElement('button', {
-        class: `settings-tab ${this.activeTab === tab.id ? 'settings-tab--active' : ''}`,
-        'data-tab': tab.id
-      });
-      btn.textContent = tab.label;
-      nav.appendChild(btn);
-    });
-
-    return nav;
+    return html`
+      <div class="settings-panel__tabs">
+        ${map(tabs, tab => html`
+          <button 
+            class="settings-tab ${this.activeTab === tab.id ? 'settings-tab--active' : ''}" 
+            data-tab="${tab.id}"
+          >
+            ${tab.label}
+          </button>
+        `)}
+      </div>
+    `;
   }
 
   private renderLayoutTab(prefs: CalendarPreferences): HTMLElement {
-    const tab = this.createElement('div', {
-      class: `settings-tab-content ${this.activeTab === 'layout' ? 'settings-tab-content--active' : ''}`,
-      'data-tab-content': 'layout'
-    });
-
-    tab.innerHTML = `
-      <div class="settings-field">
-        <label class="settings-field__label">Layout Mode</label>
-        <select class="settings-field__select" data-setting="layoutMode">
-          <option value="standard" ${prefs.layoutMode === 'standard' ? 'selected' : ''}>Standard</option>
-          <option value="compact" ${prefs.layoutMode === 'compact' ? 'selected' : ''}>Compact</option>
-          <option value="extended" ${prefs.layoutMode === 'extended' ? 'selected' : ''}>Extended</option>
-        </select>
-      </div>
-      <div class="settings-field">
-        <label class="settings-field__label">Title Alignment</label>
-        <select class="settings-field__select" data-setting="titleAlignment">
-          <option value="left" ${prefs.titleAlignment === 'left' ? 'selected' : ''}>Left</option>
-          <option value="center" ${prefs.titleAlignment === 'center' ? 'selected' : ''}>Center</option>
-        </select>
-      </div>
-      <div class="settings-field">
-        <label class="settings-field__label">Column Justify</label>
-        <select class="settings-field__select" data-setting="columnJustify">
-          <option value="top" ${prefs.columnJustify === 'top' ? 'selected' : ''}>Top</option>
-          <option value="center" ${prefs.columnJustify === 'center' ? 'selected' : ''}>Center</option>
-        </select>
+    return html`
+      <div 
+        class="settings-tab-content ${this.activeTab === 'layout' ? 'settings-tab-content--active' : ''}" 
+        data-tab-content="layout"
+      >
+        <div class="settings-field">
+          <label class="settings-field__label">Layout Mode</label>
+          <select class="settings-field__select" data-setting="layoutMode">
+            <option value="standard" ${when(prefs.layoutMode === 'standard', 'selected')}>Standard</option>
+            <option value="compact" ${when(prefs.layoutMode === 'compact', 'selected')}>Compact</option>
+            <option value="extended" ${when(prefs.layoutMode === 'extended', 'selected')}>Extended</option>
+          </select>
+        </div>
+        <div class="settings-field">
+          <label class="settings-field__label">Title Alignment</label>
+          <select class="settings-field__select" data-setting="titleAlignment">
+            <option value="left" ${when(prefs.titleAlignment === 'left', 'selected')}>Left</option>
+            <option value="center" ${when(prefs.titleAlignment === 'center', 'selected')}>Center</option>
+          </select>
+        </div>
+        <div class="settings-field">
+          <label class="settings-field__label">Column Justify</label>
+          <select class="settings-field__select" data-setting="columnJustify">
+            <option value="top" ${when(prefs.columnJustify === 'top', 'selected')}>Top</option>
+            <option value="center" ${when(prefs.columnJustify === 'center', 'selected')}>Center</option>
+          </select>
+        </div>
       </div>
     `;
-
-    return tab;
   }
 
   private renderDisplayTab(prefs: CalendarPreferences): HTMLElement {
-    const tab = this.createElement('div', {
-      class: `settings-tab-content ${this.activeTab === 'display' ? 'settings-tab-content--active' : ''}`,
-      'data-tab-content': 'display'
-    });
-
-    tab.innerHTML = `
-      <div class="settings-field settings-field--toggle">
-        <label class="settings-field__label">
-          <input type="checkbox" data-setting="showTime" ${prefs.showTime ? 'checked' : ''}>
-          <span>Show Time</span>
-        </label>
-      </div>
-      <div class="settings-field settings-field--toggle">
-        <label class="settings-field__label">
-          <input type="checkbox" data-setting="showEpisodeNumbers" ${prefs.showEpisodeNumbers ? 'checked' : ''}>
-          <span>Show Episode Numbers</span>
-        </label>
-      </div>
-      <div class="settings-field settings-field--toggle">
-        <label class="settings-field__label">
-          <input type="checkbox" data-setting="hideEmptyDays" ${prefs.hideEmptyDays ? 'checked' : ''}>
-          <span>Hide Empty Days</span>
-        </label>
-      </div>
-      <div class="settings-field settings-field--toggle">
-        <label class="settings-field__label">
-          <input type="checkbox" data-setting="fullWidthImages" ${prefs.fullWidthImages ? 'checked' : ''}>
-          <span>Full Width Images</span>
-        </label>
-      </div>
-      <div class="settings-field settings-field--toggle">
-        <label class="settings-field__label">
-          <input type="checkbox" data-setting="openInNewTab" ${prefs.openInNewTab ? 'checked' : ''}>
-          <span>Open in New Tab</span>
-        </label>
-        <span class="settings-field__hint">Open anime details in a new tab instead of the current one.</span>
-      </div>
-      <div class="settings-field" id="time-format-field" style="display: ${prefs.showTime ? 'block' : 'none'}">
-        <label class="settings-field__label">Time Display Format</label>
-        <select class="settings-field__select" data-setting="timeFormat">
-          <option value="release" ${prefs.timeFormat === 'release' ? 'selected' : ''}>Release Time (e.g. 16:00)</option>
-          <option value="countdown" ${prefs.timeFormat === 'countdown' ? 'selected' : ''}>Countdown (e.g. 2h 30m)</option>
-        </select>
+    return html`
+      <div 
+        class="settings-tab-content ${this.activeTab === 'display' ? 'settings-tab-content--active' : ''}" 
+        data-tab-content="display"
+      >
+        <div class="settings-field settings-field--toggle">
+          <label class="settings-field__label">
+            <input type="checkbox" data-setting="showTime" ${when(prefs.showTime, 'checked')}>
+            <span>Show Time</span>
+          </label>
+        </div>
+        <div class="settings-field settings-field--toggle">
+          <label class="settings-field__label">
+            <input type="checkbox" data-setting="showEpisodeNumbers" ${when(prefs.showEpisodeNumbers, 'checked')}>
+            <span>Show Episode Numbers</span>
+          </label>
+        </div>
+        <div class="settings-field settings-field--toggle">
+          <label class="settings-field__label">
+            <input type="checkbox" data-setting="hideEmptyDays" ${when(prefs.hideEmptyDays, 'checked')}>
+            <span>Hide Empty Days</span>
+          </label>
+        </div>
+        <div class="settings-field settings-field--toggle">
+          <label class="settings-field__label">
+            <input type="checkbox" data-setting="fullWidthImages" ${when(prefs.fullWidthImages, 'checked')}>
+            <span>Full Width Images</span>
+          </label>
+        </div>
+        <div class="settings-field settings-field--toggle">
+          <label class="settings-field__label">
+            <input type="checkbox" data-setting="openInNewTab" ${when(prefs.openInNewTab, 'checked')}>
+            <span>Open in New Tab</span>
+          </label>
+          <span class="settings-field__hint">Open anime details in a new tab instead of the current one.</span>
+        </div>
+        <div class="settings-field" id="time-format-field" style="display: ${when(prefs.showTime, 'block', 'none')}">
+          <label class="settings-field__label">Time Display Format</label>
+          <select class="settings-field__select" data-setting="timeFormat">
+            <option value="release" ${when(prefs.timeFormat === 'release', 'selected')}>Release Time (e.g. 16:00)</option>
+            <option value="countdown" ${when(prefs.timeFormat === 'countdown', 'selected')}>Countdown (e.g. 2h 30m)</option>
+          </select>
+        </div>
       </div>
     `;
-
-    return tab;
   }
 
   private renderWeekTab(prefs: CalendarPreferences): HTMLElement {
-    const tab = this.createElement('div', {
-      class: `settings-tab-content ${this.activeTab === 'week' ? 'settings-tab-content--active' : ''}`,
-      'data-tab-content': 'week'
-    });
-
-    tab.innerHTML = `
-      <div class="settings-field">
-        <label class="settings-field__label">Start Day</label>
-        <select class="settings-field__select" data-setting="startDay">
-          <option value="today" ${prefs.startDay === 'today' ? 'selected' : ''}>Today</option>
-          <option disabled>─────────</option>
-          <option value="1" ${prefs.startDay === '1' ? 'selected' : ''}>Monday</option>
-          <option value="2" ${prefs.startDay === '2' ? 'selected' : ''}>Tuesday</option>
-          <option value="3" ${prefs.startDay === '3' ? 'selected' : ''}>Wednesday</option>
-          <option value="4" ${prefs.startDay === '4' ? 'selected' : ''}>Thursday</option>
-          <option value="5" ${prefs.startDay === '5' ? 'selected' : ''}>Friday</option>
-          <option value="6" ${prefs.startDay === '6' ? 'selected' : ''}>Saturday</option>
-          <option value="0" ${prefs.startDay === '0' ? 'selected' : ''}>Sunday</option>
-        </select>
-      </div>
-      <div class="settings-field">
-        <label class="settings-field__label">Max Cards Per Day (Gallery)</label>
-        <div class="slider-container">
-          <input type="range" class="settings-field__slider" data-setting="maxCardsPerDay" id="maxCardsPerDay" value="${prefs.maxCardsPerDay}" min="0" max="10" step="1">
-          <span class="slider-value" id="maxCardsPerDayValue">${prefs.maxCardsPerDay === 0 ? 'Unlimited' : prefs.maxCardsPerDay}</span>
+    return html`
+      <div 
+        class="settings-tab-content ${this.activeTab === 'week' ? 'settings-tab-content--active' : ''}" 
+        data-tab-content="week"
+      >
+        <div class="settings-field">
+          <label class="settings-field__label">Start Day</label>
+          <select class="settings-field__select" data-setting="startDay">
+            <option value="today" ${when(prefs.startDay === 'today', 'selected')}>Today</option>
+            <option disabled>─────────</option>
+            <option value="1" ${when(prefs.startDay === '1', 'selected')}>Monday</option>
+            <option value="2" ${when(prefs.startDay === '2', 'selected')}>Tuesday</option>
+            <option value="3" ${when(prefs.startDay === '3', 'selected')}>Wednesday</option>
+            <option value="4" ${when(prefs.startDay === '4', 'selected')}>Thursday</option>
+            <option value="5" ${when(prefs.startDay === '5', 'selected')}>Friday</option>
+            <option value="6" ${when(prefs.startDay === '6', 'selected')}>Saturday</option>
+            <option value="0" ${when(prefs.startDay === '0', 'selected')}>Sunday</option>
+          </select>
+        </div>
+        <div class="settings-field">
+          <label class="settings-field__label">Max Cards Per Day (Gallery)</label>
+          <div class="slider-container">
+            <input type="range" class="settings-field__slider" data-setting="maxCardsPerDay" id="maxCardsPerDay" value="${prefs.maxCardsPerDay}" min="0" max="10" step="1">
+            <span class="slider-value" id="maxCardsPerDayValue">${when(prefs.maxCardsPerDay === 0, 'Unlimited', prefs.maxCardsPerDay)}</span>
+          </div>
         </div>
       </div>
     `;
-
-    return tab;
   }
 
   private renderSocialTab(prefs: CalendarPreferences): HTMLElement {
-    const tab = this.createElement('div', {
-      class: `settings-tab-content ${this.activeTab === 'social' ? 'settings-tab-content--active' : ''}`,
-      'data-tab-content': 'social'
-    });
-
-    tab.innerHTML = `
-      <div class="settings-field settings-field--toggle">
-        <label class="settings-field__label">
-          <input type="checkbox" data-setting="socialEnabled" ${prefs.socialEnabled ? 'checked' : ''}>
-          <span>Enable Social Features</span>
-        </label>
-        <span class="settings-field__hint">Show friend activity on cards and enable the social sidebar.</span>
-      </div>
-      <div class="settings-field settings-field--toggle" id="social-avatars-field" style="display: ${prefs.socialEnabled ? 'block' : 'none'}">
-        <label class="settings-field__label">
-          <input type="checkbox" data-setting="socialShowAvatars" ${prefs.socialShowAvatars ? 'checked' : ''}>
-          <span>Show Friend Avatars</span>
-        </label>
-        <span class="settings-field__hint">Display your friends' profiles in circles on anime cards.</span>
+    return html`
+      <div 
+        class="settings-tab-content ${this.activeTab === 'social' ? 'settings-tab-content--active' : ''}" 
+        data-tab-content="social"
+      >
+        <div class="settings-field settings-field--toggle">
+          <label class="settings-field__label">
+            <input type="checkbox" data-setting="socialEnabled" ${when(prefs.socialEnabled, 'checked')}>
+            <span>Enable Social Features</span>
+          </label>
+          <span class="settings-field__hint">Show friend activity on cards and enable the social sidebar.</span>
+        </div>
+        <div class="settings-field settings-field--toggle" id="social-avatars-field" style="display: ${when(prefs.socialEnabled, 'block', 'none')}">
+          <label class="settings-field__label">
+            <input type="checkbox" data-setting="socialShowAvatars" ${when(prefs.socialShowAvatars, 'checked')}>
+            <span>Show Friend Avatars</span>
+          </label>
+          <span class="settings-field__hint">Display your friends' profiles in circles on anime cards.</span>
+        </div>
       </div>
     `;
-
-    return tab;
   }
 
   private renderAccountTab(): HTMLElement {
-    const tab = this.createElement('div', {
-      class: `settings-tab-content ${this.activeTab === 'account' ? 'settings-tab-content--active' : ''}`,
-      'data-tab-content': 'account'
-    });
-
-    tab.innerHTML = `
-      <div class="settings-field">
-        <label class="settings-field__label">Authentication Status</label>
-        <div class="auth-status" id="auth-status">
-          <span class="auth-status-text">Checking...</span>
+    return html`
+      <div 
+        class="settings-tab-content ${this.activeTab === 'account' ? 'settings-tab-content--active' : ''}" 
+        data-tab-content="account"
+      >
+        <div class="settings-field">
+          <label class="settings-field__label">Authentication Status</label>
+          <div class="auth-status" id="auth-status">
+            <span class="auth-status-text">Checking...</span>
+          </div>
+        </div>
+        <div class="settings-field">
+          <button class="settings-field__button settings-field__button--primary" id="auth-button">
+            <i class="fa fa-sign-in"></i>
+            <span>Authenticate with AniList</span>
+          </button>
+        </div>
+        <div class="settings-field">
+          <button class="settings-field__button settings-field__button--danger" id="logout-button">
+            <i class="fa fa-sign-out"></i>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
-      <div class="settings-field">
-        <button class="settings-field__button settings-field__button--primary" id="auth-button">
-          <i class="fa fa-sign-in"></i>
-          <span>Authenticate with AniList</span>
-        </button>
-      </div>
-      <div class="settings-field">
-        <button class="settings-field__button settings-field__button--danger" id="logout-button">
-          <i class="fa fa-sign-out"></i>
-          <span>Logout</span>
-        </button>
-      </div>
     `;
-
-    return tab;
   }
 
   private renderFooter(): HTMLElement {
-    const footer = this.createElement('div', { class: 'settings-panel__footer' });
-    footer.innerHTML = `
-      <button class="settings-panel__reset">Reset to Defaults</button>
-      <button class="settings-panel__save">Save & Close</button>
+    return html`
+      <div class="settings-panel__footer">
+        <button class="settings-panel__reset">Reset to Defaults</button>
+        <button class="settings-panel__save">Save & Close</button>
+      </div>
     `;
-    return footer;
   }
 
   protected attachEvents(): void {
@@ -334,7 +328,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     const authBtn = this.element.querySelector('#auth-button');
     if (authBtn) {
       this.addEventListener(authBtn as HTMLElement, 'click', () => {
-        window.open(anilistClient.getAuthUrl(), '_blank');
+        window.open(this.apiClient.getAuthUrl(), '_blank');
       });
     }
 
@@ -465,7 +459,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
     if (!statusEl) return;
 
-    const isAuthenticated = anilistClient.isAuthenticated();
+    const isAuthenticated = this.apiClient.isAuthenticated();
 
     if (isAuthenticated) {
       statusEl.innerHTML = `

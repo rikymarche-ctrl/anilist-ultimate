@@ -60,11 +60,13 @@
   padding: 3px 10px;
   transition: all var(--au-transition);
   width: 150px;
-  margin-left: auto; /* Anchor right, expand left */
+  margin-left: auto;
+  /* Anchor right, expand left */
 }
 
 .au-search-container:focus-within {
-  width: 180px; /* Max 30px expansion */
+  width: 180px;
+  /* Max 30px expansion */
   border-color: var(--au-primary);
   background: rgba(0, 0, 0, 0.3);
 }
@@ -124,7 +126,7 @@
   width: auto !important;
 }
 
-.feed-type-toggle > * {
+.feed-type-toggle>* {
   height: 100% !important;
   display: flex !important;
   align-items: center !important;
@@ -182,7 +184,7 @@
 }
 
 /* Mutual Exclusivity: When Custom is active, FORCE EVERY OTHER CHILD to INACTIVE */
-.feed-type-toggle.au-custom-active > *:not(.au-custom-list-btn) {
+.feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
   background: transparent !important;
   color: var(--au-text-light) !important;
   opacity: 0.6 !important;
@@ -253,7 +255,8 @@
 .au-custom-list-item:hover {
   background: rgba(255, 255, 255, 0.05) !important;
   color: rgb(var(--color-blue)) !important;
-  padding-left: 20px !important; /* Subtle slide effect */
+  padding-left: 20px !important;
+  /* Subtle slide effect */
 }
 
 .au-custom-list-item.active {
@@ -279,7 +282,8 @@
 }
 
 .au-custom-list-clear i {
-  color: #e85d75; /* Soft red */
+  color: #e85d75;
+  /* Soft red */
 }
 
 .au-custom-list-clear:hover {
@@ -306,33 +310,6 @@
 }
 
 /* Score Badge */
-.au-score-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--au-primary);
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: var(--au-border-radius);
-  margin-left: 8px;
-  line-height: 1;
-  box-shadow: var(--au-shadow);
-  vertical-align: middle;
-}
-
-.au-score-badge.low {
-  background: var(--au-error);
-}
-
-.au-score-badge.medium {
-  background: var(--au-warning);
-}
-
-.au-score-badge.high {
-  background: var(--au-success);
-}
 
 /* Loader and Empty States */
 .au-custom-activities-container {
@@ -351,7 +328,7 @@
 }
 
 /* Filter Bar Adjustments for Media Pages */
-.media-social-filter + .au-activity-bar {
+.media-social-filter+.au-activity-bar {
   margin-top: 20px !important;
   margin-bottom: 15px !important;
 }
