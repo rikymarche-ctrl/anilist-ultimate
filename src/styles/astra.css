@@ -31,7 +31,7 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
-  z-index: 9999;
+  z-index: var(--z-modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -265,7 +265,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 5;
+  z-index: var(--z-base);
   font-size: 10px;
 }
 
@@ -825,7 +825,7 @@
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
   padding: 10px;
-  z-index: 1000;
+  z-index: var(--z-dropdown);
   opacity: 0;
   transform: translateY(-10px);
   pointer-events: none;
@@ -1095,13 +1095,13 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
   transform: scale(0);
   transition: transform 0.2s ease;
-  z-index: 10;
+  z-index: var(--z-base);
 }
 
 .astra-top-thumb-container:hover {
   transform: translateY(-10px) scale(1.1);
   margin-right: 15px;
-  z-index: 100 !important;
+  z-index: var(--z-dropdown) !important;
 }
 
 .astra-top-thumb-container:hover .astra-top-score {
@@ -1370,7 +1370,7 @@
 
 .astra-grid-row > div {
   position: relative;
-  z-index: 5; /* Content well above progress */
+  z-index: var(--z-base); /* Content well above progress */
   font-size: 13px;
   padding: 0 10px;
   overflow: hidden;
@@ -1573,7 +1573,7 @@
   background-size: 200% 100%;
   animation: astra-shimmer 4s infinite linear;
   pointer-events: none;
-  z-index: 1;
+  z-index: var(--z-base);
   opacity: 0;
 }
 
@@ -2244,6 +2244,11 @@
   transition: all 0.2s ease;
   color: #e5e7eb;
   font-size: 14px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  appearance: none;
+  outline: none;
 }
 
 .pill-section:hover {
@@ -2298,6 +2303,12 @@
 
 .media-preview-card:hover .au-pill-wrapper {
   opacity: 1;
+  pointer-events: auto; /* Enable clicks when the overlay is visible */
+}
+
+/* Prevent AniList's image-overlay from intercepting our pill button clicks */
+.media-preview-card .image-overlay {
+  pointer-events: none;
 }
 
 .media-preview-card .action-pill {
@@ -2306,11 +2317,21 @@
   /* Darker and more transparent */
   border: 1px solid rgba(255, 255, 255, 0.08);
   pointer-events: auto;
-  /* Catch clicks only on the pill itself */
 }
 
 .media-preview-card:hover .action-pill {
   transform: translateY(0) scale(1);
+}
+
+/* Click animation — fires via JS adding/removing this class */
+@keyframes au-pill-click {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.82); }
+  100% { transform: scale(1); }
+}
+
+.media-preview-card .action-pill .pill-section.au-pill-pressed {
+  animation: au-pill-click 0.28s ease-out forwards;
 }
 
 /* Empty State */
@@ -2396,7 +2417,7 @@
   height: 100%;
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(10px);
-  z-index: 10000;
+  z-index: var(--z-toast);
   display: flex;
   align-items: center;
   justify-content: center;

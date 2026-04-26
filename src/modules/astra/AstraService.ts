@@ -72,6 +72,8 @@ export const DEFAULT_SETTINGS: AstraSettings = {
 @injectable()
 export class AstraService {
   private works: AstraWork[] = [];
+  // Performance optimization: O(1) lookup by mediaId instead of O(n) find
+  private worksByMediaId: Map<number, AstraWork> = new Map();
   private sections: AstraSection[] = DEFAULT_SECTIONS;
   private settings: AstraSettings = DEFAULT_SETTINGS;
   private isLoaded = false;
@@ -89,6 +91,8 @@ export class AstraService {
       const data = await this.getFromStorage();
       if (data) {
         this.works = data.works || [];
+        // Build the Map index for fast lookup
+        this.rebuildWorkIndex();
         this.settings = data.settings || DEFAULT_SETTINGS;
         // Merge stored sections with defaults to ensure new IDs appear during development
         const storedSections = data.sections || [];
@@ -122,9 +126,21 @@ export class AstraService {
 
   /**
    * Get a single work by mediaId
+   * Performance: O(1) Map lookup instead of O(n) array find
    */
   getWorkByMediaId(mediaId: number): AstraWork | undefined {
-    return this.works.find(w => w.mediaId === mediaId);
+    return this.worksByMediaId.get(mediaId);
+  }
+
+  /**
+   * Rebuild the work index Map from the works array
+   * Call this after bulk modifications to works array
+   */
+  private rebuildWorkIndex(): void {
+    this.worksByMediaId.clear();
+    for (const work of this.works) {
+      this.worksByMediaId.set(work.mediaId, work);
+    }
   }
 
   /**
@@ -240,8 +256,10 @@ export class AstraService {
               if (entry.score > 0) {
                 newWork.seasons[0].scores['enjoyment'] = entry.score;
               }
-              
+
               this.works.push(newWork);
+              // Update Map index for O(1) lookup
+              this.worksByMediaId.set(newWork.mediaId, newWork);
               added++;
             }
           }
@@ -293,6 +311,8 @@ export class AstraService {
         updatedAt: Date.now(),
       }, work) as AstraWork;
       this.works.unshift(updatedWork);
+      // Update Map index
+      this.worksByMediaId.set(updatedWork.mediaId, updatedWork);
     }
 
     await this.persist();
@@ -304,6 +324,8 @@ export class AstraService {
    */
   async deleteWork(mediaId: number): Promise<void> {
     this.works = this.works.filter(w => w.mediaId !== mediaId);
+    // Remove from Map index
+    this.worksByMediaId.delete(mediaId);
     await this.persist();
   }
 
@@ -312,6 +334,8 @@ export class AstraService {
    */
   async clearAllWorks(): Promise<void> {
     this.works = [];
+    // Clear Map index
+    this.worksByMediaId.clear();
     await this.persist();
     log.info('[AstraService] All works cleared');
   }

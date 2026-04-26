@@ -6,6 +6,7 @@
 import { injectable } from 'tsyringe';
 import { IEventBus, EventHandler, EventSubscription } from '../interfaces/IEventBus';
 import { AppEventMap } from './EventTypes';
+import { log } from '../logger';
 
 /**
  * Event Bus Implementation
@@ -116,14 +117,27 @@ export class EventBus implements IEventBus {
     }
 
     // Call handlers asynchronously to avoid blocking
+    // Note: Handlers are executed in parallel, errors are caught and logged
     handlers.forEach((handler) => {
-      try {
-        Promise.resolve(handler(data)).catch((error) => {
-          console.error(`[EventBus] Handler error for "${event}":`, error);
+      // Wrap in Promise.resolve to handle both sync and async handlers
+      Promise.resolve(handler(data)).catch((error) => {
+        // Log error with full context
+        log.error(`[EventBus] Handler error for event "${event}"`, {
+          event,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
         });
-      } catch (error) {
-        console.error(`[EventBus] Handler error for "${event}":`, error);
-      }
+
+        // Emit error event for centralized error handling (avoid infinite loop)
+        if (event !== 'error:occurred') {
+          this.emit('error:occurred', {
+            error: error instanceof Error ? error : new Error(String(error)),
+            context: `EventBus handler for ${event}`,
+            severity: 'high' as const,
+            timestamp: new Date()
+          });
+        }
+      });
     });
   }
 

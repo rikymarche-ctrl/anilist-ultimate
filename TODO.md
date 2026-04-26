@@ -44,3 +44,36 @@ nel calendario se showfriend avatars è on ma non ci sono amici, non si vede nem
 filtri condizionali ai criteri per il voto. se do 3 alla grafica a un anime del 1990 non deve influire come se lo dessi ad uno di oggi. Per questo magari fare ad esempio un filtro condizionale che permette al voto di allontanarsi di un massimo di 2 voti dalla media pesata senza se stesso. qualcosa del genere. se tutti fossero csoì ci sarebbero problemi però, quindi andrebbe data una priorità, anche se altissimamente improbabile
 
 in astra, aggiungere i Private, quelli defautl di anilist, come sezione
+
+
+in astra, lo show progress funziona solo se prima si resyncano le stats. non ha senso
+
+
+contry e type possono stare ciacuno sempre attivo, assimee ovviamente ai filtri sotto. Possono essere uno per categoria sempre attivi, non sono mutuali.
+
+il contenuto delle righe non occupa sempre tutto lo spazio orizzontale. DEVE, non voglio che dipende dal contenuto
+
+all statuses mi puzza LGGERMENTE di grafica fuori posto. tutto maiuscolo, boh
+
+
+il wrapped fa cacare per ora
+
+
+OGNI MODULO DELL ESTENSIONE, AD ESEMPIO COMMENTI, CALENDARIO ECC SARÀ OPTABILE IN E OUT. OGNI UTENTE DALLE IMPOSTAZIONI DELL ESTENSIONE IN GENERALE, QUELLA PROPRIO DAL BROWSER. POTRÀ DECIDERE COSA VUOEL.
+
+
+Global Weight va spostato a sinistra
+
+
+mettere gli all come filtri predefiniti, in tutte e 3 le sezioni
+
+
+la barra del progress farla leggermente più scura, non così tanto azzurra
+
+il bottone di all statuses si bugga graficamente, si ripetono le frecce del drowdown all interno quando una voce è selezionata. all infinito
+
+
+setuppare qualche observer per il cambio di pagina perchè ogni votla devo refreshare tutto a mano, che palle.
+
+
+un sistema di caching intelligente. se vado avanti e torno indeitro non può fare così schifo. oltre che a chachare notifiche e reviews almeno dai

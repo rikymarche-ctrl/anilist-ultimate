@@ -105,22 +105,39 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
       });
 
       return grid;
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('[CalendarGrid] Render failed', error);
       const errorEl = this.createElement('div', { class: 'calendar-grid__error' });
-      errorEl.innerHTML = `
-        <div class="calendar-grid__error-content">
-          <i class="fa fa-exclamation-triangle"></i>
-          <p>Failed to render calendar grid.</p>
-          <div class="calendar-error-details" style="font-size: 10px; opacity: 0.7; margin: 10px 0; font-family: monospace;">
-            ${error.message || 'Unknown error'}
-          </div>
-          <button class="calendar-grid__retry-btn">Retry</button>
-        </div>
-      `;
-      errorEl.querySelector('.calendar-grid__retry-btn')?.addEventListener('click', () => {
+
+      const errorContent = document.createElement('div');
+      errorContent.className = 'calendar-grid__error-content';
+
+      const icon = document.createElement('i');
+      icon.className = 'fa fa-exclamation-triangle';
+      icon.setAttribute('aria-hidden', 'true');
+      errorContent.appendChild(icon);
+
+      const message = document.createElement('p');
+      message.textContent = 'Failed to render calendar grid.';
+      errorContent.appendChild(message);
+
+      const details = document.createElement('div');
+      details.className = 'calendar-error-details';
+      details.style.cssText = 'font-size: 10px; opacity: 0.7; margin: 10px 0; font-family: monospace;';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      details.textContent = errorMessage;
+      errorContent.appendChild(details);
+
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'calendar-grid__retry-btn';
+      retryBtn.setAttribute('aria-label', 'Retry loading calendar');
+      retryBtn.textContent = 'Retry';
+      retryBtn.addEventListener('click', () => {
         this.rerender();
       });
+      errorContent.appendChild(retryBtn);
+
+      errorEl.appendChild(errorContent);
       return errorEl;
     }
   }
@@ -147,10 +164,11 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
 
     // Subscribe to store changes
     this.unsubscribe = calendarStore.subscribe((state, prevState) => {
+      // Performance: Use direct comparisons instead of JSON.stringify
       const shouldRerender =
         state.loading !== prevState.loading ||
         state.entries !== prevState.entries ||
-        JSON.stringify(state.preferences) !== JSON.stringify(prevState.preferences);
+        !this.shallowEqualPreferences(state.preferences, prevState.preferences);
 
       if (shouldRerender) {
         this.rerender();
@@ -216,6 +234,24 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   public showError(message: string): void {
     log.error('[CalendarGrid] Error reported', { message });
     this.rerender(); // Use render-based error handling
+  }
+
+  /**
+   * Shallow equality check for preferences
+   * Performance: Much faster than JSON.stringify for objects with many properties
+   */
+  private shallowEqualPreferences(a: any, b: any): boolean {
+    if (a === b) return true;
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+      return false;
+    }
+
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+
+    if (keysA.length !== keysB.length) return false;
+
+    return keysA.every(key => a[key] === b[key]);
   }
 
   protected onUnmount(): void {

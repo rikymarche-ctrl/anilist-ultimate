@@ -5,6 +5,7 @@ import { AstraRadarChart } from './AstraRadarChart';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
 import { AstraDashboard } from './AstraDashboard';
+import type { MediaWithViewerResponse } from '@/api/AnilistTypes';
 
 @injectable()
 @singleton()
@@ -28,17 +29,25 @@ export class AstraRatingModal {
     if (!data) return;
 
     const { media, allCustomLists } = data;
-    const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase();
+    const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
+
+    // Normalize customLists to string[]
+    const customListsRaw = media.mediaListEntry?.customLists;
+    const customLists: string[] = Array.isArray(customListsRaw)
+      ? customListsRaw
+      : customListsRaw
+      ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
+      : [];
 
     this.currentWork = await this.astraService.getWork(mediaId) || {
       id: `w_${Math.random().toString(36).slice(2, 11)}`,
       mediaId,
       title: media.title.userPreferred,
-      type: mediaType as any,
+      type: mediaType,
       country: media.countryOfOrigin,
       cover: media.coverImage.extraLarge || media.coverImage.large,
       status: media.mediaListEntry?.status || 'PLANNING',
-      customLists: media.mediaListEntry?.customLists || [],
+      customLists,
       tags: [],
       notes: '',
       updatedAt: Date.now(),
@@ -54,7 +63,7 @@ export class AstraRatingModal {
     this.render(media, allCustomLists);
   }
 
-  private async fetchAniListData(mediaId: number): Promise<any> {
+  private async fetchAniListData(mediaId: number): Promise<{ media: MediaWithViewerResponse['Media']; allCustomLists: string[] } | null> {
     const GQL = `query($id: Int) {
       Viewer {
         mediaListOptions {
@@ -65,8 +74,8 @@ export class AstraRatingModal {
         id title { userPreferred } type format episodes status countryOfOrigin
         nextAiringEpisode { episode }
         coverImage { large extraLarge color }
-        mediaListEntry { 
-          status progress score(format: POINT_100) notes 
+        mediaListEntry {
+          status progress score(format: POINT_100) notes
           repeat private hiddenFromStatusLists
           startedAt { year month day }
           completedAt { year month day }
@@ -76,7 +85,7 @@ export class AstraRatingModal {
     }`;
 
     try {
-      const resp = await this.api.query(GQL, { id: mediaId }) as any;
+      const resp = await this.api.query<MediaWithViewerResponse>(GQL, { id: mediaId });
       return {
         media: resp.Media,
         allCustomLists: resp.Viewer?.mediaListOptions?.animeList?.customLists || []
@@ -357,6 +366,49 @@ export class AstraRatingModal {
     }, 300);
   }
 
+  /**
+   * Get all focusable elements in the modal
+   */
+  private getFocusableElements(): HTMLElement[] {
+    if (!this.overlay) return [];
+
+    const selectors = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const modal = this.overlay.querySelector('.astra-modal');
+    if (!modal) return [];
+
+    return Array.from(modal.querySelectorAll(selectors)) as HTMLElement[];
+  }
+
+  /**
+   * Setup focus trap to keep focus within modal
+   */
+  private setupFocusTrap(): void {
+    if (!this.overlay) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      const focusableElements = this.getFocusableElements();
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      // Shift + Tab: wrap to last element
+      if (e.shiftKey && document.activeElement === firstElement) {
+        e.preventDefault();
+        lastElement.focus();
+      }
+      // Tab: wrap to first element
+      else if (!e.shiftKey && document.activeElement === lastElement) {
+        e.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    this.overlay.addEventListener('keydown', handleKeyDown);
+  }
+
   private attachEvents(): void {
     if (!this.overlay) return;
 
@@ -387,9 +439,28 @@ export class AstraRatingModal {
     };
 
     closeBtns.forEach(btn => btn.addEventListener('click', close));
-    
+
     this.overlay!.addEventListener('click', (e) => {
       if (e.target === this.overlay) close();
+    });
+
+    // ESC key to close modal (accessibility)
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        close();
+      }
+    };
+    document.addEventListener('keydown', handleEscKey);
+
+    // Setup focus trap
+    this.setupFocusTrap();
+
+    // Auto-focus first focusable element
+    requestAnimationFrame(() => {
+      const focusableElements = this.getFocusableElements();
+      if (focusableElements.length > 0) {
+        focusableElements[0].focus();
+      }
     });
 
     document.body.style.overflow = 'hidden';

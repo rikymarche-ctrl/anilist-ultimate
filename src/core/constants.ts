@@ -83,6 +83,13 @@ export const DAYS_OF_WEEK = [
 
 export const ABBREVIATED_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
+// Media constants
+export const MEDIA = {
+  DEFAULT_EPISODE_DURATION_MINUTES: 24,
+  MINUTES_PER_HOUR: 60,
+  HOURS_PER_DAY: 24,
+} as const;
+
 export const DEFAULT_CALENDAR_PREFERENCES = {
   startDay: '1' as const, // Monday
   hideEmptyDays: false,
@@ -118,6 +125,31 @@ export const CSS_CLASSES = {
   THEME_CONTRAST: 'theme-contrast',
 } as const;
 
+// ============================================================================
+// UI Layout Constants
+// ============================================================================
+
+export const UI_SPACING = {
+  // Tooltip offsets
+  TOOLTIP_OFFSET_X: 16,
+  TOOLTIP_OFFSET_Y: 14,
+
+  // Positioning
+  OFFSCREEN_POSITION: -9999,
+
+  // Z-index stack (centralized to avoid conflicts)
+  Z_INDEX: {
+    BASE: 1,
+    DROPDOWN: 100,
+    STICKY: 500,
+    MODAL_BACKDROP: 1000,
+    MODAL: 1001,
+    CUSTOM_LIST_MENU: 1002,
+    TOOLTIP: 2000,
+    TOAST: 3000,
+  },
+} as const;
+
 export const SELECTORS = {
   // Anilist DOM selectors
   AIRING_SECTION: '.home .section:has(.section-header:contains("Airing"))',
@@ -138,12 +170,27 @@ export const ANIMATION = {
   TRANSITION_DURATION: 200,
   DEBOUNCE_DELAY: 300,
   THROTTLE_DELAY: 100,
+  FADE_IN_DURATION: 200,
 } as const;
 
 export const PERFORMANCE = {
   LAZY_LOAD_THRESHOLD: '50px',
   VIRTUAL_SCROLL_THRESHOLD: 50, // Number of items before enabling virtual scroll
   IMAGE_LOAD_TIMEOUT: 5000,
+
+  // Observer throttling
+  OBSERVER_THROTTLE_MS: 200,
+  OBSERVER_THROTTLE_FAST_MS: 100,
+
+  // Polling intervals
+  HOVER_COMMENTS_POLL_MS: 3000,
+  URL_CHECK_INTERVAL_MS: 500,
+  ELEMENT_WAIT_CHECK_MS: 300,
+
+  // GraphQL batching
+  GRAPHQL_CHUNK_SIZE_SOCIAL: 10,
+  GRAPHQL_CHUNK_SIZE_ACTIVITY: 25,
+  BATCH_DELAY_MS: 500,
 } as const;
 
 // ============================================================================

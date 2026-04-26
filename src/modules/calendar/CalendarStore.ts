@@ -37,9 +37,25 @@ const initialState: CalendarState = {
 
 @injectable()
 export class CalendarStore extends Store<CalendarState> {
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
+
   constructor() {
     super(initialState);
-    this.loadPreferences();
+    // Don't call async methods in constructor - violates constructor contract
+  }
+
+  /**
+   * Initialize the store - MUST be called before using the store
+   * Safe to call multiple times (idempotent)
+   */
+  public async init(): Promise<void> {
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = this.loadPreferences();
+    await this.initPromise;
+    this.initialized = true;
   }
 
   /**

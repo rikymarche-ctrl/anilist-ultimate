@@ -15,9 +15,11 @@ export class BestFriendService {
   private static instance: BestFriendService;
   private bestFriends: Map<number, string> = new Map();
   private readonly STORAGE_KEY = 'au_best_friends';
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   private constructor() {
-    this.load();
+    // Don't call async methods in constructor - violates constructor contract
   }
 
   public static getInstance(): BestFriendService {
@@ -25,6 +27,19 @@ export class BestFriendService {
       BestFriendService.instance = new BestFriendService();
     }
     return BestFriendService.instance;
+  }
+
+  /**
+   * Initialize the service - MUST be called before using
+   * Safe to call multiple times (idempotent)
+   */
+  public async init(): Promise<void> {
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = this.load();
+    await this.initPromise;
+    this.initialized = true;
   }
 
   private async load(): Promise<void> {

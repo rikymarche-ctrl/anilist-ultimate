@@ -114,12 +114,20 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
           }
 
           return card;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('[DayColumn] Failed to resolve AnimeCard', error, anime);
           const errorPlaceholder = document.createElement('div');
           errorPlaceholder.className = 'anime-card-error-placeholder';
-          errorPlaceholder.innerHTML = `<i class="fa fa-bug"></i> Card Error: ${error.message || 'Unknown'}`;
           errorPlaceholder.style.cssText = 'padding: 10px; background: rgba(255,0,0,0.1); border-radius: 4px; font-size: 10px; color: #ff8888; margin-bottom: 4px;';
+
+          const icon = document.createElement('i');
+          icon.className = 'fa fa-bug';
+          errorPlaceholder.appendChild(icon);
+
+          const errorMessage = error instanceof Error ? error.message : 'Unknown';
+          const errorText = document.createTextNode(` Card Error: ${errorMessage}`);
+          errorPlaceholder.appendChild(errorText);
+
           entriesContainer.appendChild(errorPlaceholder);
           return null;
         }
@@ -131,6 +139,8 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
         const remaining = entries.length - maxCards;
         const toggleBtn = this.createElement('button', { class: 'calendar-day-column__toggle' });
         toggleBtn.setAttribute('data-toggle', 'expand');
+        toggleBtn.setAttribute('aria-expanded', this.isExpanded ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-label', this.isExpanded ? 'Show fewer anime' : `Show ${remaining} more anime`);
         toggleBtn.textContent = this.isExpanded ? 'Show less' : `+${remaining} more`;
         entriesContainer.appendChild(toggleBtn);
       }

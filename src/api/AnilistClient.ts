@@ -22,6 +22,13 @@ interface RequestQueueItem {
 }
 
 /**
+ * Type guard for API errors with response status
+ */
+function isApiError(error: unknown): error is { message?: string; response?: { status?: number } } {
+  return typeof error === 'object' && error !== null;
+}
+
+/**
  * AnilistClient - GraphQL API client with rate limiting
  * Implements IApiClient interface for dependency injection
  */
@@ -209,7 +216,7 @@ export class AnilistClient implements IApiClient {
     try {
       const result = await this.executeRequest(item);
       item.resolve(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle rate limiting
       if (this.isRateLimitError(error)) {
         log.warn('Rate limit hit, retrying after delay');
@@ -225,15 +232,18 @@ export class AnilistClient implements IApiClient {
         }, delay);
       } else {
         log.error('Request failed after max retries', error);
-        
+
+        const errorMessage = isApiError(error) && error.message ? error.message : 'Anilist API request failed';
+        const statusCode = isApiError(error) ? error.response?.status : undefined;
+
         const apiError = new ApiError(
-          error.message || 'Anilist API request failed',
-          error.response?.status,
+          errorMessage,
+          statusCode,
           'GraphQL',
           item.retries,
-          error
+          error instanceof Error ? error : undefined
         );
-        
+
         if (!item.silent) {
           this.errorHandler.handle(apiError, 'Anilist API');
         }
@@ -259,14 +269,14 @@ export class AnilistClient implements IApiClient {
     try {
       const data = await this.client.request(item.query, item.variables);
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check for authentication errors
-      if (error.response?.status === 401 || error.response?.status === 403) {
+      const statusCode = isApiError(error) ? error.response?.status : undefined;
+      if (statusCode === 401 || statusCode === 403) {
         log.error('Authentication error - token may be invalid');
         this.accessToken = null;
-        throw new ApiError('Authentication required', error.response?.status, 'GraphQL', 0, error);
+        throw new ApiError('Authentication required', statusCode, 'GraphQL', 0, error instanceof Error ? error : undefined);
       }
-
 
       throw error;
     }
@@ -317,14 +327,15 @@ export class AnilistClient implements IApiClient {
       const data = await this.query<{ Viewer: { id: number; name: string } }>(query);
       log.info('Current user fetched via GraphQL', { userId: data.Viewer.id });
       return data.Viewer.id;
-    } catch (error: any) {
+    } catch (error: unknown) {
       log.error('Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.', error);
+      const statusCode = isApiError(error) ? error.response?.status : undefined;
       throw new ApiError(
         'Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.',
-        error.response?.status,
+        statusCode,
         'Viewer Query',
         0,
-        error
+        error instanceof Error ? error : undefined
       );
     }
 

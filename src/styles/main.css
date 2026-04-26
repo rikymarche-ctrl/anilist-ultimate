@@ -32,6 +32,16 @@
   --au-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --au-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
 
+  /* Z-Index Stack (centralized to avoid conflicts) */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 500;
+  --z-modal-backdrop: 1000;
+  --z-modal: 1001;
+  --z-custom-list-menu: 1002;
+  --z-tooltip: 2000;
+  --z-toast: 3000;
+
   /* Calendar Colors (v1 compatible) */
   --cal-text: #e5e7eb;
   --cal-text-light: #9ca3af;

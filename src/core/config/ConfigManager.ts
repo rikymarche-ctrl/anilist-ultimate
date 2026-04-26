@@ -256,9 +256,12 @@ export class ConfigManager implements IConfigManager {
         const sourceValue = source[key];
 
         if (this.isPlainObject(targetValue) && this.isPlainObject(sourceValue)) {
-          result[key] = this.deepMerge(targetValue as any, sourceValue as any);
+          result[key] = this.deepMerge(
+            targetValue as Record<string, any>,
+            sourceValue as Record<string, any>
+          ) as T[Extract<keyof T, string>];
         } else if (sourceValue !== undefined) {
-          result[key] = sourceValue as any;
+          result[key] = sourceValue as T[Extract<keyof T, string>];
         }
       }
     }
@@ -269,7 +272,7 @@ export class ConfigManager implements IConfigManager {
   /**
    * Check if value is a plain object
    */
-  private isPlainObject(value: any): value is Record<string, any> {
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && value.constructor === Object;
   }
 }

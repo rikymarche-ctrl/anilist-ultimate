@@ -489,6 +489,11 @@
   transition: all 0.2s ease;
   color: #e5e7eb;
   font-size: 14px;
+  background: transparent; /* Reset default background */
+  border: none; /* Remove default button border */
+  padding: 0; /* Remove default button padding */
+  appearance: none; /* Remove OS-level styling */
+  outline: none;
 }
 
 .pill-section:hover {

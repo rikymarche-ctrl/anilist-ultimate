@@ -11,6 +11,7 @@ import { TOKENS } from '../di/tokens';
 import type { IEventBus, EventSubscription } from '../interfaces/IEventBus';
 import { EVENT_TYPES, AppEventMap } from '../events/EventTypes';
 import type { PageChangedEvent } from '../events/EventTypes';
+import { PERFORMANCE } from '../constants';
 
 export abstract class BaseModule implements IModule {
   protected observers: Map<string, MutationObserver> = new Map();
@@ -90,7 +91,7 @@ export abstract class BaseModule implements IModule {
     target: Node,
     options: MutationObserverInit,
     callback: MutationCallback,
-    throttleMs: number = 200
+    throttleMs: number = PERFORMANCE.OBSERVER_THROTTLE_MS
   ): void {
     if (this.observers.has(name)) {
       this.disconnectObserver(name);
@@ -121,6 +122,13 @@ export abstract class BaseModule implements IModule {
   protected disconnectObserver(name: string): void {
     this.observers.get(name)?.disconnect();
     this.observers.delete(name);
+
+    // Clear pending timeout to prevent memory leak
+    const timeout = this.observerTimeouts.get(name);
+    if (timeout !== undefined) {
+      window.clearTimeout(timeout);
+      this.observerTimeouts.delete(name);
+    }
   }
 
   /**
@@ -139,7 +147,7 @@ export abstract class BaseModule implements IModule {
           clearInterval(interval);
           resolve(null);
         }
-      }, 300);
+      }, PERFORMANCE.ELEMENT_WAIT_CHECK_MS);
     });
   }
 

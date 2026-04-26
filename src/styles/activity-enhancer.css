@@ -228,7 +228,7 @@
   max-height: 400px;
   right: 115px;
   overflow-y: auto;
-  z-index: 999999 !important;
+  z-index: var(--z-custom-list-menu) !important;
   padding: 6px 0 !important;
   backdrop-filter: blur(10px);
   animation: au-fade-in 0.2s ease-out;

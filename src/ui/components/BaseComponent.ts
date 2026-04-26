@@ -46,9 +46,30 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
   /**
    * Determine if component should update
    * Override for custom comparison logic
+   * Uses shallow comparison for better performance than JSON.stringify
    */
   protected shouldUpdate(prevProps: P, nextProps: P): boolean {
-    return JSON.stringify(prevProps) !== JSON.stringify(nextProps);
+    return !this.shallowEqual(prevProps, nextProps);
+  }
+
+  /**
+   * Shallow equality check for objects
+   * Performance: O(n) where n = number of keys, much faster than JSON.stringify
+   */
+  private shallowEqual(objA: any, objB: any): boolean {
+    if (objA === objB) return true;
+
+    if (typeof objA !== 'object' || typeof objB !== 'object' || objA === null || objB === null) {
+      return false;
+    }
+
+    const keysA = Object.keys(objA);
+    const keysB = Object.keys(objB);
+
+    if (keysA.length !== keysB.length) return false;
+
+    // Check if all values are the same (shallow check)
+    return keysA.every(key => objA[key] === objB[key]);
   }
 
   /**
@@ -199,7 +220,7 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
    */
   protected createElement<K extends keyof HTMLElementTagNameMap>(
     tag: K,
-    props?: Record<string, any>
+    props?: Record<string, unknown>
   ): HTMLElementTagNameMap[K] {
     const element = document.createElement(tag);
 
@@ -210,7 +231,7 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
         } else if (key === 'id' && typeof value === 'string') {
           element.id = value;
         } else if (key in element) {
-          (element as any)[key] = value;
+          (element as Record<string, unknown>)[key] = value;
         } else {
           // Fallback to setAttribute for custom data attributes etc.
           element.setAttribute(key, String(value));

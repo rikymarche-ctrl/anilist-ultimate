@@ -8,6 +8,7 @@ import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
 import { FriendActivity, SocialActivityDetailed, SocialFilter } from '@core/types';
+import { PERFORMANCE } from '@core/constants';
 
 @injectable()
 @singleton()
@@ -57,7 +58,7 @@ export class SocialService {
       }
     }
 
-    const chunkSize = 10;
+    const chunkSize = PERFORMANCE.GRAPHQL_CHUNK_SIZE_SOCIAL;
     for (let i = 0; i < pendingIds.length; i += chunkSize) {
       const chunk = pendingIds.slice(i, i + chunkSize);
       

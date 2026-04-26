@@ -9,6 +9,7 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
 
 import { ScoreFormat } from '@core/types';
+import { PERFORMANCE } from '@core/constants';
 
 export interface ActivityScoreData {
   score: number;
@@ -43,7 +44,7 @@ export class ActivityService {
     if (pendingPairs.length === 0) return results;
 
     // AniList Alias Batching (Max ~50 per request to be safe)
-    const chunkSize = 25;
+    const chunkSize = PERFORMANCE.GRAPHQL_CHUNK_SIZE_ACTIVITY;
     for (let i = 0; i < pendingPairs.length; i += chunkSize) {
       const chunk = pendingPairs.slice(i, i + chunkSize);
       

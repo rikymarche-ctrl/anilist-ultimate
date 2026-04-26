@@ -21,6 +21,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private socialBubble: HTMLElement | null = null;
   /** AbortController for portal-related card hover listeners — aborted on destroySocialPortal() */
   private portalAbortController: AbortController | null = null;
+  /** Cached DOM queries for performance - invalidated on render */
+  private cachedActionPills: NodeListOf<HTMLElement> | null = null;
 
   constructor(
     @inject('AnimeCardProps') props: AnimeCardProps
@@ -33,6 +35,9 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   }
 
   protected render(): HTMLElement {
+    // Invalidate cached queries on render
+    this.cachedActionPills = null;
+
     try {
       const { anime, options } = this.props;
       const classList = [`anime-card`, `anime-card--${options.layoutMode}`];
@@ -64,10 +69,14 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
       card.innerHTML = this.getCardHTML(anime, options);
       return card;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[AnimeCard] Render failed', error);
       const errEl = this.createElement('div', { class: 'anime-card anime-card--error' });
-      errEl.innerHTML = `<div style="font-size: 9px; padding: 5px; color: #ff8888;">Render Error: ${error.message}</div>`;
+      const errorContainer = document.createElement('div');
+      errorContainer.style.cssText = 'font-size: 9px; padding: 5px; color: #ff8888;';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      errorContainer.textContent = `Render Error: ${errorMessage}`;
+      errEl.appendChild(errorContainer);
       return errEl;
     }
   }
@@ -112,6 +121,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    * Destroy social portal and its event bindings cleanly
    */
   private destroySocialPortal(): void {
+    if (this.socialBubble) {
+      console.log('[AnimeCard] Destroying portal');
+    }
+
     // Abort card hover listeners first (prevents stuck-visible bubble)
     this.portalAbortController?.abort();
     this.portalAbortController = null;
@@ -142,11 +155,22 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    * Surgically update the social button inside the action pill(s) without full rerender.
    * Guaranteed immediate DOM update, bypasses shouldUpdate/JSON comparison.
    */
+  /**
+   * Get action pills with caching for performance
+   */
+  private getActionPills(): NodeListOf<HTMLElement> {
+    if (!this.cachedActionPills) {
+      this.cachedActionPills = this.element.querySelectorAll<HTMLElement>('.action-pill');
+    }
+    return this.cachedActionPills;
+  }
+
   private refreshPillSocialButton(): void {
     const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
     const showPillSocial = socialEnabled && !socialShowAvatars;
 
-    this.element.querySelectorAll<HTMLElement>('.action-pill').forEach(pill => {
+    // Use cached query instead of querying every time
+    this.getActionPills().forEach(pill => {
       // Remove existing social separator + button (the separator immediately before the social btn)
       const existingSocialBtn = pill.querySelector<HTMLElement>('[data-action="social-activity"]');
       if (existingSocialBtn) {
@@ -158,11 +182,14 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       if (showPillSocial) {
         const separator = document.createElement('div');
         separator.className = 'pill-separator';
+        separator.setAttribute('aria-hidden', 'true');
 
-        const socialBtn = document.createElement('div');
+        const socialBtn = document.createElement('button');
+        socialBtn.type = 'button';
         socialBtn.className = 'pill-section';
         socialBtn.setAttribute('data-action', 'social-activity');
-        socialBtn.innerHTML = '<i class="fa fa-users"></i>';
+        socialBtn.setAttribute('aria-label', 'View social activity');
+        socialBtn.innerHTML = '<i class="fa fa-users" aria-hidden="true"></i>';
 
         socialBtn.addEventListener('mouseenter', (e) => this.showCardTooltip('Social Activity', e));
         socialBtn.addEventListener('mousemove', (e) => this.moveCardTooltip(e));
@@ -179,21 +206,11 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     });
   }
 
-  private getCardHTML(anime: AnimeEntry, options: CardOptions): string {
-    const { layoutMode, showTime, showEpisodeNumbers, timeFormat } = options;
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
-
-    const showPillSocial = socialEnabled && !socialShowAvatars;
-    // Social portal created in onMount(), not inline
-
-    const socialSectionHTML = showPillSocial ? `
-      <div class="pill-separator"></div>
-      <div class="pill-section" data-action="social-activity">
-        <i class="fa fa-users"></i>
-      </div>
-    ` : '';
-
-    // Episode counter: "watched/available/total" (matches old version exactly)
+  /**
+   * Calculate episode display string
+   * Format: "watched/available/total" or "watched/total" or "watched"
+   */
+  private getEpisodeString(anime: AnimeEntry): { episodeStr: string; isBehind: boolean } {
     const available = anime.episode - 1;
     const watched = anime.progress;
     const total = anime.totalEpisodes;
@@ -214,38 +231,54 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       }
     }
 
-    // Red dot indicator (prepended), only when behind (no native title)
-    const behindDotHTML = isBehind
-      ? `<span class="behind-indicator"></span>`
-      : '';
+    return { episodeStr, isBehind };
+  }
+
+  /**
+   * Render action pill HTML (mark watched, edit, optional social)
+   */
+  private renderActionPillHTML(socialSectionHTML: string, compact: boolean = false): string {
+    const compactClass = compact ? ' action-pill--compact' : '';
+    return `
+      <div class="action-pill${compactClass}" role="toolbar" aria-label="Anime actions">
+        <button type="button" class="pill-section" data-action="mark-watched" aria-label="Mark episode as watched">
+          <i class="fa fa-plus" aria-hidden="true"></i>
+        </button>
+        <div class="pill-separator" aria-hidden="true"></div>
+        <button type="button" class="pill-section" data-action="edit-entry" aria-label="Edit entry">
+          <i class="fa fa-pencil" aria-hidden="true"></i>
+        </button>
+        ${socialSectionHTML}
+      </div>
+    `;
+  }
+
+  private getCardHTML(anime: AnimeEntry, options: CardOptions): string {
+    const { layoutMode, showTime, showEpisodeNumbers, timeFormat } = options;
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+
+    const showPillSocial = socialEnabled && !socialShowAvatars;
+    const socialSectionHTML = showPillSocial ? `
+      <div class="pill-separator"></div>
+      <div class="pill-section" data-action="social-activity">
+        <i class="fa fa-users"></i>
+      </div>
+    ` : '';
+
+    // Calculate episode string
+    const { episodeStr, isBehind } = this.getEpisodeString(anime);
+    const behindDotHTML = isBehind ? `<span class="behind-indicator"></span>` : '';
 
     // Common elements
-    const titleHTML = `
-      <h3 class="anime-card__title">${anime.cleanTitle}</h3>
-    `;
-
+    const titleHTML = `<h3 class="anime-card__title">${anime.cleanTitle}</h3>`;
     const episodeHTML = showEpisodeNumbers
       ? `<span class="anime-card__episode">${behindDotHTML}Ep ${episodeStr}</span>`
       : '';
-
     const timeHTML = showTime ? this.getTimeHTML(anime, timeFormat) : '';
 
     // Layout-specific structure
     if (layoutMode === 'compact') {
       // Compact mode: MINIMAL - Only text, NO images
-      const actionPillHTML = `
-        <div class="action-pill action-pill--compact">
-          <div class="pill-section" data-action="mark-watched">
-            <i class="fa fa-plus"></i>
-          </div>
-          <div class="pill-separator"></div>
-          <div class="pill-section" data-action="edit-entry">
-            <i class="fa fa-pencil"></i>
-          </div>
-          ${socialSectionHTML}
-        </div>
-      `;
-
       return `
         <div class="anime-card__compact-content">
           ${titleHTML}
@@ -255,7 +288,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           </div>
         </div>
         <div class="anime-card__action anime-card__action--compact">
-          ${actionPillHTML}
+          ${this.renderActionPillHTML(socialSectionHTML, true)}
         </div>
       `;
     }
@@ -273,19 +306,6 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         </div>
       `;
 
-      const actionPillHTML = `
-        <div class="action-pill">
-          <div class="pill-section" data-action="mark-watched">
-            <i class="fa fa-plus"></i>
-          </div>
-          <div class="pill-separator"></div>
-          <div class="pill-section" data-action="edit-entry">
-            <i class="fa fa-pencil"></i>
-          </div>
-          ${socialSectionHTML}
-        </div>
-      `;
-
       return `
         <div class="anime-card__extended-layout">
           ${coverHTML}
@@ -299,7 +319,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
             </div>
           </div>
           <div class="anime-card__action anime-card__action--extended">
-            ${actionPillHTML}
+            ${this.renderActionPillHTML(socialSectionHTML)}
           </div>
         </div>
       `;
@@ -310,16 +330,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     // It stays within the card bounds and is positioned over the image area.
     const standardActionHTML = `
       <div class="anime-card__action anime-card__action--standard">
-        <div class="action-pill">
-          <div class="pill-section" data-action="mark-watched">
-            <i class="fa fa-plus"></i>
-          </div>
-          <div class="pill-separator"></div>
-          <div class="pill-section" data-action="edit-entry">
-            <i class="fa fa-pencil"></i>
-          </div>
-          ${socialSectionHTML}
-        </div>
+        ${this.renderActionPillHTML(socialSectionHTML)}
       </div>
     `;
 
@@ -571,6 +582,14 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    * Create social bubble as portal (position: fixed outside calendar)
    */
   private createSocialPortal(anime: AnimeEntry): void {
+    // Safety: destroy any existing portal first to prevent duplicates
+    if (this.socialBubble) {
+      console.error('[AnimeCard] DUPLICATE PORTAL DETECTED! Stack:', new Error().stack);
+      this.destroySocialPortal();
+    }
+
+    console.log('[AnimeCard] Creating portal for:', anime.cleanTitle);
+
     // Create bubble element
     const bubble = document.createElement('div');
     bubble.className = 'au-social-bubble-portal';
@@ -599,16 +618,16 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       }
     }, { signal });
 
-    // Keep bubble visible when hovering it
+    // Keep bubble visible when hovering it — using { signal } for cleanup
     bubble.addEventListener('mouseenter', () => {
       bubble.classList.add('visible');
-    });
+    }, { signal });
 
     bubble.addEventListener('mouseleave', () => {
       bubble.classList.remove('visible');
-    });
+    }, { signal });
 
-    // Handle avatar clicks
+    // Handle avatar clicks — using { signal } for cleanup
     bubble.querySelectorAll('.friend-avatar').forEach(avatar => {
       avatar.addEventListener('click', (e) => {
         const userName = (avatar as HTMLElement).getAttribute('data-user-name');
@@ -616,10 +635,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           e.stopPropagation();
           window.open(`/user/${userName}`, '_blank');
         }
-      });
+      }, { signal });
     });
 
-    // Handle social button click
+    // Handle social button click — using { signal } for cleanup
     const socialBtn = bubble.querySelector('[data-action="social-activity"]');
     if (socialBtn) {
       socialBtn.addEventListener('click', (e) => {
@@ -631,7 +650,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
             element: this.element
           }
         }));
-      });
+      }, { signal });
     }
   }
 
@@ -675,9 +694,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    * Cleanup: remove portal on unmount
    */
   protected onUnmount(): void {
-    if (this.socialBubble) {
-      this.socialBubble.remove();
-      this.socialBubble = null;
-    }
+    // Use destroySocialPortal to ensure complete cleanup (removes bubble + aborts listeners)
+    this.destroySocialPortal();
   }
 }

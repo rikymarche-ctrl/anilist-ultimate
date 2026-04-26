@@ -42,6 +42,10 @@ export class CalendarModule extends BaseModule {
     try {
       log.group('Calendar Module Initialization');
 
+      // CRITICAL: Load calendar preferences from storage FIRST
+      await calendarStore.init();
+      log.success('[Calendar] Preferences loaded from storage');
+
       // Check authentication via centralized client
       if (!anilistClient.isAuthenticated()) {
         log.warn('[Calendar] User not authenticated, showing prompt');
