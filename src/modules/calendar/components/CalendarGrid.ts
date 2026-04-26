@@ -3,7 +3,7 @@
  * Main calendar UI - orchestrates day columns
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { container } from '@core/di/container';
 import { DayColumn } from './DayColumn';
@@ -22,10 +22,10 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   private dayColumns: DayColumn[] = [];
   private unsubscribe: (() => void) | null = null;
 
-  constructor() {
-    super({
-      onMarkWatched: async () => { }
-    });
+  constructor(
+    @inject('CalendarGridProps') props: CalendarGridProps
+  ) {
+    super(props);
   }
 
   protected render(): HTMLElement {
@@ -91,9 +91,9 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
             titleAlignment: preferences.titleAlignment,
             columnJustify: preferences.columnJustify,
             maxCardsPerDay: preferences.maxCardsPerDay,
-            openInNewTab: preferences.openInNewTab
+            openInNewTab: preferences.openInNewTab,
+            onMarkWatched: this.props.onMarkWatched
           },
-          onMarkWatched: this.props.onMarkWatched,
         };
 
         const child = container.createChildContainer();
