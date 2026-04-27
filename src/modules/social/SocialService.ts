@@ -289,4 +289,40 @@ export class SocialService {
 
     return allFollowing;
   }
+
+  // ─── Manual Cache Management ──────────────────────────────────────────────
+
+  /**
+   * Invalidate the followings cache
+   * Useful when user follows/unfollows someone or wants fresh data
+   */
+  public async invalidateFollowingsCache(): Promise<void> {
+    try {
+      await chrome.storage.local.remove(this.FOLLOWINGS_CACHE_KEY);
+      log.info('[SocialService] Followings cache invalidated');
+    } catch (e) {
+      log.error('[SocialService] Failed to invalidate followings cache', e);
+    }
+  }
+
+  /**
+   * Force refresh followings data
+   * Clears cache and refetches from API
+   */
+  public async refreshFollowings(): Promise<any[]> {
+    log.info('[SocialService] Force refreshing followings...');
+    await this.invalidateFollowingsCache();
+    return this.getAllFollowings();
+  }
+
+  /**
+   * Clear all in-memory caches (friend activity + viewer ID)
+   * Useful for testing or when user logs out
+   */
+  public clearAllCaches(): void {
+    this.friendCache.clear();
+    this.viewerId = null;
+    this.cacheDate = '';
+    log.info('[SocialService] All in-memory caches cleared');
+  }
 }
