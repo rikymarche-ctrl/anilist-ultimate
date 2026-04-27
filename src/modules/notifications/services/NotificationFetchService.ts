@@ -1,11 +1,17 @@
 /**
  * @file NotificationFetchService.ts
- * @description Batch activity detail fetching via GraphQL alias batching
+ * @description Batch activity detail fetching with intelligent caching
  *
  * Extracts activity IDs from notification DOM elements and fetches
  * extended details (media title, type, progress) in a single batched
- * GraphQL request using alias queries. Used by the notification grouping
- * pipeline to enrich group labels.
+ * GraphQL request using alias queries. Uses short-lived LRU cache
+ * to avoid redundant fetches when users toggle merge/unmerge repeatedly.
+ *
+ * Caching:
+ *   - In-memory cache keyed by activity ID
+ *   - LRU eviction (max 100 entries)
+ *   - TTL 2 minutes (notifications are real-time, cache must be fresh)
+ *   - Manual clearing via clearCache()
  *
  * @see NotificationGroupService.ts for the grouping consumer
  * @see docs/MODULES.md#2-notification-cleaner-module
@@ -39,6 +45,16 @@ export interface ActivityDetails {
 
 @injectable()
 export class NotificationFetchService {
+  private activityCache: Map<number, ActivityDetails> = new Map();
+
+  /** Intelligent Caching: LRU eviction to prevent unbounded growth */
+  private readonly MAX_CACHE_SIZE = 100;
+  private cacheOrder: number[] = []; // LRU tracking
+
+  /** Intelligent Caching: TTL for stale data invalidation (2 minutes for real-time notifications) */
+  private readonly CACHE_TTL_MS = 2 * 60 * 1000;
+  private cacheTimestamps: Map<number, number> = new Map();
+
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient
   ) {}
@@ -67,7 +83,7 @@ export class NotificationFetchService {
   }
 
   /**
-   * Fetch activity details in batch using GraphQL alias
+   * Fetch activity details in batch using GraphQL alias with intelligent caching
    */
   public async fetchActivityDetails(activityIds: number[]): Promise<Map<number, ActivityDetails>> {
     if (activityIds.length === 0) return new Map();
@@ -82,6 +98,26 @@ export class NotificationFetchService {
     if (validIds.length !== activityIds.length) {
       log.warn(`[NotificationFetch] Filtered out ${activityIds.length - validIds.length} invalid activity IDs`);
     }
+
+    // Check cache for existing entries
+    const results = new Map<number, ActivityDetails>();
+    const pendingIds: number[] = [];
+
+    validIds.forEach(id => {
+      const cached = this.getCachedActivity(id);
+      if (cached !== undefined) {
+        results.set(id, cached);
+      } else {
+        pendingIds.push(id);
+      }
+    });
+
+    if (pendingIds.length === 0) {
+      log.debug(`[NotificationFetch] All ${validIds.length} activities served from cache`);
+      return results;
+    }
+
+    log.debug(`[NotificationFetch] Cache: ${results.size} hits, ${pendingIds.length} misses`);
 
     const fields = `
       ... on ListActivity {
@@ -103,13 +139,12 @@ export class NotificationFetchService {
       }
     `;
 
-    const aliases = validIds.map(id => `a${id}: Activity(id: ${id}) { ${fields} }`);
+    const aliases = pendingIds.map(id => `a${id}: Activity(id: ${id}) { ${fields} }`);
     const query = `query { ${aliases.join('\n')} }`;
 
     try {
       // Use silent mode to suppress user-facing errors for 404s (deleted activities)
       const response = await this.apiClient.query<Record<string, ActivityData>>(query, {}, true);
-      const results = new Map<number, ActivityDetails>();
 
       Object.entries(response).forEach(([alias, activity]) => {
         if (!activity) return;
@@ -129,7 +164,9 @@ export class NotificationFetchService {
           text = `${status} ${mediaTitle}`;
         }
 
-        results.set(id, { text, mediaId, mediaTitle, status });
+        const details: ActivityDetails = { text, mediaId, mediaTitle, status };
+        this.setCachedActivity(id, details);
+        results.set(id, details);
       });
 
       return results;
@@ -142,8 +179,71 @@ export class NotificationFetchService {
       }
 
       log.error('[NotificationFetch] Failed to fetch activity details', error);
-      log.debug(`[NotificationFetch] Failed activity IDs: ${validIds.join(', ')}`);
+      log.debug(`[NotificationFetch] Failed activity IDs: ${pendingIds.join(', ')}`);
       return new Map();
+    }
+  }
+
+  // ─── LRU Cache Helpers with TTL ────────────────────────────────────────────
+
+  /**
+   * Get from cache with LRU tracking and TTL validation
+   * @returns cached activity details or undefined if not found or expired
+   */
+  private getCachedActivity(id: number): ActivityDetails | undefined {
+    if (!this.activityCache.has(id)) return undefined;
+
+    // Check if entry is still fresh
+    const timestamp = this.cacheTimestamps.get(id);
+    if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
+      // Expired - evict and return undefined
+      this.activityCache.delete(id);
+      this.cacheTimestamps.delete(id);
+      this.cacheOrder = this.cacheOrder.filter(k => k !== id);
+      log.debug(`[NotificationFetch] Cache expired for activity ${id}`);
+      return undefined;
+    }
+
+    // Move to end (most recently used)
+    this.cacheOrder = this.cacheOrder.filter(k => k !== id);
+    this.cacheOrder.push(id);
+
+    return this.activityCache.get(id)!;
+  }
+
+  /**
+   * Set cache with LRU eviction and TTL tracking
+   */
+  private setCachedActivity(id: number, data: ActivityDetails): void {
+    // Evict oldest if at capacity
+    if (this.activityCache.size >= this.MAX_CACHE_SIZE && !this.activityCache.has(id)) {
+      const oldest = this.cacheOrder.shift();
+      if (oldest !== undefined) {
+        this.activityCache.delete(oldest);
+        this.cacheTimestamps.delete(oldest);
+        log.debug(`[NotificationFetch] LRU evicted activity ${oldest} (cache size: ${this.activityCache.size})`);
+      }
+    }
+
+    this.activityCache.set(id, data);
+    this.cacheTimestamps.set(id, Date.now());
+
+    // Update LRU order
+    this.cacheOrder = this.cacheOrder.filter(k => k !== id);
+    this.cacheOrder.push(id);
+  }
+
+  /**
+   * Manually clear the activity cache
+   * Useful when user navigates away from notifications page
+   */
+  public clearCache(): void {
+    const size = this.activityCache.size;
+    if (size > 0) {
+      this.activityCache.clear();
+      this.cacheTimestamps.clear();
+      this.cacheOrder = [];
+      log.info(`[NotificationFetch] Cache cleared (${size} entries)`);
     }
   }
 }

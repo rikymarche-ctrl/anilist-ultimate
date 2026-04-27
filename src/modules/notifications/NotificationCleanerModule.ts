@@ -120,6 +120,9 @@ export class NotificationCleanerModule extends BaseModule {
     document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
       n.removeAttribute('data-au-processed');
     });
+
+    // Clear notification activity cache on page change
+    this.fetchService.clearCache();
   }
 
   private startObservation(): void {
