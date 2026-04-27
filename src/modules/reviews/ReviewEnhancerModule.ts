@@ -1,12 +1,19 @@
 /**
  * @file ReviewEnhancerModule.ts
- * @description Injects rating badges into review cards with one-shot strategic batching
+ * @description Injects rating badges into review cards with fingerprint-based intelligent batching
  *
  * Scans the page for review cards, collects review IDs, and fetches
  * score data in a single consolidated batch request after a high
- * debounce window. Renders colored score badges on each review card.
+ * debounce window. Uses fingerprint comparison to skip API calls
+ * when the same reviews are displayed (e.g., homepage 4 reviews).
  *
- * @see ReviewService.ts for the GraphQL batch fetching
+ * Fingerprint Strategy:
+ *   - Track sorted review IDs from last successful batch
+ *   - Compare with current batch IDs before API call
+ *   - If identical, skip fetch (data already in ReviewService cache)
+ *   - If different, fetch and update fingerprint
+ *
+ * @see ReviewService.ts for the GraphQL batch fetching with LRU+TTL cache
  * @see docs/MODULES.md#11-review-enhancer-module
  */
 
@@ -23,10 +30,13 @@ import '../../styles/review-enhancer.css';
 export class ReviewEnhancerModule extends BaseModule {
   private inFlightReviews: Set<number> = new Set();
   private pendingQueue: Map<number, HTMLElement[]> = new Map();
-  
+
   private debounceTimer: number | null = null;
   private scanInterval: number | null = null;
   private isBatching: boolean = false;
+
+  /** Fingerprint of last fetched review IDs to avoid redundant API calls */
+  private lastFingerprint: string = '';
 
   constructor(
     @inject(TOKENS.ReviewService) private reviewService: ReviewService,
@@ -56,10 +66,11 @@ export class ReviewEnhancerModule extends BaseModule {
     this.debounceTimer = null;
     this.scanInterval = null;
     this.isBatching = false;
-    
+
     this.cleanup();
     this.inFlightReviews.clear();
     this.pendingQueue.clear();
+    this.lastFingerprint = ''; // Clear fingerprint on page change
   }
 
   private startObservation(): void {
@@ -159,6 +170,17 @@ export class ReviewEnhancerModule extends BaseModule {
       pageType = 'Other';
     }
 
+    // Fingerprint-based caching: skip API call if IDs haven't changed
+    const currentFingerprint = ids.slice().sort((a, b) => a - b).join(',');
+    if (currentFingerprint === this.lastFingerprint) {
+      log.info(`%c[ReviewEnhancer] ✨ FINGERPRINT MATCH [${pageType}]: Skipping fetch for ${ids.length} reviews (using cache)`, 'color: #46d369; font-weight: bold;');
+      // Data should already be in ReviewService cache - just mark as no longer in-flight
+      ids.forEach(id => this.inFlightReviews.delete(id));
+      this.isBatching = false;
+      this.debounceTimer = null;
+      return;
+    }
+
     log.info(`%c[ReviewEnhancer] 🎯 BATCH START [${pageType}]: ${ids.length} reviews`, 'color: #3db4f2; font-weight: bold;');
 
     try {
@@ -172,6 +194,10 @@ export class ReviewEnhancerModule extends BaseModule {
           });
         }
       });
+
+      // Update fingerprint after successful fetch
+      this.lastFingerprint = currentFingerprint;
+      log.debug(`[ReviewEnhancer] Fingerprint updated: ${currentFingerprint}`);
     } catch (error) {
       log.error('[ReviewEnhancer] One-shot batch failed', error);
     } finally {

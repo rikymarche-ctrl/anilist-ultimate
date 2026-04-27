@@ -1,12 +1,17 @@
 /**
  * @file ReviewService.ts
- * @description Review data fetching with GraphQL alias batching and caching
+ * @description Review data fetching with GraphQL alias batching and intelligent caching
  *
  * Fetches review scores and ratings in batches via GraphQL alias queries,
- * caches results in memory (no TTL), and provides chunk-based processing
- * with inter-chunk delays to respect API rate limits.
+ * caches results in memory with LRU eviction and TTL expiration.
  *
- * @see ReviewEnhancerModule.ts for the UI integration
+ * Caching:
+ *   - In-memory cache keyed by review ID
+ *   - LRU eviction (max 200 entries)
+ *   - TTL 30 minutes
+ *   - Manual invalidation via clearCache()
+ *
+ * @see ReviewEnhancerModule.ts for the UI integration and fingerprint-based batching
  * @see docs/MODULES.md#11-review-enhancer-module
  */
 
@@ -39,6 +44,14 @@ export interface ReviewData {
 export class ReviewService {
   private reviewCache: Map<number, ReviewData> = new Map();
 
+  /** Intelligent Caching: LRU eviction to prevent unbounded growth */
+  private readonly MAX_CACHE_SIZE = 200;
+  private cacheOrder: number[] = []; // LRU tracking
+
+  /** Intelligent Caching: TTL for stale data invalidation */
+  private readonly CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+  private cacheTimestamps: Map<number, number> = new Map();
+
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient
   ) {}
@@ -52,8 +65,9 @@ export class ReviewService {
 
     const results: ReviewData[] = [];
     const pendingIds = ids.filter(id => {
-      if (this.reviewCache.has(id)) {
-        results.push(this.reviewCache.get(id)!);
+      const cached = this.getCachedReview(id);
+      if (cached !== undefined) {
+        results.push(cached);
         return false;
       }
       return true;
@@ -95,7 +109,7 @@ export class ReviewService {
 
           responseEntries.forEach(([alias, review]) => {
             if (review && review.id) {
-              this.reviewCache.set(review.id, review);
+              this.setCachedReview(review.id, review);
               results.push(review);
             } else {
               const reviewId = alias.replace('r', '');
@@ -126,8 +140,9 @@ export class ReviewService {
    * Get review by ID (Singular)
    */
   public async getReview(reviewId: number): Promise<ReviewData | null> {
-    if (this.reviewCache.has(reviewId)) {
-      return this.reviewCache.get(reviewId)!;
+    const cached = this.getCachedReview(reviewId);
+    if (cached !== undefined) {
+      return cached;
     }
 
     const results = await this.getReviewBatch([reviewId]);
@@ -135,6 +150,61 @@ export class ReviewService {
   }
 
   public clearCache(): void {
-    this.reviewCache.clear();
+    const size = this.reviewCache.size;
+    if (size > 0) {
+      this.reviewCache.clear();
+      this.cacheTimestamps.clear();
+      this.cacheOrder = [];
+      log.info(`[ReviewService] Cache cleared (${size} entries)`);
+    }
+  }
+
+  // ─── LRU Cache Helpers with TTL ────────────────────────────────────────────
+
+  /**
+   * Get from cache with LRU tracking and TTL validation
+   * @returns cached review or undefined if not found or expired
+   */
+  private getCachedReview(id: number): ReviewData | undefined {
+    if (!this.reviewCache.has(id)) return undefined;
+
+    // Check if entry is still fresh
+    const timestamp = this.cacheTimestamps.get(id);
+    if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
+      // Expired - evict and return undefined
+      this.reviewCache.delete(id);
+      this.cacheTimestamps.delete(id);
+      this.cacheOrder = this.cacheOrder.filter(k => k !== id);
+      log.debug(`[ReviewService] Cache expired for review ${id}`);
+      return undefined;
+    }
+
+    // Move to end (most recently used)
+    this.cacheOrder = this.cacheOrder.filter(k => k !== id);
+    this.cacheOrder.push(id);
+
+    return this.reviewCache.get(id)!;
+  }
+
+  /**
+   * Set cache with LRU eviction and TTL tracking
+   */
+  private setCachedReview(id: number, data: ReviewData): void {
+    // Evict oldest if at capacity
+    if (this.reviewCache.size >= this.MAX_CACHE_SIZE && !this.reviewCache.has(id)) {
+      const oldest = this.cacheOrder.shift();
+      if (oldest !== undefined) {
+        this.reviewCache.delete(oldest);
+        this.cacheTimestamps.delete(oldest);
+        log.debug(`[ReviewService] LRU evicted review ${oldest} (cache size: ${this.reviewCache.size})`);
+      }
+    }
+
+    this.reviewCache.set(id, data);
+    this.cacheTimestamps.set(id, Date.now());
+
+    // Update LRU order
+    this.cacheOrder = this.cacheOrder.filter(k => k !== id);
+    this.cacheOrder.push(id);
   }
 }

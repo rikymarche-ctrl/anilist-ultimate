@@ -8,7 +8,8 @@
  *
  * Caching:
  *   - In-memory cache keyed by "userName-mediaId"
- *   - No eviction policy (grows for session duration)
+ *   - LRU eviction (max 100 entries)
+ *   - TTL 5 minutes
  *   - Failed fetches are cached as null to avoid retry spam
  *
  * @security GraphQL injection risk resolved: userName and mediaId are now passed
@@ -35,6 +36,14 @@ export interface ActivityScoreData {
 export class ActivityService {
   private scoreCache: Map<string, ActivityScoreData | null> = new Map(); // key: "userName-mediaId"
 
+  /** Intelligent Caching: LRU eviction to prevent unbounded growth */
+  private readonly MAX_CACHE_SIZE = 100;
+  private cacheOrder: string[] = []; // LRU tracking
+
+  /** Intelligent Caching: TTL for stale data invalidation */
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  private cacheTimestamps: Map<string, number> = new Map();
+
   constructor(
     @inject(TOKENS.ApiClient) private api: IApiClient
   ) {}
@@ -48,8 +57,9 @@ export class ActivityService {
 
     pairs.forEach(p => {
       const key = `${p.userName}-${p.mediaId}`;
-      if (this.scoreCache.has(key)) {
-        results.set(key, this.scoreCache.get(key)!);
+      const cached = this.getCachedScore(key);
+      if (cached !== undefined) {
+        results.set(key, cached);
       } else {
         pendingPairs.push({ ...p, key });
       }
@@ -80,19 +90,19 @@ export class ActivityService {
         
         chunk.forEach((p, idx) => {
           const data = response[`s${idx}`];
-          const scoreData = data ? { 
-            score: data.score, 
-            format: data.user.mediaListOptions.scoreFormat 
+          const scoreData = data ? {
+            score: data.score,
+            format: data.user.mediaListOptions.scoreFormat
           } : null;
-          
-          this.scoreCache.set(p.key, scoreData);
+
+          this.setCachedScore(p.key, scoreData);
           results.set(p.key, scoreData);
         });
       } catch (e) {
         log.error('[ActivityService] Batch fetch failed', e);
         // Mark as null to avoid spamming failed requests
         chunk.forEach(p => {
-          this.scoreCache.set(p.key, null);
+          this.setCachedScore(p.key, null);
           results.set(p.key, null);
         });
       }
@@ -104,5 +114,68 @@ export class ActivityService {
     }
 
     return results;
+  }
+
+  // ─── LRU Cache Helpers with TTL ────────────────────────────────────────────
+
+  /**
+   * Get from cache with LRU tracking and TTL validation
+   * @returns cached data or undefined if not found or expired
+   */
+  private getCachedScore(key: string): ActivityScoreData | null | undefined {
+    if (!this.scoreCache.has(key)) return undefined;
+
+    // Check if entry is still fresh
+    const timestamp = this.cacheTimestamps.get(key);
+    if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
+      // Expired - evict and return undefined
+      this.scoreCache.delete(key);
+      this.cacheTimestamps.delete(key);
+      this.cacheOrder = this.cacheOrder.filter(k => k !== key);
+      log.debug(`[ActivityService] Cache expired for ${key}`);
+      return undefined;
+    }
+
+    // Move to end (most recently used)
+    this.cacheOrder = this.cacheOrder.filter(k => k !== key);
+    this.cacheOrder.push(key);
+
+    return this.scoreCache.get(key)!;
+  }
+
+  /**
+   * Set cache with LRU eviction and TTL tracking
+   */
+  private setCachedScore(key: string, data: ActivityScoreData | null): void {
+    // Evict oldest if at capacity
+    if (this.scoreCache.size >= this.MAX_CACHE_SIZE && !this.scoreCache.has(key)) {
+      const oldest = this.cacheOrder.shift();
+      if (oldest !== undefined) {
+        this.scoreCache.delete(oldest);
+        this.cacheTimestamps.delete(oldest);
+        log.debug(`[ActivityService] LRU evicted ${oldest} (cache size: ${this.scoreCache.size})`);
+      }
+    }
+
+    this.scoreCache.set(key, data);
+    this.cacheTimestamps.set(key, Date.now());
+
+    // Update LRU order
+    this.cacheOrder = this.cacheOrder.filter(k => k !== key);
+    this.cacheOrder.push(key);
+  }
+
+  /**
+   * Manually clear the score cache
+   * Useful when user manually refreshes data or changes following list
+   */
+  public clearCache(): void {
+    const size = this.scoreCache.size;
+    if (size > 0) {
+      this.scoreCache.clear();
+      this.cacheTimestamps.clear();
+      this.cacheOrder = [];
+      log.info(`[ActivityService] Cache manually cleared (${size} entries)`);
+    }
   }
 }
