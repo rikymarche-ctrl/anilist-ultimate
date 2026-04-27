@@ -67,12 +67,14 @@ export class AnilistClient implements IApiClient {
     @inject(TOKENS.AuthTokenService) private authTokenService: AuthTokenService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
+    // CRITICAL: Load token BEFORE creating GraphQLClient
+    // Otherwise headers won't include Authorization on first request
+    this.loadAccessToken();
+
+    // Now create client with correct headers (including auth if available)
     this.client = new GraphQLClient(API_CONFIG.ENDPOINT, {
       headers: this.getHeaders(),
     });
-
-    // Load token from AuthTokenService
-    this.loadAccessToken();
 
     // Subscribe to auth state changes to update headers
     this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => {
