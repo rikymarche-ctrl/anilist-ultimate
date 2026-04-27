@@ -680,7 +680,7 @@ Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
 |----------|---------|--------|--------|
 | P0 (Blockers) | ~~BUG-001~~, ~~BUG-002~~ | ✅ FIXED | Done |
 | P1 (Critical Security) | BUG-029 | 1h | Todo |
-| P2 (High Impact) | ~~BUG-003~~, ~~BUG-004~~, ~~BUG-005~~, ~~BUG-006~~, BUG-028, BUG-030, BUG-032, BUG-033 | 8h | ✅ 4/8 FIXED |
+| P2 (High Impact) | ~~BUG-003~~, ~~BUG-004~~, ~~BUG-005~~, ~~BUG-006~~, ~~BUG-028~~, ~~BUG-030~~, ~~BUG-032~~, ~~BUG-033~~ | 8h | ✅ **8/8 COMPLETE** |
 | P3 (Performance) | BUG-007, BUG-010, BUG-011, BUG-012, BUG-013 | 3h | Todo |
 | P4 (Type Safety) | ~~BUG-015~~, BUG-014, BUG-016, BUG-017 | ✅ 1/4 FIXED | In Progress |
 | P5 (Data Consistency) | BUG-008, BUG-009, BUG-031 | 3h | Todo |
@@ -715,3 +715,19 @@ Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
   - 404 handling: graceful errors for deleted activities
 - **Result:** 99%+ error reduction (1000+ → ~8 errors)
 - **Commits:** `ba4fc11`, `6ae7746`, `2d3ba35`
+
+### ✅ BUG-028: getAllFollowings() API Spam
+- **Fix:** Persistent cache (24h TTL) + limit 200 users
+- **Commit:** `c20eb67` (PERF-001)
+
+### ✅ BUG-030: Memory Leak in activityCache
+- **Fix:** TTL (5min) + clear on page change + LRU eviction
+- **Commit:** `f65a89e`
+
+### ✅ BUG-032: ID Non Univoci in Astra
+- **Fix:** UUID v4 cryptographic IDs
+- **Commit:** `ff29187`
+
+### ✅ BUG-033: Comment Cache Corruption
+- **Fix:** Context validation + cache clear on page change
+- **Commit:** `c20eb67`
