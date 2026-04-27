@@ -107,12 +107,13 @@ export class NotificationFetchService {
     const query = `query { ${aliases.join('\n')} }`;
 
     try {
+      // Use silent mode to suppress user-facing errors for 404s (deleted activities)
       const response = await this.apiClient.query<Record<string, ActivityData>>(query, {}, true);
       const results = new Map<number, ActivityDetails>();
 
       Object.entries(response).forEach(([alias, activity]) => {
         if (!activity) return;
-        
+
         const id = parseInt(alias.substring(1), 10);
         let text = '';
         let mediaId: number | undefined;
@@ -132,8 +133,16 @@ export class NotificationFetchService {
       });
 
       return results;
-    } catch (error) {
+    } catch (error: any) {
+      // Gracefully handle 404 errors (deleted/unavailable activities)
+      // These are expected and shouldn't spam the console
+      if (error?.response?.status === 404) {
+        log.debug(`[NotificationFetch] Activities not found (likely deleted): ${validIds.join(', ')}`);
+        return new Map();
+      }
+
       log.error('[NotificationFetch] Failed to fetch activity details', error);
+      log.debug(`[NotificationFetch] Failed activity IDs: ${validIds.join(', ')}`);
       return new Map();
     }
   }
