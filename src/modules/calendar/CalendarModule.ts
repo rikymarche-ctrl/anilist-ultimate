@@ -98,12 +98,22 @@ export class CalendarModule extends BaseModule {
   /**
    * Setup observer to watch for the Airing section being added to the DOM
    */
-  private setupSectionDetection(): void {
+  private async setupSectionDetection(): Promise<void> {
     log.debug('[Calendar] Setting up section detection observer');
-    
+
+    // BUG-007 fix: Observe .home container instead of document.body
+    const homeContainer = await this.waitForElement('.home', 5000);
+    const target = homeContainer || document.body;
+
+    if (homeContainer) {
+      log.debug('[Calendar] Observing .home container (BUG-007 optimization)');
+    } else {
+      log.warn('[Calendar] .home container not found, falling back to document.body');
+    }
+
     this.registerObserver(
       'airing-section-detector',
-      document.body,
+      target,
       { childList: true, subtree: true },
       async () => {
         // Only run if on home page and calendar doesn't exist

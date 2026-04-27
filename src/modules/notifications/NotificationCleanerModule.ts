@@ -127,12 +127,24 @@ export class NotificationCleanerModule extends BaseModule {
     this.fetchService.clearCache();
   }
 
-  private startObservation(): void {
+  private async startObservation(): Promise<void> {
     this.checkAndProcess();
 
-    this.registerObserver(this.OBSERVER_NAME, document.body, { childList: true, subtree: true }, () => {
-      this.checkAndProcess();
-    });
+    // BUG-007 fix: Observe specific container instead of document.body
+    const container = await this.waitForElement('.notifications', 5000);
+    if (!container) {
+      log.warn('[NotificationCleaner] Notifications container not found, falling back to document.body');
+      // Fallback to document.body if container not found (unlikely on /notifications page)
+      this.registerObserver(this.OBSERVER_NAME, document.body, { childList: true, subtree: true }, () => {
+        this.checkAndProcess();
+      });
+    } else {
+      // Observe only the notifications container for better performance
+      this.registerObserver(this.OBSERVER_NAME, container, { childList: true, subtree: true }, () => {
+        this.checkAndProcess();
+      });
+      log.debug('[NotificationCleaner] Observing .notifications container (BUG-007 optimization)');
+    }
 
     // PERF: Polling fallback to catch notifications loaded via "Load More"
     // MutationObserver may not always trigger when Anilist dynamically adds notifications

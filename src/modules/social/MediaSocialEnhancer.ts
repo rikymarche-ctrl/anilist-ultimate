@@ -7,9 +7,14 @@
  * Injects filter UI into the media page's social/activity section and
  * fetches custom list activities via GraphQL.
  *
+ * Performance (BUG-007):
+ * - Uses SharedGlobalObserver instead of individual MutationObserver
+ * - Reduces overhead when multiple modules observe document.body
+ *
  * @see ActivityFilterBar.ts for the filter UI
  * @see ActivityRenderer.ts for visibility management
  * @see docs/MODULES.md#8-media-social-enhancer-module
+ * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -18,6 +23,7 @@ import type { ILogger } from '@core/interfaces/ILogger';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { CustomListService } from './CustomListService';
 import type { AniListActivity } from '../activity/ActivityUtils';
 import {
@@ -44,6 +50,7 @@ export class MediaSocialEnhancer extends BaseModule {
     @inject(TOKENS.ActivityTabManager) private tabManager: CustomListTabManager,
     @inject(TOKENS.CustomListService) private customListService: CustomListService,
     @inject(TOKENS.ApiClient) private api: IApiClient,
+    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -97,7 +104,8 @@ export class MediaSocialEnhancer extends BaseModule {
    * Full cleanup on page change
    */
   private fullCleanup(): void {
-    this.suspendObserver(this.OBSERVER_NAME);
+    // BUG-007 fix: Unregister from SharedGlobalObserver
+    this.sharedObserver.unregister(this.OBSERVER_NAME);
 
     // Cleanup shared components
     this.filterBar.destroy();
@@ -106,8 +114,6 @@ export class MediaSocialEnhancer extends BaseModule {
     // Cleanup custom container
     this.customActivitiesContainer?.remove();
     this.customActivitiesContainer = null;
-
-    this.resumeObserver(this.OBSERVER_NAME);
   }
 
   /**
@@ -116,14 +122,10 @@ export class MediaSocialEnhancer extends BaseModule {
   private startObservation(): void {
     this.checkAndProcess();
 
-    this.registerObserver(
-      this.OBSERVER_NAME,
-      document.body,
-      { childList: true, subtree: true },
-      () => {
-        this.checkAndProcess();
-      }
-    );
+    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
+    this.sharedObserver.register(this.OBSERVER_NAME, () => {
+      this.checkAndProcess();
+    });
   }
 
   /**

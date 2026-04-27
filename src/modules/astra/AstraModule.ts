@@ -7,6 +7,10 @@
  * update flow with Astra score prompts. Coordinates between
  * AstraService (data) and AstraDashboard/AstraRatingModal (UI).
  *
+ * Performance (BUG-007):
+ * - Uses SharedGlobalObserver instead of individual MutationObserver
+ * - Reduces overhead when multiple modules observe document.body
+ *
  * @warning Window-level event listener for dashboard clicks is never
  *          removed, accumulating on each module init.
  *          See docs/BUGS.md#bug-021.
@@ -15,6 +19,7 @@
  * @see AstraDashboard.ts for the full dashboard UI
  * @see AstraRatingModal.ts for per-work rating forms
  * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -23,6 +28,7 @@ import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
 import { AstraRatingModal } from './ui/AstraRatingModal';
@@ -37,6 +43,7 @@ export class AstraModule extends BaseModule {
     @inject(TOKENS.CalendarStore) private calendarStore: CalendarStore,
     @inject(TOKENS.ApiClient) private apiClient: any,
     @inject(TOKENS.ToastService) private toast: any,
+    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -114,10 +121,8 @@ export class AstraModule extends BaseModule {
   }
 
   private initProgressEnhancer(): void {
-    const observerName = 'astra-progress-enhancer';
-
-    // Register observer to handle dynamically loaded cards (lazy loading/scroll)
-    this.registerObserver(observerName, document.body, { childList: true, subtree: true }, () => {
+    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
+    this.sharedObserver.register('astra-progress-enhancer', () => {
       this.enhanceNativeCards();
     });
 
@@ -392,5 +397,14 @@ export class AstraModule extends BaseModule {
         pill.appendChild(socialBtn);
       }
     });
+  }
+
+  /**
+   * Cleanup on module destroy
+   */
+  public override async destroy(): Promise<void> {
+    // BUG-007 fix: Unregister from SharedGlobalObserver
+    this.sharedObserver.unregister('astra-progress-enhancer');
+    await super.destroy();
   }
 }

@@ -115,17 +115,33 @@ export class ActivityEnhancerModule extends BaseModule {
   /**
    * Start observation
    */
-  private startObservation(): void {
+  private async startObservation(): Promise<void> {
     this.checkAndProcess();
 
-    this.registerObserver(
-      this.OBSERVER_NAME,
-      document.body,
-      { childList: true, subtree: true },
-      () => {
-        this.checkAndProcess();
-      }
-    );
+    // BUG-007 fix: Observe specific activity feed container instead of document.body
+    const container = await this.waitForElement('.activity-feed-wrap, .activity-feed, .feed-container', 5000);
+    if (!container) {
+      this.logger.warn('[ActivityEnhancer] Activity feed container not found, falling back to document.body');
+      this.registerObserver(
+        this.OBSERVER_NAME,
+        document.body,
+        { childList: true, subtree: true },
+        () => {
+          this.checkAndProcess();
+        }
+      );
+    } else {
+      // Observe only the activity feed container for better performance
+      this.registerObserver(
+        this.OBSERVER_NAME,
+        container,
+        { childList: true, subtree: true },
+        () => {
+          this.checkAndProcess();
+        }
+      );
+      this.logger.debug('[ActivityEnhancer] Observing activity feed container (BUG-007 optimization)');
+    }
   }
 
   /**

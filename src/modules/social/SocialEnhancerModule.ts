@@ -14,7 +14,12 @@
  * - Auto-clear on navigation to prevent unbounded growth
  * - Instant re-injection on preference changes (socialEnabled toggle)
  *
+ * Performance (BUG-007):
+ * - Uses SharedGlobalObserver instead of individual MutationObserver
+ * - Reduces overhead when multiple modules observe document.body
+ *
  * @see docs/PERFORMANCE.md#perf-002 for memory leak prevention details
+ * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -23,6 +28,7 @@ import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { FriendActivity } from '@core/types';
+import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { SocialService } from './SocialService';
 import { SocialRenderer } from './SocialRenderer';
 import { calendarStore } from '../calendar/CalendarStore';
@@ -33,7 +39,6 @@ const MEDIA_ID_ATTR = 'data-au-social-media-id';
 
 @injectable()
 export class SocialEnhancerModule extends BaseModule {
-  private observerName = 'global-social-enhancer';
   private batchTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /** Cards waiting for their first API fetch, keyed by mediaId */
@@ -52,6 +57,7 @@ export class SocialEnhancerModule extends BaseModule {
 
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
+    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -103,13 +109,14 @@ export class SocialEnhancerModule extends BaseModule {
   // ─── Observation ───────────────────────────────────────────────────────────
 
   private startObservation(): void {
-    this.registerObserver(this.observerName, document.body, { childList: true, subtree: true }, () => {
+    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
+    this.sharedObserver.register('socialEnhancer', () => {
       this.processNewCards();
     });
   }
 
   private stopObservation(): void {
-    this.disconnectObserver(this.observerName);
+    this.sharedObserver.unregister('socialEnhancer');
   }
 
   // ─── Preference change handling ────────────────────────────────────────────
@@ -247,6 +254,9 @@ export class SocialEnhancerModule extends BaseModule {
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
   public override async destroy(): Promise<void> {
+    // BUG-007 fix: Unregister from SharedGlobalObserver
+    this.stopObservation();
+
     super.destroy();
     if (this.batchTimeout) clearTimeout(this.batchTimeout);
     this.pendingCards.clear();

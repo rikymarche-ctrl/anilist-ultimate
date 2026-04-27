@@ -6,9 +6,14 @@
  * page, injects a navigation link in the AniList settings sidebar,
  * and shows/hides the CustomListManager UI component.
  *
+ * Performance (BUG-007):
+ * - Uses SharedGlobalObserver instead of individual MutationObserver
+ * - Reduces overhead when multiple modules observe document.body
+ *
  * @see CustomListManager.ts for the UI component
  * @see CustomListService.ts for the data layer
  * @see docs/MODULES.md#7-custom-list-module
+ * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -16,16 +21,17 @@ import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { container } from '@core/di/container';
 import { CustomListManager } from './components/CustomListManager';
 
 @injectable()
 export class CustomListModule extends BaseModule {
-  private observerName = 'au-settings-router';
   private managerInstance: CustomListManager | null = null;
   private isManagerActive = false;
 
   constructor(
+    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -45,8 +51,8 @@ export class CustomListModule extends BaseModule {
     this.handleRouting();
     this.injectLink();
 
-    // 3. Global observer for SPA navigation and settings page structure
-    this.registerObserver(this.observerName, document.body, { childList: true, subtree: true }, () => {
+    // 3. BUG-007 fix: Use SharedGlobalObserver for SPA navigation and settings page structure
+    this.sharedObserver.register('customList', () => {
       this.handleRouting();
       this.injectLink();
     });
@@ -173,6 +179,9 @@ export class CustomListModule extends BaseModule {
   }
 
   public override async destroy(): Promise<void> {
+    // BUG-007 fix: Unregister from SharedGlobalObserver
+    this.sharedObserver.unregister('customList');
+
     super.destroy();
     this.deactivateManager();
     this.managerInstance = null;

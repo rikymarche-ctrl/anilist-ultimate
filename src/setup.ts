@@ -34,6 +34,7 @@ import { ConfigManager } from '@core/config/ConfigManager';
 import { ErrorHandler } from '@core/errors/ErrorHandler';
 import { ModuleRegistry } from '@core/modules/ModuleRegistry';
 import { NavigationService } from '@core/navigation/NavigationService';
+import { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import type { IConfigManager } from '@core/interfaces/IConfigManager';
 
 // Core Services
@@ -98,6 +99,9 @@ export async function setupDI(): Promise<void> {
 
   // Navigation Service (needs event bus and logger)
   container.registerSingleton(TOKENS.NavigationService, NavigationService);
+
+  // Shared Global Observer (performance optimization for modules observing document.body)
+  container.registerSingleton(TOKENS.SharedGlobalObserver, SharedGlobalObserver);
 
   // Configuration Manager (needs storage and event bus) - REGISTER AS SINGLETON
   container.registerSingleton(TOKENS.Config, ConfigManager);
