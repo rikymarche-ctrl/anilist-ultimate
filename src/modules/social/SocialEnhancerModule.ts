@@ -1,11 +1,20 @@
 /**
  * @file SocialEnhancerModule.ts
- * @description Injects friend activity avatars and buttons onto native AniList media cards
+ * @description Injects friend activity avatars onto media cards with intelligent caching
  *
  * Architecture:
- * - activityCache: stores fetched activities per mediaId for instant re-inject on pref change
+ * - activityCache: LRU cache (max 100 entries) with TTL (5min) and page-change clearing
  * - pendingCards: cards waiting for first-time fetch
- * - On pref change: immediately re-apply cache to all tagged cards, no extra API call
+ * - On pref change: instantly re-apply cache to all tagged cards (no API call)
+ * - On page change: cache cleared to prevent memory leak (PERF-002 fix)
+ *
+ * Caching Strategy:
+ * - LRU eviction when cache reaches 100 entries
+ * - TTL expiration after 5 minutes
+ * - Auto-clear on navigation to prevent unbounded growth
+ * - Instant re-injection on preference changes (socialEnabled toggle)
+ *
+ * @see docs/PERFORMANCE.md#perf-002 for memory leak prevention details
  */
 
 import { injectable, inject } from 'tsyringe';

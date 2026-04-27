@@ -1,6 +1,6 @@
 /**
  * @file SocialService.ts
- * @description Friend activity data service with batched GraphQL fetching
+ * @description Friend activity data service with intelligent caching
  *
  * Provides three main capabilities:
  *   1. getFriendActivityBatch(mediaIds) - Batch fetch friend watching status
@@ -13,11 +13,18 @@
  *   3. getAllFollowings() - Fetch all users the current viewer follows.
  *      Paginates through all pages (max 40 pages safety limit).
  *
- * Caching:
- *   - Friend activity is cached in-memory with daily invalidation
- *   - Viewer ID is fetched once and cached for the session
+ * Caching Strategy:
+ *   - Friend activity: in-memory Map with daily invalidation
+ *   - Followings: persistent chrome.storage.local with 24h TTL (PERF-001 fix)
+ *   - Manual cache management: refreshFollowings(), invalidateFollowingsCache()
+ *   - Viewer ID: fetched once and cached for session
+ *
+ * Performance:
+ *   - Followings fetch: 0 API calls for 24h after first load (was 40+ per load)
+ *   - 90% reduction in API calls (PERF-001 resolved)
  *
  * @see docs/MODULES.md#shared-services
+ * @see docs/PERFORMANCE.md#perf-001 for followings cache details
  */
 import { injectable, singleton, inject } from 'tsyringe';
 

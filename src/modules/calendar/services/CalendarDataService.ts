@@ -1,14 +1,21 @@
 /**
  * @file CalendarDataService.ts
- * @description Service layer for loading airing schedules and updating watch progress
+ * @description Service layer for loading airing schedules with intelligent caching
  *
  * Fetches airing schedule and user anime list via the API client,
  * merges them through CalendarService, and stores results in CalendarStore.
- * Also handles SaveMediaListEntry mutations for episode mark-as-watched.
+ * Implements persistent cache with fingerprint validation to reduce API calls.
+ *
+ * Caching:
+ *   - Checks CalendarStore.loadEntriesFromCache() before API call
+ *   - TTL 30 minutes with fingerprint validation
+ *   - Auto-invalidates cache on progress updates
+ *   - forceRefresh parameter bypasses cache
  *
  * @see CalendarService.ts for data transformation
- * @see CalendarStore.ts for state persistence
+ * @see CalendarStore.ts for persistent cache implementation
  * @see docs/MODULES.md#1-calendar-module
+ * @see docs/PERFORMANCE.md for caching metrics
  */
 
 import { injectable, inject } from 'tsyringe';

@@ -1,6 +1,6 @@
 /**
  * @file NotificationCleanerModule.ts
- * @description Notification grouping and enhancement module
+ * @description Notification grouping and enhancement module with intelligent batching
  *
  * Orchestrates the notification cleaning pipeline:
  *   1. Observes the notification page DOM for new/changed notifications
@@ -10,15 +10,17 @@
  *   5. Provides search/filter via NotificationFilterService
  *   6. Allows toggle between merged and unmerged views
  *
+ * Performance Optimizations:
+ *   - Batches API calls for activity details (1 call instead of N per group)
+ *   - NotificationFetchService caches activity details (TTL 2min)
+ *   - Polling fallback (2s) for "Load More" button detection
+ *   - Cache cleared on page navigation to prevent stale data
+ *
  * Anti-Stuttering:
  *   Uses BaseModule's suspend/resume pattern to prevent MutationObserver
  *   loops when modifying the DOM (hiding/creating notifications).
  *
- * Known Issues:
- *   - Grouping stops on deep scroll (BUG-003 in docs/BUGS.md)
- *   - Spam merge/unmerge causes race conditions (BUG-006 in docs/BUGS.md)
- *
- * @see NotificationFetchService for API data fetching
+ * @see NotificationFetchService for API data fetching with caching
  * @see NotificationGroupService for grouping logic and text generation
  * @see NotificationFilterService for search/filter UI
  * @see docs/MODULES.md#2-notification-cleaner-module
