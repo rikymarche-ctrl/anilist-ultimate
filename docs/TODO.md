@@ -1,7 +1,7 @@
 # AniList Ultimate v2 - TODO List
 
 **Last Updated:** 2026-04-27
-**Status:** P2 Complete (8/8) - Moving to P1 and Caching System
+**Status:** P2 Complete (8/8) + Intelligent Caching System DONE ✅
 
 ---
 
@@ -15,66 +15,64 @@
 
 ---
 
-## 🟡 SISTEMA DI CACHING INTELLIGENTE (High Priority - NEW)
+## ✅ SISTEMA DI CACHING INTELLIGENTE (COMPLETE)
 
-### Obiettivo
-Implementare caching con **fingerprint-based invalidation** invece di solo TTL:
-1. Leggi dati attuali dalla pagina
-2. Genera fingerprint (hash/IDs)
-3. Confronta con cache.fingerprint
-4. Se uguale → usa cache (NO API call)
-5. Se diverso → API call + aggiorna cache
+### Obiettivo ✅
+Implementare caching con **fingerprint-based invalidation** invece di solo TTL - COMPLETATO!
 
-### Task List
+### Implementazione Completa
 
-#### 1. Fix scoreCache Memory Leak (ActivityService)
+#### 1. ✅ Fix scoreCache Memory Leak (ActivityService)
 - **File:** `src/modules/activity/ActivityService.ts`
-- **Issue:** scoreCache cresce all'infinito, no TTL, no eviction
-- **Fix:**
-  - Aggiungere LRU cache (max 100 entries)
+- **Implemented:**
+  - LRU cache (max 100 entries)
   - TTL 5 minuti
-  - Clear on page change
+  - getCachedScore/setCachedScore wrappers
+  - clearCache() method
 
-#### 2. Intelligent Review Caching
-- **File:** `src/modules/reviews/` (da creare service?)
-- **Current:** Nessun caching
-- **Goal:**
-  - Leggi 4 review IDs dalla homepage
-  - Confronta con cache fingerprint [id1, id2, id3, id4]
-  - Se diverso → fetch + cache
-  - Se uguale → skip API call
+#### 2. ✅ Intelligent Review Caching
+- **Files:** `src/modules/reviews/ReviewService.ts`, `ReviewEnhancerModule.ts`
+- **Implemented:**
+  - LRU cache (max 200 entries) + TTL 30min in ReviewService
+  - Fingerprint-based batch deduplication in ReviewEnhancerModule
+  - Confronta sorted review IDs prima di fetch
+  - Skip API call se fingerprint uguale (homepage 4 reviews)
 
-#### 3. Intelligent Calendar Caching
-- **File:** `src/modules/calendar/CalendarStore.ts`
-- **Current:** Nessun caching persistente
-- **Goal:**
-  - Cache in chrome.storage.local con TTL 30min
-  - Fingerprint: hash di mediaIds + airingAt timestamps
-  - Confronta prima di fare sync
-  - Invalida se utente modifica progress
+#### 3. ✅ Intelligent Calendar Caching
+- **Files:** `src/modules/calendar/CalendarStore.ts`, `CalendarDataService.ts`
+- **Implemented:**
+  - Cache persistente in chrome.storage.local (TTL 30min)
+  - Fingerprint FNV-1a hash da mediaId + airingAt
+  - loadEntriesFromCache() con TTL validation
+  - Auto-invalidazione su progress update
+  - forceRefresh parameter in loadSchedule()
 
-#### 4. Intelligent Notification Caching
-- **File:** `src/modules/notifications/`
-- **Current:** Nessun caching
-- **Goal:**
-  - Cache notification IDs + timestamps
-  - Confronta con notifiche attuali DOM
-  - Fetch solo se nuove notifiche rilevate
+#### 4. ✅ Intelligent Notification Caching
+- **File:** `src/modules/notifications/services/NotificationFetchService.ts`
+- **Implemented:**
+  - LRU cache (max 100 entries) + TTL 2min
+  - Cache activity details, fetch solo pending IDs
+  - clearCache() su page change
+  - Ottimizzato per merge/unmerge toggle
 
-#### 5. Manual Cache Invalidation
-- **Files:** Tutti i service con cache
-- **Goal:**
-  - Aggiungere `invalidateCache()` method
-  - Esporlo nel settings panel
-  - Trigger su user actions (follow/unfollow)
+#### 5. ✅ Manual Cache Invalidation
+- **Status:** Methods implemented in all services
+- **Available:**
+  - ActivityService.clearCache()
+  - ReviewService.clearCache()
+  - CalendarStore.invalidateCache()
+  - NotificationFetchService.clearCache()
+  - SocialService.invalidateFollowingsCache()
+  - SocialService.clearAllCaches()
+- **TODO:** Expose in UI (settings panel) - P6 UI task
 
-#### 6. Followings Cache Improvements
+#### 6. ✅ Followings Cache Improvements
 - **File:** `src/modules/social/SocialService.ts`
-- **Current:** 24h TTL, no manual refresh
-- **Fix:**
-  - Aggiungere `refreshFollowings()` method
-  - Button nel settings per force refresh
-  - Auto-invalidate su follow/unfollow events (se possibile rilevare)
+- **Implemented:**
+  - refreshFollowings() method (force refresh)
+  - invalidateFollowingsCache() method
+  - clearAllCaches() for full reset
+- **TODO:** Add button in settings UI - P6 UI task
 
 ---
 
@@ -254,18 +252,18 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL:
 
 ## 🎯 EXECUTION ORDER
 
-1. **P1 Security** (30min)
-   - BUG-029: GraphQL injection
+1. ~~**P1 Security**~~ ✅ COMPLETE
+   - ~~BUG-029: GraphQL injection~~
 
-2. **Caching Intelligente** (3-4h)
-   - scoreCache fix
-   - Review fingerprinting
-   - Calendar caching
-   - Notification caching
-   - Manual invalidation
-   - Followings refresh
+2. ~~**Caching Intelligente**~~ ✅ COMPLETE (4 commits)
+   - ~~scoreCache fix~~
+   - ~~Review fingerprinting~~
+   - ~~Calendar caching~~
+   - ~~Notification caching~~
+   - ~~Manual invalidation~~
+   - ~~Followings refresh~~
 
-3. **P3 Performance** (3h)
+3. **P3 Performance** (3h) - NEXT
    - Observer optimization
    - Font Awesome bundle
    - Manifest CSS
@@ -279,4 +277,4 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL:
 
 7. **P7 Debug** (1h - LAST)
 
-**Total Remaining:** ~17-18h
+**Total Remaining:** ~13-14h (down from 17-18h)
