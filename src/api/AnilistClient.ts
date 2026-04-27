@@ -22,7 +22,7 @@
  * @see docs/ARCHITECTURE.md#6-api-layer
  */
 
-import { injectable, inject, container } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { GraphQLClient } from 'graphql-request';
 import { API_CONFIG, OAUTH_CONFIG } from '@core/constants';
 import { TOKENS } from '@core/di/tokens';
@@ -344,15 +344,10 @@ export class AnilistClient implements IApiClient {
 }
 
 /**
- * Singleton instance for backward compatibility
- * Resolves dynamically from the container to avoid circular dependencies and Rollup assignment issues.
- * DEPRECATED: Inject TOKENS.ApiClient or resolve from container directly.
+ * The anilistClient proxy singleton export has been removed (BUG-013 fix).
+ * All modules now use dependency injection via @inject(TOKENS.ApiClient).
+ *
+ * To use AnilistClient:
+ *   constructor(@inject(TOKENS.ApiClient) private apiClient: IApiClient) {}
  */
-export const anilistClient = new Proxy({} as AnilistClient, {
-  get: (_, prop) => {
-    const instance = container.resolve<AnilistClient>(TOKENS.ApiClient);
-    const value = (instance as any)[prop];
-    return typeof value === 'function' ? value.bind(instance) : value;
-  }
-});
 

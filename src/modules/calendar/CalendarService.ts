@@ -11,13 +11,13 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { anilistClient } from '@/api/AnilistClient';
 import { USER_ANIME_LIST_QUERY, UPDATE_PROGRESS_MUTATION } from '@/api/queries/calendar';
 import { log } from '@core/logger';
 import { DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, MediaListResponse } from '@core/types';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 
@@ -26,7 +26,10 @@ import { EVENT_TYPES } from '@core/events/EventTypes';
  */
 @injectable()
 export class CalendarService implements ICalendarService {
-  constructor(@inject(TOKENS.EventBus) private eventBus: IEventBus) {}
+  constructor(
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
+    @inject(TOKENS.EventBus) private eventBus: IEventBus
+  ) {}
 
   /**
    * Fetch user's currently watching anime with airing schedules
@@ -35,7 +38,7 @@ export class CalendarService implements ICalendarService {
     try {
       log.time('Fetch airing schedule');
 
-      const data = await anilistClient.query<MediaListResponse>(USER_ANIME_LIST_QUERY, {
+      const data = await this.apiClient.query<MediaListResponse>(USER_ANIME_LIST_QUERY, {
         userId,
         type: 'ANIME',
         status: 'CURRENT',
@@ -115,7 +118,7 @@ export class CalendarService implements ICalendarService {
     try {
       log.info('Updating progress', { mediaId, progress: newProgress });
 
-      await anilistClient.query(UPDATE_PROGRESS_MUTATION, {
+      await this.apiClient.query(UPDATE_PROGRESS_MUTATION, {
         mediaId,
         progress: newProgress,
       });

@@ -16,10 +16,12 @@
  * @see docs/MODULES.md#6-hover-comments-module
  */
 
-import { anilistClient } from '@/api';
+import { injectable, inject } from 'tsyringe';
 import { storage } from '@core/storage/StorageManager';
 import { log } from '@core/logger';
 import { TIME } from '@core/constants';
+import { TOKENS } from '@core/di/tokens';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 
 export interface UserComment {
   username: string;
@@ -28,21 +30,14 @@ export interface UserComment {
   timestamp: number;
 }
 
+@injectable()
 export class CommentService {
-  private static instance: CommentService;
   private cache: Record<string, UserComment> = {};
   private readonly CACHE_KEY = 'hover_comments_cache';
   private readonly CACHE_MAX_AGE = 2 * TIME.DAY_MS; // 48 hours for valid comments
   private readonly NEGATIVE_CACHE_AGE = TIME.HOUR_MS; // 1 hour for empty/not found lists
 
-  private constructor() {}
-
-  public static getInstance(): CommentService {
-    if (!CommentService.instance) {
-      CommentService.instance = new CommentService();
-    }
-    return CommentService.instance;
-  }
+  constructor(@inject(TOKENS.ApiClient) private apiClient: IApiClient) {}
 
   /**
    * Load cache from storage
@@ -92,7 +87,7 @@ export class CommentService {
     `;
 
     try {
-      const data = await anilistClient.query<{ MediaList: { notes: string } | null }>(query, {
+      const data = await this.apiClient.query<{ MediaList: { notes: string } | null }>(query, {
         userName: username,
         mediaId: mediaId,
       });

@@ -18,7 +18,7 @@ import { injectable, inject } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
-import { anilistClient } from '@/api/AnilistClient';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import { calendarStore } from './CalendarStore';
 import { CSS_CLASSES } from '@core/constants';
 import { EVENT_TYPES } from '@core/events/EventTypes';
@@ -36,6 +36,7 @@ export class CalendarModule extends BaseModule {
   private isProcessing: boolean = false;
 
   constructor(
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.CalendarDomService) private domService: CalendarDomService,
     @inject(TOKENS.CalendarDataService) private dataService: CalendarDataService,
     @inject(TOKENS.CalendarSocialService) private socialService: CalendarSocialService,
@@ -57,13 +58,13 @@ export class CalendarModule extends BaseModule {
       log.success('[Calendar] Preferences loaded from storage');
 
       // Check authentication via centralized client
-      if (!anilistClient.isAuthenticated()) {
+      if (!this.apiClient.isAuthenticated()) {
         log.warn('[Calendar] User not authenticated, showing prompt');
         await this.handleUnauthenticated();
         return;
       }
 
-      this.userId = await anilistClient.getCurrentUserId();
+      this.userId = await this.apiClient.getCurrentUserId();
       log.info('[Calendar] Initializing for user', { userId: this.userId });
 
       // 1. Setup MutationObserver for late-loading React sections
