@@ -37,6 +37,10 @@ export class SocialEnhancerModule extends BaseModule {
   private readonly MAX_CACHE_SIZE = 100;
   private cacheOrder: number[] = [];
 
+  /** BUG-030 fix: TTL for cache entries (5 minutes) */
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000;
+  private cacheTimestamps: Map<number, number> = new Map();
+
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
@@ -46,6 +50,17 @@ export class SocialEnhancerModule extends BaseModule {
 
   public async init(): Promise<void> {
     log.info('SocialEnhancerModule: Initializing...');
+
+    // BUG-030 fix: Clear cache on page navigation to prevent unbounded growth
+    this.onPageChange(() => {
+      const cacheSize = this.activityCache.size;
+      if (cacheSize > 0) {
+        this.activityCache.clear();
+        this.cacheTimestamps.clear();
+        this.cacheOrder = [];
+        log.debug(`[SocialEnhancer] Cache cleared on page change (was ${cacheSize} entries)`);
+      }
+    });
 
     // React immediately to social preference changes using cached data
     calendarStore.subscribeToSelector(
@@ -227,14 +242,26 @@ export class SocialEnhancerModule extends BaseModule {
     if (this.batchTimeout) clearTimeout(this.batchTimeout);
     this.pendingCards.clear();
     this.activityCache.clear();
+    this.cacheTimestamps.clear(); // BUG-030 fix: clear timestamps
     this.cacheOrder = []; // PERF-002 fix: clear LRU order
   }
 
   // ─── PERF-002 Fix: LRU Cache Helpers ──────────────────────────────────────
 
-  /** Get from cache with LRU tracking */
+  /** Get from cache with LRU tracking and TTL validation */
   private getCachedActivities(mediaId: number): FriendActivity[] | undefined {
     if (!this.activityCache.has(mediaId)) return undefined;
+
+    // BUG-030 fix: Check if entry is still fresh
+    const timestamp = this.cacheTimestamps.get(mediaId);
+    if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
+      // Expired - evict and return undefined
+      this.activityCache.delete(mediaId);
+      this.cacheTimestamps.delete(mediaId);
+      this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
+      log.debug(`[SocialEnhancer] Cache expired for mediaId ${mediaId}`);
+      return undefined;
+    }
 
     // Move to end (most recently used)
     this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
@@ -243,18 +270,20 @@ export class SocialEnhancerModule extends BaseModule {
     return this.activityCache.get(mediaId);
   }
 
-  /** Set cache with LRU eviction */
+  /** Set cache with LRU eviction and TTL tracking */
   private setCachedActivities(mediaId: number, activities: FriendActivity[]): void {
     // Evict oldest if at capacity
     if (this.activityCache.size >= this.MAX_CACHE_SIZE && !this.activityCache.has(mediaId)) {
       const oldest = this.cacheOrder.shift();
       if (oldest !== undefined) {
         this.activityCache.delete(oldest);
+        this.cacheTimestamps.delete(oldest); // BUG-030 fix: also delete timestamp
         log.debug(`[SocialEnhancer] LRU evicted mediaId ${oldest} (cache size: ${this.activityCache.size})`);
       }
     }
 
     this.activityCache.set(mediaId, activities);
+    this.cacheTimestamps.set(mediaId, Date.now()); // BUG-030 fix: store timestamp
 
     // Update LRU order
     this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
