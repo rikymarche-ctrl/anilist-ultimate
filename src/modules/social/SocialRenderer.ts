@@ -1,6 +1,13 @@
 /**
- * Social Renderer Utility
- * Handles the creation and injection of social UI elements (avatars, buttons)
+ * @file SocialRenderer.ts
+ * @description Static utility class for rendering social avatars and action buttons
+ *
+ * Creates avatar stack elements with +N overflow badge, profile click
+ * handlers, and "View Social" buttons. Used by SocialEnhancerModule
+ * to inject social overlays onto native AniList media cards.
+ *
+ * @see SocialEnhancerModule.ts for the integration layer
+ * @see docs/MODULES.md#10-social-enhancer-module
  */
 
 import { FriendActivity } from '@core/types';

@@ -1,3 +1,14 @@
+/**
+ * @file NotificationFilterService.ts
+ * @description Search bar UI and text-based filtering for notification entries
+ *
+ * Injects a search input into the notification page header and filters
+ * visible notifications by matching text content against the query string.
+ *
+ * @see NotificationCleanerModule.ts for the orchestration layer
+ * @see docs/MODULES.md#2-notification-cleaner-module
+ */
+
 import { injectable } from 'tsyringe';
 import { log } from '@core/logger';
 

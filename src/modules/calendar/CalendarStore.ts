@@ -1,7 +1,19 @@
 import { injectable } from 'tsyringe';
 /**
- * Calendar State Management
- * Central store for calendar data and preferences
+ * @file CalendarStore.ts
+ * @description Central reactive store for calendar state and user preferences
+ *
+ * Extends Store<CalendarStoreState> to manage:
+ *   - Anime entries (schedule + progress merged)
+ *   - Loading/error UI state
+ *   - User preferences (layout, time format, social toggles)
+ *   - Last-update timestamp for cache freshness checks
+ *
+ * Preferences are persisted to chrome.storage.local and loaded
+ * once on init with an async guard to prevent concurrent loads.
+ *
+ * @see Store.ts for the reactive base class
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 import { Store } from '@core/state/Store';

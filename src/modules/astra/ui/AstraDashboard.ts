@@ -1,3 +1,23 @@
+/**
+ * @file AstraDashboard.ts
+ * @description Full-page modal dashboard for managing all Astra work ratings
+ *
+ * Provides:
+ *   - Filterable/sortable work grid with search
+ *   - Statistics overview (total works, average score, distribution)
+ *   - AniList sync trigger
+ *   - JSON export/import
+ *   - Per-work rating modal launch
+ *   - Chunk-based rendering for performance on large libraries
+ *
+ * @warning ~1300 lines — should be split into sub-components.
+ *          See docs/BUGS.md#bug-022.
+ *
+ * @see AstraService.ts for the data layer
+ * @see AstraRatingModal.ts for per-work editing
+ * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ */
+
 import { injectable, singleton, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { AstraService, AstraWork } from '../AstraService';

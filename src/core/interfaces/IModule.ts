@@ -1,6 +1,17 @@
 /**
- * Module Interface
- * Contract that all feature modules must implement
+ * @file IModule.ts
+ * @description Contract and metadata types for feature module implementations
+ *
+ * Defines:
+ *   - IModule: init/destroy lifecycle, getName, optional isEnabled
+ *   - ModuleMetadata: registration descriptor (name, factory, pageMatch, critical flag)
+ *   - ModuleLifecycleHooks: optional before/after init/destroy callbacks
+ *
+ * All feature modules (CalendarModule, NotificationCleanerModule, etc.)
+ * implement IModule via the BaseModule abstract class.
+ *
+ * @see BaseModule.ts for the abstract base implementation
+ * @see ModuleRegistry.ts for the lifecycle manager
  */
 
 export interface IModule {

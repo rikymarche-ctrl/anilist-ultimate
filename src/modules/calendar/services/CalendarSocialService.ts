@@ -1,3 +1,16 @@
+/**
+ * @file CalendarSocialService.ts
+ * @description Loads friend activity data for calendar anime entries
+ *
+ * Uses SocialService.getFriendActivityBatch() to fetch which friends
+ * are watching each anime in the calendar, then attaches the results
+ * to AnimeEntry.friendActivity for avatar overlay rendering.
+ *
+ * @see SocialService.ts for the batch GraphQL fetching
+ * @see AnimeCard.ts for the social bubble UI
+ * @see docs/MODULES.md#1-calendar-module
+ */
+
 import { injectable, inject } from 'tsyringe';
 import { SocialService } from '../../social/SocialService';
 import { calendarStore } from '../CalendarStore';

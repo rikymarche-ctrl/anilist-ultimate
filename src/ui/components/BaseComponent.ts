@@ -1,6 +1,17 @@
 /**
- * Base Component Class
- * Simple component abstraction for DOM manipulation
+ * @file BaseComponent.ts
+ * @description Abstract base class for all UI components in the extension
+ *
+ * Provides lifecycle management (mount/unmount), event listener tracking
+ * with automatic cleanup, DOM manipulation helpers (createFromHTML),
+ * and shallow prop equality checking. All calendar, astra, and toast
+ * components extend this class.
+ *
+ * @warning createFromHTML() uses innerHTML without sanitization.
+ *          Callers must ensure input is trusted or pre-escaped.
+ *          See docs/SECURITY.md#sec-001.
+ *
+ * @see docs/ARCHITECTURE.md#component-system
  */
 
 import type { ComponentProps } from '@core/types';

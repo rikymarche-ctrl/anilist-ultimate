@@ -1,6 +1,13 @@
 /**
- * Review Service
- * Handles GraphQL queries for review data with advanced Batching via Alias
+ * @file ReviewService.ts
+ * @description Review data fetching with GraphQL alias batching and caching
+ *
+ * Fetches review scores and ratings in batches via GraphQL alias queries,
+ * caches results in memory (no TTL), and provides chunk-based processing
+ * with inter-chunk delays to respect API rate limits.
+ *
+ * @see ReviewEnhancerModule.ts for the UI integration
+ * @see docs/MODULES.md#11-review-enhancer-module
  */
 
 import { injectable, inject } from 'tsyringe';

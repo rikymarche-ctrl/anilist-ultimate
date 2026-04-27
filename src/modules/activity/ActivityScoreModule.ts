@@ -1,6 +1,14 @@
 /**
- * Activity Score Module
- * Injects user ratings into activity feed entries
+ * @file ActivityScoreModule.ts
+ * @description Injects user-specific media ratings into activity feed entries
+ *
+ * Scans activity feed entries for user-media pairs, batches score
+ * lookups via ActivityService, and injects formatted score badges
+ * into the DOM. Uses debouncing (1.5s) to batch rapid DOM changes.
+ *
+ * @see ActivityService.ts for batched score fetching
+ * @see ScoreFormatter.ts for display format conversion
+ * @see docs/MODULES.md#4-activity-score-module
  */
 
 import { injectable, inject } from 'tsyringe';

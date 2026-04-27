@@ -1,7 +1,22 @@
 /**
- * Navigation Service
- * Centralized navigation tracking with event emission
- * Eliminates need for individual module URL polling
+ * @file NavigationService.ts
+ * @description Centralized SPA navigation tracking for AniList
+ *
+ * AniList is a Vue.js single-page application. Page navigation does not trigger
+ * full page reloads, so traditional approaches (DOMContentLoaded, etc.) don't work.
+ * This service detects URL changes through three mechanisms:
+ *
+ *   1. MutationObserver on document.body - catches DOM changes from Vue Router
+ *   2. popstate event - catches browser back/forward navigation
+ *   3. history.pushState/replaceState interception - catches programmatic navigation
+ *
+ * When a path change is detected, emits PAGE_CHANGED via the EventBus.
+ * All modules subscribe to this event instead of individually polling the URL.
+ *
+ * @warning This service monkey-patches history.pushState and history.replaceState.
+ *          See docs/SECURITY.md#sec-006 for implications.
+ *
+ * @see docs/ARCHITECTURE.md#43-navigation-service
  */
 
 import { injectable, inject } from 'tsyringe';

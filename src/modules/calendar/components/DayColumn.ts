@@ -1,6 +1,13 @@
 /**
- * Day Column Component
- * Displays all anime airing on a specific day
+ * @file DayColumn.ts
+ * @description Column component rendering all anime cards for a specific weekday
+ *
+ * Handles day header, expand/collapse for overflow cards (via maxCardsPerDay),
+ * empty-day messaging, and per-card rendering with error isolation.
+ *
+ * @see AnimeCard.ts for individual card rendering
+ * @see CalendarGrid.ts for the parent layout
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 import { injectable, inject } from 'tsyringe';

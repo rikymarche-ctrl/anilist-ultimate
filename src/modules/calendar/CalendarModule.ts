@@ -1,7 +1,17 @@
 /**
- * Calendar Module
- * Lean orchestrator for the calendar feature
- * Delegating responsibilities to specialized services (SRP)
+ * @file CalendarModule.ts
+ * @description Orchestrator module for the weekly anime calendar feature
+ *
+ * Delegates all responsibilities to specialized services (SRP):
+ *   - CalendarDataService: data fetching and progress updates
+ *   - CalendarDomService: DOM injection and container management
+ *   - CalendarSocialService: friend activity overlay loading
+ *   - CalendarStore: centralized state and preference persistence
+ *
+ * Lifecycle: init() → loadAndRender() on home page, re-renders on
+ * SPA navigation back to home, destroys on page leave.
+ *
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 import { injectable, inject } from 'tsyringe';

@@ -1,6 +1,14 @@
 /**
- * Social Activity Module
- * Core module for managing social features in the calendar
+ * @file SocialActivityModule.ts
+ * @description Module that mounts the SocialSidebar component globally
+ *
+ * Simple orchestrator that initializes and mounts the SocialSidebar
+ * on media pages to display detailed friend activity with filtering,
+ * search, and infinite scroll.
+ *
+ * @see SocialSidebar.ts for the sidebar component
+ * @see SocialService.ts for the data layer
+ * @see docs/MODULES.md#9-social-activity-module
  */
 
 import { injectable, inject } from 'tsyringe';

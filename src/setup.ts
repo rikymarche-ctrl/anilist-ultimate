@@ -1,6 +1,26 @@
 /**
- * Service Registration and Setup
- * Configures the DI container with all services
+ * @file setup.ts
+ * @description DI Container Configuration and Service Registration
+ *
+ * This file is the composition root of the application. It registers all
+ * services, modules, and infrastructure components in the tsyringe DI container.
+ *
+ * Registration order matters:
+ *   1. Core infrastructure (Logger, Storage, EventBus, Config, ErrorHandler)
+ *   2. API layer (AnilistClient)
+ *   3. Auth services (AuthTokenService)
+ *   4. Theme management
+ *   5. Feature services (Calendar, Social, Activity, Notification, Astra)
+ *   6. Critical service initialization (Config load, ErrorHandler setup, Toast, Navigation)
+ *   7. Module registration in ModuleRegistry
+ *
+ * Each module is registered with metadata including:
+ *   - name: unique identifier
+ *   - enabled: feature flag from ConfigManager
+ *   - factory: lazy factory function that resolves from DI container
+ *   - pageMatch: optional URL matcher to restrict module to specific pages
+ *
+ * @see docs/ARCHITECTURE.md#41-dependency-injection
  */
 
 import 'reflect-metadata'; // Required for tsyringe

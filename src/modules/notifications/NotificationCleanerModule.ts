@@ -43,6 +43,8 @@ export class NotificationCleanerModule extends BaseModule {
   private lastNotificationCount = 0;
   private readonly OBSERVER_NAME = 'notifications-continuous';
 
+  private currentPath = '';
+
   constructor(
     @inject(TOKENS.NotificationFetchService) private fetchService: NotificationFetchService,
     @inject(TOKENS.NotificationGroupService) private groupService: NotificationGroupService,
@@ -50,6 +52,7 @@ export class NotificationCleanerModule extends BaseModule {
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
+    this.currentPath = window.location.pathname;
   }
 
   /**
@@ -60,10 +63,29 @@ export class NotificationCleanerModule extends BaseModule {
       log.info('NotificationCleaner: Initializing...');
 
       this.enabled = (await storage.get<boolean>('clutterfree_group_likes')) ?? false;
+      console.log('[NOTIF DEBUG] Init - enabled:', this.enabled);
+
+      // Fix for dead toggle buttons: event delegation using CAPTURE phase
+      // This bypasses any stopPropagation() called by Vue.js
+      document.body.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('.au-compress-button');
+        if (btn) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[NOTIF DEBUG] Delegated toggle button clicked! (Capture Phase)');
+          this.toggleGrouping();
+        }
+      }, true);
 
       this.onPageChange((event) => {
         const path = event?.path || window.location.pathname;
+        // Ignore pushState events that do not actually change the page (e.g. infinite scroll)
+        if (path === this.currentPath) return;
+        this.currentPath = path;
+
         this.fullReset();
+        this.clearVirtualNotifications();
+        
         if (path.includes('/notifications')) {
           this.startObservation();
         }
@@ -85,6 +107,7 @@ export class NotificationCleanerModule extends BaseModule {
     this.cleanup();
     this.filterService.cleanup();
     this.lastNotificationCount = 0;
+    this.isProcessing = false;
 
     // Clear all processed markers
     document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
@@ -129,20 +152,42 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   private injectSettingsUI(markAllButton: HTMLElement): void {
-    if (document.querySelector('.au-compress-button')) return;
+    if (document.querySelector('.au-compress-button')) {
+      console.log('[NOTIF DEBUG] Button already exists, skipping injection');
+      return;
+    }
+
+    console.log('[NOTIF DEBUG] Creating merge/unmerge button, enabled:', this.enabled);
 
     const compressButton = document.createElement('div');
     compressButton.className = `au-compress-button ${this.enabled ? 'compressed' : ''}`;
     compressButton.textContent = this.enabled ? 'Unmerge User Activity' : 'Merge User Activity';
 
-    compressButton.addEventListener('click', () => this.toggleGrouping());
+    // Fallback direct listener
+    compressButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      console.log('[NOTIF DEBUG] Direct button listener clicked!');
+      this.toggleGrouping();
+    });
 
     markAllButton.parentElement?.insertBefore(compressButton, markAllButton);
+    console.log('[NOTIF DEBUG] Button injected into DOM');
   }
 
   private async toggleGrouping(): Promise<void> {
+    console.log(`[NOTIF DEBUG] toggleGrouping triggered! isProcessing=${this.isProcessing}`);
+    
+    // Emergency unlock if stuck for some reason
+    if (this.isProcessing) {
+      console.warn('[NOTIF DEBUG] isProcessing was true, forcing unlock to process click.');
+      this.isProcessing = false;
+    }
+
     this.enabled = !this.enabled;
     await storage.set('clutterfree_group_likes', this.enabled);
+
+    console.log(`[NOTIF DEBUG] Toggle clicked! New state: ${this.enabled ? 'ENABLED (will merge)' : 'DISABLED (will unmerge)'}`);
+    log.info(`[NotificationCleaner] Toggle to ${this.enabled ? 'ENABLED (merge)' : 'DISABLED (unmerge)'}`);
 
     const toggleBtn = document.querySelector('.au-compress-button');
     if (toggleBtn) {
@@ -150,21 +195,28 @@ export class NotificationCleanerModule extends BaseModule {
       toggleBtn.textContent = this.enabled ? 'Unmerge User Activity' : 'Merge User Activity';
     }
 
-    // Clear processed markers to allow re-processing
-    document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
-      n.removeAttribute('data-au-processed');
-    });
-
     this.suspendObserver(this.OBSERVER_NAME);
-    this.isProcessing = false; // Force unlock for toggle
-    this.fullReset();
-    this.clearVirtualNotifications();
 
-    // Small delay to let DOM settle
-    setTimeout(() => {
-      this.processNotifications();
+    // Always restore original DOM first
+    this.clearVirtualNotifications();
+    this.lastNotificationCount = 0;
+
+    if (this.enabled) {
+      // Re-merge: clear processed markers and re-process
+      document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
+        n.removeAttribute('data-au-processed');
+      });
+
+      // Small delay to let DOM settle, then re-process
+      setTimeout(() => {
+        this.processNotifications();
+        this.resumeObserver(this.OBSERVER_NAME);
+      }, 50);
+    } else {
+      // Unmerge: just resume observer, no re-processing needed
+      log.info('[NotificationCleaner] Unmerge complete, resuming observer');
       this.resumeObserver(this.OBSERVER_NAME);
-    }, 50);
+    }
   }
 
   private async processNotifications(): Promise<void> {
@@ -173,11 +225,20 @@ export class NotificationCleanerModule extends BaseModule {
       return;
     }
 
+    // Skip grouping entirely when disabled
+    if (!this.enabled) {
+      console.log('[NOTIF DEBUG] processNotifications called but SKIPPED (enabled=false)');
+      log.debug('[NotificationCleaner] Skipping processNotifications - disabled');
+      return;
+    }
+
+    console.log('[NOTIF DEBUG] processNotifications RUNNING (enabled=true)');
+
     const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>(
       '.notification:not(.au-virtual-notification):not(.au-sub-notification), ' +
       '.notification-item:not(.au-virtual-notification):not(.au-sub-notification)'
     ));
-    
+
     // Immediate tagging pass
     currentNotifications.forEach(n => this.extractUsernameFromNotif(n));
 
@@ -197,6 +258,7 @@ export class NotificationCleanerModule extends BaseModule {
       let currentGroup: NotificationGroup | null = null;
       const groupsToProcess: NotificationGroup[] = [];
       const singleGroupsToProcess: NotificationGroup[] = [];
+      const pendingEnhancements: HTMLElement[] = []; // PERF: Batch API calls for clones added to existing groups
 
       // Pre-calculate visible notifications map for faster lookup
       const visibleNotifs = Array.from(document.querySelectorAll<HTMLElement>(
@@ -225,7 +287,7 @@ export class NotificationCleanerModule extends BaseModule {
         // Merging logic
         if (prevVisible && prevUser === username) {
           if (prevVisible.classList.contains('au-virtual-notification')) {
-            await this.addToExistingGroup(prevVisible, notification, username);
+            this.addToExistingGroup(prevVisible, notification, username, pendingEnhancements);
             notification.setAttribute('data-au-processed', 'true');
             continue;
           } else if (currentGroup && currentGroup.user === username) {
@@ -291,6 +353,11 @@ export class NotificationCleanerModule extends BaseModule {
         await this.groupService.enhanceNotificationsWithActivityDetails(singles);
       }
 
+      // PERF: Batch enhance all clones added to existing groups in a single API call
+      if (pendingEnhancements.length > 0) {
+        await this.groupService.enhanceNotificationsWithActivityDetails(pendingEnhancements);
+      }
+
       newNotifications.forEach(n => n.setAttribute('data-au-processed', 'true'));
     } finally {
       this.isProcessing = false;
@@ -311,7 +378,7 @@ export class NotificationCleanerModule extends BaseModule {
     firstNotif.parentNode?.insertBefore(dropdown, firstNotif);
 
     const isSingleType = group.types.size === 1;
-    this.groupService.enhanceNotificationsWithActivityDetails(
+    await this.groupService.enhanceNotificationsWithActivityDetails(
       Array.from(dropdown.querySelectorAll('.au-sub-notification')),
       isSingleType
     );
@@ -406,7 +473,12 @@ export class NotificationCleanerModule extends BaseModule {
     return dropdown;
   }
 
-  private async addToExistingGroup(virtual: HTMLElement, notif: HTMLElement, user: string): Promise<void> {
+  private addToExistingGroup(
+    virtual: HTMLElement,
+    notif: HTMLElement,
+    user: string,
+    pendingEnhancements: HTMLElement[]
+  ): void {
     const countEl = virtual.querySelector('.au-activity-count') as HTMLElement;
     if (countEl) {
       countEl.style.textDecoration = 'none';
@@ -421,7 +493,9 @@ export class NotificationCleanerModule extends BaseModule {
       clone.setAttribute('data-au-processed', 'true');
       this.groupService.stripUsername(clone, user);
       dropdown.appendChild(clone);
-      await this.groupService.enhanceNotificationsWithActivityDetails([clone]);
+
+      // PERF: Defer API call - will be batched later
+      pendingEnhancements.push(clone);
     }
     notif.style.display = 'none';
     notif.classList.add('au-hidden-notification');
@@ -447,8 +521,14 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   private clearVirtualNotifications(): void {
-    document.querySelectorAll('.au-virtual-notification, .au-notification-dropdown').forEach(n => n.remove());
-    document.querySelectorAll<HTMLElement>('.au-hidden-notification').forEach(n => {
+    const virtuals = document.querySelectorAll('.au-virtual-notification, .au-notification-dropdown');
+    const hiddens = document.querySelectorAll<HTMLElement>('.au-hidden-notification');
+
+    console.log(`[NOTIF DEBUG] clearVirtualNotifications - removing ${virtuals.length} virtuals, restoring ${hiddens.length} hiddens`);
+    log.debug(`[NotificationCleaner] Clearing ${virtuals.length} virtual notifications, ${hiddens.length} hidden notifications`);
+
+    virtuals.forEach(n => n.remove());
+    hiddens.forEach(n => {
       n.style.display = '';
       n.classList.remove('au-hidden-notification');
       n.removeAttribute('data-au-processed');

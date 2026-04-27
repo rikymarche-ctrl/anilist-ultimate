@@ -1,3 +1,23 @@
+/**
+ * @file AstraRatingModal.ts
+ * @description Modal form for rating individual works across multiple scoring sections
+ *
+ * Provides:
+ *   - Slider inputs for each Astra section/sub-section
+ *   - Season management (add, delete, toggle series finale)
+ *   - Episode journal with per-episode notes and scores
+ *   - Radar chart preview of current scores
+ *   - Date range inputs and custom notes
+ *   - Focus trap and ESC-to-close accessibility
+ *
+ * @warning ~750 lines — should be split. Focus trap has a known
+ *          Shift+Tab inversion bug. See docs/BUGS.md#bug-023.
+ *
+ * @see AstraService.ts for score persistence
+ * @see AstraRadarChart.ts for the SVG chart
+ * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ */
+
 import { injectable, singleton, inject, container } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraSection, AstraService, AstraSubSection, AstraWork } from '../AstraService';

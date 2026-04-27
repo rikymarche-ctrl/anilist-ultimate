@@ -1,3 +1,15 @@
+/**
+ * @file AstraRadarChart.ts
+ * @description SVG-based radar chart component for visual score representation
+ *
+ * Generates an inline SVG polygon radar chart from Astra section scores.
+ * Stateless utility — all input via method parameters, no DOM state.
+ *
+ * @see AstraDashboard.ts for integration
+ * @see AstraRatingModal.ts for per-work usage
+ * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ */
+
 import { AstraSection } from '../AstraService';
 
 export class AstraRadarChart {

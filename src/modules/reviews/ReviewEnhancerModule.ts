@@ -1,7 +1,13 @@
 /**
- * Review Enhancer Module
- * One-Shot Strategic Batching Version
- * Concentrates all API effort into a single, consolidated request using a high debounce.
+ * @file ReviewEnhancerModule.ts
+ * @description Injects rating badges into review cards with one-shot strategic batching
+ *
+ * Scans the page for review cards, collects review IDs, and fetches
+ * score data in a single consolidated batch request after a high
+ * debounce window. Renders colored score badges on each review card.
+ *
+ * @see ReviewService.ts for the GraphQL batch fetching
+ * @see docs/MODULES.md#11-review-enhancer-module
  */
 
 import { injectable, inject } from 'tsyringe';

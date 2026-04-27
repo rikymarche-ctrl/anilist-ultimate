@@ -1,11 +1,24 @@
 /**
- * Dependency Injection Tokens
- * Symbol-based tokens for service registration and resolution
- */
-
-/**
- * DI Tokens for all services in the application
- * Using Symbol.for() allows for cross-module token sharing
+ * @file tokens.ts
+ * @description Dependency Injection token registry
+ *
+ * All DI tokens are Symbol-based to avoid string collisions.
+ * Symbol.for() is used (instead of Symbol()) to allow cross-module
+ * token sharing, since Symbol.for() returns the same symbol for
+ * the same key globally.
+ *
+ * Token naming convention:
+ *   - Core infrastructure: PascalCase matching interface name
+ *   - Feature services: PascalCase matching class name
+ *   - Modules: PascalCase matching module class name
+ *
+ * When adding a new service:
+ *   1. Add a token here
+ *   2. Register in setup.ts
+ *   3. Inject via @inject(TOKENS.YourService)
+ *
+ * @see setup.ts for registration
+ * @see docs/ARCHITECTURE.md#41-dependency-injection
  */
 export const TOKENS = {
   // Core Infrastructure

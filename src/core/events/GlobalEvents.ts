@@ -1,7 +1,13 @@
 /**
- * Global Application Events
- * Centralizes all event definitions for event-driven architecture
- * Eliminates direct module-to-module coupling
+ * @file GlobalEvents.ts
+ * @description Supplementary typed event payload interfaces for cross-module communication
+ *
+ * Provides alternative event payload types and a typed GlobalEventMap
+ * used alongside the primary AppEventMap in EventTypes.ts. Includes
+ * EventEmitter and EventListener type helpers for type-safe pub/sub.
+ *
+ * @see EventTypes.ts for the canonical event constants and AppEventMap
+ * @see EventBus.ts for the pub/sub implementation
  */
 
 import { EVENT_TYPES } from './EventTypes';

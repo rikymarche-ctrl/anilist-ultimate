@@ -1,7 +1,20 @@
 /**
- * Activity Filter Bar
- * Reusable component for activity filtering UI
- * Shared between ActivityEnhancerModule and MediaSocialEnhancer
+ * @file ActivityFilterBar.ts
+ * @description Reusable filter bar component for activity feeds
+ *
+ * Shared between ActivityEnhancerModule (home page) and MediaSocialEnhancer
+ * (individual media pages). Provides configurable filter buttons and optional
+ * search input.
+ *
+ * Features:
+ *   - Single-select filter buttons (click one, others deselect)
+ *   - Configurable filter set via getStandardFilters()
+ *   - Optional search input with real-time filtering
+ *   - Callbacks for filter and search changes
+ *   - Programmatic filter control via setFilter()
+ *   - Reset to defaults
+ *
+ * @see docs/MODULES.md#3-activity-enhancer-module
  */
 
 import { injectable } from 'tsyringe';
@@ -221,6 +234,39 @@ export class ActivityFilterBar {
     ) as HTMLInputElement;
     if (searchInput) {
       searchInput.value = '';
+    }
+  }
+
+  /**
+   * Get current filter state
+   * BUG-004 fix: Save state before cleanup to restore after navigation
+   */
+  getState(): { activeFilters: ActivityType[]; searchQuery: string } {
+    return {
+      activeFilters: Array.from(this.activeFilters),
+      searchQuery: this.searchQuery,
+    };
+  }
+
+  /**
+   * Restore filter state
+   * BUG-004 fix: Restore state after re-injection on navigation
+   */
+  setState(state: { activeFilters: ActivityType[]; searchQuery: string }): void {
+    this.activeFilters = new Set(state.activeFilters);
+    this.searchQuery = state.searchQuery;
+
+    // Update UI if container exists
+    if (this.container) {
+      this.updateUI();
+
+      // Update search input value
+      const searchInput = this.container.querySelector(
+        '#au-activity-search'
+      ) as HTMLInputElement;
+      if (searchInput) {
+        searchInput.value = this.searchQuery;
+      }
     }
   }
 

@@ -1,6 +1,13 @@
 /**
- * Dependency Injection Container
- * Centralized tsyringe container setup and exports
+ * @file container.ts
+ * @description Global tsyringe DI container instance and test utilities
+ *
+ * Re-exports the tsyringe container singleton used by setup.ts to register
+ * all services. Also exposes clearContainer() and resetContainer() for
+ * unit test isolation.
+ *
+ * @see setup.ts for the composition root
+ * @see tokens.ts for service identifiers
  */
 
 import { container as tsyringeContainer } from 'tsyringe';

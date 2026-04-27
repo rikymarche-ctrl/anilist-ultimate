@@ -1,6 +1,13 @@
 /**
- * Calendar Data Service
- * Fetches and transforms anime schedule data
+ * @file CalendarService.ts
+ * @description Pure utility service for transforming API responses into calendar entries
+ *
+ * Handles airing schedule merging with user progress data, day-of-week
+ * grouping, time formatting (countdown vs release), and aired-status
+ * detection. All methods are stateless transforms.
+ *
+ * @see CalendarDataService.ts for the data-fetching layer
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 import { injectable, inject } from 'tsyringe';

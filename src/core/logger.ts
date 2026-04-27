@@ -1,6 +1,20 @@
 /**
- * Logger Utility
- * Consistent logging with styling and levels
+ * @file logger.ts
+ * @description Styled console logging utility with level-based filtering
+ *
+ * Provides a Logger class implementing ILogger, plus a singleton `log`
+ * convenience object used throughout the codebase.
+ *
+ * Log Levels (ascending severity):
+ *   debug → info → warn → error
+ *
+ * Features:
+ *   - Styled output with prefix and icons per level
+ *   - Group/table/time helpers for structured diagnostics
+ *   - Runtime enable/disable toggle
+ *   - Error-level logs always emitted (bypass enabled flag)
+ *
+ * @see docs/ARCHITECTURE.md#logging
  */
 
 import { injectable } from 'tsyringe';

@@ -1,7 +1,23 @@
 /**
- * Auth Token Service
- * Centralizes OAuth token storage and management
- * Eliminates 6 duplicate localStorage keys
+ * @file AuthTokenService.ts
+ * @description Centralized OAuth token storage and lifecycle management
+ *
+ * Single source of truth for the AniList OAuth access token.
+ * Replaces the previous pattern of 6 duplicate localStorage keys.
+ *
+ * Token Storage:
+ *   - Primary key: localStorage['anilist_ultimate_v2_access_token']
+ *   - Legacy migration: checks 5 legacy keys and migrates to primary
+ *   - In-memory cache to avoid repeated localStorage reads
+ *
+ * Events:
+ *   - AUTH_STATE_CHANGED emitted on setToken() and clearToken()
+ *
+ * @warning AnilistClient.ts also manages tokens independently.
+ *          See docs/SECURITY.md#sec-004 for the dual-management issue.
+ *          This service should be the ONLY token manager.
+ *
+ * @see docs/ARCHITECTURE.md#48-authentication
  */
 
 import { injectable, inject } from 'tsyringe';

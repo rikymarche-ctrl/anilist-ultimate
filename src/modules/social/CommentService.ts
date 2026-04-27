@@ -1,6 +1,19 @@
 /**
- * Comment Service
- * Handles fetching, caching, and management of user comments/notes
+ * @file CommentService.ts
+ * @description User notes/comments fetching with dual-tier TTL-based caching
+ *
+ * Fetches MediaList notes for user-media pairs via GraphQL alias batching.
+ * Implements intelligent caching:
+ *   - 48-hour TTL for valid comments
+ *   - 1-hour TTL for empty/404 responses (negative caching)
+ *
+ * @warning HTML escaping is applied before markdown parsing, but post-
+ *          markdown replacements may introduce XSS vectors.
+ *          See docs/SECURITY.md#sec-001.
+ *
+ * @see CommentTooltip.ts for the display component
+ * @see HoverCommentsModule.ts for the integration layer
+ * @see docs/MODULES.md#6-hover-comments-module
  */
 
 import { anilistClient } from '@/api';

@@ -1,5 +1,17 @@
 /**
- * Configuration Type Definitions
+ * @file types.ts
+ * @description TypeScript interfaces for the application configuration system
+ *
+ * Defines the full AppConfig shape and its nested sub-interfaces:
+ *   - FeatureFlags: runtime-toggleable module switches
+ *   - DebugConfig: logging level and enable flag
+ *   - APIConfig: endpoint, timeout, retry, and rate-limit settings
+ *   - OAuthConfig: AniList OAuth implicit grant parameters
+ *   - CalendarPreferences: layout, display, and social settings
+ *   - CacheConfig: schedule and progress cache TTLs
+ *
+ * @see defaults.ts for the DEFAULT_CONFIG values
+ * @see ConfigManager.ts for persistence and change notifications
  */
 
 /**

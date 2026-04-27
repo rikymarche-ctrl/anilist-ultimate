@@ -1,6 +1,12 @@
 /**
- * Forum Enhancer Module
- * Adds direct links to media pages from forum tags
+ * @file ForumEnhancerModule.ts
+ * @description Adds direct media page links to forum thread title tags
+ *
+ * Scans forum thread lists for media tags in thread titles and
+ * converts them into clickable links pointing to the corresponding
+ * AniList media page.
+ *
+ * @see docs/MODULES.md#12-forum-enhancer-module
  */
 
 import { injectable, inject } from 'tsyringe';

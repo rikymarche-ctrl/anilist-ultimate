@@ -1,6 +1,14 @@
 /**
- * Anime Card Component
- * Displays individual anime entry with cover, title, episode info
+ * @file AnimeCard.ts
+ * @description Individual anime card component with cover, episode info, and social overlay
+ *
+ * Renders an anime entry with cover image, title, episode/time display,
+ * mark-watched action button, and optional friend activity avatar bubble.
+ * Supports standard/compact/extended layout modes.
+ *
+ * @see DayColumn.ts for the parent container
+ * @see CalendarSocialService.ts for friend activity data
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 import { injectable, inject, container } from 'tsyringe';

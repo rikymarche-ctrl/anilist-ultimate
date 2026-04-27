@@ -1,6 +1,12 @@
 /**
- * Logger Interface
- * Contract for logging services
+ * @file ILogger.ts
+ * @description Contract for logging services used across the application
+ *
+ * Defines log levels (debug, info, warn, error, success) plus group,
+ * time, and enable/disable lifecycle methods. Implemented by Logger
+ * in logger.ts and resolved via DI token TOKENS.Logger.
+ *
+ * @see logger.ts for the concrete implementation
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'success';

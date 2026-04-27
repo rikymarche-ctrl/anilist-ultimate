@@ -1,8 +1,8 @@
 import { BaseComponent } from '@/ui/components/BaseComponent';
 
 /**
- * CalendarSkeleton Component
- * Renders a shimmer effect that mimics the calendar grid layout
+ * @file CalendarSkeleton.ts
+ * @description Loading placeholder component that mimics the calendar grid layout
  */
 export class CalendarSkeleton extends BaseComponent {
   protected render(): HTMLElement {

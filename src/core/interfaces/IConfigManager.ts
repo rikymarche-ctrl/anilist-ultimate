@@ -1,6 +1,13 @@
 /**
- * Configuration Manager Interface
- * Contract for configuration management
+ * @file IConfigManager.ts
+ * @description Contract for the application configuration manager
+ *
+ * Defines typed get/set for AppConfig keys, feature-flag helpers,
+ * onChange subscription for reactive config updates, and
+ * load/save/reset lifecycle methods.
+ *
+ * @see ConfigManager.ts for the concrete implementation
+ * @see config/types.ts for the AppConfig interface
  */
 
 import type { AppConfig, ConfigChangeCallback } from '@core/config/types';

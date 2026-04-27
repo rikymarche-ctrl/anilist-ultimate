@@ -1,6 +1,14 @@
 /**
- * Custom List Module
- * Handles injection and routing for the Custom User List Manager in Settings
+ * @file CustomListModule.ts
+ * @description Router module for the custom lists settings page
+ *
+ * Intercepts hash-based navigation (#au-custom-lists) on the settings
+ * page, injects a navigation link in the AniList settings sidebar,
+ * and shows/hides the CustomListManager UI component.
+ *
+ * @see CustomListManager.ts for the UI component
+ * @see CustomListService.ts for the data layer
+ * @see docs/MODULES.md#7-custom-list-module
  */
 
 import { injectable, inject } from 'tsyringe';

@@ -1,7 +1,25 @@
 /**
- * Module Registry
- * Centralized module registration and initialization
- * Eliminates repetitive module initialization code
+ * @file ModuleRegistry.ts
+ * @description Centralized module lifecycle management
+ *
+ * Handles registration, initialization, and destruction of all feature modules.
+ *
+ * Initialization Strategy:
+ *   1. Critical modules are initialized sequentially (order matters)
+ *   2. Non-critical modules are initialized in parallel (Promise.allSettled)
+ *   3. Failed non-critical modules don't block others
+ *   4. Failed critical modules throw (halts extension)
+ *
+ * Each module has a status: pending -> initializing -> initialized | failed
+ *
+ * Features:
+ *   - Dependency resolution (modules can declare dependencies)
+ *   - Page matching (modules only initialize on matching URLs)
+ *   - Feature flag gating (modules check ConfigManager.isFeatureEnabled)
+ *   - Lazy factory instantiation (modules created only when needed)
+ *   - Reverse-order destruction
+ *
+ * @see docs/ARCHITECTURE.md#53-module-registry
  */
 
 import { injectable, inject } from 'tsyringe';

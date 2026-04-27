@@ -1,3 +1,28 @@
+/**
+ * @file AstraService.ts
+ * @description Advanced multi-criteria scoring system data service
+ *
+ * Manages the Astra scoring data including:
+ *   - Works (anime/manga entries with per-season scores)
+ *   - Scoring sections with customizable weights
+ *   - Score calculation (section, season, series averages)
+ *   - AniList sync (import entire anime/manga list)
+ *   - Export/Import as JSON
+ *
+ * Storage: chrome.storage.local under key 'au_astra_data'
+ * Performance: O(1) lookup by mediaId via Map index
+ *
+ * Score Calculation:
+ *   Section = weighted avg of sub-sections (or direct score)
+ *   Season = weighted avg of non-skipped sections
+ *   Series = simple avg of all season scores
+ *   Finale section gets 2x weight when marked as series finale
+ *
+ * @warning importJSON() has no schema validation.
+ *          See docs/SECURITY.md#sec-007 for details.
+ *
+ * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ */
 import { injectable, singleton } from 'tsyringe';
 import { log } from '@core/logger';
 

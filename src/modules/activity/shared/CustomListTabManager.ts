@@ -1,7 +1,15 @@
 /**
- * Custom List Tab Manager
- * Manages custom list dropdown tab and list selection
- * Shared between ActivityEnhancerModule and MediaSocialEnhancer
+ * @file CustomListTabManager.ts
+ * @description Custom list dropdown tab and list selection management
+ *
+ * Shared between ActivityEnhancerModule and MediaSocialEnhancer.
+ * Injects a "Custom Lists" tab into the AniList activity feed toggle,
+ * manages tab exclusivity (only one active at a time), and renders
+ * a dropdown for selecting which custom list to display.
+ *
+ * @see ActivityEnhancerModule.ts for home page usage
+ * @see MediaSocialEnhancer.ts for media page usage
+ * @see docs/MODULES.md#3-activity-enhancer-module
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -24,6 +32,12 @@ export interface TabManagerOptions {
    * Callback when list selection changes
    */
   onListChange?: (listName: string | null) => void;
+
+  /**
+   * Initial list selection to restore on re-injection
+   * BUG-005 fix: Prevents auto-reset on AniList refresh
+   */
+  initialSelection?: string | null;
 }
 
 /**
@@ -116,6 +130,12 @@ export class CustomListTabManager {
 
     // Setup tab exclusivity observer
     this.setupTabObserver(feedToggle as HTMLElement);
+
+    // BUG-005 fix: Restore initial selection after re-injection
+    if (this.options.initialSelection) {
+      this.setList(this.options.initialSelection);
+      this.logger.info('[CustomListTabManager] Restored initial selection:', this.options.initialSelection);
+    }
 
     this.logger.success('[CustomListTabManager] Dropdown injected successfully');
     return true;

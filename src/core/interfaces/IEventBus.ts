@@ -1,6 +1,13 @@
 /**
- * Event Bus Interface
- * Contract for event-driven communication
+ * @file IEventBus.ts
+ * @description Contract for the application-wide publish/subscribe event system
+ *
+ * Provides typed on/once/off/emit methods with AppEventMap type safety,
+ * plus clear() and listenerCount() for management. Overloaded signatures
+ * support both typed keys and dynamic string events.
+ *
+ * @see EventBus.ts for the concrete implementation
+ * @see EventTypes.ts for the event-to-payload map
  */
 
 import type { AppEventMap } from '../events/EventTypes';

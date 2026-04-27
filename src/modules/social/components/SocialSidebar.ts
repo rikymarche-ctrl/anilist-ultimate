@@ -1,6 +1,21 @@
 /**
- * Social Sidebar Component
- * Displays detailed activity entries for a specific media
+ * @file SocialSidebar.ts
+ * @description Fixed sidebar displaying detailed friend activity for a specific media
+ *
+ * Features:
+ *   - Multiple filter types (self, following, custom lists, best friends)
+ *   - Status sub-filters (watching, completed, dropped, etc.)
+ *   - Real-time search across user names and notes
+ *   - Infinite scroll pagination
+ *   - Best friend toggle per-user
+ *   - Score display with user's preferred format
+ *
+ * @warning User notes rendered via innerHTML without sanitization.
+ *          See docs/SECURITY.md#sec-001.
+ *
+ * @see SocialService.ts for data fetching
+ * @see SocialActivityModule.ts for mounting
+ * @see docs/MODULES.md#9-social-activity-module
  */
 
 import { injectable, inject } from 'tsyringe';

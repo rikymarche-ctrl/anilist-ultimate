@@ -1,6 +1,17 @@
 /**
- * Module Loader
- * Utilities for loading and configuring modules
+ * @file ModuleLoader.ts
+ * @description Utility helpers for creating ModuleMetadata registrations
+ *
+ * Provides static factory methods used in setup.ts to declaratively
+ * register modules with the ModuleRegistry:
+ *   - createMetadata(): fill defaults on partial metadata
+ *   - pageMatches(): exact/prefix path matcher factory
+ *   - pageMatchesRegex(): regex-based path matcher factory
+ *   - fromConfig(): metadata with feature-flag gating
+ *   - batchCreate(): bulk registration helper
+ *
+ * @see ModuleRegistry.ts for the module lifecycle manager
+ * @see setup.ts for usage examples
  */
 
 import type { ModuleMetadata } from '@core/interfaces/IModule';

@@ -1,6 +1,13 @@
 /**
- * Best Friend Service
- * Manages the list of close friends for curated activity feeds
+ * @file BestFriendService.ts
+ * @description Manages a curated "best friends" list for activity feed filtering
+ *
+ * Singleton with lazy init from chrome.storage.local. Provides add/remove/
+ * toggle operations for user IDs, and an isBestFriend() check used by
+ * the SocialSidebar filter. Map-based in-memory cache for O(1) lookups.
+ *
+ * @see SocialSidebar.ts for the best-friend filter toggle
+ * @see docs/MODULES.md#shared-services
  */
 
 import { storage } from '@core/storage/StorageManager';

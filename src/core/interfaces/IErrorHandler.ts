@@ -1,6 +1,11 @@
 /**
- * Error Handler Interface
- * Contract for error handling services
+ * @file IErrorHandler.ts
+ * @description Contract for centralized error handling and global listeners
+ *
+ * Defines handle(), async wrapper, and global handler setup methods.
+ *
+ * @see ErrorHandler.ts for the concrete implementation
+ * @see ErrorTypes.ts for the error class hierarchy
  */
 
 import type { ErrorSeverity } from '@core/errors/ErrorHandler';

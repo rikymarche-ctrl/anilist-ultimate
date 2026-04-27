@@ -1,3 +1,16 @@
+/**
+ * @file CalendarDataService.ts
+ * @description Service layer for loading airing schedules and updating watch progress
+ *
+ * Fetches airing schedule and user anime list via the API client,
+ * merges them through CalendarService, and stores results in CalendarStore.
+ * Also handles SaveMediaListEntry mutations for episode mark-as-watched.
+ *
+ * @see CalendarService.ts for data transformation
+ * @see CalendarStore.ts for state persistence
+ * @see docs/MODULES.md#1-calendar-module
+ */
+
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';

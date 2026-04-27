@@ -1,6 +1,13 @@
 /**
- * Dependency Injection Types
- * Type definitions for DI system
+ * @file types.ts
+ * @description Type definitions for the dependency injection system
+ *
+ * Defines ServiceLifetime enum (Singleton, Transient, Scoped),
+ * ServiceRegistration metadata interface, and the Injectable marker.
+ * Used by the DI container and module loader for service resolution.
+ *
+ * @see container.ts
+ * @see tokens.ts
  */
 
 /**

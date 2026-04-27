@@ -1,3 +1,22 @@
+/**
+ * @file AstraModule.ts
+ * @description Orchestrator for the Astra advanced multi-criteria scoring system
+ *
+ * Injects Astra score pills onto native AniList media cards, adds a
+ * dashboard tab to user profile pages, and enhances the progress
+ * update flow with Astra score prompts. Coordinates between
+ * AstraService (data) and AstraDashboard/AstraRatingModal (UI).
+ *
+ * @warning Window-level event listener for dashboard clicks is never
+ *          removed, accumulating on each module init.
+ *          See docs/BUGS.md#bug-021.
+ *
+ * @see AstraService.ts for score calculation and persistence
+ * @see AstraDashboard.ts for the full dashboard UI
+ * @see AstraRatingModal.ts for per-work rating forms
+ * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ */
+
 import { injectable, inject } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';

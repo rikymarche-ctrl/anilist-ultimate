@@ -1,11 +1,21 @@
 /**
- * Anilist Ultimate - Main Entry Point
- * Modern TypeScript rewrite - Stabilized Static Version
- */
-
-/**
- * Anilist Ultimate v2 - Main Entry Point
- * Enterprise-grade architecture with DI, ConfigManager, and ModuleRegistry
+ * @file main.ts
+ * @description Anilist Ultimate v2 - Application Entry Point
+ *
+ * Bootstrap sequence:
+ *   1. Import reflect-metadata (required by tsyringe DI)
+ *   2. Setup DI container (register all services and modules)
+ *   3. Handle OAuth callback (extract token from URL hash)
+ *   4. Initialize theme manager
+ *   5. Load external resources (Font Awesome)
+ *   6. Expose debug API on window
+ *   7. Initialize all registered modules via ModuleRegistry
+ *
+ * This file is injected as a content script into https://anilist.co/*
+ * via the Chrome extension manifest (run_at: document_idle).
+ *
+ * @see setup.ts for DI container configuration
+ * @see docs/ARCHITECTURE.md for full system architecture
  */
 
 import 'reflect-metadata'; // Required for tsyringe

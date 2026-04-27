@@ -1,6 +1,18 @@
 /**
- * Custom Error Types
- * Type-safe error classes for different error scenarios
+ * @file ErrorTypes.ts
+ * @description Typed error class hierarchy for structured error handling
+ *
+ * All custom errors extend AppError, which captures context and
+ * originalError for chain-of-cause debugging. Subclasses:
+ *   - ModuleError: module lifecycle failures (name, context)
+ *   - ApiError: network/GraphQL errors (statusCode, endpoint, retryable check)
+ *   - StorageError: chrome.storage failures (operation, key)
+ *   - ConfigError: configuration load/merge failures (configKey)
+ *   - AuthError: authentication issues (reason enum)
+ *   - ValidationError: input validation failures (field, value)
+ *
+ * @see ErrorHandler.ts for centralized error routing
+ * @see docs/ARCHITECTURE.md#error-handling
  */
 
 /**

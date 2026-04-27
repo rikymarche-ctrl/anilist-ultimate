@@ -1,6 +1,26 @@
 /**
- * Configuration Manager
- * Centralized configuration with runtime feature flags and persistence
+ * @file ConfigManager.ts
+ * @description Centralized configuration management with feature flags and persistence
+ *
+ * Manages the complete application configuration including:
+ *   - Feature flags (enable/disable individual modules at runtime)
+ *   - API settings (endpoint, timeout, rate limiting)
+ *   - OAuth configuration
+ *   - Calendar preferences
+ *   - Cache durations
+ *   - Debug settings
+ *
+ * Configuration is persisted to chrome.storage.sync and synced across devices.
+ * On load, stored config is deep-merged with defaults to handle schema evolution
+ * (new keys added in updates are automatically populated from defaults).
+ *
+ * Change notifications are provided via:
+ *   - onChange(key, callback) - per-key listeners
+ *   - EventBus CONFIG_CHANGED events - global notification
+ *
+ * @see types.ts for the AppConfig interface
+ * @see defaults.ts for default values
+ * @see docs/ARCHITECTURE.md#44-configuration-manager
  */
 
 import { injectable, inject } from 'tsyringe';

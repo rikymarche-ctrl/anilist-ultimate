@@ -1,5 +1,20 @@
 /**
- * Global Constants for Anilist Ultimate
+ * @file constants.ts
+ * @description Global constants for the entire extension
+ *
+ * Contains:
+ *   - App metadata (name, version)
+ *   - Storage key definitions (prefixed to avoid collisions)
+ *   - API configuration (endpoint, rate limits, timeouts)
+ *   - OAuth configuration (client ID, redirect URI)
+ *   - Time constants (cache durations, update intervals)
+ *   - Calendar defaults (day names, default preferences)
+ *   - UI constants (CSS classes, selectors, z-index stack)
+ *   - Animation/performance tuning values
+ *   - Debug configuration
+ *
+ * All constants are defined as `as const` for type safety and immutability.
+ * Feature flags have been migrated to ConfigManager (see src/core/config/).
  */
 
 export const APP_NAME = 'Anilist Ultimate';

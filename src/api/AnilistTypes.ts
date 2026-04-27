@@ -1,6 +1,17 @@
 /**
- * TypeScript interfaces for AniList GraphQL API responses
- * Auto-generated from AniList GraphQL schema
+ * @file AnilistTypes.ts
+ * @description TypeScript interfaces mirroring the AniList GraphQL schema
+ *
+ * Organized by domain:
+ *   - Common: AniListDate, AniListTitle, AniListCoverImage, AniListUser
+ *   - Media: MediaType, MediaFormat, MediaStatus, AniListMedia
+ *   - MediaList: AniListMediaListEntry, AniListMediaListItem, AniListMediaListGroup
+ *   - Collection: AniListMediaListCollection, AniListViewer
+ *   - Query responses: MediaWithViewerResponse, MediaListCollectionResponse, etc.
+ *   - Helpers: GraphQLResponse<T> generic wrapper
+ *
+ * @see AnilistClient.ts for query execution
+ * @see docs/ARCHITECTURE.md#api-layer
  */
 
 // ============================================================================

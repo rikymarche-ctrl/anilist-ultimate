@@ -1,5 +1,20 @@
 /**
- * Core Type Definitions for Anilist Ultimate
+ * @file types.ts
+ * @description Central type definitions shared across the entire application
+ *
+ * Organized by domain:
+ *   - Anime & Media types (AnimeEntry, FriendActivity, MediaProgress)
+ *   - Calendar types (CalendarState, CalendarPreferences, layout modes)
+ *   - Module configuration (ModuleConfig, UserPreferences)
+ *   - Storage types (StorageArea, StorageItem)
+ *   - API types (GraphQLResponse, AiringScheduleResponse, MediaListResponse)
+ *   - UI Component types (ComponentProps, CardOptions)
+ *   - Theme types (Theme, ThemeState)
+ *   - Logger types (LogLevel, LoggerConfig)
+ *   - Score types (ScoreFormat)
+ *   - Social types (SocialActivityDetailed, SocialFilter)
+ *
+ * @see docs/ARCHITECTURE.md#type-system
  */
 
 // ============================================================================

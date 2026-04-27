@@ -1,3 +1,16 @@
+/**
+ * @file CalendarDomService.ts
+ * @description DOM injection and container management for the calendar UI
+ *
+ * Locates the AniList home page content area, injects (or re-uses)
+ * the calendar container element, and delegates rendering to CalendarGrid.
+ * Uses multiple fallback selectors to handle AniList DOM variations.
+ *
+ * @see CalendarGrid.ts for the rendered calendar component
+ * @see CalendarModule.ts for the orchestration layer
+ * @see docs/MODULES.md#1-calendar-module
+ */
+
 import { injectable } from 'tsyringe';
 import { log } from '@core/logger';
 import { CSS_CLASSES } from '@core/constants';

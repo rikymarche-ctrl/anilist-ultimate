@@ -1,3 +1,16 @@
+/**
+ * @file NotificationFetchService.ts
+ * @description Batch activity detail fetching via GraphQL alias batching
+ *
+ * Extracts activity IDs from notification DOM elements and fetches
+ * extended details (media title, type, progress) in a single batched
+ * GraphQL request using alias queries. Used by the notification grouping
+ * pipeline to enrich group labels.
+ *
+ * @see NotificationGroupService.ts for the grouping consumer
+ * @see docs/MODULES.md#2-notification-cleaner-module
+ */
+
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';

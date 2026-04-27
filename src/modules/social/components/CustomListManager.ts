@@ -1,6 +1,14 @@
 /**
- * Custom List Manager Component
- * The main UI for managing user groupings in Settings
+ * @file CustomListManager.ts
+ * @description Settings page UI for creating and managing custom user lists
+ *
+ * Provides a grid-based user selection interface with search filtering,
+ * CRUD operations on named lists, and profile link navigation. Fetches
+ * all followings from SocialService to populate the user grid.
+ *
+ * @see CustomListService.ts for data persistence
+ * @see CustomListModule.ts for the router/mounting layer
+ * @see docs/MODULES.md#7-custom-list-module
  */
 
 import { injectable, inject } from 'tsyringe';

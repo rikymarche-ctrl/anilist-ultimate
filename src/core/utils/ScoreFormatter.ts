@@ -1,6 +1,18 @@
 /**
- * Score Formatter Utility
- * Handles conversion between numerical scores and AniList's visual scoring formats
+ * @file ScoreFormatter.ts
+ * @description Converts raw 0-100 scores into AniList display formats
+ *
+ * AniList supports five scoring systems; this utility maps a raw
+ * POINT_100 value into each:
+ *   - POINT_100       → "85"
+ *   - POINT_10_DECIMAL → "8.5"
+ *   - POINT_10        → "8"
+ *   - POINT_5         → "★★★★"
+ *   - POINT_3         → emoji (☹️ / 😐 / 🙂)
+ *
+ * Also provides semantic color and label helpers for score badges.
+ *
+ * @see docs/MODULES.md#4-activity-score-module
  */
 
 import { ScoreFormat } from '@core/types';

@@ -1,6 +1,12 @@
 /**
- * Toast Container Component
- * Manages the stack of notifications
+ * @file ToastContainer.ts
+ * @description Fixed-position container managing a stack of Toast components
+ *
+ * Mounts to document.body, manages add/remove of individual Toast
+ * instances, and handles stacking order (newest on top).
+ *
+ * @see Toast.ts for individual toast rendering
+ * @see ToastService.ts for the service layer
  */
 
 import { BaseComponent } from './BaseComponent';

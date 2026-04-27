@@ -1,6 +1,25 @@
 /**
- * Storage Manager
- * Handles chrome.storage operations with type safety
+ * @file StorageManager.ts
+ * @description Type-safe wrapper around Chrome Extension storage APIs
+ *
+ * Provides a unified interface for both chrome.storage.sync (small data,
+ * synced across devices) and chrome.storage.local (large data, device-local).
+ *
+ * Features:
+ *   - Automatic key prefixing (anilist_ultimate_v2_) to avoid collisions
+ *   - Anti-double-prefix protection
+ *   - Batch get/set operations
+ *   - Change listeners via chrome.storage.onChanged
+ *   - Storage quota monitoring
+ *   - Scoped clear (only removes prefixed keys)
+ *
+ * Exports two singleton instances:
+ *   - syncStorage: chrome.storage.sync (config, preferences)
+ *   - localStorage: chrome.storage.local (Astra data, cache)
+ *
+ * Also exports a convenience `storage` object with shorthand methods.
+ *
+ * @see docs/ARCHITECTURE.md#45-storage-manager
  */
 
 import { injectable } from 'tsyringe';

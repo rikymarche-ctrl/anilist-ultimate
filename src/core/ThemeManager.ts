@@ -1,6 +1,22 @@
 /**
- * Theme Manager
- * Automatically detects Anilist theme and applies corresponding AU theme
+ * @file ThemeManager.ts
+ * @description Automatic theme detection and synchronization with AniList
+ *
+ * Detects the active AniList theme (dark, light, high-contrast) by sampling
+ * the computed background-color luminance, then applies the corresponding
+ * CSS class to the extension's container and body element.
+ *
+ * Detection triggers:
+ *   1. On initialization (first paint)
+ *   2. MutationObserver on body/html class and style attributes
+ *   3. Window resize (edge-case theme media queries)
+ *
+ * Luminance thresholds:
+ *   - sum > 600 → light
+ *   - sum < 10  → high-contrast
+ *   - else      → dark
+ *
+ * @see docs/MODULES.md#theme-detection
  */
 
 import { singleton } from 'tsyringe';

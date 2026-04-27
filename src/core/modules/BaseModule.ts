@@ -1,7 +1,28 @@
 /**
- * Base Module Class
- * Centralizes common functionality for all extension modules
- * Includes anti-stuttering logic via observer suspension
+ * @file BaseModule.ts
+ * @description Abstract base class for all feature modules
+ *
+ * Provides common infrastructure that every module needs:
+ *
+ *   - MutationObserver management with throttling and suspension
+ *   - SPA navigation integration via EventBus (onPageChange)
+ *   - Element waiting (waitForElement with timeout)
+ *   - EventBus helpers (subscribe/emit)
+ *   - Lifecycle management (cleanup/destroy with automatic resource cleanup)
+ *
+ * Anti-Stuttering Pattern:
+ *   MutationObservers that modify the DOM will trigger themselves recursively.
+ *   The suspend/resume pattern prevents this:
+ *     1. suspendObserver(name) - mark observer as suspended
+ *     2. Perform DOM modifications
+ *     3. resumeObserver(name) - mark as active (with 50ms delay for DOM settling)
+ *   While suspended, the observer callback is silently skipped.
+ *
+ * All feature modules MUST extend this class and implement:
+ *   - init(): Promise<void>  - Module initialization
+ *   - getName(): string      - Module identifier for logging
+ *
+ * @see docs/ARCHITECTURE.md#52-basemodule
  */
 
 import { log } from '../logger';

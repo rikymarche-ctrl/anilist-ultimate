@@ -1,7 +1,15 @@
 /**
- * Media Social Enhancer Module - Refactored
- * Uses shared components to eliminate code duplication
- * Reduced from 355 lines to ~120 lines (66% reduction)
+ * @file MediaSocialEnhancer.ts
+ * @description Activity filter bar and custom list tabs for individual media pages
+ *
+ * Refactored to reuse shared ActivityFilterBar, ActivityRenderer, and
+ * CustomListTabManager components (66% code reduction from v1).
+ * Injects filter UI into the media page's social/activity section and
+ * fetches custom list activities via GraphQL.
+ *
+ * @see ActivityFilterBar.ts for the filter UI
+ * @see ActivityRenderer.ts for visibility management
+ * @see docs/MODULES.md#8-media-social-enhancer-module
  */
 
 import { injectable, inject } from 'tsyringe';

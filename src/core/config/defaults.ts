@@ -1,5 +1,13 @@
 /**
- * Default Configuration Values
+ * @file defaults.ts
+ * @description Default application configuration values
+ *
+ * Provides DEFAULT_CONFIG used when no persisted configuration exists.
+ * Includes sensible defaults for all feature flags, API rate limits,
+ * OAuth credentials, calendar preferences, and cache durations.
+ *
+ * @see types.ts for the AppConfig interface
+ * @see ConfigManager.ts for deep-merge with stored config
  */
 
 import type { AppConfig } from './types';

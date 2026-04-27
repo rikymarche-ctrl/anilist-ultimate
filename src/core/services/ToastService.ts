@@ -1,6 +1,17 @@
 /**
- * Toast Service
- * Global service for showing notifications
+ * @file ToastService.ts
+ * @description Global notification toast service with event-driven auto-display
+ *
+ * Provides success/error/info/warn toast methods and auto-initializes
+ * a ToastContainer in the DOM. Listens on the EventBus for:
+ *   - ERROR_OCCURRED: shows error toasts (high/critical severity only)
+ *   - AUTH_REQUIRED: prompts user to log in
+ *   - API_ERROR (429): rate-limit warning
+ *
+ * Duplicate suppression: identical error messages are throttled with
+ * a 3-second cooldown to prevent toast spam.
+ *
+ * @see docs/ARCHITECTURE.md#toast-system
  */
 
 import { injectable, inject } from 'tsyringe';

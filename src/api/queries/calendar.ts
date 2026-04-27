@@ -1,5 +1,15 @@
 /**
- * GraphQL Queries for Calendar Data
+ * @file calendar.ts
+ * @description GraphQL query and mutation strings for the Calendar module
+ *
+ * Contains:
+ *   - AIRING_SCHEDULE_QUERY: paginated airing schedule for user's watching list
+ *   - USER_ANIME_LIST_QUERY: user's current anime list with progress
+ *   - UPDATE_PROGRESS_MUTATION: mark episode as watched (SaveMediaListEntry)
+ *   - ANIME_DETAILS_QUERY: single anime details with studio, genre, airing info
+ *
+ * @see CalendarDataService.ts for query execution
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 /**

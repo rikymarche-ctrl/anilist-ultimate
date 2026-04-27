@@ -1,6 +1,24 @@
 /**
- * Global Error Handler
- * Centralized error handling and reporting
+ * @file ErrorHandler.ts
+ * @description Centralized error handling, classification, and reporting
+ *
+ * Provides a single point of error management for the entire extension.
+ * All errors flow through this handler, which:
+ *   - Classifies errors by severity (Low, Medium, High, Critical)
+ *   - Routes to type-specific handlers (API, Module, Storage, Auth, Config, Validation)
+ *   - Maintains error history (last 100 errors) for diagnostics
+ *   - Emits error events via EventBus for reactive error handling
+ *   - Catches unhandled promise rejections and global errors
+ *
+ * Custom error types (see ErrorTypes.ts):
+ *   - ApiError: HTTP/GraphQL failures (statusCode, endpoint, retryCount)
+ *   - ModuleError: Module lifecycle failures (moduleName, context)
+ *   - StorageError: Chrome storage operations (operation, storageKey)
+ *   - ConfigError: Configuration issues (configKey)
+ *   - AuthError: Authentication problems (reason)
+ *   - ValidationError: Data validation (field, expectedType)
+ *
+ * @see docs/ARCHITECTURE.md#47-error-handling
  */
 
 import { injectable, inject } from 'tsyringe';

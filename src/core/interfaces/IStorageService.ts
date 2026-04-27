@@ -1,6 +1,12 @@
 /**
- * Storage Service Interface
- * Contract for persistent storage operations
+ * @file IStorageService.ts
+ * @description Contract for persistent key-value storage operations
+ *
+ * Abstracts chrome.storage (sync/local) behind a generic interface.
+ * Supports single/batch get/set, existence checks, removal, clear,
+ * and reactive onChange subscriptions.
+ *
+ * @see StorageManager.ts for the concrete implementation
  */
 
 export interface IStorageService {

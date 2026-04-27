@@ -1,6 +1,14 @@
 /**
- * Calendar Grid Component
- * Main calendar UI - orchestrates day columns
+ * @file CalendarGrid.ts
+ * @description Main calendar layout component that orchestrates day columns
+ *
+ * Subscribes to CalendarStore for reactive updates, computes day grouping,
+ * handles preference-driven re-renders (layout mode, empty day hiding,
+ * start day rotation), and manages the settings panel toggle.
+ *
+ * @see DayColumn.ts for individual day rendering
+ * @see CalendarStore.ts for state subscriptions
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 import { injectable, inject } from 'tsyringe';

@@ -1,6 +1,24 @@
 /**
- * Event Bus - Pub/Sub Pattern for Decoupled Communication
- * Enables modules to communicate without direct dependencies
+ * @file EventBus.ts
+ * @description Centralized Pub/Sub Event Bus for module communication
+ *
+ * Provides type-safe event emission and subscription via AppEventMap.
+ * All modules communicate through this bus to avoid direct dependencies.
+ *
+ * Features:
+ *   - Type-safe events (event name -> payload type mapping)
+ *   - Async error handling (handler errors don't crash emitters)
+ *   - once() for single-fire subscriptions
+ *   - Debug mode for event tracing
+ *   - Automatic cleanup of empty handler sets
+ *   - Error events re-emitted to 'error:occurred' for centralized handling
+ *
+ * Usage:
+ *   eventBus.on('navigation:page-changed', (data) => { ... });
+ *   eventBus.emit('navigation:page-changed', { path: '/home', ... });
+ *
+ * @see EventTypes.ts for all event definitions and payload types
+ * @see docs/ARCHITECTURE.md#42-event-bus
  */
 
 import { injectable } from 'tsyringe';

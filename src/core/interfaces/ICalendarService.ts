@@ -1,3 +1,13 @@
+/**
+ * @file ICalendarService.ts
+ * @description Contract for calendar schedule fetching, grouping, and formatting
+ *
+ * Defines methods for airing schedule retrieval, progress updates,
+ * day-based grouping, and time formatting utilities.
+ *
+ * @see CalendarService.ts for the concrete implementation
+ */
+
 import type { AnimeEntry } from '../types';
 
 export interface ICalendarService {

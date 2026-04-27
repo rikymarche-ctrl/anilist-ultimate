@@ -1,6 +1,14 @@
 /**
- * Custom List Service
- * Manages local storage for custom user lists (Best Friends, Haters, etc.)
+ * @file CustomListService.ts
+ * @description CRUD service for custom user lists persisted in chrome.storage.local
+ *
+ * Manages named lists of AniList users (e.g., "Best Friends", "Haters")
+ * with add/remove/toggle operations. Data is cached in memory and
+ * persisted to chrome.storage.local. Singleton with lazy initialization.
+ *
+ * @see CustomListManager.ts for the settings UI
+ * @see ActivityEnhancerModule.ts for feed filtering by list
+ * @see docs/MODULES.md#7-custom-list-module
  */
 
 import { log } from '@core/logger';
