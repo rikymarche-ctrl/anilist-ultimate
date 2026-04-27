@@ -6,7 +6,12 @@
  * converts them into clickable links pointing to the corresponding
  * AniList media page.
  *
+ * Performance (BUG-007):
+ * - Uses SharedGlobalObserver instead of individual MutationObserver
+ * - Reduces overhead when multiple modules observe document.body
+ *
  * @see docs/MODULES.md#12-forum-enhancer-module
+ * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -14,6 +19,7 @@ import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import '../../styles/forum-enhancer.css';
 
 @injectable()
@@ -21,6 +27,7 @@ export class ForumEnhancerModule extends BaseModule {
   private readonly OBSERVER_NAME = 'forum-enhancer-continuous';
 
   constructor(
+    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -61,13 +68,14 @@ export class ForumEnhancerModule extends BaseModule {
   private startObservation(): void {
     this.checkAndProcess();
 
-    this.registerObserver(this.OBSERVER_NAME, document.body, { childList: true, subtree: true }, () => {
+    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
+    this.sharedObserver.register(this.OBSERVER_NAME, () => {
       this.checkAndProcess();
     });
   }
 
   private stopObservation(): void {
-    this.suspendObserver(this.OBSERVER_NAME);
+    this.sharedObserver.unregister(this.OBSERVER_NAME);
   }
 
   private checkAndProcess(): void {

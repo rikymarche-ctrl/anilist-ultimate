@@ -13,8 +13,13 @@
  *   - If identical, skip fetch (data already in ReviewService cache)
  *   - If different, fetch and update fingerprint
  *
+ * Performance (BUG-007):
+ * - Uses SharedGlobalObserver instead of individual MutationObserver
+ * - Reduces overhead when multiple modules observe document.body
+ *
  * @see ReviewService.ts for the GraphQL batch fetching with LRU+TTL cache
  * @see docs/MODULES.md#11-review-enhancer-module
+ * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -22,6 +27,7 @@ import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
 import { BaseModule } from '@core/modules/BaseModule';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { ReviewService } from './ReviewService';
 import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import '../../styles/review-enhancer.css';
@@ -40,6 +46,7 @@ export class ReviewEnhancerModule extends BaseModule {
 
   constructor(
     @inject(TOKENS.ReviewService) private reviewService: ReviewService,
+    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -67,6 +74,9 @@ export class ReviewEnhancerModule extends BaseModule {
     this.scanInterval = null;
     this.isBatching = false;
 
+    // BUG-007 fix: Unregister from SharedGlobalObserver
+    this.sharedObserver.unregister('reviews-one-shot');
+
     this.cleanup();
     this.inFlightReviews.clear();
     this.pendingQueue.clear();
@@ -76,7 +86,8 @@ export class ReviewEnhancerModule extends BaseModule {
   private startObservation(): void {
     this.scanAndQueue();
 
-    this.registerObserver('reviews-one-shot', document.body, { childList: true, subtree: true }, () => {
+    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
+    this.sharedObserver.register('reviews-one-shot', () => {
       this.scanAndQueue();
     });
 
