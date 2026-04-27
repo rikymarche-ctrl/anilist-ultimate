@@ -28,24 +28,48 @@ export class CalendarDataService {
   ) {}
 
   /**
-   * Load airing schedule for the user
+   * Load airing schedule for the user with intelligent caching
+   * Tries cache first, falls back to API if stale/missing
    */
-  public async loadSchedule(userId: number): Promise<void> {
+  public async loadSchedule(userId: number, forceRefresh: boolean = false): Promise<void> {
     try {
       calendarStore.setLoading(true);
-      
-      // Use the injected calendarService
+
+      // Try loading from cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cachedEntries = await calendarStore.loadEntriesFromCache();
+        if (cachedEntries) {
+          calendarStore.setEntries(cachedEntries);
+          log.success(`[CalendarData] Loaded ${cachedEntries.length} entries from cache`);
+
+          // Emit global event
+          this.eventBus.emit(EVENT_TYPES.CALENDAR_LOADED, {
+            scheduleCount: cachedEntries.length,
+            progressCount: cachedEntries.filter((e: any) => e.progress !== undefined).length,
+            timestamp: new Date(),
+            fromCache: true,
+          });
+
+          return;
+        }
+      }
+
+      // Cache miss or force refresh - fetch from API
+      log.info('[CalendarData] Fetching fresh schedule from API');
       const entries = await this.calendarService.fetchAiringSchedule(userId);
       calendarStore.setEntries(entries);
 
-      log.success(`[CalendarData] Loaded ${entries.length} anime entries`);
-      // this.toastService.success(`Loaded ${entries.length} airing anime entries.`);
+      // Save to cache for future loads
+      await calendarStore.saveEntriesToCache(entries);
+
+      log.success(`[CalendarData] Loaded ${entries.length} anime entries (fresh fetch)`);
 
       // Emit global event
       this.eventBus.emit(EVENT_TYPES.CALENDAR_LOADED, {
         scheduleCount: entries.length,
         progressCount: entries.filter((e: any) => e.progress !== undefined).length,
         timestamp: new Date(),
+        fromCache: false,
       });
     } catch (error) {
       log.error('[CalendarData] Failed to load schedule', error);
@@ -58,6 +82,7 @@ export class CalendarDataService {
 
   /**
    * Mark an episode as watched
+   * Invalidates cache to ensure fresh data on next load
    */
   public async updateProgress(mediaId: number): Promise<number | null> {
     try {
@@ -70,7 +95,11 @@ export class CalendarDataService {
       // Update local state
       calendarStore.updateEntry(mediaId, { progress: newProgress });
       this.toastService.success(`Updated progress for ${entry.title}.`);
-      
+
+      // Invalidate cache since progress changed
+      await calendarStore.invalidateCache();
+      log.debug('[CalendarData] Cache invalidated after progress update');
+
       // Emit progression event
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
         animeId: mediaId,
