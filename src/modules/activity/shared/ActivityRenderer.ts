@@ -1,11 +1,20 @@
 /**
- * Activity Renderer
- * Handles activity filtering, rendering, and display logic
- * Shared between ActivityEnhancerModule and MediaSocialEnhancer
+ * @file ActivityRenderer.ts
+ * @description Activity visibility filtering and custom rendering with template cloning
+ *
+ * Shared between ActivityEnhancerModule and MediaSocialEnhancer.
+ * Manages show/hide of native activity DOM entries based on filter
+ * type, search query, and custom list membership. Supports fallback
+ * rendering when AniList DOM structure cannot be cloned.
+ *
+ * @see ActivityFilterBar.ts for the filter UI component
+ * @see ActivityUtils.ts for type detection helpers
+ * @see docs/MODULES.md#3-activity-enhancer-module
  */
 
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
+import { escapeHtml } from '@core/utils/Template';
 import type { ILogger } from '@core/interfaces/ILogger';
 import type { ActivityType, AniListActivity } from '../ActivityUtils';
 import { getActivityType, getTimeAgo } from '../ActivityUtils';
@@ -181,8 +190,8 @@ export class ActivityRenderer {
           const actType = activity.status?.toLowerCase() || 'watched';
           const mediaUrl = `/${activity.media.type?.toLowerCase()}/${activity.media.id}`;
           status.innerHTML = `
-            ${actType} ${activity.progress ? `<strong>${activity.progress}</strong>` : ''} of 
-            <a href="${mediaUrl}" class="title">${activity.media.title.romaji}</a>
+            ${escapeHtml(actType)} ${activity.progress ? `<strong>${escapeHtml(activity.progress)}</strong>` : ''} of
+            <a href="${mediaUrl}" class="title">${escapeHtml(activity.media.title.romaji)}</a>
           `;
         }
       }

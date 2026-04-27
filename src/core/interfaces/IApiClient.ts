@@ -1,6 +1,12 @@
 /**
- * API Client Interface
- * Contract for GraphQL API communication
+ * @file IApiClient.ts
+ * @description Contract for GraphQL API communication with AniList
+ *
+ * Defines authentication, query/mutation execution, request queue
+ * management, and OAuth URL generation. Implemented by AnilistClient.
+ *
+ * @see AnilistClient.ts for the concrete implementation
+ * @see docs/ARCHITECTURE.md#api-layer
  */
 
 export interface IApiClient {
@@ -13,11 +19,6 @@ export interface IApiClient {
    * Get current access token
    */
   getAccessToken(): string | null;
-
-  /**
-   * Set access token
-   */
-  setAccessToken(token: string): void;
 
   /**
    * Get authorization URL for OAuth

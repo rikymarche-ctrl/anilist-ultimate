@@ -1,8 +1,22 @@
-import { injectable, singleton, inject } from 'tsyringe';
 /**
- * Activity Service
- * Handles batched fetching of user scores for activity entries
+ * @file ActivityService.ts
+ * @description Batched user score fetching for activity feed entries
+ *
+ * When users update anime/manga progress in their activity feed, this service
+ * fetches their scores for the corresponding media. Uses GraphQL alias batching
+ * to fetch multiple user-media pairs in a single request (up to 25 per chunk).
+ *
+ * Caching:
+ *   - In-memory cache keyed by "userName-mediaId"
+ *   - No eviction policy (grows for session duration)
+ *   - Failed fetches are cached as null to avoid retry spam
+ *
+ * @security GraphQL injection risk resolved: userName and mediaId are now passed
+ *           as typed variables, not interpolated into query strings. See BUG-002.
+ *
+ * @see docs/MODULES.md#4-activity-score-module
  */
+import { injectable, singleton, inject } from 'tsyringe';
 
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
@@ -48,18 +62,21 @@ export class ActivityService {
     for (let i = 0; i < pendingPairs.length; i += chunkSize) {
       const chunk = pendingPairs.slice(i, i + chunkSize);
       
-      const aliases = chunk.map((p, idx) => {
-        // Alias must be valid identifier (no dashes)
-        return `s${idx}: MediaList(userName: "${p.userName}", mediaId: ${p.mediaId}) { 
+      // Build query using GraphQL variables (prevents injection via usernames)
+      const varDecls = chunk.map((_, i) => `$u${i}: String!, $m${i}: Int!`).join(', ');
+      const aliases = chunk.map((_, i) =>
+        `s${i}: MediaList(userName: $u${i}, mediaId: $m${i}) { 
           score(format: POINT_100) 
           user { mediaListOptions { scoreFormat } }
-        }`;
-      });
+        }`
+      );
 
-      const query = `query { ${aliases.join('\n')} }`;
+      const query = `query (${varDecls}) { ${aliases.join('\n')} }`;
+      const variables: Record<string, unknown> = {};
+      chunk.forEach((p, i) => { variables[`u${i}`] = p.userName; variables[`m${i}`] = p.mediaId; });
 
       try {
-        const response = await this.api.query<Record<string, { score: number; user: { mediaListOptions: { scoreFormat: ScoreFormat } } } | null>>(query, {}, true);
+        const response = await this.api.query<Record<string, { score: number; user: { mediaListOptions: { scoreFormat: ScoreFormat } } } | null>>(query, variables, true);
         
         chunk.forEach((p, idx) => {
           const data = response[`s${idx}`];

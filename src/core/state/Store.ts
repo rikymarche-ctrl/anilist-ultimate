@@ -1,6 +1,23 @@
 /**
- * Lightweight Reactive State Management
- * Custom implementation - no external dependencies
+ * @file Store.ts
+ * @description Lightweight reactive state management (~175 lines, zero dependencies)
+ *
+ * A minimal Redux-like store with:
+ *   - getState() / setState() with partial updates
+ *   - subscribe() for global change listeners
+ *   - subscribeToSelector() for targeted subscriptions (shallow equality check)
+ *   - batch() for multiple updates with single notification
+ *   - reset() for state restoration
+ *
+ * Utility functions:
+ *   - createMemoizedSelector() - caches expensive computed values
+ *   - combineStores() - merges multiple stores into a derived state
+ *
+ * Used by CalendarStore for managing calendar entries, preferences, and loading states.
+ *
+ * Fixed: Store.reset() now correctly restores initialState.
+ *
+ * @see docs/ARCHITECTURE.md#46-state-management
  */
 
 type Listener<T> = (state: T, prevState: T) => void;
@@ -11,10 +28,12 @@ export class Store<T extends object> {
   private state: T;
   private listeners = new Set<Listener<T>>();
   private prevState: T;
+  private readonly initialState: T;
 
   constructor(initialState: T) {
     this.state = { ...initialState };
     this.prevState = { ...initialState };
+    this.initialState = { ...initialState };
   }
 
   /**
@@ -74,7 +93,7 @@ export class Store<T extends object> {
    */
   reset(newState?: Partial<T>): void {
     this.prevState = { ...this.state };
-    this.state = newState ? { ...this.state, ...newState } : { ...this.prevState };
+    this.state = newState ? { ...this.initialState, ...newState } : { ...this.initialState };
     this.notify();
   }
 

@@ -1,6 +1,25 @@
 /**
- * Anilist GraphQL API Client
- * Handles all API communication with rate limiting
+ * @file AnilistClient.ts
+ * @description GraphQL API client for the AniList API (https://graphql.anilist.co)
+ *
+ * Implements request queuing, rate limiting, and automatic retry with
+ * exponential backoff. All GraphQL queries and mutations are funneled
+ * through a single queue to respect AniList's rate limits.
+ *
+ * Rate Limiting Strategy:
+ *   - Max 90 requests/minute (AniList's limit)
+ *   - 700ms minimum delay between requests
+ *   - Max 2 concurrent in-flight requests
+ *   - On HTTP 429: pause queue for 60 seconds
+ *   - On failure: exponential backoff (1s, 2s, 4s) up to 3 retries
+ *
+ * Authentication:
+ *   - OAuth bearer token loaded from localStorage on construction
+ *   - Token auto-refreshed via AuthTokenService
+ *
+ * Fixed: Token management now fully delegated to AuthTokenService.
+ *
+ * @see docs/ARCHITECTURE.md#6-api-layer
  */
 
 import { injectable, inject, container } from 'tsyringe';
@@ -11,6 +30,9 @@ import { log } from '@core/logger';
 import { ApiError } from '@core/errors/ErrorTypes';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { IErrorHandler } from '@core/errors/ErrorHandler';
+import type { AuthTokenService } from '@core/auth/AuthTokenService';
+import type { IEventBus } from '@core/interfaces/IEventBus';
+import { EVENT_TYPES } from '@core/events/EventTypes';
 
 interface RequestQueueItem {
   query: string;
@@ -41,84 +63,40 @@ export class AnilistClient implements IApiClient {
   private accessToken: string | null = null;
 
   constructor(
-    @inject(TOKENS.ErrorHandler) private errorHandler: IErrorHandler
+    @inject(TOKENS.ErrorHandler) private errorHandler: IErrorHandler,
+    @inject(TOKENS.AuthTokenService) private authTokenService: AuthTokenService,
+    @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
     this.client = new GraphQLClient(API_CONFIG.ENDPOINT, {
       headers: this.getHeaders(),
     });
 
-    // Try to load token from storage
+    // Load token from AuthTokenService
     this.loadAccessToken();
+
+    // Subscribe to auth state changes to update headers
+    this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => {
+      this.loadAccessToken();
+      this.updateHeaders();
+    });
   }
 
   /**
-   * Load access token from localStorage
+   * Load access token from AuthTokenService
    */
   private loadAccessToken(): void {
     try {
-      // Check all possible storage keys (for compatibility with v1 and Anilist native)
-      const possibleKeys = [
-        'anilist_ultimate_v2_access_token', // V2 prefixed key
-        'access_token',                      // Generic key
-        'accessToken',                       // Camel case variant
-        'token',                             // Short variant
-        'auth_token',                        // Alternative name
-        'jwt'                                // JWT variant
-      ];
-
-      let token: string | null = null;
-
-      // Try localStorage first
-      for (const key of possibleKeys) {
-        token = localStorage.getItem(key);
-        if (token) {
-          log.info(`Access token found in localStorage[${key}]`);
-          break;
-        }
-      }
-
-      // If not found, try sessionStorage
-      if (!token) {
-        for (const key of possibleKeys) {
-          token = sessionStorage.getItem(key);
-          if (token) {
-            log.info(`Access token found in sessionStorage[${key}]`);
-            break;
-          }
-        }
-      }
-
+      const token = this.authTokenService.getToken();
       if (token) {
-        // Strip quotes if any
-        this.accessToken = token.replace(/"/g, '');
-        this.updateHeaders();
-        log.info('Access token loaded successfully');
+        this.accessToken = token;
+        log.info('Access token loaded from AuthTokenService');
       } else {
-        log.warn('No access token found in any storage location');
+        this.accessToken = null;
+        log.warn('No access token available');
       }
     } catch (error) {
       log.error('Failed to load access token', error);
-    }
-  }
-
-  /**
-   * Set access token manually and persist to storage
-   */
-  public setAccessToken(token: string): void {
-    this.accessToken = token;
-    this.updateHeaders();
-
-    // Save to all possible keys for v1/v2 compatibility
-    try {
-      localStorage.setItem('anilist_ultimate_v2_access_token', token); // V2 prefixed key
-      localStorage.setItem('access_token', token);                      // Generic key
-      localStorage.setItem('accessToken', token);                       // Camel case variant
-      localStorage.setItem('token', token);                             // Short variant
-      localStorage.setItem('auth_token', token);                        // Alternative name
-      localStorage.setItem('jwt', token);                               // JWT variant
-      log.info('Access token set and saved to all storage locations');
-    } catch (error) {
-      log.error('Failed to persist access token', error);
+      this.accessToken = null;
     }
   }
 
@@ -126,14 +104,14 @@ export class AnilistClient implements IApiClient {
    * Get current access token
    */
   public getAccessToken(): string | null {
-    return this.accessToken;
+    return this.authTokenService.getToken();
   }
 
   /**
    * Check if user is authenticated
    */
   public isAuthenticated(): boolean {
-    return !!this.accessToken;
+    return !!this.authTokenService.getToken();
   }
 
   /**

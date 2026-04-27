@@ -1,7 +1,7 @@
 /**
- * Social Enhancer Module
- * Injects social activity info into native AniList cards site-wide
- * 
+ * @file SocialEnhancerModule.ts
+ * @description Injects friend activity avatars and buttons onto native AniList media cards
+ *
  * Architecture:
  * - activityCache: stores fetched activities per mediaId for instant re-inject on pref change
  * - pendingCards: cards waiting for first-time fetch
@@ -32,6 +32,10 @@ export class SocialEnhancerModule extends BaseModule {
 
   /** Cache of fetched activities, keyed by mediaId — used for instant re-inject */
   private activityCache: Map<number, FriendActivity[]> = new Map();
+
+  /** PERF-002 fix: LRU tracking for cache eviction */
+  private readonly MAX_CACHE_SIZE = 100;
+  private cacheOrder: number[] = [];
 
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
@@ -96,7 +100,7 @@ export class SocialEnhancerModule extends BaseModule {
 
     tagged.forEach(card => {
       const mediaId = parseInt(card.getAttribute(MEDIA_ID_ATTR)!, 10);
-      const activities = this.activityCache.get(mediaId) ?? [];
+      const activities = this.getCachedActivities(mediaId) ?? []; // PERF-002 fix: use LRU cache
 
       // Remove existing wrapper first
       card.querySelector('.au-social-wrapper')?.remove();
@@ -150,8 +154,9 @@ export class SocialEnhancerModule extends BaseModule {
       card.setAttribute(MEDIA_ID_ATTR, String(mediaId));
 
       // If we already have cached data, inject immediately — no fetch needed
-      if (this.activityCache.has(mediaId)) {
-        const activities = this.activityCache.get(mediaId)!;
+      const cachedActivities = this.getCachedActivities(mediaId); // PERF-002 fix: use LRU cache
+      if (cachedActivities) {
+        const activities = cachedActivities;
         SocialRenderer.injectIntoCard(card, mediaId, activities);
         return;
       }
@@ -204,7 +209,7 @@ export class SocialEnhancerModule extends BaseModule {
         const activities = results.get(mediaId) ?? [];
 
         // Store in cache for instant re-apply on future pref changes
-        this.activityCache.set(mediaId, activities);
+        this.setCachedActivities(mediaId, activities); // PERF-002 fix: use LRU cache
 
         elements.forEach(card => {
           SocialRenderer.injectIntoCard(card, mediaId, activities);
@@ -222,5 +227,37 @@ export class SocialEnhancerModule extends BaseModule {
     if (this.batchTimeout) clearTimeout(this.batchTimeout);
     this.pendingCards.clear();
     this.activityCache.clear();
+    this.cacheOrder = []; // PERF-002 fix: clear LRU order
+  }
+
+  // ─── PERF-002 Fix: LRU Cache Helpers ──────────────────────────────────────
+
+  /** Get from cache with LRU tracking */
+  private getCachedActivities(mediaId: number): FriendActivity[] | undefined {
+    if (!this.activityCache.has(mediaId)) return undefined;
+
+    // Move to end (most recently used)
+    this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
+    this.cacheOrder.push(mediaId);
+
+    return this.activityCache.get(mediaId);
+  }
+
+  /** Set cache with LRU eviction */
+  private setCachedActivities(mediaId: number, activities: FriendActivity[]): void {
+    // Evict oldest if at capacity
+    if (this.activityCache.size >= this.MAX_CACHE_SIZE && !this.activityCache.has(mediaId)) {
+      const oldest = this.cacheOrder.shift();
+      if (oldest !== undefined) {
+        this.activityCache.delete(oldest);
+        log.debug(`[SocialEnhancer] LRU evicted mediaId ${oldest} (cache size: ${this.activityCache.size})`);
+      }
+    }
+
+    this.activityCache.set(mediaId, activities);
+
+    // Update LRU order
+    this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
+    this.cacheOrder.push(mediaId);
   }
 }

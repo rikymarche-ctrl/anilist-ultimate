@@ -1,9 +1,20 @@
 /**
- * Comment Tooltip Component
- * Displays user notes in a hovering window
+ * @file CommentTooltip.ts
+ * @description Hoverable tooltip component displaying user notes with markdown
+ *
+ * Renders a fixed-position tooltip on the right side of the viewport
+ * when a comment icon is hovered. Features auto-hide timer (2s),
+ * markdown-to-HTML parsing, and hover-persistence (stays visible
+ * while either icon or tooltip is hovered).
+ *
+ * @security Username is escaped with escapeHtml() before insertion (BUG-003 fixed).
+ *
+ * @see CommentService.ts for data fetching
+ * @see docs/MODULES.md#6-hover-comments-module
  */
 
 import { BaseComponent } from '@ui/components/BaseComponent';
+import { escapeHtml } from '@core/utils/Template';
 import { UserComment } from '../social/CommentService';
 
 interface CommentTooltipProps {
@@ -79,7 +90,7 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     // Simplified header without timestamp and refresh button
     this.element.innerHTML = `
       <div class="tooltip-header">
-        <span class="tooltip-user">${username}</span>
+        <span class="tooltip-user">${escapeHtml(username)}</span>
       </div>
       <div class="tooltip-content body-text">${formattedNotes || '<span class="no-comment">No notes for this series.</span>'}</div>
     `;

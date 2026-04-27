@@ -1,6 +1,21 @@
+/**
+ * @file NotificationGroupService.ts
+ * @description Notification grouping logic, text generation, and DOM manipulation
+ *
+ * Groups consecutive notifications from the same user into a single
+ * summary entry. Extracts activity details, generates human-readable
+ * group descriptions, and modifies the notification DOM to collapse
+ * grouped items.
+ *
+ * @see NotificationFetchService.ts for activity detail enrichment
+ * @see NotificationCleanerModule.ts for the orchestration layer
+ * @see docs/MODULES.md#2-notification-cleaner-module
+ */
+
 import { injectable, inject } from 'tsyringe';
 import type { ActivityDetails, NotificationFetchService } from './NotificationFetchService';
 import { TOKENS } from '@core/di/tokens';
+import { escapeHtml } from '@core/utils/Template';
 
 export interface NotificationGroup {
   user: string;
@@ -138,10 +153,10 @@ export class NotificationGroupService {
         replyText = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
       }
 
-      const contentTruncated = activityData.text.substring(0, 30) + (activityData.text.length > 30 ? '...' : '');
+      const contentTruncated = escapeHtml(activityData.text.substring(0, 30) + (activityData.text.length > 30 ? '...' : ''));
 
       if (isReply && replyText) {
-        const replyTruncated = replyText.substring(0, 40) + (replyText.length > 40 ? '...' : '');
+        const replyTruncated = escapeHtml(replyText.substring(0, 40) + (replyText.length > 40 ? '...' : ''));
         newContentHTML = `replied to <i>"${contentTruncated}"</i> with <b>"${replyTruncated}"</b>`;
       } else if (isReply) {
         newContentHTML = `replied to <i>"${contentTruncated}"</i>`;

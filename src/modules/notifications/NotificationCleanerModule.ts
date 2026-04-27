@@ -1,7 +1,27 @@
 /**
- * Notification Cleaner Module
- * Lean orchestrator for notification anti-spam and enhancement
- * Delegating responsibilities to specialized services (SRP)
+ * @file NotificationCleanerModule.ts
+ * @description Notification grouping and enhancement module
+ *
+ * Orchestrates the notification cleaning pipeline:
+ *   1. Observes the notification page DOM for new/changed notifications
+ *   2. Groups consecutive notifications from the same user
+ *   3. Creates virtual summary cards with expand/collapse dropdowns
+ *   4. Enriches notifications with activity context (media titles, reply text)
+ *   5. Provides search/filter via NotificationFilterService
+ *   6. Allows toggle between merged and unmerged views
+ *
+ * Anti-Stuttering:
+ *   Uses BaseModule's suspend/resume pattern to prevent MutationObserver
+ *   loops when modifying the DOM (hiding/creating notifications).
+ *
+ * Known Issues:
+ *   - Grouping stops on deep scroll (BUG-003 in docs/BUGS.md)
+ *   - Spam merge/unmerge causes race conditions (BUG-006 in docs/BUGS.md)
+ *
+ * @see NotificationFetchService for API data fetching
+ * @see NotificationGroupService for grouping logic and text generation
+ * @see NotificationFilterService for search/filter UI
+ * @see docs/MODULES.md#2-notification-cleaner-module
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -162,7 +182,10 @@ export class NotificationCleanerModule extends BaseModule {
     currentNotifications.forEach(n => this.extractUsernameFromNotif(n));
 
     const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
-    if (newNotifications.length === 0 && this.lastNotificationCount > 0) return;
+
+    // BUG-003 fix: Check total count change instead of just lastCount > 0
+    // This allows detection of new notifications loaded via infinite scroll
+    if (newNotifications.length === 0 && currentNotifications.length === this.lastNotificationCount) return;
 
     this.lastNotificationCount = currentNotifications.length;
     this.isProcessing = true;

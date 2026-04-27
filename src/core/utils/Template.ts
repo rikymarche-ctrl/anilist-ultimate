@@ -1,6 +1,20 @@
 /**
- * Lightweight Template Engine
- * Tagged template literal for creating DOM elements from HTML strings
+ * @file Template.ts
+ * @description Lightweight tagged-template engine for safe DOM element creation
+ *
+ * Provides the `html` tagged template literal which:
+ *   - Auto-escapes string interpolations (XSS protection)
+ *   - Passes through numbers and booleans safely
+ *   - Replaces HTMLElement/DocumentFragment placeholders post-parse
+ *   - Handles arrays of mixed elements/strings
+ *   - Returns a single HTMLElement (wraps multiple roots in a div)
+ *
+ * Also exports `map()` and `when()` helpers for declarative rendering.
+ *
+ * @example
+ *   const el = html`<div class="card">${title}</div>`;
+ *
+ * @see docs/ARCHITECTURE.md#template-engine
  */
 
 export type TemplateResult = HTMLElement | DocumentFragment;
@@ -8,7 +22,7 @@ export type TemplateResult = HTMLElement | DocumentFragment;
 /**
  * Escape HTML special characters to prevent XSS
  */
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   const map: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',

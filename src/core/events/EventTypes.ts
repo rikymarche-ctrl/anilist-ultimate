@@ -1,6 +1,25 @@
 /**
- * Event Type Definitions
- * Centralized event names and payload types
+ * @file EventTypes.ts
+ * @description Centralized event name constants and typed payload definitions
+ *
+ * Defines all events emitted in the application, organized by domain:
+ *   - Module lifecycle (initialized, destroyed, error)
+ *   - Calendar (loaded, updated, settings changed)
+ *   - Social (friend activity, custom lists)
+ *   - Activity (filter changed, search changed)
+ *   - Navigation (page changed, URL changed)
+ *   - Error (occurred, API error, storage error)
+ *   - Config (loaded, updated, feature flag changed)
+ *   - Auth (token received, expired, state changed)
+ *   - Astra (open dashboard)
+ *
+ * The AppEventMap interface maps event names to their payload types,
+ * enabling type-safe event emission and subscription through the EventBus.
+ *
+ * @warning The [key: string]: any index signature in AppEventMap defeats type
+ *          safety for unregistered events. See docs/BUGS.md#bug-014.
+ *
+ * @see EventBus.ts for the pub/sub implementation
  */
 
 /**
@@ -319,7 +338,7 @@ export interface AppEventMap {
   [EVENT_TYPES.AUTH_REQUIRED]: undefined;
   [EVENT_TYPES.USER_AUTHENTICATED]: UserAuthenticatedEvent;
   [EVENT_TYPES.USER_LOGGED_OUT]: undefined;
-  [EVENT_TYPES.AUTH_STATE_CHANGED]: { authenticated: boolean; userId?: number };
+  [EVENT_TYPES.AUTH_STATE_CHANGED]: { isAuthenticated: boolean; userId?: number; timestamp: Date };
 
   [EVENT_TYPES.ASTRA_OPEN]: undefined;
   

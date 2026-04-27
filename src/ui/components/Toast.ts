@@ -1,9 +1,17 @@
 /**
- * Toast Component
- * Individual notification item
+ * @file Toast.ts
+ * @description Individual toast notification component with auto-dismiss
+ *
+ * Renders a typed notification (success, error, info, warning) with
+ * title, message, close button, and configurable auto-dismiss timer.
+ * Supports pause-on-hover to prevent dismissal during user interaction.
+ *
+ * @see ToastContainer.ts for the parent stack manager
+ * @see ToastService.ts for the programmatic API
  */
 
 import { BaseComponent } from './BaseComponent';
+import { escapeHtml } from '@core/utils/Template';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
 
@@ -36,8 +44,8 @@ export class Toast extends BaseComponent<ToastProps> {
         <i class="${iconClass}"></i>
       </div>
       <div class="au-toast__content">
-        ${title ? `<span class="au-toast__title">${title}</span>` : ''}
-        <div class="au-toast__message">${message}</div>
+        ${title ? `<span class="au-toast__title">${escapeHtml(title)}</span>` : ''}
+        <div class="au-toast__message">${escapeHtml(message)}</div>
       </div>
       <button class="au-toast__close" aria-label="Close">
         <i class="fa fa-times"></i>

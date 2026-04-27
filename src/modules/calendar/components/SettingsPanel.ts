@@ -1,6 +1,13 @@
 /**
- * Settings Panel Component
- * Modal panel for calendar preferences
+ * @file SettingsPanel.ts
+ * @description Modal settings panel for calendar preferences and authentication
+ *
+ * Provides tabbed UI for layout options (mode, time format, alignment),
+ * social toggles, authentication status, and logout. Preferences are
+ * persisted via CalendarStore on change.
+ *
+ * @see CalendarStore.ts for preference persistence
+ * @see docs/MODULES.md#1-calendar-module
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -11,6 +18,7 @@ import { TOKENS } from '@core/di/tokens';
 import { html, map, when } from '@core/utils/Template';
 import type { CalendarPreferences } from '@core/types';
 import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { AuthTokenService } from '@core/auth/AuthTokenService';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -24,7 +32,8 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
   constructor(
     @inject('SettingsPanelProps') props: SettingsPanelProps,
-    @inject(TOKENS.ApiClient) private apiClient: IApiClient
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
+    @inject(TOKENS.AuthTokenService) private authTokenService: AuthTokenService
   ) {
     super(props);
   }
@@ -407,9 +416,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
   private handleLogout(): void {
     if (confirm('Are you sure you want to logout?')) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('jwt');
-      sessionStorage.removeItem('access_token');
+      this.authTokenService.clearToken();
       log.success('Logged out');
       this.updateAuthStatus();
     }

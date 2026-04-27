@@ -1,8 +1,25 @@
-import { injectable, singleton, inject } from 'tsyringe';
 /**
- * Social Service
- * Handles batched fetching of friend activity and detailed social entries
+ * @file SocialService.ts
+ * @description Friend activity data service with batched GraphQL fetching
+ *
+ * Provides three main capabilities:
+ *   1. getFriendActivityBatch(mediaIds) - Batch fetch friend watching status
+ *      for multiple media IDs using GraphQL alias batching. Used by calendar
+ *      and card overlays to show friend avatars.
+ *
+ *   2. getDetailedActivity(mediaId, filter, page) - Paginated detailed activity
+ *      for a specific media. Used by the social sidebar.
+ *
+ *   3. getAllFollowings() - Fetch all users the current viewer follows.
+ *      Paginates through all pages (max 40 pages safety limit).
+ *
+ * Caching:
+ *   - Friend activity is cached in-memory with daily invalidation
+ *   - Viewer ID is fetched once and cached for the session
+ *
+ * @see docs/MODULES.md#shared-services
  */
+import { injectable, singleton, inject } from 'tsyringe';
 
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
@@ -16,6 +33,11 @@ export class SocialService {
   private friendCache: Map<number, FriendActivity[]> = new Map();
   private viewerId: number | null = null;
   private cacheDate: string = '';
+
+  // PERF-001 fix: Persistent cache for followings
+  private readonly FOLLOWINGS_CACHE_KEY = 'au_followings_cache';
+  private readonly FOLLOWINGS_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly MAX_FOLLOWINGS = 200; // Limit to prevent rate-limit
 
   constructor(
     @inject(TOKENS.ApiClient) private api: IApiClient
@@ -61,10 +83,12 @@ export class SocialService {
     const chunkSize = PERFORMANCE.GRAPHQL_CHUNK_SIZE_SOCIAL;
     for (let i = 0; i < pendingIds.length; i += chunkSize) {
       const chunk = pendingIds.slice(i, i + chunkSize);
-      
-      const aliases = chunk.map(id => `
+
+      // Build GraphQL variables to prevent injection (BUG-029/SEC-018 fix)
+      const varDecls = chunk.map((_, idx) => `$m${idx}: Int!`).join(', ');
+      const aliases = chunk.map((id, idx) => `
         m${id}: Page(perPage: 6) {
-          mediaList(mediaId: ${id}, isFollowing: true, sort: [UPDATED_TIME_DESC]) {
+          mediaList(mediaId: $m${idx}, isFollowing: true, sort: [UPDATED_TIME_DESC]) {
             user { id name avatar { medium } }
             status
             progress
@@ -73,10 +97,12 @@ export class SocialService {
         }
       `);
 
-      const query = `query { ${aliases.join('\n')} }`;
+      const query = `query (${varDecls}) { ${aliases.join('\n')} }`;
+      const variables: Record<string, number> = {};
+      chunk.forEach((id, idx) => { variables[`m${idx}`] = id; });
 
       try {
-        const response = await this.api.query<Record<string, any>>(query);
+        const response = await this.api.query<Record<string, any>>(query, variables);
         
         chunk.forEach(id => {
           const alias = `m${id}`;
@@ -180,6 +206,25 @@ export class SocialService {
    * Fetches all users the current viewer is following
    */
   public async getAllFollowings(): Promise<any[]> {
+    // PERF-001 fix: Check persistent cache first
+    try {
+      const cached = await chrome.storage.local.get(this.FOLLOWINGS_CACHE_KEY);
+      if (cached[this.FOLLOWINGS_CACHE_KEY]) {
+        const { data, timestamp } = cached[this.FOLLOWINGS_CACHE_KEY];
+        const age = Date.now() - timestamp;
+
+        if (age < this.FOLLOWINGS_TTL_MS) {
+          log.info(`[SocialService] Using cached followings (${data.length} users, age: ${Math.floor(age / 1000 / 60)}min)`);
+          return data;
+        } else {
+          log.info('[SocialService] Following cache expired, refetching');
+        }
+      }
+    } catch (e) {
+      log.warn('[SocialService] Failed to read followings cache', e);
+    }
+
+    // Fetch viewerId if needed
     if (!this.viewerId) {
       try {
         this.viewerId = await this.api.getCurrentUserId();
@@ -211,20 +256,35 @@ export class SocialService {
     let hasNextPage = true;
     let page = 1;
 
-    while (hasNextPage) {
+    // PERF-001 fix: Limit to MAX_FOLLOWINGS to prevent rate-limit
+    const maxPages = Math.ceil(this.MAX_FOLLOWINGS / 50);
+
+    while (hasNextPage && page <= maxPages) {
       try {
         const response = await this.api.query<any>(query, { userId: this.viewerId, page });
         const pageData = response.Page;
         allFollowing = [...allFollowing, ...pageData.following];
         hasNextPage = pageData.pageInfo.hasNextPage;
         page++;
-        
-        // Safety break for extremely large lists
-        if (page > 40) break; 
+
+        log.info(`[SocialService] Fetched following page ${page - 1}/${maxPages} (${allFollowing.length} users)`);
       } catch (e) {
         log.error(`[SocialService] Failed to fetch following page ${page}`, e);
         break;
       }
+    }
+
+    // PERF-001 fix: Save to persistent cache
+    try {
+      await chrome.storage.local.set({
+        [this.FOLLOWINGS_CACHE_KEY]: {
+          data: allFollowing,
+          timestamp: Date.now()
+        }
+      });
+      log.info(`[SocialService] Cached ${allFollowing.length} followings`);
+    } catch (e) {
+      log.warn('[SocialService] Failed to cache followings', e);
     }
 
     return allFollowing;

@@ -1,6 +1,22 @@
 /**
- * Hover Comments Module
- * Fetches and displays user notes on media pages
+ * @file HoverCommentsModule.ts
+ * @description Hover-to-reveal user notes on anime/manga pages
+ *
+ * On media pages (/anime/*, /manga/*), scans the "Following" sidebar for users
+ * who have written notes for the current media. Injects a comment icon next to
+ * each user with notes, and shows a tooltip on hover.
+ *
+ * Data Fetching:
+ *   - Uses GraphQL alias batching to fetch notes for all users in a single request
+ *   - Falls back to sequential fetching if batch fails
+ *   - In-memory cache to avoid re-fetching on subsequent polls
+ *
+ * Polling:
+ *   - 3-second polling interval to detect dynamically loaded content
+ *   - Processes new user links that weren't present on initial load
+ *
+ * @see CommentTooltip.ts for the tooltip UI component
+ * @see docs/MODULES.md#6-hover-comments-module
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -17,6 +33,7 @@ export class HoverCommentsModule extends BaseModule {
   private tooltip: CommentTooltip;
   private pollingInterval: any = null;
   private processedMediaId: number | null = null;
+  private currentMediaId: number | null = null; // BUG-033 fix: track current context
   private isProcessing = false;
   private readonly ICON_SVG = `<svg class="au-comment-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M512 240c0 114.9-114.6 208-256 208c-37.1 0-72.3-6.4-104.1-17.9c-11.9 8.7-31.3 20.6-54.3 30.6C73.6 471.1 44.7 480 16 480c-6.5 0-12.3-3.9-14.8-9.9c-2.5-6-1.1-12.8 3.4-17.4l4.1-4.1c10.1-10.1 16.6-23.3 18.2-38.1C11.2 367.1 0 306.7 0 240C0 125.1 114.6 32 256 32s256 93.1 256 208z"/></svg>`;
 
@@ -53,6 +70,8 @@ export class HoverCommentsModule extends BaseModule {
   private fullReset(): void {
     this.stopPolling();
     this.processedMediaId = null;
+    this.currentMediaId = null; // BUG-033 fix: clear context
+    this.notesCache = {}; // BUG-033 fix: clear cache to prevent stale data
     this.tooltip.unmount();
     this.isProcessing = false;
   }
@@ -90,6 +109,7 @@ export class HoverCommentsModule extends BaseModule {
     }
 
     this.isProcessing = true;
+    this.currentMediaId = media.id; // BUG-033 fix: set current context
     try {
       await this.runInjectionFlow(media.id);
       this.processedMediaId = media.id;
@@ -157,24 +177,31 @@ export class HoverCommentsModule extends BaseModule {
     this.logger.info(`[HoverComments] Batch fetching notes for ${usersToFetch.length} new users...`);
 
     try {
-      // Build a batched query using aliases
-      const aliasParts = usersToFetch.map((username, index) => {
-        // Alaliases must start with a letter and only contain alphanumeric characters/underscores
-        const safeAlias = `user_${index}`;
-        return `${safeAlias}: MediaList(userName: "${username}", mediaId: ${mediaId}) { notes }`;
-      });
+      // Build a batched query using GraphQL variables (prevents injection via usernames)
+      const varDecls = usersToFetch.map((_, i) => `$u${i}: String!`).join(', ');
+      const aliasParts = usersToFetch.map((_, i) =>
+        `user_${i}: MediaList(userName: $u${i}, mediaId: $mid) { notes }`
+      );
 
-      const query = `query { ${aliasParts.join('\n')} }`;
-      const data = await this.apiClient.query<any>(query, {});
+      const query = `query ($mid: Int!, ${varDecls}) { ${aliasParts.join('\n')} }`;
+      const variables: Record<string, unknown> = { mid: mediaId };
+      usersToFetch.forEach((u, i) => { variables[`u${i}`] = u; });
 
-      usersToFetch.forEach((username, index) => {
-        const safeAlias = `user_${index}`;
-        const notes = data?.[safeAlias]?.notes;
-        if (notes) {
-          this.notesCache[username] = notes;
-          results[username] = notes;
-        }
-      });
+      const data = await this.apiClient.query<any>(query, variables);
+
+      // BUG-033 fix: Only update cache if still on same media (prevent race condition)
+      if (this.currentMediaId === mediaId) {
+        usersToFetch.forEach((username, index) => {
+          const safeAlias = `user_${index}`;
+          const notes = data?.[safeAlias]?.notes;
+          if (notes) {
+            this.notesCache[username] = notes;
+            results[username] = notes;
+          }
+        });
+      } else {
+        this.logger.info('[HoverComments] Page changed during fetch, discarding results');
+      }
     } catch (error) {
       this.logger.error('[HoverComments] Batch fetch failed', error);
       // Fallback to sequential if batching fails for some reason (e.g. one bad username)
@@ -182,7 +209,9 @@ export class HoverCommentsModule extends BaseModule {
         try {
           const query = `query ($u: String, $m: Int) { MediaList(userName: $u, mediaId: $m) { notes } }`;
           const data = await this.apiClient.query<any>(query, { u: username, m: mediaId });
-          if (data?.MediaList?.notes) {
+
+          // BUG-033 fix: Only update cache if still on same media
+          if (this.currentMediaId === mediaId && data?.MediaList?.notes) {
             this.notesCache[username] = data.MediaList.notes;
           }
           await new Promise(r => setTimeout(r, 100));

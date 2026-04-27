@@ -1,3 +1,14 @@
+/**
+ * @file ActivityUtils.ts
+ * @description Type definitions and utility functions for activity feed processing
+ *
+ * Defines ActivityType union, AniListActivity interface, and helper
+ * functions for text-based activity type detection and time formatting.
+ *
+ * @see ActivityEnhancerModule.ts
+ * @see ActivityRenderer.ts
+ * @see docs/MODULES.md#3-activity-enhancer-module
+ */
 
 export type ActivityType = 'watched' | 'read' | 'completed' | 'plans' | 'dropped' | 'paused' | 'text' | 'all';
 
@@ -36,7 +47,7 @@ export function getTimeAgo(timestamp: number): string {
 
   if (diff < 60) return 'just now';
   if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
-  if (diff < 84600) return `${Math.floor(diff / 3600)} hours ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
   if (diff < 604800) return `${Math.floor(diff / 86400)} days ago`;
   return `${Math.floor(diff / 604800)} weeks ago`;
 }
