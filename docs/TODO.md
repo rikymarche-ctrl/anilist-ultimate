@@ -5,24 +5,13 @@
 
 ---
 
-## 🔴 P1 - CRITICAL SECURITY (Next Priority)
+## ✅ P1 - CRITICAL SECURITY (COMPLETE)
 
-### BUG-029: GraphQL Injection in SocialService
-- **File:** `src/modules/social/SocialService.ts:89`
-- **Severity:** Critical
-- **Effort:** 30min
-- **Issue:** MediaId interpolated directly in GraphQL query
-  ```typescript
-  const aliases = chunk.map(id => `m${id}: Page(...) { mediaList(mediaId: ${id}, ...) }`)
-  ```
-- **Fix:** Use GraphQL variables instead of string interpolation
-  ```typescript
-  const varDecls = chunk.map((_, i) => `$m${i}: Int!`).join(', ');
-  const aliases = chunk.map((_, i) => `m${i}: Page(...) { mediaList(mediaId: $m${i}, ...) }`);
-  const variables = {};
-  chunk.forEach((id, i) => { variables[`m${i}`] = id; });
-  ```
-- **Impact:** Prevents potential data leaks or GraphQL injection attacks
+### ~~BUG-029: GraphQL Injection in SocialService~~ ✅
+- **Status:** FIXED in commit `c20eb67`
+- **File:** `src/modules/social/SocialService.ts:87`
+- **Fix Applied:** Uses GraphQL typed variables (`$m${idx}: Int!`) instead of direct interpolation
+- **Impact:** Prevents GraphQL injection attacks
 
 ---
 

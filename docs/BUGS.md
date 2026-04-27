@@ -679,7 +679,7 @@ Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
 | Priority | Bug IDs | Effort | Status |
 |----------|---------|--------|--------|
 | P0 (Blockers) | ~~BUG-001~~, ~~BUG-002~~ | ✅ FIXED | Done |
-| P1 (Critical Security) | BUG-029 | 1h | Todo |
+| P1 (Critical Security) | ~~BUG-029~~ | 1h | ✅ **COMPLETE** |
 | P2 (High Impact) | ~~BUG-003~~, ~~BUG-004~~, ~~BUG-005~~, ~~BUG-006~~, ~~BUG-028~~, ~~BUG-030~~, ~~BUG-032~~, ~~BUG-033~~ | 8h | ✅ **8/8 COMPLETE** |
 | P3 (Performance) | BUG-007, BUG-010, BUG-011, BUG-012, BUG-013 | 3h | Todo |
 | P4 (Type Safety) | ~~BUG-015~~, BUG-014, BUG-016, BUG-017 | ✅ 1/4 FIXED | In Progress |
