@@ -28,7 +28,21 @@
     {
       "matches": ["https://anilist.co/*"],
       "js": ["src/main.ts"],
-      "css": ["src/styles/main.css", "src/styles/calendar.css", "src/styles/settings-panel.css"],
+      "css": [
+        "src/styles/main.css",
+        "src/styles/toast.css",
+        "src/styles/calendar.css",
+        "src/styles/settings-panel.css",
+        "src/styles/social-activity.css",
+        "src/styles/custom-lists.css",
+        "src/styles/astra.css",
+        "src/styles/activity-enhancer.css",
+        "src/styles/activity-score.css",
+        "src/styles/forum-enhancer.css",
+        "src/styles/hover-comments.css",
+        "src/styles/notification-cleaner.css",
+        "src/styles/review-enhancer.css"
+      ],
       "run_at": "document_idle"
     }
   ],

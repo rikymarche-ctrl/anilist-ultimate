@@ -26,7 +26,7 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
 import { AstraRatingModal } from './ui/AstraRatingModal';
-import { calendarStore } from '../calendar/CalendarStore';
+import type { CalendarStore } from '../calendar/CalendarStore';
 
 @injectable()
 export class AstraModule extends BaseModule {
@@ -34,6 +34,7 @@ export class AstraModule extends BaseModule {
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard,
     @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal,
+    @inject(TOKENS.CalendarStore) private calendarStore: CalendarStore,
     @inject(TOKENS.ApiClient) private apiClient: any,
     @inject(TOKENS.ToastService) private toast: any,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
@@ -121,7 +122,7 @@ export class AstraModule extends BaseModule {
     });
 
     // React to social preference changes: patch existing processed cards in place
-    calendarStore.subscribeToSelector(
+    this.calendarStore.subscribeToSelector(
       state => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
@@ -250,7 +251,7 @@ export class AstraModule extends BaseModule {
    * @param isUserListCard - If false (trending/newly added), skip the mark-watched button.
    */
   private injectCardPill(card: HTMLElement, mediaId: number, isUserListCard: boolean): void {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = this.calendarStore.getState().preferences;
     const showPillSocial = socialEnabled && !socialShowAvatars;
 
     const socialSectionHTML = showPillSocial ? `
