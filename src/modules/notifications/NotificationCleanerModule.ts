@@ -42,6 +42,7 @@ export class NotificationCleanerModule extends BaseModule {
   private needsReprocess = false;
   private lastNotificationCount = 0;
   private readonly OBSERVER_NAME = 'notifications-continuous';
+  private pollingInterval: number | null = null; // Fallback polling for Load More
 
   private currentPath = '';
 
@@ -109,6 +110,12 @@ export class NotificationCleanerModule extends BaseModule {
     this.lastNotificationCount = 0;
     this.isProcessing = false;
 
+    // Clear polling interval
+    if (this.pollingInterval) {
+      window.clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+
     // Clear all processed markers
     document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
       n.removeAttribute('data-au-processed');
@@ -121,6 +128,15 @@ export class NotificationCleanerModule extends BaseModule {
     this.registerObserver(this.OBSERVER_NAME, document.body, { childList: true, subtree: true }, () => {
       this.checkAndProcess();
     });
+
+    // PERF: Polling fallback to catch notifications loaded via "Load More"
+    // MutationObserver may not always trigger when Anilist dynamically adds notifications
+    if (!this.pollingInterval) {
+      this.pollingInterval = window.setInterval(() => {
+        console.log('[NOTIF DEBUG] Polling check for new notifications');
+        this.checkAndProcess();
+      }, 2000); // Check every 2 seconds
+    }
   }
 
   private checkAndProcess(): void {
