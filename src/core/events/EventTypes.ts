@@ -341,7 +341,4 @@ export interface AppEventMap {
   [EVENT_TYPES.AUTH_STATE_CHANGED]: { isAuthenticated: boolean; userId?: number; timestamp: Date };
 
   [EVENT_TYPES.ASTRA_OPEN]: undefined;
-  
-  // Generic fallback for string-based events (for compatibility)
-  [key: string]: any;
 }

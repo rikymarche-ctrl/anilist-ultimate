@@ -28,6 +28,7 @@ import type { AppConfig, ConfigChangeCallback } from './types';
 import { DEFAULT_CONFIG } from './defaults';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { IStorageService } from '@core/interfaces/IStorageService';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 
 /**
@@ -103,10 +104,9 @@ export class ConfigManager implements IConfigManager {
   private readonly STORAGE_KEY = 'anilist_ultimate_v2_config';
 
   constructor(
-    @inject(TOKENS.Storage) private storage: any,
+    @inject(TOKENS.Storage) private storage: IStorageService,
     @inject(TOKENS.EventBus) private eventBus?: IEventBus
   ) {
-    // Storage will be injected via DI in Phase 2
     this.config = { ...DEFAULT_CONFIG };
   }
 

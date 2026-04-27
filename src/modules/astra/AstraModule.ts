@@ -28,7 +28,9 @@ import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
+import type { ToastService } from '@core/services/ToastService';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
 import { AstraRatingModal } from './ui/AstraRatingModal';
@@ -41,8 +43,8 @@ export class AstraModule extends BaseModule {
     @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard,
     @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal,
     @inject(TOKENS.CalendarStore) private calendarStore: CalendarStore,
-    @inject(TOKENS.ApiClient) private apiClient: any,
-    @inject(TOKENS.ToastService) private toast: any,
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
+    @inject(TOKENS.ToastService) private toast: ToastService,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
@@ -313,7 +315,13 @@ export class AstraModule extends BaseModule {
           return;
         }
 
-        const data = await this.apiClient.query(`
+        const data = await this.apiClient.query<{
+          MediaList: {
+            id: number;
+            progress: number;
+            media: { title: { romaji: string } };
+          } | null;
+        }>(`
           query ($mediaId: Int, $userId: Int) {
             MediaList(mediaId: $mediaId, userId: $userId) {
               id
