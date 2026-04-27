@@ -68,7 +68,7 @@ export class CalendarModule extends BaseModule {
       log.info('[Calendar] Initializing for user', { userId: this.userId });
 
       // 1. Setup MutationObserver for late-loading React sections
-      this.setupSectionDetection();
+      await this.setupSectionDetection();
 
       // 2. Initial injection attempt
       await this.runInjectionFlow();
