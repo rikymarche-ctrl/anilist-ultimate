@@ -1,85 +1,293 @@
-# AniList Ultimate - TODO
+# AniList Ultimate v2 - TODO List
 
-## 🛠️ In Progress / Stabilization
+**Last Updated:** 2026-04-27
+**Status:** P2 Complete (8/8) - Moving to P1 and Caching System
 
-- [ ] **Notification Cleaner Stability**: se scrollo troppo in basso nelle notifiche a un certo punto smette di mergarle. Investigate race condition o batching del DOM.
-- [ ] **Activity Filter Refresh**: quando in un activity seleziono tipo una lista e cambio pagina, BISOGNA FARE IL REFRESH DEI FILTRI, altrimenti si bugga.
-- [ ] **Custom List Auto-Reset**: ero fermo con una custom list nell activity, ma penso anilist abbia mandato un refresh (quello per le nuove interazioni), ma è tornato automaticamente su global. Bisogna gestirle!
-- [ ] **Hover Comments Stabilization**: Fix layout regressions and performance during rapid scrolling.
+---
 
-## 📈 Notification Cleaner (Progress Update)
+## 🔴 P1 - CRITICAL SECURITY (Next Priority)
 
-- [X] **Consecutive Grouping**: ora mergia solo se sono consecutivi (se un altro utente si intrufola, le divide).
-- [X] **Timestamp Range**: implementato `[Recente] - [Vecchio]`. Stile piccolo (1.1rem), grigio (lighter text), opacità 0.8.
-- [X] **Virtual Card Behavior**: i padri aprono solo il dropdown, i figli hanno il link all'attività originale.
-- [X] **Reply Logic**: sistemata la parte col "with", ora estrae la risposta reale.
-- [X] **Robust ID**: uso di `data-au-user` per evitare che si rompa il match tra batch diversi.
+### BUG-029: GraphQL Injection in SocialService
+- **File:** `src/modules/social/SocialService.ts:89`
+- **Severity:** Critical
+- **Effort:** 30min
+- **Issue:** MediaId interpolated directly in GraphQL query
+  ```typescript
+  const aliases = chunk.map(id => `m${id}: Page(...) { mediaList(mediaId: ${id}, ...) }`)
+  ```
+- **Fix:** Use GraphQL variables instead of string interpolation
+  ```typescript
+  const varDecls = chunk.map((_, i) => `$m${i}: Int!`).join(', ');
+  const aliases = chunk.map((_, i) => `m${i}: Page(...) { mediaList(mediaId: $m${i}, ...) }`);
+  const variables = {};
+  chunk.forEach((id, i) => { variables[`m${i}`] = id; });
+  ```
+- **Impact:** Prevents potential data leaks or GraphQL injection attacks
 
-## 📊 Notes & Ideas
+---
 
-IMPORTANTE. IL LOGIN ORA UTILIZZA IL NUMRO FISSO
+## 🟡 SISTEMA DI CACHING INTELLIGENTE (High Priority - NEW)
 
-- [ ] **Query Voti**: ricontrollare le query coi voti delle persone nelle activity. mi sa che ci sono degli errori.
-- [ ] **Colori**: i Colori di anilist differiscono da quelli scelti (viola ecc).
-- [ ] **Caching**: anche le notifiche si possono cachare dai.
-- [ ] **Private Messages**: nelle notifiche capire se il messaggio "sent" è segreto (occhiolino png) o pubblico.
-- [ ] **Spam Protection**: se spammo merge/unmerge si fuckuppa tutto.
+### Obiettivo
+Implementare caching con **fingerprint-based invalidation** invece di solo TTL:
+1. Leggi dati attuali dalla pagina
+2. Genera fingerprint (hash/IDs)
+3. Confronta con cache.fingerprint
+4. Se uguale → usa cache (NO API call)
+5. Se diverso → API call + aggiorna cache
 
-nell activity c è renderizzato malissimo per le custom lists. usare cloni
+### Task List
 
-controlalre bene se tra i cambi pagina tutto funziona perfettamente
+#### 1. Fix scoreCache Memory Leak (ActivityService)
+- **File:** `src/modules/activity/ActivityService.ts`
+- **Issue:** scoreCache cresce all'infinito, no TTL, no eviction
+- **Fix:**
+  - Aggiungere LRU cache (max 100 entries)
+  - TTL 5 minuti
+  - Clear on page change
 
-implementare il fatto che il resize della pagina non distrugga gli elementi
+#### 2. Intelligent Review Caching
+- **File:** `src/modules/reviews/` (da creare service?)
+- **Current:** Nessun caching
+- **Goal:**
+  - Leggi 4 review IDs dalla homepage
+  - Confronta con cache fingerprint [id1, id2, id3, id4]
+  - Se diverso → fetch + cache
+  - Se uguale → skip API call
 
-vorrei fare un rework grafico alla social activity dal calendario (le custom lists non funzionano per nulla qua)
+#### 3. Intelligent Calendar Caching
+- **File:** `src/modules/calendar/CalendarStore.ts`
+- **Current:** Nessun caching persistente
+- **Goal:**
+  - Cache in chrome.storage.local con TTL 30min
+  - Fingerprint: hash di mediaIds + airingAt timestamps
+  - Confronta prima di fare sync
+  - Invalida se utente modifica progress
 
-estensione funzionalità social con avatar anche a anime e manga in progress, essenzialmente il bottone a pillola
+#### 4. Intelligent Notification Caching
+- **File:** `src/modules/notifications/`
+- **Current:** Nessun caching
+- **Goal:**
+  - Cache notification IDs + timestamps
+  - Confronta con notifiche attuali DOM
+  - Fetch solo se nuove notifiche rilevate
 
-l icona dei commenti fa schifo, pochissima definziiione. INoltre i commenti devono NON saprire anche quando hovero il loro popup, non solo l cione nuvoletta!
+#### 5. Manual Cache Invalidation
+- **Files:** Tutti i service con cache
+- **Goal:**
+  - Aggiungere `invalidateCache()` method
+  - Esporlo nel settings panel
+  - Trigger su user actions (follow/unfollow)
 
-Le notifiche hanno un botto di problemi ziocantaS
+#### 6. Followings Cache Improvements
+- **File:** `src/modules/social/SocialService.ts`
+- **Current:** 24h TTL, no manual refresh
+- **Fix:**
+  - Aggiungere `refreshFollowings()` method
+  - Button nel settings per force refresh
+  - Auto-invalidate su follow/unfollow events (se possibile rilevare)
 
-nel calendario se showfriend avatars è on ma non ci sono amici, non si vede nemmeno l avatr generale per aprire la social activity!
+---
 
-filtri condizionali ai criteri per il voto. se do 3 alla grafica a un anime del 1990 non deve influire come se lo dessi ad uno di oggi. Per questo magari fare ad esempio un filtro condizionale che permette al voto di allontanarsi di un massimo di 2 voti dalla media pesata senza se stesso. qualcosa del genere. se tutti fossero csoì ci sarebbero problemi però, quindi andrebbe data una priorità, anche se altissimamente improbabile
+## 🟢 P3 - PERFORMANCE (3h effort)
 
-in astra, aggiungere i Private, quelli defautl di anilist, come sezione
+### BUG-007: MutationObserver Optimization
+- **Files:** Multiple modules
+- **Issue:** 4+ observers su document.body causano overhead
+- **Fix:**
+  1. Shared single observer pattern
+  2. Target specifici containers invece di document.body
+  3. Throttle più aggressivo dove possibile
 
-in astra, lo show progress funziona solo se prima si resyncano le stats. non ha senso
+### BUG-010: Font Awesome Local Bundle
+- **File:** `src/main.ts:138`
+- **Issue:** CDN esterno (cloudflare) - fail in corporate networks
+- **Fix:** Bundle Font Awesome icons locally in assets/
 
-contry e type possono stare ciacuno sempre attivo, assimee ovviamente ai filtri sotto. Possono essere uno per categoria sempre attivi, non sono mutuali.
+### BUG-011: Manifest CSS Bundling
+- **File:** `public/manifest.json`
+- **Issue:** CSS importati via JS → FOUC (Flash of Unstyled Content)
+- **Fix:** List all CSS in manifest.json content_scripts.css
 
-il contenuto delle righe non occupa sempre tutto lo spazio orizzontale. DEVE, non voglio che dipende dal contenuto
+### BUG-012: CalendarStore DI Pattern
+- **File:** `src/modules/astra/AstraModule.ts:10`
+- **Issue:** Direct import breaks DI pattern
+- **Fix:** Resolve from container via TOKENS.CalendarStore
 
-all statuses mi puzza LGGERMENTE di grafica fuori posto. tutto maiuscolo, boh
+### BUG-013: Proxy Singleton Race Condition
+- **File:** `src/api/AnilistClient.ts:373`
+- **Issue:** Proxy resolve before DI configured → error
+- **Fix:** Lazy initialization or remove proxy pattern
 
-il wrapped fa cacare per ora
+---
 
-OGNI MODULO DELL ESTENSIONE, AD ESEMPIO COMMENTI, CALENDARIO ECC SARÀ OPTABILE IN E OUT. OGNI UTENTE DALLE IMPOSTAZIONI DELL ESTENSIONE IN GENERALE, QUELLA PROPRIO DAL BROWSER. POTRÀ DECIDERE COSA VUOEL.
+## 🔵 P4 - TYPE SAFETY (1h effort)
 
-Global Weight va spostato a sinistra
+### BUG-014: EventBus Generic Fallback
+- **File:** `src/core/events/EventTypes.ts:327`
+- **Issue:** `[key: string]: any` defeats type safety
+- **Fix:** Remove generic fallback, force typed events only
 
-mettere gli all come filtri predefiniti, in tutte e 3 le sezioni
+### BUG-016: ConfigManager Any Type
+- **File:** `src/core/config/ConfigManager.ts:86`
+- **Issue:** storage: any instead of IStorageService
+- **Fix:** Add proper interface type
 
-la barra del progress farla leggermente più scura, non così tanto azzurra
+### BUG-017: AstraModule Any Types
+- **File:** `src/modules/astra/AstraModule.ts:18-19`
+- **Issue:** apiClient: any, toast: any
+- **Fix:** Use IApiClient and IToastService interfaces
 
-il bottone di all statuses si bugga graficamente, si ripetono le frecce del drowdown all interno quando una voce è selezionata. all infinito
+---
 
-setuppare qualche observer per il cambio di pagina perchè ogni votla devo refreshare tutto a mano, che palle.
+## 🟣 P5 - DATA CONSISTENCY (3h effort)
 
-un sistema di caching intelligente. se vado avanti e torno indeitro non può fare così schifo. oltre che a chachare notifiche e reviews almeno dai
+### BUG-008: Calendar Social Avatar Always Show
+- **File:** `src/modules/calendar/`
+- **Issue:** Avatar button nascosto se no friends watching
+- **Fix:** Always show button if socialEnabled, show avatars only if friends exist
 
-import ed export sono invertiti?![1777182768612](image/TODO/1777182768612.png)
+### BUG-009: Astra Progress Without Resync
+- **File:** `src/modules/astra/AstraModule.ts`
+- **Issue:** Progress field stale unless user manually resyncs
+- **Fix:** Lazy-fetch progress when opening dashboard
 
-l astra dashboard una piccola animazione d apertura per rendere il tutto più fluido? piuttosto che un popup che compare
+### BUG-031: worksByMediaId Index Not Updated
+- **File:** `src/modules/astra/AstraService.ts`
+- **Issue:** syncWithAniList() updates works[] but not worksByMediaId Map
+- **Fix:** Rebuild index after sync:
+  ```typescript
+  this.worksByMediaId.clear();
+  newWorks.forEach(work => this.worksByMediaId.set(work.mediaId, work));
+  ```
 
-arancione piuttoston che verde acqua?
+---
 
-c è da implementare della persistenza, non è possibile che se dalla home clicco impostazioni e poi torno indietro rifaccia tutte le chiamate API, bisogna definire una policy e gestirla. Serve u sistema di caching veramente intelligente. INoltrew quando cambio pagina a volte i componenti si caricano a volte no. Che sci sia un qualche observer o simile che faccia bene il suo lavoro. Ogni componente deve avviarsi sempre quando possibile e usare il sistema default di anilist quando non va. Ongi cosa possibile sempre, tipo i filtri nella social activity invece ovviamente devono essere sempre attivi. SEMPRE SE i moduli alla base di tutto sono impostati a on dall utente (oo default impotazioni quando si installa l estensione))
+## 🟤 P6 - UI/UX (6h effort)
 
-c è scritto che i dati sono sharati da chrome. come? funziona davvero?
+### BUG-018: All Statuses Dropdown Arrow Repeat
+- **Issue:** Arrow indicators repeat infinitely when value selected
+- **Fix:** CSS fix for dropdown arrow
 
-mi sono accorto che, una votla aperta la pagina di un anime, c era il commento di qualcos altro!
+### BUG-019: Custom Lists Rendering
+- **Issue:** Malrenduto in activity feed
+- **Fix:** Use cloneNode() instead of HTML reconstruction
 
+### BUG-020: Resize Handler
+- **Issue:** Extension elements break on window resize
+- **Fix:** Add resize event listeners
 
-TROPPE TROPPE chiamate API, se utilizzo il sito e clicco un po troppo vado in timeout. Certo diminuiranno dopo il caching intelligente e quant altro. ma anche le chiamate API devono essere migliorate
+### BUG-021: Comment Icon Low Resolution
+- **Issue:** SVG icon bassa qualità
+- **Fix:** Higher quality SVG + fix hover area
+
+### BUG-022: AniList Color Mismatch
+- **Issue:** Extension colors don't match user's AniList theme
+- **Fix:** Read CSS custom properties from AniList DOM
+
+### BUG-023: Import/Export Labels
+- **Issue:** Possibly inverted in Astra
+- **Fix:** Verify and swap if needed
+
+### BUG-024: Wrapped Feature
+- **Issue:** Annual summary incomplete/broken
+- **Fix:** Complete implementation
+
+### BUG-025: Global Weight Position
+- **Issue:** Positioned incorrectly in Astra
+- **Fix:** Move to left
+
+### BUG-026: Progress Bar Color
+- **Issue:** Too bright blue
+- **Fix:** Darker shade
+
+### BUG-027: Row Content Width
+- **Issue:** Doesn't fill horizontal space
+- **Fix:** width: 100%
+
+### COS-001: All Statuses Text
+- **Issue:** All caps looks out of place
+- **Fix:** Title case
+
+### COS-002: Calendar Social Redesign
+- **Goal:** Rework grafico social activity dal calendario
+
+### COS-003: Astra Dashboard Animation
+- **Goal:** Opening animation for smoother UX
+
+### COS-004: Color Scheme
+- **Suggestion:** Orange instead of teal?
+
+### COS-005: Filter Defaults
+- **Goal:** Set "All" as default in all 3 sections
+
+---
+
+## ⚫ P7 - DEBUG TOOLS (Last Priority)
+
+### BUG-034: Logging System Not Working
+- **Files:** `src/core/logger.ts`, multiple modules
+- **Issue:**
+  - DEBUG.ENABLED = true ma nessun log appare
+  - console.log() diretti non funzionano
+  - Possibili cause: context mismatch, browser filtering, extension not loaded
+- **Fix:**
+  1. Investigate why logs don't appear
+  2. Verificare content script context
+  3. Test con diversi log levels
+  4. Aggiungere fallback logging method
+- **Note:** Da fare PER ULTIMO - non blocca funzionalità utente
+
+---
+
+## ✅ COMPLETED (P0, P1 partial, P2)
+
+### P0 - Blockers
+- ✅ BUG-001: Dual token management
+- ✅ BUG-002: Store.reset() bug
+
+### P2 - High Impact (8/8)
+- ✅ BUG-003: Notification merge on scroll
+- ✅ BUG-004: Activity filter state
+- ✅ BUG-005: Custom list auto-reset
+- ✅ BUG-006: Merge/unmerge race
+- ✅ BUG-028: getAllFollowings() spam
+- ✅ BUG-030: Memory leak activityCache
+- ✅ BUG-032: UUID Astra IDs
+- ✅ BUG-033: Comment cache corruption
+
+### Bonus
+- ✅ API Spam: 99% reduction (1000+ → ~8 errors)
+- ✅ HTTP 404: Validation + graceful handling
+- ✅ HTTP 429: Batching + rate limiting
+
+---
+
+## 🎯 EXECUTION ORDER
+
+1. **P1 Security** (30min)
+   - BUG-029: GraphQL injection
+
+2. **Caching Intelligente** (3-4h)
+   - scoreCache fix
+   - Review fingerprinting
+   - Calendar caching
+   - Notification caching
+   - Manual invalidation
+   - Followings refresh
+
+3. **P3 Performance** (3h)
+   - Observer optimization
+   - Font Awesome bundle
+   - Manifest CSS
+   - DI fixes
+
+4. **P4 Type Safety** (1h)
+
+5. **P5 Data Consistency** (3h)
+
+6. **P6 UI/UX** (6h)
+
+7. **P7 Debug** (1h - LAST)
+
+**Total Remaining:** ~17-18h
