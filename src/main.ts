@@ -39,6 +39,8 @@ import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
 import './styles/astra.css';
+// BUG-010 fix: Font Awesome bundled locally instead of CDN
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 /**
  * Initialize the global debug object
@@ -107,8 +109,8 @@ async function init(): Promise<void> {
     // Initialize theme manager
     ThemeManager.getInstance();
 
-    // Load Font Awesome icons
-    loadFontAwesome();
+    // Font Awesome now loaded via import at top of file (BUG-010 fix)
+    // loadFontAwesome(); // REMOVED - CDN dependency
 
     // Setup debug exposure
     setupDebugExposure(config, registry);
@@ -129,17 +131,19 @@ async function init(): Promise<void> {
 }
 
 /**
- * Load Font Awesome icons if not already loaded
+ * BUG-010 fix: Font Awesome now bundled locally via npm package
+ * CDN loading removed to prevent failures in corporate networks
+ * Import '@fortawesome/fontawesome-free/css/all.min.css' at top of file
  */
-function loadFontAwesome(): void {
-  if (!document.querySelector('link[href*="fontawesome"]')) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
-    link.crossOrigin = 'anonymous';
-    document.head.appendChild(link);
-  }
-}
+// function loadFontAwesome(): void {
+//   if (!document.querySelector('link[href*="fontawesome"]')) {
+//     const link = document.createElement('link');
+//     link.rel = 'stylesheet';
+//     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+//     link.crossOrigin = 'anonymous';
+//     document.head.appendChild(link);
+//   }
+// }
 
 // Global start
 if (document.readyState === 'loading') {
