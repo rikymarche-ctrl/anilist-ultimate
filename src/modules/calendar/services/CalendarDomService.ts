@@ -188,9 +188,23 @@ export class CalendarDomService {
       const findText = (s: string, t: string) => 
         Array.from(document.querySelectorAll<HTMLElement>(s)).filter(el => el.textContent?.trim().includes(t));
 
-      const airing = findText('h2', 'Airing')[0] || 
+      let airing = findText('h2', 'Airing')[0] || 
                    Array.from(document.querySelectorAll<HTMLElement>('.section-header')).find(h => h.textContent?.includes('Airing')) ||
                    Array.from(document.querySelectorAll<HTMLElement>('.home section')).find(s => s.textContent?.includes('Airing'))?.querySelector<HTMLElement>('h2, h3, .section-header');
+
+      // If AniList didn't render an Airing section (e.g., user has no airing anime), create one
+      if (!airing) {
+        log.info('[CalendarDomService] Native Airing section not found, creating a new container');
+        const homeContainer = document.querySelector('.home');
+        if (homeContainer) {
+          const newSection = document.createElement('div');
+          newSection.className = 'list-preview-wrap';
+          newSection.style.marginBottom = '40px';
+          newSection.innerHTML = `<div class="section-header"><h2>Airing</h2></div>`;
+          homeContainer.insertBefore(newSection, homeContainer.firstChild);
+          airing = newSection.querySelector('h2') as HTMLElement;
+        }
+      }
 
       resolve(airing || null);
     });

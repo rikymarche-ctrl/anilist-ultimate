@@ -124,7 +124,12 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   private checkAndProcess(): void {
-    if (this.isProcessing) return;
+    console.log('[NOTIF DEBUG] checkAndProcess called, isProcessing:', this.isProcessing);
+
+    if (this.isProcessing) {
+      console.log('[NOTIF DEBUG] checkAndProcess BLOCKED by isProcessing guard');
+      return;
+    }
 
     // Inject settings UI if on notifications page
     const markAllButton = document.querySelector('.reset-btn, .reset-button, .mark-all, .mark-as-read');
@@ -140,6 +145,8 @@ export class NotificationCleanerModule extends BaseModule {
     }
 
     const container = document.querySelector('.notifications');
+    console.log('[NOTIF DEBUG] Container found:', !!container);
+
     if (container) {
       this.processNotifications();
     }
@@ -239,14 +246,22 @@ export class NotificationCleanerModule extends BaseModule {
       '.notification-item:not(.au-virtual-notification):not(.au-sub-notification)'
     ));
 
+    console.log('[NOTIF DEBUG] Total notifications found:', currentNotifications.length);
+    console.log('[NOTIF DEBUG] Last notification count:', this.lastNotificationCount);
+
     // Immediate tagging pass
     currentNotifications.forEach(n => this.extractUsernameFromNotif(n));
 
     const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
 
+    console.log('[NOTIF DEBUG] New (unprocessed) notifications:', newNotifications.length);
+
     // BUG-003 fix: Check total count change instead of just lastCount > 0
     // This allows detection of new notifications loaded via infinite scroll
-    if (newNotifications.length === 0 && currentNotifications.length === this.lastNotificationCount) return;
+    if (newNotifications.length === 0 && currentNotifications.length === this.lastNotificationCount) {
+      console.log('[NOTIF DEBUG] processNotifications SKIPPED - no new notifications and count unchanged');
+      return;
+    }
 
     this.lastNotificationCount = currentNotifications.length;
     this.isProcessing = true;

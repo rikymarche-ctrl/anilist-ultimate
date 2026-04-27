@@ -18,6 +18,10 @@
  * @see docs/ARCHITECTURE.md for full system architecture
  */
 
+console.log('========================================');
+console.log('ANILIST ULTIMATE V2 - MAIN.TS LOADING');
+console.log('========================================');
+
 import 'reflect-metadata'; // Required for tsyringe
 import { log } from '@core/logger';
 import { APP_VERSION } from '@core/constants';
@@ -82,15 +86,20 @@ function checkOAuthCallback(authService: AuthTokenService): void {
  */
 async function init(): Promise<void> {
   console.log(`[Anilist Ultimate] Starting v${APP_VERSION}...`);
+  console.log('[DEBUG] Init function called');
 
   try {
+    console.log('[DEBUG] Setting up DI...');
     // Setup DI container and load configuration
     await setupDI();
+    console.log('[DEBUG] DI setup complete');
 
+    console.log('[DEBUG] Resolving services...');
     // Resolve services from container
     const config = container.resolve<IConfigManager>(TOKENS.Config);
     const registry = container.resolve<ModuleRegistry>(TOKENS.ModuleRegistry);
     const authService = container.resolve<AuthTokenService>(TOKENS.AuthTokenService);
+    console.log('[DEBUG] Services resolved');
 
     // Setup OAuth handling
     checkOAuthCallback(authService);
@@ -104,12 +113,18 @@ async function init(): Promise<void> {
     // Setup debug exposure
     setupDebugExposure(config, registry);
 
+    console.log('[DEBUG] Initializing modules...');
     // Initialize all registered modules
     await registry.initAll();
+    console.log('[DEBUG] All modules initialized!');
 
     log.success('Extension fully loaded');
+    console.log('========================================');
+    console.log('ANILIST ULTIMATE FULLY LOADED!');
+    console.log('========================================');
   } catch (error) {
     console.error('[Anilist Ultimate] Fatal Error:', error);
+    console.error('[DEBUG] Error stack:', error);
   }
 }
 

@@ -65,8 +65,18 @@ export class AuthTokenService {
       return this.cachedToken;
     }
 
-    // Check primary key
+    // Check primary key in localStorage
     let token = localStorage.getItem(this.STORAGE_KEY);
+
+    // Also check sessionStorage for primary key (BUG-001 fix: was missing)
+    if (!token) {
+      token = sessionStorage.getItem(this.STORAGE_KEY);
+      if (token) {
+        this.logger.info('[AuthTokenService] Found token in sessionStorage, migrating to localStorage');
+        // Migrate to localStorage
+        localStorage.setItem(this.STORAGE_KEY, token);
+      }
+    }
 
     // If not found, check legacy keys and migrate
     if (!token) {

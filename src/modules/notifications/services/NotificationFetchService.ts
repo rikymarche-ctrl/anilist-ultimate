@@ -72,6 +72,17 @@ export class NotificationFetchService {
   public async fetchActivityDetails(activityIds: number[]): Promise<Map<number, ActivityDetails>> {
     if (activityIds.length === 0) return new Map();
 
+    // Filter out invalid IDs (must be positive integers)
+    const validIds = activityIds.filter(id => id > 0 && Number.isInteger(id));
+    if (validIds.length === 0) {
+      log.warn('[NotificationFetch] No valid activity IDs to fetch');
+      return new Map();
+    }
+
+    if (validIds.length !== activityIds.length) {
+      log.warn(`[NotificationFetch] Filtered out ${activityIds.length - validIds.length} invalid activity IDs`);
+    }
+
     const fields = `
       ... on ListActivity {
         status
@@ -92,7 +103,7 @@ export class NotificationFetchService {
       }
     `;
 
-    const aliases = activityIds.map(id => `a${id}: Activity(id: ${id}) { ${fields} }`);
+    const aliases = validIds.map(id => `a${id}: Activity(id: ${id}) { ${fields} }`);
     const query = `query { ${aliases.join('\n')} }`;
 
     try {
