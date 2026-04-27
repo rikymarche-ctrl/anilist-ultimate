@@ -650,14 +650,68 @@ async syncWithAniList(): Promise<void> {
 
 ---
 
+---
+
+### BUG-034: Logging System Non Funzionante
+
+**Severity:** Low (Development/Debug Issue)
+**File:** `src/core/logger.ts`, vari moduli
+**Status:** Da investigare
+
+**Description:**
+Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
+- `console.log()` diretti non funzionano
+- `log.debug()`, `log.info()`, `log.success()` non funzionano
+- Possibili cause:
+  1. Console filtering attivo in browser
+  2. Estensione non caricata correttamente
+  3. Context mismatch (content script vs background)
+  4. Logger class ha bug nascosto
+
+**Impatto:** Impossibile debug durante sviluppo. Richiede fix per manutenibilità futura.
+
+**Nota:** Questo bug va fixato per ultimo, dopo tutti gli altri. Non blocca funzionalità utente.
+
+---
+
 ## Action Plan
 
-| Priority | Bug IDs | Effort |
-|----------|---------|--------|
-| P0 (Blockers) | ~~BUG-001~~, ~~BUG-002~~ | ✅ FIXED |
-| P1 (Critical Security) | BUG-029 | 1h |
-| P2 (High Impact) | BUG-003, BUG-004, BUG-005, BUG-006, BUG-028, BUG-030, BUG-032, BUG-033 | 8h |
-| P3 (Performance) | BUG-007, BUG-010, BUG-011, BUG-012, BUG-013 | 3h |
-| P4 (Type Safety) | ~~BUG-015~~, BUG-014, BUG-016, BUG-017 | ✅ 1/4 FIXED |
-| P5 (Data Consistency) | BUG-008, BUG-009, BUG-031 | 3h |
-| P6 (UI/UX) | BUG-018 through BUG-027, COS-* | 6h |
+| Priority | Bug IDs | Effort | Status |
+|----------|---------|--------|--------|
+| P0 (Blockers) | ~~BUG-001~~, ~~BUG-002~~ | ✅ FIXED | Done |
+| P1 (Critical Security) | BUG-029 | 1h | Todo |
+| P2 (High Impact) | ~~BUG-003~~, ~~BUG-004~~, ~~BUG-005~~, ~~BUG-006~~, BUG-028, BUG-030, BUG-032, BUG-033 | 8h | ✅ 4/8 FIXED |
+| P3 (Performance) | BUG-007, BUG-010, BUG-011, BUG-012, BUG-013 | 3h | Todo |
+| P4 (Type Safety) | ~~BUG-015~~, BUG-014, BUG-016, BUG-017 | ✅ 1/4 FIXED | In Progress |
+| P5 (Data Consistency) | BUG-008, BUG-009, BUG-031 | 3h | Todo |
+| P6 (UI/UX) | BUG-018 through BUG-027, COS-* | 6h | Todo |
+| P7 (Debug Tools) | BUG-034 | 1h | **Last Priority** |
+
+---
+
+## Recent Fixes (2026-04-27)
+
+### ✅ BUG-003: Notification Merge Stops on Deep Scroll
+- **Fix:** Polling fallback (2s) + count-based detection
+- **Commit:** `7344b25`
+
+### ✅ BUG-004: Activity Filter Not Refreshing on Page Navigation
+- **Fix:** State save/restore in ActivityFilterBar
+- **Commit:** Previous session
+
+### ✅ BUG-005: Custom List Auto-Reset on AniList Refresh
+- **Fix:** Track activeListName, restore on re-injection
+- **Commit:** Previous session
+
+### ✅ BUG-006: Spam Merge/Unmerge Race Condition
+- **Fix:** Batching API calls, collect pendingEnhancements
+- **Commit:** `ba4fc11`
+
+### ✅ API Spam (429/404 Errors)
+- **Problem:** Thousands of 429 "Too Many Requests"
+- **Fix:**
+  - Batching: reduce O(n) calls to O(1) per cycle
+  - ID validation: filter invalid activity IDs
+  - 404 handling: graceful errors for deleted activities
+- **Result:** 99%+ error reduction (1000+ → ~8 errors)
+- **Commits:** `ba4fc11`, `6ae7746`, `2d3ba35`
