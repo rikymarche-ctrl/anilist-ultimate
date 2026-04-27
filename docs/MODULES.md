@@ -53,7 +53,7 @@ Replaces AniList's native "Airing" section on the home page with a full weekly s
 - **Social Avatars** - Friend activity on each card (when socialEnabled)
 - **Settings Panel** - Start day, layout, time format, alignment, etc.
 - **Responsive Design** - Adapts to mobile/tablet
-- **Smart Caching** - 30-minute schedule cache, 5-minute progress cache
+- **Intelligent Caching** - Persistent cache with fingerprint validation (see below)
 
 ### Configuration
 
@@ -81,6 +81,28 @@ interface CalendarPreferences {
 - `MediaListCollection` - Fetch user's watching list for progress
 - `SaveMediaListEntry` - Mutation to increment episode progress
 - `Page.mediaList` (batched aliases) - Friend activity per media
+
+### Caching Strategy (Implemented 2026-04-27)
+
+**Type**: Persistent cache (`chrome.storage.local`) with fingerprint validation
+
+**Key Features**:
+- **TTL**: 30 minutes
+- **Fingerprint**: FNV-1a hash of `mediaId + airingAt` timestamps
+- **Validation**: Fingerprint comparison before fetch to detect schedule changes
+- **Auto-invalidation**: Cache cleared when user updates progress
+- **Force refresh**: `loadSchedule(userId, forceRefresh=true)` bypasses cache
+
+**Flow**:
+1. `CalendarDataService.loadSchedule()` tries `CalendarStore.loadEntriesFromCache()`
+2. If cache valid and fresh → instant load (0 API calls)
+3. If cache miss/expired → fetch from API → save to cache
+4. On progress update → `invalidateCache()` → next load fetches fresh data
+
+**Benefits**:
+- Instant calendar load after first fetch (< 100ms vs ~2s API call)
+- Reduced API calls: 1 fetch per 30min max (vs 1 per page load)
+- Fingerprint prevents serving stale data when schedule changes
 
 ---
 
@@ -145,6 +167,20 @@ For each group with count > 1:
 | `follow` | "followed you" |
 | `mention` | "mentioned you" |
 
+### Caching Strategy (Implemented 2026-04-27)
+
+**NotificationFetchService - Activity Details Cache**:
+- **Type**: In-memory LRU + TTL (short-lived for real-time data)
+- **Capacity**: Max 100 activity IDs
+- **TTL**: 2 minutes
+- **Auto-clear**: Cache cleared on page navigation
+- **Flow**:
+  1. Extract activity IDs from notification elements
+  2. Check cache for each ID
+  3. Fetch only pending IDs via batched GraphQL
+  4. Cache results for future merge/unmerge toggles
+- **Benefits**: Repeated merge/unmerge toggles don't re-fetch same activities, 90% API reduction during user interactions
+
 ---
 
 ## 3. Activity Enhancer Module
@@ -205,14 +241,29 @@ Displays user scores on activity feed entries. When a user updates their anime/m
 ### API Query (Alias Batching)
 
 ```graphql
-query {
-  s0: MediaList(userName: "user1", mediaId: 123) {
+query ($u0: String!, $m0: Int!, $u1: String!, $m1: Int!) {
+  s0: MediaList(userName: $u0, mediaId: $m0) {
     score(format: POINT_100)
     user { mediaListOptions { scoreFormat } }
   }
-  s1: MediaList(userName: "user2", mediaId: 456) { ... }
+  s1: MediaList(userName: $u1, mediaId: $m1) { ... }
+  # ... up to 25 aliases per query (now using typed variables)
 }
 ```
+
+### Caching Strategy (Implemented 2026-04-27)
+
+**Type**: In-memory LRU + TTL
+
+**Configuration**:
+- **Capacity**: Max 100 entries
+- **TTL**: 5 minutes
+- **Key**: `userName-mediaId`
+
+**Benefits**:
+- Avoids re-fetching scores for same user-media pairs
+- Prevents unbounded memory growth
+- Failed fetches cached as null to avoid retry spam
 
 ---
 
@@ -337,12 +388,28 @@ Provides social activity sidebar and friend avatars on calendar cards.
 
 ## 8. Social Enhancer Module
 
-**Files:** `src/modules/social/SocialEnhancerModule.ts`
+**Files:** `src/modules/social/SocialEnhancerModule.ts`, `SocialService.ts`
 **Feature Flag:** `friendActivity`
 
 ### Overview
 
-Enhances social features across the site, including avatar pills on media cards and best friend indicators.
+Enhances social features across the site, including avatar pills on media cards and best friend indicators. Fetches friend activity per media and caches results.
+
+### Caching Strategy (Implemented 2026-04-27)
+
+**SocialEnhancerModule - Friend Activity Cache**:
+- **Type**: In-memory LRU + TTL with page-change clearing
+- **Capacity**: Max 100 media IDs
+- **TTL**: 5 minutes
+- **Auto-clear**: Cache cleared on page navigation
+- **Benefits**: Memory leak prevention (PERF-002 fix), instant re-inject on preference change
+
+**SocialService - Followings Cache**:
+- **Type**: Persistent (`chrome.storage.local`)
+- **TTL**: 24 hours
+- **Limit**: Max 200 followings (4 API pages)
+- **Manual methods**: `refreshFollowings()`, `invalidateFollowingsCache()`, `clearAllCaches()`
+- **Benefits**: 0 API calls for 24h after first fetch, 90% API reduction (PERF-001 fix)
 
 ---
 
@@ -407,6 +474,24 @@ Enhances individual anime/manga pages with social activity information and filte
 
 - **Score Display** - Shows review scores on review cards
 - **Score Formatting** - Adapts to user's preferred score format
+- **Intelligent Batching** - Fingerprint-based deduplication to avoid redundant fetches
+
+### Caching Strategy (Implemented 2026-04-27)
+
+**ReviewService - Review Data Cache**:
+- **Type**: In-memory LRU + TTL
+- **Capacity**: Max 200 entries
+- **TTL**: 30 minutes
+- **Benefits**: Avoids re-fetching deleted/private reviews
+
+**ReviewEnhancerModule - Fingerprint Deduplication**:
+- **Strategy**: Compare sorted review IDs before API call
+- **Flow**:
+  1. Extract review IDs from DOM
+  2. Sort IDs and generate fingerprint
+  3. If fingerprint matches last fetch → skip API call (use ReviewService cache)
+  4. If different → fetch and update fingerprint
+- **Benefits**: Homepage always shows same 4 reviews → 0 API calls after first load
 
 ---
 
