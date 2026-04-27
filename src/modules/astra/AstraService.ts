@@ -93,6 +93,25 @@ export const DEFAULT_SETTINGS: AstraSettings = {
   enableSeriesFinale: true,
 };
 
+/**
+ * Generate a cryptographically random UUID v4
+ * Replaces Math.random() for collision-resistant IDs
+ * @see BUG-032 in docs/BUGS.md
+ */
+function generateUUID(): string {
+  // Use crypto.randomUUID if available (modern browsers + extensions)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  // Fallback: Manual UUID v4 implementation
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (crypto.getRandomValues(new Uint8Array(1))[0] & 0x0f) >> (c === 'x' ? 0 : 2);
+    const v = c === 'x' ? r : (r | 0x8);
+    return v.toString(16);
+  });
+}
+
 @singleton()
 @injectable()
 export class AstraService {
@@ -257,7 +276,7 @@ export class AstraService {
               const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
               
               const newWork: AstraWork = {
-                id: `w_${Math.random().toString(36).slice(2, 11)}`,
+                id: `w_${generateUUID()}`,
                 mediaId: entry.mediaId,
                 title: media.title.english || media.title.romaji || media.title.native,
                 type: type as any,
@@ -326,7 +345,7 @@ export class AstraService {
       this.works[existingIdx] = updatedWork;
     } else {
       updatedWork = Object.assign({
-        id: `w_${Math.random().toString(36).slice(2, 11)}`,
+        id: `w_${generateUUID()}`,
         title: 'Unknown',
         type: 'anime',
         status: 'PLANNING',
@@ -440,7 +459,7 @@ export class AstraService {
     this.sections.forEach(s => scores[s.id] = null);
 
     return {
-      id: `s_${Math.random().toString(36).slice(2, 7)}`,
+      id: `s_${generateUUID()}`,
       label,
       scores,
       skip: [],
