@@ -558,7 +558,8 @@ Both should use their proper interface types.
 
 ---
 
-### BUG-018: All Statuses Dropdown Arrow Repeating
+### BUG-018: All Statuses Dropdown Arrow Repeating ✅
+**Status:** FIXED - Standardized CSS with hardcoded SVG data URIs (white/black) and removed recursive background-image rendering.
 
 **TODO ref:** "il bottone di all statuses si bugga graficamente, si ripetono le frecce del dropdown all interno quando una voce e selezionata. all infinito"
 
@@ -632,7 +633,8 @@ The progress bar color is too bright/blue, should be slightly darker.
 
 ---
 
-### BUG-027: Row Content Width Not Full
+### BUG-027: Row Content Width Not Full ✅
+**Status:** FIXED - Set search bar to 100% width and stabilized the Astra grid flex columns.
 
 **TODO ref:** "il contenuto delle righe non occupa sempre tutto lo spazio orizzontale"
 
@@ -642,7 +644,8 @@ Table/list row content doesn't always fill the full horizontal width. Should use
 
 ## Cosmetic Issues
 
-### COS-001: "All Statuses" Text Styling
+### COS-001: "All Statuses" Text Styling ✅
+**Status:** FIXED - Standardized dropdown text color to `var(--astra-muted)` and matched dimensions.
 
 **TODO ref:** "all statuses mi puzza LEGGERMENTE di grafica fuori posto. tutto maiuscolo"
 
@@ -650,7 +653,10 @@ Table/list row content doesn't always fill the full horizontal width. Should use
 
 **TODO ref:** "vorrei fare un rework grafico alla social activity dal calendario"
 
-### COS-003: Astra Dashboard Opening Animation
+### COS-003: Astra Dashboard Animation ✅
+
+- **Goal:** Opening animation for smoother UX
+- **Status:** FIXED - Implemented bouncy pop-up entry and smooth fade-out exit transitions.
 
 **TODO ref:** "l astra dashboard una piccola animazione d apertura per rendere il tutto piu fluido"
 
@@ -658,7 +664,10 @@ Table/list row content doesn't always fill the full horizontal width. Should use
 
 **TODO ref:** "arancione piuttosto che verde acqua?"
 
-### COS-005: Filter Defaults
+### COS-005: Filter Defaults ✅
+
+- **Goal:** Set "All" as default in all 3 sections
+- **Status:** FIXED - Forced reset to 'All' on every dashboard open.
 
 **TODO ref:** "mettere gli all come filtri predefiniti, in tutte e 3 le sezioni"
 
@@ -853,5 +862,24 @@ Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
 
 ### ✅ UI-002: Global Preferences Sync
 
-- **Issue:** Social features on profile/media pages occasionally ignored user settings, displaying avatars even when disabled.
 - **Fix:** `SocialEnhancerModule` was initializing before `calendarStore` loaded its persistent state. Added `await calendarStore.init()` to ensure it reads the user's saved preferences instead of defaults.
+
+### ✅ UI-003: Astra Dashboard "Double Closure" Fix
+
+- **Problem:** A redundant gray bar appeared below the rounded grid footer, caused by a conflict between `astra-table-wrap` background and a rogue `padding-bottom: 8px` in the scroll fix CSS.
+- **Fix:** Moved background from wrap to grid, removed the 8px padding, and ensured the footer sits flush against the bottom border.
+
+### ✅ UX-003: Manual Sync Only (Auto-Sync Removal)
+
+- **Problem:** Dashboard automatically triggered a background sync on every open, taking away user control over API calls.
+- **Fix:** Removed `syncWithAniList()` from the `open()` lifecycle. Sync is now strictly manual via the header button.
+
+### ✅ UX-004: Filter Reset on Open
+
+- **Problem:** Filters for Type and Country would persist from previous sessions, sometimes leading to empty states on reopening.
+- **Fix:** Added forced reset to 'All' for these filters in the `open()` method.
+
+### ✅ UI-004: Smooth Exit Animation
+
+- **Problem:** Dashboard disappeared abruptly when closed.
+- **Fix:** Refactored CSS transitions to use different curves for Enter (bouncy) and Exit (smooth ease-in + fade-out).

@@ -173,6 +173,7 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL -
 
 - **Issue:** Arrow indicators repeat infinitely when value selected
 - **Fix:** CSS fix for dropdown arrow
+- FATTO
 
 ### BUG-019: Custom Lists Rendering
 
@@ -193,6 +194,7 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL -
 
 - **Issue:** Extension colors don't match user's AniList theme
 - **Fix:** Read CSS custom properties from AniList DOM
+- CHISSENEFREGA. L IMPORTANTE È IL THERME DETECTION
 
 ### BUG-023: Import/Export Labels
 
@@ -213,32 +215,37 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL -
 
 - **Issue:** Too bright blue
 - **Fix:** Darker shade
+- FATTO
 
 ### BUG-027: Row Content Width
 
 - **Issue:** Doesn't fill horizontal space
 - **Fix:** width: 100%
+- FATTO
 
 ### COS-001: All Statuses Text
 
 - **Issue:** All caps looks out of place
 - **Fix:** Title case
+- FATTO
 
 ### COS-002: Calendar Social Redesign
 
 - **Goal:** Rework grafico social activity dal calendario
 
-### COS-003: Astra Dashboard Animation
+### COS-003: Astra Dashboard Animation ✅
 
 - **Goal:** Opening animation for smoother UX
+- **Status:** FIXED - Implemented bouncy pop-up entry and smooth fade-out exit transitions.
 
 ### COS-004: Color Scheme
 
-- **Suggestion:** Orange instead of teal?
+- **Suggestion:** Orange instead of teal? NO, È FORTE, ALTERNATIVE?
 
-### COS-005: Filter Defaults
+### COS-005: Filter Defaults ✅
 
 - **Goal:** Set "All" as default in all 3 sections
+- **Status:** FIXED - Forced reset to 'All' on every dashboard open.
 
 ---
 
@@ -280,15 +287,14 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL -
 
 ### P5 - Data Consistency (3/3) ✅
 
-| Task | Bug IDs | Effort | Status |
-| :--- | :--- | :--- | :--- |
-| P5 (Data Consistency) | ~~BUG-008~~, ~~BUG-009~~, ~~BUG-031~~ | 3h | ✅**COMPLETE** |
+| Task                  | Bug IDs                                  | Effort | Status               |
+| :-------------------- | :--------------------------------------- | :----- | :------------------- |
+| P5 (Data Consistency) | ~~BUG-008~~, ~~BUG-009~~, ~~BUG-031~~ | 3h     | ✅**COMPLETE** |
 
 ### Bonus UI / Reactivity
 
 - ✅ Real-time Settings: Calendar settings now auto-save and apply instantly without page refresh.
 - ✅ Global Preferences Sync: Fixed `SocialEnhancerModule` loading default preferences on non-home pages due to missing `calendarStore` initialization.
-
 - ✅ API Spam: 99% reduction (1000+ → ~8 errors)
 - ✅ HTTP 404: Validation + graceful handling
 - ✅ HTTP 429: Batching + rate limiting
@@ -307,8 +313,6 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL -
 
 **Total Remaining:** ~10h (Architecture Stable)
 
-
-
 ---
 
 ## 🎯 OTHER
@@ -316,3 +320,37 @@ Implementare caching con **fingerprint-based invalidation** invece di solo TTL -
 Mettere i voti anche nell activity del singolo utente, e ovviamente anche i filtri (qua le liste personalizzate non servono, però un tasto + per aggiungere l utente alla lista piuttosto che permetterlo salle dalle impostazioni non è affatto una brutta idea, da qualche aprte nel banner, magari vicino a follow, avrebbe sensissimo)): ![1777333963404](image/TODO/1777333963404.png)![1777334790868](image/TODO/1777334790868.png)
 
 Rimuovere TUTTI i v2 (compreso dal token per esempio) da anilist ultimate v2
+
+I bottoni pillola sono spariti dalle sezioni anime e manga in progress
+
+Bulk editor tipo per le liste?
+
+manca l animazione outro per la chisurua di astra
+
+anche la pagina delle reviews ha il caching? https://anilist.co/reviews
+
+[DONE] sempre in astra, fare lo scorrimento che si ferma alla barra di ricerca, quella deve essere sempre visibile.
+
+le liste devono essere divise in macrocategorie: Reading, Completed, All, ecc. non solo un tag dentro i record. o almeno mettere l opzione di scelta. Però secondo me è meglio avere All come iniziale, poi le altre, watching, completed ecc, ognuna chiudibile con un dropdown
+
+assicurarsi che nella pagine delle singole opere, la bolla del social activity, i commenti e i filtri siano ok. ora come ora non lo sono
+
+ci sono troppe liste con plan, reading, watching ecc. troppe possibilità di errore, un enum? sono ovunque nella codebase ora come ora
+
+se cambio dimensioni al browser rimane tutto ok nel browser o si sfascia tutto? si distrugge tutto GIA SEGNATO NEL P6?
+
+le voci sono decentrate
+
+![1777345488184](image/TODO/1777345488184.png)
+
+[DONE] le voci non sono centrate sopra i voti
+
+![1777344580887](image/TODO/1777344580887.png)
+
+[DONE] quando c è lo slider gli elementi a sinistra si ridimensionano occupando meno spazio. Lo slider deve essere IGNORATO
+
+![1777346070105](image/TODO/1777346070105.png)
+
+Astra ha problemi interni di funzionamento, ma leggeri, bug hunting da fare
+
+L interruzione è un po brusca, cosa fare? ![1777347456840](image/TODO/1777347456840.png)

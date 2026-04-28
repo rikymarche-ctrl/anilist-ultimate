@@ -141,6 +141,7 @@
   flex-direction: column;
   min-width: 0;
   background: var(--astra-bg);
+  scrollbar-gutter: stable;
 }
 
 .astra-modal-header {
@@ -212,7 +213,6 @@
 
 .astra-form-scroll {
   max-height: 275px;
-  /* Fits exactly 4 rows */
   overflow-y: auto;
   padding-right: 12px;
 }
@@ -630,7 +630,6 @@
   overflow-y: auto;
   padding-right: 8px;
   padding-bottom: 80px;
-  /* Extra space to ensure last ep is not hidden by footer button */
 }
 
 .astra-form-scroll {
@@ -638,7 +637,6 @@
   overflow-y: auto;
   padding: 0 4px;
   padding-bottom: 80px;
-  /* Space for the footer button in rating tab */
   scrollbar-width: thin;
   scrollbar-color: var(--astra-accent-a20) transparent;
 }
@@ -1182,31 +1180,60 @@
   background: var(--astra-bg-elev-2);
 }
 
+.astra-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
 .astra-dashboard-controls {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--astra-bg);
+  padding: 10px 0;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
 }
 
-.astra-filters {
+.astra-dashboard-controls.is-sticky {
+  border-bottom-color: var(--astra-border-soft);
+}
+
+.astra-search-box-row {
+  width: 100%;
   display: flex;
-  gap: 24px;
+}
+
+.astra-filter-bar {
+  display: flex;
+  gap: 12px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.astra-filter-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--astra-border-soft);
+  margin: 0 8px;
 }
 
 .astra-search-box {
   background: var(--astra-bg-elev);
   border: 1px solid var(--astra-border);
   border-radius: 8px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex: 1;
-  max-width: 350px;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .astra-search-box:focus-within {
@@ -1277,31 +1304,34 @@
   -webkit-appearance: none;
   background: var(--astra-bg-lighter);
   border: 1px solid var(--astra-border-soft);
-  color: var(--astra-text);
-  padding: 4px 28px 4px 12px;
+  color: var(--astra-muted);
+  padding: 4px 28px 4px 16px;
   border-radius: 20px;
   cursor: pointer;
   font-size: 11px;
   font-weight: 600;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: calc(100% - 8px) center;
-  background-size: 10px;
+  min-width: 110px;
+  text-align: left;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat !important;
+  background-position: calc(100% - 10px) center !important;
+  background-size: 10px !important;
   transition: all 0.2s;
   outline: none;
 }
 
 .astra-select-chip.active {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='black'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
-/* ============ ASTRA GRID SYSTEM (RE-ENGINEERED) ============ */
+/* ============ ASTRA GRID SYSTEM ============ */
+
 .astra-table-wrap {
-  background: var(--astra-bg-elev);
-  border: 1px solid var(--astra-border-soft);
+  background: var(--astra-bg-elev-2);
+  border: 1px solid var(--astra-bg-elev-2);
   border-radius: 12px;
+  padding-bottom: 8px;
   overflow-x: auto;
-  /* Enable horizontal scroll */
   overflow-y: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   margin-bottom: 40px;
@@ -1310,7 +1340,6 @@
 
 .astra-grid {
   display: flex;
-  /* Always full width */
   flex-direction: column;
   width: 100%;
 }
@@ -1337,6 +1366,12 @@
   padding: 0 10px;
 }
 
+.astra-grid-header>div:nth-child(n+3):not(:last-child),
+.astra-grid-row>.astra-edit-row:nth-child(n+3):not(:last-child) {
+  justify-content: center;
+  text-align: center;
+}
+
 .astra-grid-header>div:first-child {
   padding-left: 0;
 }
@@ -1353,10 +1388,14 @@
   position: relative;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   transition: background-color 0.2s, background-size 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-  background-color: transparent;
+  background-color: var(--astra-bg);
   background-repeat: no-repeat;
   background-position: 0 0;
   min-width: 100%;
+}
+
+.astra-grid-row:last-child {
+  border-bottom: none;
 }
 
 .astra-grid-row:hover {
@@ -1377,14 +1416,20 @@
 }
 
 .astra-grid-row>div {
+  display: flex;
+  align-items: center;
   position: relative;
   z-index: var(--z-base);
-  /* Content well above progress */
   font-size: 13px;
   padding: 0 10px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.astra-edit-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
 }
 
 .astra-grid-row>div:first-child {
@@ -1402,13 +1447,25 @@
 .astra-grid-row .astra-table-title {
   font-weight: 700;
   font-size: 15px;
-  margin-bottom: 4px;
+  color: var(--astra-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.astra-table-title-box {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
 }
 
 .astra-grid-row .astra-table-subtitle {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .astra-table-score-badge {
@@ -1963,10 +2020,8 @@
 .astra-modal--dashboard {
   display: flex !important;
   flex-direction: row !important;
-  /* Sidebar layout */
   overflow: hidden !important;
   padding: 0 !important;
-  /* Sidebar should touch the edges */
 }
 
 .astra-modal-nav {
@@ -2059,7 +2114,6 @@
   font-weight: 700;
   margin-top: 4px;
   display: none;
-  /* Only icon by default */
 }
 
 .astra-nav-item:hover,
@@ -2185,7 +2239,6 @@
 
 .astra-table {
   min-width: 1000px;
-  /* Ensure table doesn't squish too much */
 }
 
 .astra-table th,
@@ -2348,7 +2401,6 @@
 .media-preview-card:hover .au-pill-wrapper {
   opacity: 1;
   pointer-events: auto;
-  /* Enable clicks when the overlay is visible */
 }
 
 /* Prevent AniList's image-overlay from intercepting our pill button clicks */
@@ -2359,7 +2411,6 @@
 .media-preview-card .action-pill {
   transform: translateY(10px) scale(0.9);
   background: rgba(10, 10, 15, 0.75);
-  /* Darker and more transparent */
   border: 1px solid rgba(255, 255, 255, 0.08);
   pointer-events: auto;
 }

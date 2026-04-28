@@ -53,15 +53,32 @@ export class AstraDashboard extends BaseComponent {
   ) {
     super({});
 
+    // Load persisted progress state
+    const savedProgress = localStorage.getItem('astra_show_progress');
+    if (savedProgress !== null) {
+      this.state.showProgress = savedProgress === 'true';
+    }
+
     // BUG-009 Fix: Listen for global open event directly in the dashboard component
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, () => {
       this.open();
     });
   }
 
-  public open(): void {
+  public async open(): Promise<void> {
     log.debug('[AstraDashboard] Opening dashboard...');
     if (this.overlay) return;
+
+    // BUG-FIX: Explicitly force all filter states to 'all' to ensure UI consistency
+    this.state.type = 'all';
+    this.state.country = 'all';
+    this.state.status = 'all';
+    this.state.anilistStatus = 'all';
+    this.state.search = '';
+    this.state.activeTab = 'dashboard';
+
+    // Ensure service is initialized before first render to avoid "0 entries" glitch
+    await this.service.init();
 
     this.overlay = document.createElement('div');
     this.overlay.className = 'astra-modal-overlay';
@@ -74,15 +91,11 @@ export class AstraDashboard extends BaseComponent {
     });
 
     this.renderDashboard();
-
-    // BUG-009 Fix: Lazy sync on open
-    this.service.syncWithAniList(this.apiClient).then(({updated}) => {
-      if (updated > 0) this.updateDashboardDynamic();
-    }).catch(e => console.error('[Astra] Lazy sync failed', e));
   }
 
   public close(): void {
     if (!this.overlay) return;
+    this.overlay.classList.add('astra-modal-overlay--closing');
     this.overlay.classList.remove('astra-modal-overlay--open');
     setTimeout(() => {
       this.overlay?.remove();
@@ -92,7 +105,7 @@ export class AstraDashboard extends BaseComponent {
       if (!document.querySelector('.astra-modal-overlay')) {
         document.body.style.overflow = '';
       }
-    }, 300);
+    }, 350); // Added 50ms buffer to ensure CSS animation finishes completely
   }
 
   protected render(): HTMLElement {
@@ -138,13 +151,12 @@ export class AstraDashboard extends BaseComponent {
   }
 
   private renderDashboardTab(): string {
-    const sections = this.service!.getSections();
     const works = this.service!.getWorks();
     return `
       <div class="astra-dashboard ${this.state.showProgress ? 'astra-show-progress' : ''}" id="astra-dashboard-container">
         <header class="astra-dashboard-header">
           <div class="astra-dashboard-title-box">
-            <h1 class="astra-dashboard-title">Astra Dashboard <span style="font-size: 10px; opacity: 0.5; vertical-align: middle; margin-left: 8px;">v2.1</span></h1>
+            <h1 class="astra-dashboard-title">Astra Dashboard</h1>
           </div>
           <div class="astra-dashboard-actions">
             <button class="astra-btn astra-btn--primary" id="astra-sync-anilist" title="Sync all lists from AniList">
@@ -181,65 +193,20 @@ export class AstraDashboard extends BaseComponent {
         </div>
 
         <div class="astra-dashboard-controls">
-          <div class="astra-filters">
+          <div class="astra-search-box-row">
             <div class="astra-search-box">
               <i class="fa fa-search"></i>
               <input type="text" id="astra-search" placeholder="Search by title..." value="${this.state.search}">
             </div>
-            
-            <div class="astra-filter-group" data-filter="type">
-              <span class="astra-filter-label">Type</span>
-              <div class="astra-filter-chips">
-                <button class="astra-chip ${this.state.type === 'all' ? 'active' : ''}" data-val="all">All</button>
-                <button class="astra-chip ${this.state.type === 'anime' ? 'active' : ''}" data-val="anime">Anime</button>
-                <button class="astra-chip ${this.state.type === 'manga' ? 'active' : ''}" data-val="manga">Manga</button>
-                <button class="astra-chip ${this.state.type === 'novel' ? 'active' : ''}" data-val="novel">Novel</button>
-              </div>
-            </div>
-
-            <div class="astra-filter-group" data-filter="country">
-              <span class="astra-filter-label">Country</span>
-              <div class="astra-filter-chips">
-                <button class="astra-chip ${this.state.country === 'all' ? 'active' : ''}" data-val="all">All</button>
-                <button class="astra-chip ${this.state.country === 'JP' ? 'active' : ''}" data-val="JP">JP</button>
-                <button class="astra-chip ${this.state.country === 'CN' ? 'active' : ''}" data-val="CN">CN</button>
-                <button class="astra-chip ${this.state.country === 'KR' ? 'active' : ''}" data-val="KR">KR</button>
-              </div>
-            </div>
-
           </div>
-
-            <div class="astra-filter-chips" data-filter="status" id="astra-list-filters">
-              <button class="astra-chip ${this.state.status === 'all' ? 'active' : ''}" data-val="all">All</button>
-              <select class="astra-chip astra-select-chip ${this.state.anilistStatus !== 'all' ? 'active' : ''}" id="astra-filter-status" data-filter="anilistStatus">
-                <option value="all">ALL STATUSES</option>
-                <option value="CURRENT" ${this.state.anilistStatus === 'CURRENT' ? 'selected' : ''}>WATCHING / READING</option>
-                <option value="COMPLETED" ${this.state.anilistStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
-                <option value="PLANNING" ${this.state.anilistStatus === 'PLANNING' ? 'selected' : ''}>PLANNING</option>
-                <option value="PAUSED" ${this.state.anilistStatus === 'PAUSED' ? 'selected' : ''}>PAUSED</option>
-                <option value="DROPPED" ${this.state.anilistStatus === 'DROPPED' ? 'selected' : ''}>DROPPED</option>
-                <option value="REPEATING" ${this.state.anilistStatus === 'REPEATING' ? 'selected' : ''}>REWATCHING</option>
-              </select>
-              <!-- Dynamic List Chips -->
-            </div>
+          
+          <div class="astra-filter-bar" id="astra-list-filters">
+            <!-- Dynamic Filters & Chips -->
+          </div>
         </div>
 
         <div class="astra-table-wrap">
-          ${works.length > 0 ? `
-            <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 90px)">
-              <div class="astra-grid-header">
-                <div style="width: 80px">Cover</div>
-                <div data-sort="title">Title</div>
-                <div data-sort="type">Type</div>
-                <div data-sort="score">Overall</div>
-                ${sections.map(s => `<div data-sort="score-${s.id}">${s.name}</div>`).join('')}
-                <div style="text-align: right; justify-content: flex-end">Actions</div>
-              </div>
-              <div id="astra-table-body">
-                <!-- Dynamic Grid Rows -->
-              </div>
-            </div>
-          ` : this.renderEmptyState()}
+          ${works.length > 0 ? this.renderGrid() : this.renderEmptyState()}
         </div>
       </div>
     `;
@@ -425,7 +392,14 @@ export class AstraDashboard extends BaseComponent {
     }
 
     // Update Table Body
-    const tbody = this.overlay.querySelector('#astra-table-body');
+    let tbody = this.overlay.querySelector('#astra-table-body');
+
+    // If tbody is missing but we now have works (transition from empty state)
+    if (!tbody && sortedWorks.length > 0) {
+      this.renderDashboard(); // Full re-render to switch from Welcome screen to Grid
+      return;
+    }
+
     if (tbody) {
       tbody.innerHTML = '';
 
@@ -452,16 +426,30 @@ export class AstraDashboard extends BaseComponent {
         .sort();
 
       listContainer.innerHTML = `
-        <button class="astra-chip ${this.state.status === 'all' ? 'active' : ''}" data-val="all">All</button>
-        <select class="astra-chip astra-select-chip ${this.state.anilistStatus !== 'all' ? 'active' : ''}" id="astra-filter-status" data-filter="anilistStatus">
-          <option value="all">ALL STATUSES</option>
-          <option value="CURRENT" ${this.state.anilistStatus === 'CURRENT' ? 'selected' : ''}>WATCHING / READING</option>
-          <option value="COMPLETED" ${this.state.anilistStatus === 'COMPLETED' ? 'selected' : ''}>COMPLETED</option>
-          <option value="PLANNING" ${this.state.anilistStatus === 'PLANNING' ? 'selected' : ''}>PLANNING</option>
-          <option value="PAUSED" ${this.state.anilistStatus === 'PAUSED' ? 'selected' : ''}>PAUSED</option>
-          <option value="DROPPED" ${this.state.anilistStatus === 'DROPPED' ? 'selected' : ''}>DROPPED</option>
-          <option value="REPEATING" ${this.state.anilistStatus === 'REPEATING' ? 'selected' : ''}>REWATCHING</option>
+        <select class="astra-chip astra-select-chip ${this.state.type !== 'all' ? 'active' : ''}" data-filter="type">
+          <option value="all">${this.state.type !== 'all' ? '✕ Clear' : 'Type'}</option>
+          <option value="anime" ${this.state.type === 'anime' ? 'selected' : ''}>Anime</option>
+          <option value="manga" ${this.state.type === 'manga' ? 'selected' : ''}>Manga</option>
+          <option value="novel" ${this.state.type === 'novel' ? 'selected' : ''}>Novel</option>
         </select>
+        <select class="astra-chip astra-select-chip ${this.state.country !== 'all' ? 'active' : ''}" data-filter="country">
+          <option value="all">${this.state.country !== 'all' ? '✕ Clear' : 'Country'}</option>
+          <option value="JP" ${this.state.country === 'JP' ? 'selected' : ''}>Japan</option>
+          <option value="CN" ${this.state.country === 'CN' ? 'selected' : ''}>China</option>
+          <option value="KR" ${this.state.country === 'KR' ? 'selected' : ''}>Korea</option>
+        </select>
+        <select class="astra-chip astra-select-chip ${this.state.anilistStatus !== 'all' ? 'active' : ''}" id="astra-filter-status" data-filter="anilistStatus">
+          <option value="all">${this.state.anilistStatus !== 'all' ? '✕ Clear' : 'Status'}</option>
+          <option value="WATCHING" ${this.state.anilistStatus === 'WATCHING' ? 'selected' : ''}>Watching</option>
+          <option value="READING" ${this.state.anilistStatus === 'READING' ? 'selected' : ''}>Reading</option>
+          <option value="COMPLETED" ${this.state.anilistStatus === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+          <option value="PLANNING" ${this.state.anilistStatus === 'PLANNING' ? 'selected' : ''}>Planning</option>
+          <option value="PAUSED" ${this.state.anilistStatus === 'PAUSED' ? 'selected' : ''}>Paused</option>
+          <option value="DROPPED" ${this.state.anilistStatus === 'DROPPED' ? 'selected' : ''}>Dropped</option>
+          <option value="REPEATING" ${this.state.anilistStatus === 'REPEATING' ? 'selected' : ''}>Rewatching</option>
+        </select>
+        <div class="astra-filter-divider"></div>
+        <button class="astra-chip ${this.state.status === 'all' && this.state.anilistStatus === 'all' && this.state.type === 'all' && this.state.country === 'all' ? 'active' : ''}" data-val="all">All</button>
         ${allLists.map(list => `
           <button class="astra-chip ${this.state.status === list ? 'active' : ''}" data-val="${list}">${list}</button>
         `).join('')}
@@ -472,7 +460,10 @@ export class AstraDashboard extends BaseComponent {
         if (el.tagName === 'SELECT') {
           el.addEventListener('change', (e) => {
             const target = e.currentTarget as HTMLSelectElement;
-            this.state.anilistStatus = target.value;
+            const filter = target.getAttribute('data-filter');
+            if (filter === 'type') this.state.type = target.value;
+            else if (filter === 'country') this.state.country = target.value;
+            else if (filter === 'anilistStatus') this.state.anilistStatus = target.value;
             this.updateDashboardDynamic();
           });
         } else {
@@ -490,7 +481,7 @@ export class AstraDashboard extends BaseComponent {
 
     // Update active chips for Type and Country
     this.overlay.querySelectorAll('.astra-filter-chips:not(#astra-list-filters) .astra-chip').forEach(chip => {
-      const filterType = chip.parentElement?.getAttribute('data-filter');
+      const filterType = chip.closest('.astra-filter-group')?.getAttribute('data-filter');
       const val = chip.getAttribute('data-val');
       if (filterType && (this.state as any)[filterType] === val) {
         chip.classList.add('active');
@@ -531,7 +522,17 @@ export class AstraDashboard extends BaseComponent {
       const matchSearch = !this.state.search || w.title.toLowerCase().includes(this.state.search.toLowerCase());
       const matchType = this.state.type === 'all' || w.type === this.state.type;
       const matchStatus = this.state.status === 'all' || (w.customLists || []).includes(this.state.status);
-      const matchAnilistStatus = this.state.anilistStatus === 'all' || (w.status || '').toUpperCase() === this.state.anilistStatus;
+      let matchAnilistStatus = true;
+      if (this.state.anilistStatus !== 'all') {
+        const wStatus = (w.status || '').toUpperCase();
+        if (this.state.anilistStatus === 'WATCHING') {
+          matchAnilistStatus = wStatus === 'CURRENT' && w.type === 'anime';
+        } else if (this.state.anilistStatus === 'READING') {
+          matchAnilistStatus = wStatus === 'CURRENT' && w.type === 'manga';
+        } else {
+          matchAnilistStatus = wStatus === this.state.anilistStatus;
+        }
+      }
       const matchCountry = this.state.country === 'all' || w.country === this.state.country;
       return matchSearch && matchType && matchStatus && matchAnilistStatus && matchCountry;
     });
@@ -575,11 +576,12 @@ export class AstraDashboard extends BaseComponent {
 
 
   private renderRow(work: AstraWork): string {
+
     const sections = this.service!.getSections();
     const lastSeason = work.seasons[work.seasons.length - 1];
     const total = work.type === 'anime' ? work.episodes : work.chapters;
     let percent = (total && total > 0) ? Math.min(100, Math.round(((work.progress || 0) / total) * 100)) : 0;
-    
+
     // Fallback for active titles with unknown total
     if (percent === 0 && (work.progress || 0) > 0) percent = 5;
 
@@ -587,8 +589,8 @@ export class AstraDashboard extends BaseComponent {
     const scoreClass = (overallScore || 0) >= 8 ? 'high' : (overallScore || 0) >= 6 ? 'mid' : 'low';
     const noProgressClass = (work.progress || 0) === 0 ? 'astra-row-no-progress' : '';
 
-    const rowStyle = this.state.showProgress && (work.progress || 0) > 0 
-      ? `background-image: linear-gradient(90deg, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0.2) 100%); background-size: ${percent}% 100%; box-shadow: inset 3px 0 0 #3b82f6;`
+    const rowStyle = this.state.showProgress && (work.progress || 0) > 0
+      ? `background-image: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%); background-size: ${percent}% 100%; box-shadow: inset 3px 0 0 #3b82f6;`
       : '';
 
     return `
@@ -602,7 +604,7 @@ export class AstraDashboard extends BaseComponent {
             <div class="astra-table-subtitle">
               <span class="astra-badge astra-badge--country">${work.country || 'JP'}</span>
               <span class="astra-badge astra-badge--progress">${work.progress || 0} / ${total || '?'}</span>
-              ${(work.customLists || []).map(l => `<span class="astra-badge astra-badge--list-item">${l}</span>`).join('')}
+              ${(work.customLists || []).map((l: string) => `<span class="astra-badge astra-badge--list-item">${l}</span>`).join('')}
             </div>
           </div>
         </div>
@@ -613,16 +615,36 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-table-score-badge ${scoreClass}">${overallScore ? overallScore.toFixed(1) : '-'}</div>
         </div>
         ${sections.map(s => {
-          const score = lastSeason.scores[s.id];
-          return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
-        }).join('')}
+      const score = lastSeason.scores[s.id];
+      return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
+    }).join('')}
         <div class="astra-table-actions">
           <a href="${work.anilistUrl}" target="_blank" class="astra-icon-btn astra-external-link" title="Open on AniList">
             <i class="fa fa-external-link-alt"></i>
           </a>
-          <button class="astra-icon-btn astra-delete-row" title="Delete Entry">
-            <i class="fa fa-trash"></i>
+          <button class="astra-icon-btn astra-edit-btn" title="Quick Edit">
+            <i class="fa fa-pencil-alt"></i>
           </button>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderGrid(): string {
+    const sections = this.service!.getSections();
+
+    return `
+      <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 90px)">
+        <div class="astra-grid-header">
+          <div style="width: 80px">Cover</div>
+          <div class="astra-sortable" data-sort="title">Title</div>
+          <div class="astra-sortable" data-sort="type">Type</div>
+          <div class="astra-sortable" data-sort="score">Score</div>
+          ${sections.map(s => `<div class="astra-sortable" data-sort="section-${s.id}">${s.name}</div>`).join('')}
+          <div style="text-align: right; justify-content: flex-end">Actions</div>
+        </div>
+        <div id="astra-table-body">
+           <!-- Rows will be injected by updateDashboardDynamic -->
         </div>
       </div>
     `;
@@ -651,8 +673,8 @@ export class AstraDashboard extends BaseComponent {
     // Close
     this.overlay.querySelector('.astra-modal-close')?.addEventListener('click', () => this.close());
 
-    // Click outside to close
-    this.overlay.addEventListener('click', (e) => {
+    // Click outside to close (mousedown for snappiness)
+    this.overlay.addEventListener('mousedown', (e) => {
       if (e.target === this.overlay) {
         this.close();
       }
@@ -687,6 +709,7 @@ export class AstraDashboard extends BaseComponent {
     // Toggle Progress
     overlay.querySelector('#astra-toggle-progress')?.addEventListener('click', (e) => {
       this.state.showProgress = !this.state.showProgress;
+      localStorage.setItem('astra_show_progress', String(this.state.showProgress));
       const btn = e.currentTarget as HTMLElement;
       const container = overlay.querySelector('#astra-dashboard-container');
 
@@ -708,9 +731,20 @@ export class AstraDashboard extends BaseComponent {
         el.addEventListener('change', (e) => {
           const target = e.currentTarget as HTMLSelectElement;
           const filterType = target.getAttribute('data-filter');
+          const groupEl = target.closest('.astra-filter-group');
+
           if (filterType) {
             (this.state as any)[filterType] = target.value;
             this.updateDashboardDynamic();
+
+            // Highlight management
+            if (target.value === 'all') {
+              target.classList.remove('active');
+              groupEl?.querySelector('button[data-val="all"]')?.classList.add('active');
+            } else {
+              target.classList.add('active');
+              groupEl?.querySelector('button[data-val="all"]')?.classList.remove('active');
+            }
           }
         });
       } else {
@@ -724,7 +758,14 @@ export class AstraDashboard extends BaseComponent {
             (this.state as any)[filterType] = val;
             this.updateDashboardDynamic();
 
-            // Active class
+            // If clicking "All" button, reset sibling select if exists
+            const select = groupEl?.querySelector('select');
+            if (val === 'all' && select) {
+              select.value = 'all';
+              select.classList.remove('active');
+            }
+
+            // Active class management
             groupEl?.querySelectorAll('.astra-chip').forEach(c => c.classList.remove('active'));
             target.classList.add('active');
           }
@@ -961,7 +1002,7 @@ export class AstraDashboard extends BaseComponent {
         (btn.closest('.astra-sub-edit-row') as HTMLElement).remove();
       });
     });
-    
+
   }
 
   // Row events are now handled via delegation in attachDashboardEvents

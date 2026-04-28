@@ -416,6 +416,8 @@ Coperto da FEAT-002 (Intelligent Caching System).
 **Description:**
 Permettere di selezionare contemporaneamente Country e Type filter senza esclusione mutua.
 
+**Status:** ✅ FIXED - Standardized filter bar with flexbox layout allows all filters to be visible and accessible on the same line with a vertical separator.
+
 **Current:** Radio button (solo uno selezionabile)
 **Desired:** Checkbox (entrambi selezionabili)
 
@@ -445,6 +447,8 @@ Documentare e verificare il funzionamento di `chrome.storage.sync` per la sincro
 
 **Description:**
 Aggiungere animazione CSS smooth per l'apertura della dashboard Astra.
+
+**Status:** ✅ FIXED - Implemented bouncy pop-up entry and smooth fade-out exit transitions. Added sticky control bar for persistent navigation.
 
 **Implementation:**
 ```css

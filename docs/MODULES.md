@@ -295,17 +295,19 @@ Advanced multi-criteria scoring system. Users can rate anime/manga across multip
 - **Season Tracking** - Rate each season separately
 - **Series Finale Bonus** - Double weight for finale category when marked
 - **Skip Categories** - Per-season ability to skip irrelevant categories
-- **AniList Sync** - Import entire anime/manga list from AniList
+- **Manual AniList Sync** - Data import from AniList is strictly user-triggered (no automatic background sync)
 - **Export/Import** - JSON export and import for backup
 - **Card Pills** - Action buttons injected on anime cards (Mark Watched, Quick Rate, Social)
-- **Dashboard Tab** - Custom `/user/*/astra` page with full management UI
+- **Advanced UI/UX** - Bouncy pop-up entrance, smooth fade-out exit, and stable grid layout with sticky dashboard controls.
+- **Dashboard Tab** - Custom `/user/*/astra` page with full management UI and anchored search/filter bar.
+- **Smart Filtering** - Split Watching/Reading filters with type-aware logic (Anime vs Manga).
 - **Radar Chart** - Visual representation of scores per section
 - **Episode Notes** - Per-episode notes with optional scores
 
 ### Default Scoring Sections
 
 | Section | Default Weight |
-|---------|---------------|
+|---------|----------------|
 | Story | 3 |
 | Characters | 3 |
 | Visuals | 2 |
