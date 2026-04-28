@@ -43,10 +43,19 @@ interface RequestQueueItem {
   silent?: boolean;
 }
 
+interface GraphQLError {
+  message: string;
+}
+
+interface ApiErrorResponse {
+  status?: number;
+  errors?: GraphQLError[];
+}
+
 /**
  * Type guard for API errors with response status
  */
-function isApiError(error: unknown): error is { message?: string; response?: { status?: number } } {
+function isApiError(error: unknown): error is { message?: string; response?: ApiErrorResponse } {
   return typeof error === 'object' && error !== null;
 }
 
@@ -200,7 +209,7 @@ export class AnilistClient implements IApiClient {
       // Handle rate limiting
       if (this.isRateLimitError(error)) {
         log.warn('Rate limit hit, retrying after delay');
-        this.handleRateLimit(item);
+        this.handleRateLimit(item, error);
       } else if (item.retries < API_CONFIG.RETRY_ATTEMPTS) {
         const delay = Math.pow(2, item.retries) * 1000; // Exponential backoff: 1s, 2s, 4s...
         log.warn(`Request failed, retry ${item.retries + 1}/${API_CONFIG.RETRY_ATTEMPTS} in ${delay}ms`);
@@ -213,8 +222,17 @@ export class AnilistClient implements IApiClient {
       } else {
         log.error('Request failed after max retries', error);
 
-        const errorMessage = isApiError(error) && error.message ? error.message : 'Anilist API request failed';
+        let errorMessage = 'Anilist API request failed';
         const statusCode = isApiError(error) ? error.response?.status : undefined;
+
+        // Try to extract detailed GraphQL error message
+        if (isApiError(error) && error.response?.errors && error.response.errors.length > 0) {
+          errorMessage = error.response.errors.map(e => e.message).join(' | ');
+        } else if (isApiError(error) && error.message) {
+          errorMessage = error.message;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
 
         const apiError = new ApiError(
           errorMessage,
@@ -265,19 +283,39 @@ export class AnilistClient implements IApiClient {
   /**
    * Check if error is a rate limit error
    */
-  private isRateLimitError(error: any): boolean {
-    return (
-      error.response?.status === 429 ||
-      error.message?.includes('rate limit') ||
-      error.message?.includes('Too Many Requests')
-    );
+  private isRateLimitError(error: unknown): boolean {
+    if (isApiError(error)) {
+      return (
+        error.response?.status === 429 ||
+        (error.message ? error.message.includes('rate limit') : false) ||
+        (error.message ? error.message.includes('Too Many Requests') : false)
+      );
+    }
+    if (error instanceof Error) {
+      return (
+        error.message.includes('rate limit') ||
+        error.message.includes('Too Many Requests')
+      );
+    }
+    return false;
   }
 
   /**
    * Handle rate limiting
    */
-  private handleRateLimit(item: RequestQueueItem): void {
+  private handleRateLimit(item: RequestQueueItem, originalError: unknown): void {
     this.isRateLimited = true;
+
+    // Notify user that we are paused due to rate limits
+    if (!item.silent) {
+      this.eventBus.emit(EVENT_TYPES.API_ERROR, {
+        error: originalError instanceof Error ? originalError : new Error('Rate limit hit'),
+        context: 'Anilist API Rate Limit',
+        statusCode: 429,
+        timestamp: new Date(),
+        severity: 'medium'
+      });
+    }
 
     // Put item back in queue
     this.queue.unshift(item);

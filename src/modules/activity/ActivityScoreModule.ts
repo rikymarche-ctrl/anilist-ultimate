@@ -40,17 +40,17 @@ export class ActivityScoreModule extends BaseModule {
     log.info('ActivityScore: Initializing...');
 
     // Use centralized navigation events instead of polling
-    this.onPageChange((event) => {
+    this.onPageChange(async (event) => {
       const path = event?.path || window.location.pathname;
       if (this.shouldRun(path)) {
-        this.startObservation();
+        await this.startObservation();
       } else {
         this.stopObservation();
       }
     });
 
     if (this.shouldRun(window.location.pathname)) {
-      this.startObservation();
+      await this.startObservation();
     }
   }
 
@@ -82,6 +82,9 @@ export class ActivityScoreModule extends BaseModule {
       });
       log.debug('[ActivityScore] Observing activity feed container (BUG-007 optimization)');
     }
+
+    // Call checkAndProcess again to catch anything rendered while we were waiting
+    this.checkAndProcess();
   }
 
   private stopObservation(): void {
@@ -92,7 +95,7 @@ export class ActivityScoreModule extends BaseModule {
   private checkAndProcess(): void {
     // Select all activity entries that haven't been enhanced yet
     const entries = document.querySelectorAll('.activity-entry:not([data-au-score-enhanced]), .activity-anime:not([data-au-score-enhanced]), .activity-manga:not([data-au-score-enhanced])');
-    
+
     entries.forEach(el => {
       const entry = el as HTMLElement;
       entry.setAttribute('data-au-score-enhanced', 'pending');
@@ -146,10 +149,10 @@ export class ActivityScoreModule extends BaseModule {
     this.pendingQueue.clear();
 
     const pairs = Array.from(currentBatch.values()).map(v => ({ userName: v.userName, mediaId: v.mediaId }));
-    
+
     try {
       const scores = await this.activityService.getScoresBatch(pairs);
-      
+
       currentBatch.forEach((data, key) => {
         const scoreData = scores.get(key);
         data.elements.forEach(el => {

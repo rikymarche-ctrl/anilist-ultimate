@@ -22,7 +22,18 @@ import { TOKENS } from '@core/di/tokens';
 export class CalendarSocialService {
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService
-  ) {}
+  ) {
+    // React to socialEnabled toggling from settings
+    calendarStore.subscribeToSelector(
+      state => state.preferences.socialEnabled,
+      (curr, prev) => {
+        if (curr === true && prev === false) {
+          log.info('[CalendarSocial] Social features enabled, triggering fetch...');
+          this.loadFriendActivity();
+        }
+      }
+    );
+  }
   /**
    * Load friend activity for current calendar entries
    */

@@ -73,8 +73,8 @@ export class SocialRenderer {
    * @param signal - Optional AbortSignal for cleanup (recommended to prevent memory leaks)
    */
   public static injectIntoCard(card: HTMLElement, mediaId: number, activities: FriendActivity[] = [], signal?: AbortSignal): void {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
-    if (!socialEnabled || !socialShowAvatars) return;
+    const { socialEnabled } = calendarStore.getState().preferences;
+    if (!socialEnabled) return;
 
     // 1. Remove existing wrapper to prevent duplicate listeners
     card.querySelector('.au-social-wrapper')?.remove();

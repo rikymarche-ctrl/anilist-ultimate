@@ -378,6 +378,11 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     }
 
     this.pendingChanges[setting] = value;
+    
+    // Auto-save immediately
+    calendarStore.savePreferences({ [setting]: value }).then(() => {
+      window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
+    });
   }
 
   private handleSliderChange(slider: HTMLInputElement): void {
@@ -395,6 +400,11 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     }
 
     (this.pendingChanges as any)[setting] = value;
+    
+    // Auto-save immediately
+    calendarStore.savePreferences({ [setting]: value }).then(() => {
+      window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
+    });
   }
 
   private async handleReset(): Promise<void> {
@@ -406,11 +416,8 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   }
 
   private async handleSave(): Promise<void> {
-    if (Object.keys(this.pendingChanges).length > 0) {
-      await calendarStore.savePreferences(this.pendingChanges);
-      log.success('Settings saved');
-      window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
-    }
+    // Settings are now auto-saved on change, just close
+    log.success('Settings closed');
     this.close();
   }
 

@@ -316,6 +316,7 @@ export class AstraService {
       if (added > 0 || updated > 0) {
         // Sort by updatedAt or mediaId to keep it consistent
         this.works.sort((a, b) => b.updatedAt - a.updatedAt);
+        this.rebuildWorkIndex(); // BUG-031 Fix: Rebuild index after sync
         await this.persist();
       }
 
@@ -343,6 +344,8 @@ export class AstraService {
         updatedAt: Date.now(),
       };
       this.works[existingIdx] = updatedWork;
+      // Update Map index with new object reference
+      this.worksByMediaId.set(updatedWork.mediaId, updatedWork);
     } else {
       updatedWork = Object.assign({
         id: `w_${generateUUID()}`,

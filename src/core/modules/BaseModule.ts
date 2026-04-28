@@ -68,10 +68,6 @@ export abstract class BaseModule implements IModule {
 
     this.observerTimeouts.forEach(timeout => window.clearTimeout(timeout));
     this.observerTimeouts.clear();
-
-    // Unsubscribe from all events
-    this.eventSubscriptions.forEach(sub => sub.unsubscribe());
-    this.eventSubscriptions = [];
   }
 
   /**
@@ -79,6 +75,11 @@ export abstract class BaseModule implements IModule {
    */
   public async destroy(): Promise<void> {
     this.cleanup();
+    
+    // Unsubscribe from all events only on full destruction
+    this.eventSubscriptions.forEach(sub => sub.unsubscribe());
+    this.eventSubscriptions = [];
+
     if (this.urlCheckInterval) {
       window.clearInterval(this.urlCheckInterval);
       this.urlCheckInterval = null;

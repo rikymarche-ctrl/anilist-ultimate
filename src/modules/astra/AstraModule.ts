@@ -26,7 +26,6 @@ import { injectable, inject } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
-import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
@@ -73,11 +72,6 @@ export class AstraModule extends BaseModule {
       }
     });
 
-    // Listen for global open event (from Calendar or other modules)
-    this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, () => {
-      this.dashboard.open();
-    });
-
     log.success('[Astra] Module initialized');
 
     // Initialize Progress Enhancer for home page cards
@@ -116,6 +110,13 @@ export class AstraModule extends BaseModule {
     (container as HTMLElement).style.display = 'block';
 
     this.dashboard.mount(container as HTMLElement);
+    
+    // BUG-009 Fix: Lazy sync on tab open
+    if (this.service) {
+      this.service.syncWithAniList((this as any).apiClient).then(({updated}) => {
+        if (updated > 0) this.dashboard.refresh();
+      }).catch((e: any) => log.error('[Astra] Lazy sync failed', e));
+    }
   }
 
   public getName(): string {

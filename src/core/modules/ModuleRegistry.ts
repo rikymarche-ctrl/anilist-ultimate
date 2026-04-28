@@ -55,6 +55,29 @@ export class ModuleRegistry {
     @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
     // Logger and EventBus will be injected via DI
+    
+    // Listen for SPA navigation to initialize modules that didn't match the initial page load
+    this.eventBus.on(EVENT_TYPES.PAGE_CHANGED, () => {
+      this.checkPendingModules();
+    });
+  }
+
+  /**
+   * Check if any pending modules now match the current page and should be initialized
+   */
+  private async checkPendingModules(): Promise<void> {
+    const pendingModules = Array.from(this.initStatus.entries())
+      .filter(([_name, status]) => status === 'pending')
+      .map(([name]) => name);
+
+    for (const name of pendingModules) {
+      const metadata = this.modules.get(name);
+      if (metadata && metadata.pageMatch && metadata.pageMatch(window.location.pathname)) {
+        this.logger.info(`[ModuleRegistry] Module "${name}" now matches page, initializing...`);
+        // We use initModule directly. It will safely skip if already initializing.
+        await this.initModule(name);
+      }
+    }
   }
 
   /**

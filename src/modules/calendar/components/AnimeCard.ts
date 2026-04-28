@@ -152,17 +152,17 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
     const { anime } = this.props;
 
+    // BUG-008 Fix: Always show portal (for the button) if social features and avatars are enabled,
+    // even if there is no friend activity.
     if (socialEnabled && socialShowAvatars) {
-      // socialBubble is guaranteed null here (destroyed before update cycle)
-      this.createSocialPortal(anime);
+      if (!this.socialBubble) {
+        this.createSocialPortal(anime);
+      }
+    } else {
+      this.destroySocialPortal();
     }
-    // If not enabled/avatars off: nothing to do, portal is already null
   }
 
-  /**
-   * Surgically update the social button inside the action pill(s) without full rerender.
-   * Guaranteed immediate DOM update, bypasses shouldUpdate/JSON comparison.
-   */
   /**
    * Get action pills with caching for performance
    */

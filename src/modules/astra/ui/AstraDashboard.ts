@@ -21,6 +21,10 @@
 import { injectable, singleton, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { AstraService, AstraWork } from '../AstraService';
+import { log } from '@core/logger';
+import { EVENT_TYPES } from '@core/events/EventTypes';
+import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import { TOKENS } from '@core/di/tokens';
 import { ToastService } from '@core/services/ToastService';
 
@@ -44,13 +48,19 @@ export class AstraDashboard extends BaseComponent {
   constructor(
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.ToastService) private toast: ToastService,
-    @inject(TOKENS.ApiClient) private apiClient: any // IApiClient
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
+    @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
     super({});
+
+    // BUG-009 Fix: Listen for global open event directly in the dashboard component
+    this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, () => {
+      this.open();
+    });
   }
 
   public open(): void {
-
+    log.debug('[AstraDashboard] Opening dashboard...');
     if (this.overlay) return;
 
     this.overlay = document.createElement('div');
@@ -64,6 +74,11 @@ export class AstraDashboard extends BaseComponent {
     });
 
     this.renderDashboard();
+
+    // BUG-009 Fix: Lazy sync on open
+    this.service.syncWithAniList(this.apiClient).then(({updated}) => {
+      if (updated > 0) this.updateDashboardDynamic();
+    }).catch(e => console.error('[Astra] Lazy sync failed', e));
   }
 
   public close(): void {
@@ -324,6 +339,10 @@ export class AstraDashboard extends BaseComponent {
     `;
   }
 
+  public refresh(): void {
+    this.updateDashboardDynamic();
+  }
+
   private updateDashboardDynamic(): void {
     if (!this.overlay) return;
 
@@ -569,7 +588,7 @@ export class AstraDashboard extends BaseComponent {
     const noProgressClass = (work.progress || 0) === 0 ? 'astra-row-no-progress' : '';
 
     const rowStyle = this.state.showProgress && (work.progress || 0) > 0 
-      ? `background-image: linear-gradient(90deg, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0.2) 100%); background-size: ${percent}% 100%; border-left: 3px solid #3b82f6;`
+      ? `background-image: linear-gradient(90deg, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0.2) 100%); background-size: ${percent}% 100%; box-shadow: inset 3px 0 0 #3b82f6;`
       : '';
 
     return `

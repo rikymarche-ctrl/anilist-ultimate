@@ -80,7 +80,7 @@ export class NotificationCleanerModule extends BaseModule {
         }
       }, true);
 
-      this.onPageChange((event) => {
+      this.onPageChange(async (event) => {
         const path = event?.path || window.location.pathname;
         // Ignore pushState events that do not actually change the page (e.g. infinite scroll)
         if (path === this.currentPath) return;
@@ -88,14 +88,14 @@ export class NotificationCleanerModule extends BaseModule {
 
         this.fullReset();
         this.clearVirtualNotifications();
-        
+
         if (path.includes('/notifications')) {
-          this.startObservation();
+          await this.startObservation();
         }
       });
 
       if (window.location.pathname.includes('/notifications')) {
-        this.startObservation();
+        await this.startObservation();
       }
     } catch (error) {
       log.error('[NotificationCleaner] Initialization failed', error);
@@ -122,9 +122,6 @@ export class NotificationCleanerModule extends BaseModule {
     document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
       n.removeAttribute('data-au-processed');
     });
-
-    // Clear notification activity cache on page change
-    this.fetchService.clearCache();
   }
 
   private async startObservation(): Promise<void> {
@@ -145,6 +142,9 @@ export class NotificationCleanerModule extends BaseModule {
       });
       log.debug('[NotificationCleaner] Observing .notifications container (BUG-007 optimization)');
     }
+
+    // Call checkAndProcess AGAIN to catch anything rendered while we were waiting
+    this.checkAndProcess();
 
     // PERF: Polling fallback to catch notifications loaded via "Load More"
     // MutationObserver may not always trigger when Anilist dynamically adds notifications

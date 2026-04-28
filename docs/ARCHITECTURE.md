@@ -1,4 +1,4 @@
-# Anilist Ultimate v2 - Architecture Documentation
+# Anilist Ultimate - Architecture Documentation
 
 ## Table of Contents
 
@@ -39,10 +39,10 @@ Anilist Ultimate v2 is a **Chrome Extension** (Manifest V3) that enhances the [A
 |    -> content_scripts: src/main.ts                               |
 |    -> popup: popup.html                                          |
 +------------------------------------------------------------------+
-         |
-         v
+                                |
+                                v
 +------------------------------------------------------------------+
-|                          main.ts                                 |
+|                            main.ts                               |
 |  1. Import reflect-metadata (tsyringe)                           |
 |  2. Call setupDI() -> register all services                      |
 |  3. OAuth callback handling                                      |
@@ -50,10 +50,10 @@ Anilist Ultimate v2 is a **Chrome Extension** (Manifest V3) that enhances the [A
 |  5. Font Awesome injection                                       |
 |  6. ModuleRegistry.initAll()                                     |
 +------------------------------------------------------------------+
-         |
-         v
+                                |
+                                v
 +------------------------------------------------------------------+
-|                     DI Container (tsyringe)                       |
+|                     DI Container (tsyringe)                      |
 |------------------------------------------------------------------|
 |  Tokens (Symbols)  ->  Service Implementations                   |
 |  TOKENS.EventBus   ->  EventBus (singleton)                      |
@@ -62,10 +62,10 @@ Anilist Ultimate v2 is a **Chrome Extension** (Manifest V3) that enhances the [A
 |  TOKENS.Storage    ->  StorageManager (instance)                 |
 |  ...               ->  ...                                       |
 +------------------------------------------------------------------+
-         |
-         v
+                                |
+                                v
 +------------------------------------------------------------------+
-|                     Module Registry                               |
+|                        Module Registry                           |
 |------------------------------------------------------------------|
 |  Registered Modules (ModuleMetadata[]):                          |
 |  - calendar        (home page)                                   |
@@ -90,23 +90,24 @@ Anilist Ultimate v2 is a **Chrome Extension** (Manifest V3) that enhances the [A
 3. **Event-Driven Communication** - Modules communicate via a centralized `EventBus` (pub/sub)
 4. **SPA-Aware Navigation** - A centralized `NavigationService` intercepts AniList's SPA routing
 5. **Feature Flags** - Every module can be toggled via `ConfigManager`
+6. **Centralized UI Event Handling** - Large UI components (like AstraDashboard) handle their own global open/close events via EventBus listeners in their constructor. This ensures availability regardless of module lifecycle states or async initialization delays.
 
 ---
 
 ## 2. Technology Stack
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| Language | TypeScript | 5.4+ | Type safety, decorators |
-| Build | Vite | 5.2+ | Bundling, HMR, code splitting |
-| Extension | @crxjs/vite-plugin | 2.0-beta | Manifest V3 integration |
-| DI | tsyringe | 4.10 | Dependency injection container |
-| Reflection | reflect-metadata | 0.2 | Decorator metadata for DI |
-| API | graphql-request | 6.1 | GraphQL client for AniList API |
-| API Types | graphql | 16.8 | GraphQL schema types |
-| Testing | Vitest | 1.6 | Unit testing framework |
-| Linting | ESLint + Prettier | 8.57 / 3.2 | Code quality |
-| Minification | Terser | 5.46 | Production minification |
+| Layer        | Technology         | Version    | Purpose                        |
+| ------------ | ------------------ | ---------- | ------------------------------ |
+| Language     | TypeScript         | 5.4+       | Type safety, decorators        |
+| Build        | Vite               | 5.2+       | Bundling, HMR, code splitting  |
+| Extension    | @crxjs/vite-plugin | 2.0-beta   | Manifest V3 integration        |
+| DI           | tsyringe           | 4.10       | Dependency injection container |
+| Reflection   | reflect-metadata   | 0.2        | Decorator metadata for DI      |
+| API          | graphql-request    | 6.1        | GraphQL client for AniList API |
+| API Types    | graphql            | 16.8       | GraphQL schema types           |
+| Testing      | Vitest             | 1.6        | Unit testing framework         |
+| Linting      | ESLint + Prettier  | 8.57 / 3.2 | Code quality                   |
+| Minification | Terser             | 5.46       | Production minification        |
 
 ---
 
@@ -227,6 +228,7 @@ The extension uses [tsyringe](https://github.com/microsoft/tsyringe) for depende
 **Container** (`container.ts`): Re-exports the tsyringe global container.
 
 **Registration Flow:**
+
 ```
 setupDI() in setup.ts
   1. Register core infrastructure (Logger, Storage, EventBus, Config, ErrorHandler)
@@ -249,6 +251,7 @@ setupDI() in setup.ts
 Lightweight pub/sub system for decoupled module communication.
 
 **Key Features:**
+
 - Type-safe events via `AppEventMap` interface
 - `on()` / `off()` / `emit()` / `once()` methods
 - Async error handling (handler errors don't crash emitters)
@@ -256,6 +259,7 @@ Lightweight pub/sub system for decoupled module communication.
 - Automatic cleanup of empty handler sets
 
 **Event Categories:**
+
 - `module:*` - Module lifecycle (initialized, destroyed, error)
 - `calendar:*` - Calendar data and settings
 - `social:*` - Friend activity, custom lists
@@ -273,6 +277,7 @@ Lightweight pub/sub system for decoupled module communication.
 Centralizes SPA navigation detection. AniList is a Vue.js SPA, so page changes don't trigger full reloads.
 
 **Detection Methods (3 layers):**
+
 1. `MutationObserver` on `document.body` (catches DOM changes from routing)
 2. `popstate` event listener (browser back/forward)
 3. Monkey-patched `history.pushState` / `history.replaceState` (intercepts programmatic navigation)
@@ -288,6 +293,7 @@ Centralized configuration with persistence, feature flags, and change listeners.
 **Storage:** Chrome sync storage under key `anilist_ultimate_v2_config`.
 
 **Config Structure** (see `types.ts`):
+
 - `features` - Feature flags for each module (boolean toggles)
 - `debug` - Debug logging settings
 - `api` - API endpoint, timeout, rate limiting
@@ -296,6 +302,7 @@ Centralized configuration with persistence, feature flags, and change listeners.
 - `cache` - Cache durations
 
 **Change Notification:**
+
 - `onChange(key, callback)` method for reactive updates
 - Emits `CONFIG_CHANGED` events via EventBus
 - Deep merge with defaults on load (handles schema evolution)
@@ -307,10 +314,12 @@ Centralized configuration with persistence, feature flags, and change listeners.
 Type-safe wrapper around `chrome.storage` API.
 
 **Two Instances:**
+
 - `syncStorage` - Chrome sync storage (small data, synced across devices)
 - `localStorage` - Chrome local storage (large data, device-local)
 
 **Features:**
+
 - Automatic key prefixing (`anilist_ultimate_v2_`)
 - Anti-double-prefix protection
 - `onChange()` listener for reactive updates
@@ -324,6 +333,7 @@ Type-safe wrapper around `chrome.storage` API.
 Custom lightweight reactive store (~175 lines, zero dependencies).
 
 **Features:**
+
 - `getState()` / `setState()` with partial updates
 - `subscribe()` for global change listeners
 - `subscribeToSelector()` for targeted subscriptions with shallow equality checks
@@ -338,6 +348,7 @@ Custom lightweight reactive store (~175 lines, zero dependencies).
 **File:** `src/core/errors/`
 
 **Custom Error Types** (`ErrorTypes.ts`):
+
 - `ApiError` - API request failures (statusCode, endpoint, retryCount)
 - `ModuleError` - Module lifecycle failures (moduleName, context)
 - `StorageError` - Storage operations (operation, storageKey)
@@ -346,10 +357,13 @@ Custom lightweight reactive store (~175 lines, zero dependencies).
 - `ValidationError` - Data validation (field, expectedType)
 
 **ErrorHandler** (`ErrorHandler.ts`):
+
 - Centralized error handling with severity levels (Low, Medium, High, Critical)
 - Error history tracking (last 100 errors)
 - Global `unhandledrejection` and `error` event listeners
 - Type-specific handling (API errors emit AUTH_REQUIRED for 401/403)
+- **Detailed GQL Error Extraction**: Extracts specific error messages from AniList GraphQL `response.errors` payload for precise debugging.
+- **Immediate User Feedback**: Emits `API_ERROR` events that trigger `ToastService` alerts for critical or transient errors (e.g., Rate Limits).
 - Error statistics and reporting
 
 ### 4.8 Authentication
@@ -359,6 +373,7 @@ Custom lightweight reactive store (~175 lines, zero dependencies).
 Centralized OAuth token management.
 
 **Flow:**
+
 1. User authorizes via AniList OAuth (implicit grant)
 2. Redirect with `#access_token=...` in URL hash
 3. `main.ts:checkOAuthCallback()` extracts and saves via `AuthTokenService`
@@ -376,6 +391,7 @@ Structured logging with colored console output.
 **Levels:** `debug`, `info`, `warn`, `error`, `success`
 
 **Features:**
+
 - Configurable prefix: `[Anilist Ultimate]`
 - Colored output via CSS styles
 - Group/groupEnd for nested logging
@@ -401,6 +417,13 @@ Initialization (registry.initAll())
      5. Call instance.init()
      6. Store instance in registry
      7. Emit MODULE_INITIALIZED event
+
+SPA Navigation Support (registry.checkPendingModules())
+  -> On `PAGE_CHANGED` event:
+     1. Find modules in `pending` status
+     2. Re-check `pageMatch` against new URL
+     3. Initialize matching modules (late-binding)
+     4. Ensures modules wake up even after dynamic navigation.
 
 Runtime
   -> Module listens to PAGE_CHANGED events
@@ -434,11 +457,13 @@ Abstract base class providing:
 Manages module registration, initialization order, and lifecycle.
 
 **Features:**
-- Critical modules initialize sequentially first
-- Non-critical modules initialize in parallel (`Promise.allSettled`)
-- Status tracking (pending, initializing, initialized, failed)
-- Dependency resolution
-- Destruction in reverse order
+
+- **SPA-Aware Initialization**: Listens to `PAGE_CHANGED` events to initialize modules that didn't match the initial page load URL.
+- **Critical Modules**: Initialize sequentially first (blocking).
+- **Non-Critical Modules**: Initialize in parallel (`Promise.allSettled`).
+- **Status Tracking**: pending, initializing, initialized, failed.
+- **Dependency Resolution**: Modules can declare dependencies that must be initialized first.
+- **Destruction**: In reverse order (LIFO).
 
 ---
 
@@ -449,37 +474,46 @@ Manages module registration, initialization order, and lifecycle.
 GraphQL client for the AniList API (`https://graphql.anilist.co`).
 
 **Rate Limiting:**
+
 - Max 90 requests/minute (AniList limit)
 - 700ms delay between requests
 - Max 2 concurrent requests
 - Automatic queue management
 
 **Retry Strategy:**
+
 - 3 retry attempts
 - Exponential backoff (1s, 2s, 4s)
 - Rate limit detection (HTTP 429) with 60s cooldown
 
 **Queue System:**
+
 ```
 query()/mutate() -> push to queue -> processQueue()
   -> Check: !rateLimited && activeRequests < maxConcurrent && queue.length > 0
   -> Shift item from queue
-  -> executeRequest(item)
-  -> On success: resolve promise
-  -> On rate limit: put back in queue, wait 60s
-  -> On error + retries left: exponential backoff, retry
-  -> On error + no retries: reject with ApiError
-  -> Finally: delay 700ms, process next
+    -> executeRequest(item)
+    -> On success: resolve promise
+    -> On rate limit: 
+       1. Emit `API_ERROR` (status 429) to trigger user Toast
+       2. Put back in queue, wait 60s
+    -> On error + retries left: exponential backoff, retry
+    -> On error + no retries: 
+       1. Extract detailed GQL message if available
+       2. Reject with formatted `ApiError`
+    -> Finally: delay 700ms, process next
 ```
 
 **Alias Batching Pattern:**
 Multiple modules use GraphQL alias batching to fetch multiple resources in a single request:
+
 ```graphql
 query {
   m123: Page(perPage: 6) { mediaList(mediaId: 123, ...) { ... } }
   m456: Page(perPage: 6) { mediaList(mediaId: 456, ...) { ... } }
 }
 ```
+
 This reduces total API calls significantly.
 
 ---
@@ -491,12 +525,14 @@ This reduces total API calls significantly.
 **Vite + @crxjs/vite-plugin** for Chrome Extension development.
 
 **Key Configuration:**
+
 - Path aliases: `@/` -> `src/`, `@core/` -> `src/core/`, etc.
 - Manual chunks: `vendor` bundle for tsyringe + reflect-metadata
 - Terser minification with console stripping in production
 - HMR on port 5173
 
 **Build Output:**
+
 ```
 dist/
 ├── assets/
@@ -511,6 +547,7 @@ dist/
 ## 8. Data Flow Diagrams
 
 ### Page Load Flow
+
 ```
 Browser loads anilist.co
   -> Content script injected (document_idle)
@@ -526,6 +563,7 @@ Browser loads anilist.co
 ```
 
 ### Navigation Flow
+
 ```
 User clicks link on AniList (SPA navigation)
   -> Vue Router calls history.pushState()
@@ -537,6 +575,7 @@ User clicks link on AniList (SPA navigation)
 ```
 
 ### API Request Flow
+
 ```
 Module needs data
   -> apiClient.query(graphql, variables)

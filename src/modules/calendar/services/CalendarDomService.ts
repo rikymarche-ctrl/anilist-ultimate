@@ -139,8 +139,16 @@ export class CalendarDomService {
     parentHeader.querySelectorAll('.view-selector, .grid-icon, .list-icon, [class*="view-selector"]')
       .forEach(el => (el as HTMLElement).style.display = 'none');
 
-    actionsContainer.querySelector('.calendar-header__settings:not(.calendar-header__astra)')?.addEventListener('click', onSettingsClick);
-    actionsContainer.querySelector('.calendar-header__astra')?.addEventListener('click', onAstraClick);
+    actionsContainer.querySelector('.calendar-header__settings:not(.calendar-header__astra)')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onSettingsClick();
+    });
+    actionsContainer.querySelector('.calendar-header__astra')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onAstraClick();
+    });
   }
 
   /**
@@ -170,12 +178,12 @@ export class CalendarDomService {
                            child.querySelectorAll('.media-preview-card').length > 0;
       
       if (isNativeGrid) {
-        log.debug('[CalendarDomService] Removing native grid element');
-        child.remove();
+        log.debug('[CalendarDomService] Hiding native grid element');
+        (child as HTMLElement).style.display = 'none';
       } else if (container.classList.contains('list-preview-wrap') || container.tagName === 'SECTION') {
         // If we are in a wrap or section, be more aggressive but careful
-        log.debug('[CalendarDomService] Removing non-header child from section');
-        child.remove();
+        log.debug('[CalendarDomService] Hiding non-header child from section');
+        (child as HTMLElement).style.display = 'none';
       }
     });
   }

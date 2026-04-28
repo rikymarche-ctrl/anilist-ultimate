@@ -66,6 +66,9 @@ export class SocialEnhancerModule extends BaseModule {
   public async init(): Promise<void> {
     log.info('SocialEnhancerModule: Initializing...');
 
+    // Must wait for store initialization so we don't read default preferences
+    await calendarStore.init();
+
     // BUG-030 fix: Clear cache on page navigation to prevent unbounded growth
     this.onPageChange(() => {
       const cacheSize = this.activityCache.size;
@@ -207,8 +210,8 @@ export class SocialEnhancerModule extends BaseModule {
 
   private extractMediaId(card: HTMLElement): number | null {
     const link = (card as any).href ||
-                 card.querySelector<HTMLAnchorElement>('a.cover')?.href ||
-                 card.querySelector<HTMLAnchorElement>('a')?.href;
+      card.querySelector<HTMLAnchorElement>('a.cover')?.href ||
+      card.querySelector<HTMLAnchorElement>('a')?.href;
 
     if (!link) return null;
 

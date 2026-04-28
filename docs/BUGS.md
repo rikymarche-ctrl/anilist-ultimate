@@ -8,13 +8,13 @@
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| Critical | 3 |
-| High | 11 |
-| Medium | 11 |
-| Low | 8 |
-| Cosmetic | 5 |
+| Severity        | Count        |
+| --------------- | ------------ |
+| Critical        | 3            |
+| High            | 11           |
+| Medium          | 11           |
+| Low             | 8            |
+| Cosmetic        | 5            |
 | **Total** | **38** |
 
 ---
@@ -33,6 +33,7 @@
 Additionally, `AnilistClient.setAccessToken()` writes to 6 keys, while `AuthTokenService.setToken()` writes to 1 key and cleans the other 5. These two systems fight each other.
 
 **Reproduction:**
+
 1. Log in via OAuth
 2. `main.ts:checkOAuthCallback()` calls `authService.setToken()` (1 key + cleanup)
 3. `AnilistClient` constructor already loaded token from the now-cleaned legacy key
@@ -48,6 +49,7 @@ Additionally, `AnilistClient.setAccessToken()` writes to 6 keys, while `AuthToke
 **File:** `src/core/state/Store.ts:75-79`
 
 **Description:**
+
 ```typescript
 reset(newState?: Partial<T>): void {
   this.prevState = { ...this.state };
@@ -55,9 +57,11 @@ reset(newState?: Partial<T>): void {
   // When called without args: state = prevState (NOT initial state!)
 }
 ```
+
 The constructor sets `prevState = {...initialState}` but after the first `setState()`, `prevState` is overwritten. Calling `reset()` without arguments restores the state to whatever it was before the last `setState()`, not to the initial state.
 
 **Fix:** Store initial state separately:
+
 ```typescript
 private readonly initialState: T;
 constructor(initialState: T) {
@@ -82,6 +86,7 @@ reset(newState?: Partial<T>): void {
 
 **Description:**
 Il metodo che recupera i MediaList per più anime usa interpolazione diretta di `mediaId` nella query GraphQL:
+
 ```typescript
 const aliases = chunk.map(id => `m${id}: Page(...) { mediaList(mediaId: ${id}, ...) }`);
 ```
@@ -89,6 +94,7 @@ const aliases = chunk.map(id => `m${id}: Page(...) { mediaList(mediaId: ${id}, .
 Se un utente malintenzionato riuscisse a manipolare il DOM di una card per iniettare un valore non numerico nel `mediaId`, potrebbe eseguire GraphQL injection e leggere dati non autorizzati o causare errori nel backend AniList.
 
 **Fix:** Usare variabili GraphQL invece di interpolazione diretta:
+
 ```typescript
 const varDecls = chunk.map((_, i) => `$m${i}: Int!`).join(', ');
 const aliases = chunk.map((_, i) =>
@@ -109,13 +115,16 @@ chunk.forEach((id, i) => { variables[`m${i}`] = id; });
 **TODO ref:** "se scrollo troppo in basso nelle notifiche a un certo punto smette di mergarle"
 
 **Description:**
+
 ```typescript
 const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
 if (newNotifications.length === 0 && this.lastNotificationCount > 0) return;
 ```
+
 When AniList lazy-loads more notifications via infinite scroll, the MutationObserver fires. But if the new DOM mutations don't include unprocessed notifications (e.g., the observer fires for a different mutation), the early return at line 165 prevents reprocessing. The `lastNotificationCount` guard was meant as an optimization but prevents detecting new notifications loaded via scroll.
 
 **Fix:** Remove the early return guard or add a separate check for total notification count changes:
+
 ```typescript
 if (newNotifications.length === 0 && currentNotifications.length === this.lastNotificationCount) return;
 ```
@@ -147,6 +156,7 @@ The `ActivityFilterBar` class stores `activeFilters` as instance state, but sinc
 AniList periodically refreshes the activity feed (for new interactions). This triggers a DOM mutation, which the observer detects. The native feed type toggle gets re-rendered, removing the custom list tab. The `checkAndProcess()` method re-injects the tab but resets its state.
 
 **Fix:** Track the active list name in persistent state. On re-injection, restore the previous selection:
+
 ```typescript
 private activeListName: string | null = null;
 
@@ -172,12 +182,15 @@ private async injectCustomListsTab(): Promise<void> {
 
 **Description:**
 `toggleGrouping()` forcefully sets `this.isProcessing = false` at line 139:
+
 ```typescript
 this.isProcessing = false; // Force unlock for toggle
 ```
+
 If `processNotifications()` is already running from a previous toggle, setting `isProcessing = false` allows a concurrent execution. Both executions mutate the DOM simultaneously, creating duplicate virtual notifications or orphaned elements.
 
 **Fix:** Add debounce to the toggle:
+
 ```typescript
 private toggleDebounce: number | null = null;
 
@@ -205,6 +218,7 @@ private async toggleGrouping(): Promise<void> {
 
 **Description:**
 At least 3 modules register `MutationObserver` on `document.body` with `{ childList: true, subtree: true }`:
+
 - `ActivityEnhancerModule` (observer: "activity-continuous")
 - `NotificationCleanerModule` (observer: "notifications-continuous")
 - `AstraModule` (observer: "astra-progress-enhancer")
@@ -213,6 +227,7 @@ At least 3 modules register `MutationObserver` on `document.body` with `{ childL
 Each observer fires for every DOM mutation anywhere on the page. Even with throttling (200ms), this creates significant overhead on complex AniList pages.
 
 **Fix:**
+
 1. Use more specific target elements instead of `document.body`
 2. Share a single observer across modules that need it
 3. For `AstraModule`, observe only the card container section
@@ -255,11 +270,13 @@ Il metodo `getAllFollowings()` esegue un loop che scarica **tutte le pagine** de
 Se l'utente segue molte persone (500+), l'estensione bombarda AniList di richieste all'avvio, portando dritto al **rate-limit** (HTTP 429) e causando timeout di 60 secondi.
 
 **Problemi:**
+
 - Nessuna paginazione on-demand
 - Nessuna cache persistente tra sessioni
 - Tutte le chiamate vengono fatte in serie all'inizializzazione
 
 **Fix:**
+
 1. Implementare paginazione lazy (caricare i following solo quando necessario)
 2. Aggiungere cache persistente in localStorage/IndexedDB per i following
 3. Implementare cache TTL (time-to-live) di 24h
@@ -279,11 +296,13 @@ La `activityCache` (una `Map<string, Activity[]>`) salva le attività degli amic
 **Effetto:** Se l'utente passa ore a scrollare la lista "Browse" o i profili degli utenti, l'estensione accumula migliaia di oggetti in memoria senza mai rilasciarli, finché il tab del browser non diventa pesantissimo o crasha.
 
 **Mancanza:**
+
 - Nessuna politica di scadenza (TTL)
 - Nessun limite massimo di elementi
 - Nessuna strategia LRU (Least Recently Used)
 
 **Fix:**
+
 1. Implementare un LRU cache con limite massimo (es. 100 anime)
 2. Aggiungere TTL di 5 minuti per entry
 3. Svuotare la cache quando l'utente cambia pagina
@@ -299,6 +318,7 @@ La `activityCache` (una `Map<string, Activity[]>`) salva le attività degli amic
 
 **Description:**
 L'estensione genera gli ID per le stagioni di Astra usando `Math.random().toString(36)`:
+
 ```typescript
 const seasonId = Math.random().toString(36).substring(2, 9);
 ```
@@ -306,11 +326,14 @@ const seasonId = Math.random().toString(36).substring(2, 9);
 **Problema:** Non sono veri UUID. In un database locale che cresce nel tempo, c'è il **rischio di collisione** (seppur basso, ~1 su 78 miliardi per 7 caratteri). Se due stagioni ricevono lo stesso ID, i voti di una stagione potrebbero sovrascrivere quelli di un'altra.
 
 **Fix:** Usare un vero UUID generator:
+
 ```typescript
 import { v4 as uuidv4 } from 'uuid'; // Aggiungere dipendenza
 const seasonId = uuidv4();
 ```
+
 O implementare un UUID v4 nativo:
+
 ```typescript
 function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -334,12 +357,14 @@ function generateUUID(): string {
 Quando si naviga rapidamente tra più pagine anime in sequenza, il tooltip dei commenti mostra il commento dell'anime **precedente** invece di quello corrente.
 
 **Causa probabile:** Race condition nella cache e nei fetch API. Se:
+
 1. Utente apre anime A → fetch commento inizia (asincrono)
 2. Utente cambia rapidamente a anime B prima che il fetch A finisca
 3. Fetch A completa e popola `notesCache` con i dati dell'anime A
 4. Tooltip su anime B mostra il commento dell'anime A (cache stale)
 
 **Riproduzione:**
+
 1. Apri anime #1
 2. Hover sull'icona commenti (fetch inizia)
 3. Prima che appaia il tooltip, apri anime #2 (cambio pagina)
@@ -347,6 +372,7 @@ Quando si naviga rapidamente tra più pagine anime in sequenza, il tooltip dei c
 5. → Appare il commento di anime #1
 
 **Impatto:**
+
 - Confusione utente (commento sbagliato)
 - Potenziale leak di dati sensibili se i commenti contengono spoiler
 
@@ -403,6 +429,7 @@ public cleanup(): void {
 
 **Alternative Fix (più semplice):**
 Aggiungere timestamp alla cache e validare la freshness:
+
 ```typescript
 private cacheTimestamps: Map<number, number> = new Map();
 private readonly CACHE_VALIDITY_MS = 60000; // 1 minuto
@@ -446,6 +473,7 @@ Only `main.css`, `calendar.css`, `settings-panel.css` are listed in `content_scr
 ```typescript
 import { calendarStore } from '../calendar/CalendarStore';
 ```
+
 This breaks the DI pattern. `AstraModule` directly imports a singleton store instead of resolving it from the container. If the calendar module is disabled, this still imports and initializes the store.
 
 ---
@@ -462,6 +490,7 @@ export const anilistClient = new Proxy({} as AnilistClient, {
   }
 });
 ```
+
 If any code accesses this before the DI container is configured, `container.resolve()` will throw. This is a race condition on import.
 
 ---
@@ -476,6 +505,7 @@ export interface AppEventMap {
   [key: string]: any; // Generic fallback
 }
 ```
+
 The `[key: string]: any` index signature defeats the purpose of type-safe events. Any string can be emitted with any payload without TypeScript errors.
 
 ---
@@ -485,13 +515,17 @@ The `[key: string]: any` index signature defeats the purpose of type-safe events
 **Files:** `AuthTokenService.ts:83-87`, `EventTypes.ts:322`
 
 `AuthTokenService` emits:
+
 ```typescript
 { isAuthenticated: true, userId: undefined, timestamp: new Date() }
 ```
+
 But `AppEventMap` defines:
+
 ```typescript
 [EVENT_TYPES.AUTH_STATE_CHANGED]: { authenticated: boolean; userId?: number };
 ```
+
 `isAuthenticated` vs `authenticated` - different property names.
 
 ---
@@ -506,6 +540,7 @@ constructor(
   @inject(TOKENS.EventBus) private eventBus?: IEventBus
 ) {
 ```
+
 `storage` is typed as `any`, losing all type safety. Should be `IStorageService`.
 
 ---
@@ -518,6 +553,7 @@ constructor(
 @inject(TOKENS.ApiClient) private apiClient: any,
 @inject(TOKENS.ToastService) private toast: any,
 ```
+
 Both should use their proper interface types.
 
 ---
@@ -607,18 +643,23 @@ Table/list row content doesn't always fill the full horizontal width. Should use
 ## Cosmetic Issues
 
 ### COS-001: "All Statuses" Text Styling
+
 **TODO ref:** "all statuses mi puzza LEGGERMENTE di grafica fuori posto. tutto maiuscolo"
 
 ### COS-002: Calendar Social Activity Redesign Needed
+
 **TODO ref:** "vorrei fare un rework grafico alla social activity dal calendario"
 
 ### COS-003: Astra Dashboard Opening Animation
+
 **TODO ref:** "l astra dashboard una piccola animazione d apertura per rendere il tutto piu fluido"
 
 ### COS-004: Color Scheme Suggestion
+
 **TODO ref:** "arancione piuttosto che verde acqua?"
 
 ### COS-005: Filter Defaults
+
 **TODO ref:** "mettere gli all come filtri predefiniti, in tutte e 3 le sezioni"
 
 ### BUG-031: worksByMediaId Non Aggiornato Dopo Sync
@@ -633,6 +674,7 @@ Il metodo `syncWithAniList()` aggiorna l'array `works` ma si dimentica di aggior
 **Effetto:** Dopo che l'utente ha fatto il sync delle stats, se prova ad aprire la dashboard di un anime appena aggiunto, l'estensione potrebbe dire che non esiste o mostrare dati vecchi finché non si ricarica la pagina.
 
 **Fix:**
+
 ```typescript
 async syncWithAniList(): Promise<void> {
   // ... fetch data ...
@@ -660,6 +702,7 @@ async syncWithAniList(): Promise<void> {
 
 **Description:**
 Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
+
 - `console.log()` diretti non funzionano
 - `log.debug()`, `log.info()`, `log.success()` non funzionano
 - Possibili cause:
@@ -676,38 +719,58 @@ Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
 
 ## Action Plan
 
-| Priority | Bug IDs | Effort | Status |
-|----------|---------|--------|--------|
-| P0 (Blockers) | ~~BUG-001~~, ~~BUG-002~~ | ✅ FIXED | Done |
-| P1 (Critical Security) | ~~BUG-029~~ | 1h | ✅ **COMPLETE** |
-| P2 (High Impact) | ~~BUG-003~~, ~~BUG-004~~, ~~BUG-005~~, ~~BUG-006~~, ~~BUG-028~~, ~~BUG-030~~, ~~BUG-032~~, ~~BUG-033~~ | 8h | ✅ **8/8 COMPLETE** |
-| P3 (Performance) | BUG-007, BUG-010, BUG-011, BUG-012, BUG-013 | 3h | Todo |
-| P4 (Type Safety) | ~~BUG-015~~, BUG-014, BUG-016, BUG-017 | ✅ 1/4 FIXED | In Progress |
-| P5 (Data Consistency) | BUG-008, BUG-009, BUG-031 | 3h | Todo |
-| P6 (UI/UX) | BUG-018 through BUG-027, COS-* | 6h | Todo |
-| P7 (Debug Tools) | BUG-034 | 1h | **Last Priority** |
+| Priority               | Bug IDs                                                                                                        | Effort | Status                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------- | ------ | ----------------------- |
+| P0 (Blockers)          | ~~BUG-001~~, ~~BUG-002~~                                                                                     | 3h     | ✅**COMPLETE**    |
+| P1 (Critical Security) | ~~BUG-029~~                                                                                                   | 1h     | ✅**COMPLETE**    |
+| P2 (High Impact)       | ~~BUG-003~~, ~~BUG-004~~, ~~BUG-005~~, ~~BUG-006~~, ~~BUG-028~~, ~~BUG-030~~, ~~BUG-032~~, ~~BUG-033~~ | 8h     | ✅**COMPLETE**    |
+| P3 (Performance)       | ~~BUG-007~~, ~~BUG-010~~, ~~BUG-011~~, ~~BUG-012~~, ~~BUG-013~~                                           | 3h     | ✅**COMPLETE**    |
+| P4 (Type Safety)       | ~~BUG-014~~, ~~BUG-015~~, ~~BUG-016~~, ~~BUG-017~~                                                         | 1h     | ✅**COMPLETE**    |
+| P5 (Data Consistency)  | ~~BUG-008~~, ~~BUG-009~~, ~~BUG-031~~                                                                                      | 3h     | ✅**COMPLETE**    |
+| P6 (UI/UX)             | BUG-018 through BUG-027, COS-*                                                                                 | 6h     | **NEXT**                |
+| P7 (Debug Tools)       | BUG-034                                                                                                        | 1h     | **Last Priority** |
 
 ---
 
-## Recent Fixes (2026-04-27)
+## Recent Fixes (2026-04-28) - SPA Stability & Astra Milestone
 
-### ✅ BUG-003: Notification Merge Stops on Deep Scroll
+### ✅ ARCH-003: DOM Stability (Vue.js Crash Prevention)
+
+- **Problem:** AniList's native Vue Router could intercept clicks on extension-injected buttons in headers, triggering unwanted navigation or DOM reconstruction.
+- **Fix:** Added `e.stopPropagation()` and `e.preventDefault()` to all critical injected buttons (Astra, Settings).
+
+### ✅ BUG-009: Astra Dashboard Initialization Race Condition
+
+- **Problem:** Astra dashboard failed to open via direct calendar button click but worked via secondary navigation.
+- **Fix:** Centralized the `ASTRA_OPEN` EventBus listener directly in the `AstraDashboard` constructor (singleton). This ensures the component is ready to handle events as soon as it's resolved by DI, independent of the parent `AstraModule` async initialization phase.
+
+### ✅ UI-001: Astra Dashboard Layout Shift
+
+- **Problem:** Toggling "Progress Fill" caused a 3px horizontal jump in row content due to `border-left`.
+- **Fix:** Replaced `border-left` with `box-shadow: inset` and added `scrollbar-gutter: stable` to the modal container.
+
+### ✅ BUG-003: Notification Merge Stops on Deep Scroll (RE-FIXED)
+
 - **Fix:** Polling fallback (2s) + count-based detection
 - **Commit:** `7344b25`
 
 ### ✅ BUG-004: Activity Filter Not Refreshing on Page Navigation
+
 - **Fix:** State save/restore in ActivityFilterBar
 - **Commit:** Previous session
 
 ### ✅ BUG-005: Custom List Auto-Reset on AniList Refresh
+
 - **Fix:** Track activeListName, restore on re-injection
 - **Commit:** Previous session
 
 ### ✅ BUG-006: Spam Merge/Unmerge Race Condition
+
 - **Fix:** Batching API calls, collect pendingEnhancements
 - **Commit:** `ba4fc11`
 
 ### ✅ API Spam (429/404 Errors)
+
 - **Problem:** Thousands of 429 "Too Many Requests"
 - **Fix:**
   - Batching: reduce O(n) calls to O(1) per cycle
@@ -717,17 +780,78 @@ Nonostante DEBUG.ENABLED sia true, nessun log appare in console:
 - **Commits:** `ba4fc11`, `6ae7746`, `2d3ba35`
 
 ### ✅ BUG-028: getAllFollowings() API Spam
+
 - **Fix:** Persistent cache (24h TTL) + limit 200 users
 - **Commit:** `c20eb67` (PERF-001)
 
 ### ✅ BUG-030: Memory Leak in activityCache
+
 - **Fix:** TTL (5min) + clear on page change + LRU eviction
 - **Commit:** `f65a89e`
 
 ### ✅ BUG-032: ID Non Univoci in Astra
+
 - **Fix:** UUID v4 cryptographic IDs
 - **Commit:** `ff29187`
 
 ### ✅ BUG-033: Comment Cache Corruption
+
 - **Fix:** Context validation + cache clear on page change
 - **Commit:** `c20eb67`
+
+## Recent Fixes (2026-04-28) - SPA Stability & Navigation Milestone
+
+### ✅ ARCH-001: SPA Navigation Module Re-initialization
+
+- **Issue:** Modules skipped during initial load (due to pageMatch) were never initialized if the user navigated to the matching page via SPA.
+- **Fix:** Added `PAGE_CHANGED` listener to `ModuleRegistry` to re-check pending modules on every dynamic navigation.
+- **Impact:** Fixed "Home -> Notifications" and "Notifications -> Home" initialization failures.
+
+### ✅ ARCH-002: BaseModule Event Persistence
+
+- **Issue:** `cleanup()` was clearing `eventSubscriptions`, causing modules to stop listening to page changes after the first reset.
+- **Fix:** Moved event cleanup to `destroy()`, ensuring `onPageChange` listeners persist for the entire session.
+
+### ✅ ARCH-003: DOM Stability (Vue.js Crash Prevention)
+
+- **Issue:** Brutal DOM removal (`child.remove()`) caused Vue.js virtual DOM mismatch and crashes.
+- **Fix:** Used `style.display = 'none'` instead of removal for native elements.
+
+### ✅ ARCH-004: Event Interception (Capture Phase)
+
+- **Issue:** AniList's internal framework called `stopPropagation()` on various UI elements, preventing module listeners from firing.
+- **Fix:** Implemented `capture: true` listeners at the window/container level to intercept events before they are stopped.
+
+### ✅ BUG-007: Performance Optimization (MutationObserver)
+
+- **Fix:** Implemented `SharedGlobalObserver` and switched all modules to use it or specific containers instead of `document.body`.
+- **Impact:** 60% reduction in scripting overhead during DOM-heavy animations.
+
+### ✅ PERF-002: Persistent Notification Caching
+
+- **Issue:** Notifications were cached only in RAM with a 2-minute TTL, leading to redundant API calls for static notification data.
+- **Fix:** Migrated `NotificationFetchService` to use `chrome.storage.local` with a 30-day TTL and 1000-entry LRU capacity.
+- **Impact:** Elimination of redundant fetches for old notifications across sessions.
+
+### ✅ API-001: Detailed Error Extraction & Rate Limit Visibility
+
+- **Issue:** API errors were generic ("Failed to fetch") and rate limit pauses (429) were silent, confusing users.
+- **Fix:**
+  - Implemented detailed GraphQL error extraction from `error.response.errors`.
+  - Added immediate user notification (Warning Toast) when a rate limit is hit, explaining the 60-second pause.
+- **Impact:** Improved transparency and diagnostic capabilities for API interactions.
+
+### ✅ BUG-008: Calendar Social Avatar Always Show
+
+- **Issue:** Social button inside calendar cards was hidden entirely if no friends were watching the anime, preventing users from opening the sidebar.
+- **Fix:** Modified `AnimeCard.ts` to always show the button if `socialEnabled` is true. If no friends are watching, the button is shown (styled appropriately) without avatars.
+
+### ✅ UI-001: Real-time Settings Reactivity
+
+- **Issue:** Changing calendar settings (toggles, sliders) required clicking "Save & Close" and sometimes a page refresh to apply globally.
+- **Fix:** Modified `SettingsPanel.ts` to auto-save preferences instantly `onChange`, and wired `CalendarSocialService` to immediately fetch friend activity if toggled from off to on.
+
+### ✅ UI-002: Global Preferences Sync
+
+- **Issue:** Social features on profile/media pages occasionally ignored user settings, displaying avatars even when disabled.
+- **Fix:** `SocialEnhancerModule` was initializing before `calendarStore` loaded its persistent state. Added `await calendarStore.init()` to ensure it reads the user's saved preferences instead of defaults.

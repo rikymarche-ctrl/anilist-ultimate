@@ -8,10 +8,9 @@
  * to avoid redundant fetches when users toggle merge/unmerge repeatedly.
  *
  * Caching:
- *   - In-memory cache keyed by activity ID
- *   - LRU eviction (max 100 entries)
- *   - TTL 2 minutes (notifications are real-time, cache must be fresh)
- *   - Manual clearing via clearCache()
+ *   - Persistent cache via chrome.storage.local
+ *   - LRU eviction (max 1000 entries)
+ *   - TTL 30 days (notification contents are static once generated)
  *
  * @see NotificationGroupService.ts for the grouping consumer
  * @see docs/MODULES.md#2-notification-cleaner-module
@@ -21,6 +20,13 @@ import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
+import { storage } from '@core/storage/StorageManager';
+import { STORAGE_KEYS, TIME } from '@core/constants';
+
+export interface CachedActivity {
+  details: ActivityDetails;
+  timestamp: number;
+}
 
 export interface ActivityData {
   status?: string;
@@ -48,12 +54,13 @@ export class NotificationFetchService {
   private activityCache: Map<number, ActivityDetails> = new Map();
 
   /** Intelligent Caching: LRU eviction to prevent unbounded growth */
-  private readonly MAX_CACHE_SIZE = 100;
+  private readonly MAX_CACHE_SIZE = 1000;
   private cacheOrder: number[] = []; // LRU tracking
 
-  /** Intelligent Caching: TTL for stale data invalidation (2 minutes for real-time notifications) */
-  private readonly CACHE_TTL_MS = 2 * 60 * 1000;
+  /** Intelligent Caching: TTL for stale data invalidation (30 days for static notification data) */
+  private readonly CACHE_TTL_MS = 30 * TIME.DAY_MS;
   private cacheTimestamps: Map<number, number> = new Map();
+  private persistentCacheLoaded = false;
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient
@@ -86,6 +93,9 @@ export class NotificationFetchService {
    * Fetch activity details in batch using GraphQL alias with intelligent caching
    */
   public async fetchActivityDetails(activityIds: number[]): Promise<Map<number, ActivityDetails>> {
+    // Ensure persistent cache is loaded into memory first
+    await this.ensureCacheLoaded();
+
     if (activityIds.length === 0) return new Map();
 
     // Filter out invalid IDs (must be positive integers)
@@ -169,6 +179,11 @@ export class NotificationFetchService {
         results.set(id, details);
       });
 
+      if (Object.keys(response).length > 0) {
+        // Save back to persistent storage if we added new items
+        this.savePersistentCache();
+      }
+
       return results;
     } catch (error: any) {
       // Gracefully handle 404 errors (deleted/unavailable activities)
@@ -233,17 +248,76 @@ export class NotificationFetchService {
     this.cacheOrder.push(id);
   }
 
+  // ─── Persistent Cache Management ──────────────────────────────────────────
+
+  /**
+   * Load the persistent cache from storage into memory
+   */
+  private async ensureCacheLoaded(): Promise<void> {
+    if (this.persistentCacheLoaded) return;
+
+    try {
+      const data = await storage.getLocal<Record<number, CachedActivity>>(STORAGE_KEYS.CACHE_NOTIFICATIONS);
+      if (data) {
+        Object.entries(data).forEach(([idStr, cached]) => {
+          const id = parseInt(idStr, 10);
+
+          // Only load if not expired
+          if (Date.now() - cached.timestamp <= this.CACHE_TTL_MS) {
+            this.activityCache.set(id, cached.details);
+            this.cacheTimestamps.set(id, cached.timestamp);
+            this.cacheOrder.push(id);
+          }
+        });
+
+        // Enforce max size on load (in case data got corrupted/too big)
+        while (this.cacheOrder.length > this.MAX_CACHE_SIZE) {
+          const oldest = this.cacheOrder.shift();
+          if (oldest !== undefined) {
+            this.activityCache.delete(oldest);
+            this.cacheTimestamps.delete(oldest);
+          }
+        }
+
+        log.debug(`[NotificationFetch] Loaded ${this.activityCache.size} activities from persistent cache`);
+      }
+    } catch (error) {
+      log.error('[NotificationFetch] Failed to load persistent cache', error);
+    } finally {
+      this.persistentCacheLoaded = true;
+    }
+  }
+
+  /**
+   * Save the in-memory cache to persistent storage
+   */
+  private async savePersistentCache(): Promise<void> {
+    try {
+      const data: Record<number, CachedActivity> = {};
+      this.activityCache.forEach((details, id) => {
+        const timestamp = this.cacheTimestamps.get(id);
+        if (timestamp) {
+          data[id] = { details, timestamp };
+        }
+      });
+      await storage.setLocal(STORAGE_KEYS.CACHE_NOTIFICATIONS, data);
+    } catch (error) {
+      log.error('[NotificationFetch] Failed to save persistent cache', error);
+    }
+  }
+
   /**
    * Manually clear the activity cache
-   * Useful when user navigates away from notifications page
+   * Useful for testing or manual resets
    */
-  public clearCache(): void {
+  public async clearCache(): Promise<void> {
     const size = this.activityCache.size;
     if (size > 0) {
       this.activityCache.clear();
       this.cacheTimestamps.clear();
       this.cacheOrder = [];
-      log.info(`[NotificationFetch] Cache cleared (${size} entries)`);
+      await storage.remove(STORAGE_KEYS.CACHE_NOTIFICATIONS);
+      log.info(`[NotificationFetch] Persistent cache cleared (${size} entries)`);
     }
   }
 }

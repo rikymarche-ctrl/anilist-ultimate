@@ -175,6 +175,7 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  scrollbar-gutter: stable;
 }
 
 .astra-tab-content {
@@ -628,14 +629,16 @@
   max-height: 100%;
   overflow-y: auto;
   padding-right: 8px;
-  padding-bottom: 80px; /* Extra space to ensure last ep is not hidden by footer button */
+  padding-bottom: 80px;
+  /* Extra space to ensure last ep is not hidden by footer button */
 }
 
 .astra-form-scroll {
   flex: 1;
   overflow-y: auto;
   padding: 0 4px;
-  padding-bottom: 80px; /* Space for the footer button in rating tab */
+  padding-bottom: 80px;
+  /* Space for the footer button in rating tab */
   scrollbar-width: thin;
   scrollbar-color: var(--astra-accent-a20) transparent;
 }
@@ -1297,7 +1300,8 @@
   background: var(--astra-bg-elev);
   border: 1px solid var(--astra-border-soft);
   border-radius: 12px;
-  overflow-x: auto; /* Enable horizontal scroll */
+  overflow-x: auto;
+  /* Enable horizontal scroll */
   overflow-y: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   margin-bottom: 40px;
@@ -1305,7 +1309,8 @@
 }
 
 .astra-grid {
-  display: flex; /* Always full width */
+  display: flex;
+  /* Always full width */
   flex-direction: column;
   width: 100%;
 }
@@ -1324,7 +1329,7 @@
   min-width: 100%;
 }
 
-.astra-grid-header > div {
+.astra-grid-header>div {
   cursor: pointer;
   transition: color 0.2s;
   display: flex;
@@ -1332,9 +1337,11 @@
   padding: 0 10px;
 }
 
-.astra-grid-header > div:first-child { padding-left: 0; }
+.astra-grid-header>div:first-child {
+  padding-left: 0;
+}
 
-.astra-grid-header > div:hover {
+.astra-grid-header>div:hover {
   color: var(--astra-text);
 }
 
@@ -1358,19 +1365,21 @@
 
 /* THE PROGRESS ENGINE - BACKGROUND INJECTION */
 .astra-show-progress .astra-grid-row:not(.astra-row-no-progress) {
-  background-image: linear-gradient(90deg, 
-    rgba(59, 130, 246, 0.4) 0%, 
-    rgba(59, 130, 246, 0.2) 100%
-  );
+  background-image: linear-gradient(90deg,
+      rgba(59, 130, 246, 0.4) 0%,
+      rgba(59, 130, 246, 0.2) 100%);
   background-size: calc(var(--progress-val, 0) * 1%) 100%;
-  border-left: 3px solid #3b82f6;
+  box-shadow: inset 3px 0 0 #3b82f6;
 }
 
-.astra-grid-row::before { display: none !important; }
+.astra-grid-row::before {
+  display: none !important;
+}
 
-.astra-grid-row > div {
+.astra-grid-row>div {
   position: relative;
-  z-index: var(--z-base); /* Content well above progress */
+  z-index: var(--z-base);
+  /* Content well above progress */
   font-size: 13px;
   padding: 0 10px;
   overflow: hidden;
@@ -1378,7 +1387,9 @@
   white-space: nowrap;
 }
 
-.astra-grid-row > div:first-child { padding-left: 0; }
+.astra-grid-row>div:first-child {
+  padding-left: 0;
+}
 
 .astra-grid-row .astra-table-cover {
   width: 50px;
@@ -1414,9 +1425,20 @@
   min-width: 45px;
 }
 
-.astra-table-score-badge.high { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-.astra-table-score-badge.mid { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-.astra-table-score-badge.low { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.astra-table-score-badge.high {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.astra-table-score-badge.mid {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.astra-table-score-badge.low {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
 
 .astra-grid-row .astra-table-actions {
   display: flex;
@@ -1432,13 +1454,13 @@
   background: var(--astra-bg-elev-2);
   cursor: pointer;
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .astra-table-cover:hover {
   transform: scale(1.5) translateX(10px);
   z-index: 50;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
 }
 
 .astra-table-title {
@@ -1473,10 +1495,26 @@
   color: var(--astra-text-dim);
 }
 
-.astra-badge--country { color: var(--astra-accent); border-color: rgba(var(--astra-accent-rgb), 0.3); }
-.astra-badge--progress { background: rgba(255, 255, 255, 0.05); color: var(--astra-text); }
-.astra-badge--seasonal { background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; border: none; }
-.astra-badge--type { background: var(--astra-bg-lighter); color: var(--astra-muted); }
+.astra-badge--country {
+  color: var(--astra-accent);
+  border-color: rgba(var(--astra-accent-rgb), 0.3);
+}
+
+.astra-badge--progress {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--astra-text);
+}
+
+.astra-badge--seasonal {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: white;
+  border: none;
+}
+
+.astra-badge--type {
+  background: var(--astra-bg-lighter);
+  color: var(--astra-muted);
+}
 
 .astra-score-pill {
   display: inline-flex;
@@ -1569,7 +1607,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
   background-size: 200% 100%;
   animation: astra-shimmer 4s infinite linear;
   pointer-events: none;
@@ -1582,8 +1620,13 @@
 }
 
 @keyframes astra-shimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
 }
 
 .astra-show-progress .astra-grid-row:hover::after {
@@ -2252,7 +2295,8 @@
 }
 
 .pill-section:hover {
-  background-color: #3db4f2; /* AniList Official Blue */
+  background-color: #3db4f2;
+  /* AniList Official Blue */
   color: white;
 }
 
@@ -2303,7 +2347,8 @@
 
 .media-preview-card:hover .au-pill-wrapper {
   opacity: 1;
-  pointer-events: auto; /* Enable clicks when the overlay is visible */
+  pointer-events: auto;
+  /* Enable clicks when the overlay is visible */
 }
 
 /* Prevent AniList's image-overlay from intercepting our pill button clicks */
@@ -2325,9 +2370,17 @@
 
 /* Click animation — fires via JS adding/removing this class */
 @keyframes au-pill-click {
-  0%   { transform: scale(1); }
-  40%  { transform: scale(0.82); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(0.82);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .media-preview-card .action-pill .pill-section.au-pill-pressed {
@@ -2438,8 +2491,8 @@
   max-width: 100%;
   max-height: 80vh;
   border-radius: 12px;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.8);
-  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   animation: astraPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -2448,7 +2501,7 @@
   font-weight: 800;
   color: #fff;
   text-align: center;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .astra-preview-close {
@@ -2474,11 +2527,23 @@
 }
 
 @keyframes astraFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes astraPop {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

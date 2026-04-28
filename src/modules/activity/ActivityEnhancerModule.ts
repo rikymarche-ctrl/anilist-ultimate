@@ -64,15 +64,15 @@ export class ActivityEnhancerModule extends BaseModule {
     this.logger.info('[ActivityEnhancer] Initializing with shared components');
 
     // Use centralized navigation events instead of polling
-    this.onPageChange(() => {
+    this.onPageChange(async () => {
       this.fullCleanup();
       if (this.isOnActivityPage()) {
-        this.startObservation();
+        await this.startObservation();
       }
     });
 
     if (this.isOnActivityPage()) {
-      this.startObservation();
+      await this.startObservation();
     }
   }
 
@@ -142,6 +142,9 @@ export class ActivityEnhancerModule extends BaseModule {
       );
       this.logger.debug('[ActivityEnhancer] Observing activity feed container (BUG-007 optimization)');
     }
+
+    // Call checkAndProcess AGAIN to catch anything rendered while we were waiting
+    this.checkAndProcess();
   }
 
   /**

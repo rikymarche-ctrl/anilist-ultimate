@@ -32,6 +32,7 @@ export const STORAGE_KEYS = {
   CALENDAR_PREFS: `${STORAGE_PREFIX}calendar_prefs`,
   CACHE_SCHEDULE: `${STORAGE_PREFIX}cache_schedule`,
   CACHE_PROGRESS: `${STORAGE_PREFIX}cache_progress`,
+  CACHE_NOTIFICATIONS: `${STORAGE_PREFIX}cache_notifications`,
   ACCESS_TOKEN: `${STORAGE_PREFIX}access_token`,
   LAST_SYNC: `${STORAGE_PREFIX}last_sync`,
 } as const;
