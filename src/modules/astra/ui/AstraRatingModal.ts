@@ -25,7 +25,8 @@ import { AstraRadarChart } from './AstraRadarChart';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
 import { AstraDashboard } from './AstraDashboard';
-import type { MediaWithViewerResponse } from '@/api/AnilistTypes';
+import { MediaWithViewerResponse, MediaListStatus } from '@/api/AnilistTypes';
+import { getStatusLabel } from '@core/utils/UIHelpers';
 
 @injectable()
 @singleton()
@@ -73,7 +74,7 @@ export class AstraRatingModal {
       type: mediaType,
       country: media.countryOfOrigin,
       cover: media.coverImage.extraLarge || media.coverImage.large,
-      status: media.mediaListEntry?.status || 'PLANNING',
+      status: media.mediaListEntry?.status || MediaListStatus.PLANNING,
       customLists,
       tags: [],
       notes: '',
@@ -185,12 +186,12 @@ export class AstraRatingModal {
                     <div class="astra-input-box">
                       <span class="astra-label-sm">Status</span>
                       <select class="astra-select" id="astra-status">
-                        <option value="CURRENT" ${work.status === 'CURRENT' ? 'selected' : ''}>Watching</option>
-                        <option value="COMPLETED" ${work.status === 'COMPLETED' ? 'selected' : ''}>Completed</option>
-                        <option value="PAUSED" ${work.status === 'PAUSED' ? 'selected' : ''}>Paused</option>
-                        <option value="DROPPED" ${work.status === 'DROPPED' ? 'selected' : ''}>Dropped</option>
-                        <option value="PLANNING" ${work.status === 'PLANNING' ? 'selected' : ''}>Planning</option>
-                        <option value="REPEATING" ${work.status === 'REPEATING' ? 'selected' : ''}>Repeating</option>
+                        <option value="${MediaListStatus.CURRENT}" ${work.status === MediaListStatus.CURRENT ? 'selected' : ''}>${getStatusLabel(MediaListStatus.CURRENT, work.type)}</option>
+                        <option value="${MediaListStatus.COMPLETED}" ${work.status === MediaListStatus.COMPLETED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.COMPLETED, work.type)}</option>
+                        <option value="${MediaListStatus.PAUSED}" ${work.status === MediaListStatus.PAUSED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PAUSED, work.type)}</option>
+                        <option value="${MediaListStatus.DROPPED}" ${work.status === MediaListStatus.DROPPED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.DROPPED, work.type)}</option>
+                        <option value="${MediaListStatus.PLANNING}" ${work.status === MediaListStatus.PLANNING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PLANNING, work.type)}</option>
+                        <option value="${MediaListStatus.REPEATING}" ${work.status === MediaListStatus.REPEATING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.REPEATING, work.type)}</option>
                       </select>
                     </div>
                     <div class="astra-input-box">
@@ -601,7 +602,7 @@ export class AstraRatingModal {
       (saveBtn as HTMLButtonElement).disabled = true;
       (saveBtn as HTMLButtonElement).innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
       
-      this.currentWork!.status = statusSelect.value;
+      this.currentWork!.status = statusSelect.value as MediaListStatus;
       const currentSeason = this.currentWork!.seasons[this.currentSeasonIdx];
 
       const generalNotes = this.overlay!.querySelector('#astra-general-notes') as HTMLTextAreaElement;

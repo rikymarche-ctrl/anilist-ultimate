@@ -150,7 +150,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           this.element,
           anime.mediaId,
           anime.cleanTitle,
-          anime.friendActivity || []
+          anime.friendActivity || [],
+          'ANIME'
         );
       }
     } else {
@@ -486,7 +487,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const { anime } = this.props;
     // Emit custom event for SocialSidebar to handle
     window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-      detail: { mediaId: anime.mediaId, title: anime.cleanTitle, element: this.element }
+      detail: { mediaId: anime.mediaId, title: anime.cleanTitle, element: this.element, type: 'ANIME' }
     }));
   }
 

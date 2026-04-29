@@ -10,7 +10,7 @@
  * @see docs/MODULES.md#10-social-enhancer-module
  */
 
-import { FriendActivity } from '@core/types';
+import { FriendActivity, MediaType } from '@core/types';
 import { calendarStore } from '../calendar/CalendarStore';
 
 export class SocialRenderer {
@@ -80,7 +80,8 @@ export class SocialRenderer {
     card: HTMLElement,
     mediaId: number,
     title: string,
-    activities: FriendActivity[]
+    activities: FriendActivity[],
+    mediaType: MediaType
   ): AbortController {
     const abortController = new AbortController();
     const { signal } = abortController;
@@ -161,7 +162,7 @@ export class SocialRenderer {
         socialBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-            detail: { mediaId, title, element: card }
+            detail: { mediaId, title, element: card, type: mediaType }
           }));
         }, { signal });
       }

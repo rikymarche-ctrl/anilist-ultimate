@@ -12,17 +12,18 @@
 ### Astra Dashboard & Core UI
 
 - [X] **BUG-020: Resize Handler** - Ensure extension elements (Astra, Tooltips) don't break when resizing the window.
-- [ ] **Astra Layout Refinement** - Fix elements shifting when the slider appears (Slider should be ignored for width calculations).
+
+- [/] **Astra Layout Refinement** - Fix elements shifting when the slider appears (Slider should be ignored for width calculations).. Lo slider è ok, ma in base a certi ciriteri la riga si compatta leggeremntte ugualmetne
+
 - [X] **Astra Navigation** - Implement macro-categories (Reading, Completed, All, etc.) as dropdowns or tabs instead of just tags. [RICONTROLLARE]
-- [ ] **Sticky Search** - Make the search bar in Astra sticky so it stays visible during scroll. [DONE]
+- [X] **Sticky Search** - Make the search bar in Astra sticky so it stays visible during scroll.
 - [ ] **Closing Animation** - Add a smooth "outro" animation when closing the Astra dashboard.
-- [ ] **Alignment Fix** - Correct decentered items above the votes/scores section.
-- [ ] **Transition Smoothing** - Fix the "brusque" interruption/transition in some UI components.
-- [X] **Icon Loading** - Switched to Font Awesome SVG/JS to fix CSP font-blocking issues. [DONE]
+- [X] **Alignment Fix** - Correct decentered items above the votes/scores section.
+- [X] **Icon Loading** - Switched to Font Awesome SVG/JS to fix CSP font-blocking issues.
 
 ### Page Enhancements (Media & User)
 
-- [ ] **Media Page Stability** - Fix social activity bubbles, comments, and filters on individual anime/manga pages (currently broken).
+- [X] **Media Page Stability** - Fix social activity bubbles, comments, and filters on individual anime/manga pages (currently broken).
 - [ ] **User Activity Enhancements** - Add votes and filters to the single user activity feed.
 - [ ] **Banner Action** - Add a "+" button near the "Follow" button in user banners to quickly add/remove from custom lists.
 - [ ] **Follower Stats** - Add follower/following counters to relevant profile sections.
@@ -31,10 +32,26 @@
 ### Visual & Assets
 
 - [X] **BUG-021: Comment Icon** - Replace low-res SVG with high-quality version and fix hover trigger area. [DONE]
-- [ ] **BUG-025: Weight Position** - Move the Global Weight indicator to the left in Astra rows.
+- [X] **BUG-025: Weight Position** - Move the Global Weight indicator to the left in Astra rows.
 - [ ] **COS-002: Calendar Redesign** - Rework the graphics for social activity within the calendar cards.
 - [ ] una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
 - [ ] anche lo slider default di anilist è stato cambiato con quello di astra, no. Analisit deve avere il suo nella home
+
+
+
+![1777438848637](image/TODO/1777438848637.png)
+
+prime e dopo type e country c è dello spazio indesiderato, che siano in qualche wrap non voluto?
+
+
+![1777438902234](image/TODO/1777438902234.png)
+
+direi che l add component possiamo aggiungerlo direttametne sopra eh, così guadaganmo molto spazio verticalmetne
+
+
+![1777439039311](image/TODO/1777439039311.png)
+
+mettere un altro tag +N, dove quando vai su N esce un popup dicendo tutte le altre liste di cui fa parte, anzi forse meglio farslo subito dopo il numero di ep? tanto lo status verrà tolto cacnellando ol opzione Flat/grouped e lasciando solo grouped
 
 ---
 
@@ -49,7 +66,7 @@
 
 ## ✨ P8 - NEW FEATURES & INTEGRATIONS
 
-- [x] **Media Metadata** - Add MAL score, MAL link, and Subreddit link to media pages (with caching and native styling). [DONE]
+- [X] **Media Metadata** - Add MAL score, MAL link, and Subreddit link to media pages (with caching and native styling). [DONE]
 - [ ] **Watch Section** - Implement a "Watch" section with search links for official and unofficial sites (Intro/Outro support).
 - [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
 - [ ] **Bulk Editor** - Create a tool for bulk editing items within custom lists.
@@ -61,11 +78,11 @@
 
 ## 🧹 P9 - STABILITY & REFACTORING
 
-- [x] **Social Activity Stabilization** - Restricted social bubbles to home page and ensured cleanup on navigation. [DONE]
-- [x] **Home Page Social Bubbles** - Implemented calendar-style floating portals for all home page native cards. [DONE]
-    - [!] *Known Bug*: Sometimes bubbles persist on screen (will address later).
-- [x] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
-- [ ] **Status Enums** - Replace hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum to prevent errors.
+- [X] **Social Activity Stabilization** - Restricted social bubbles to home page and ensured cleanup on navigation. [DONE]
+- [X] **Home Page Social Bubbles** - Implemented calendar-style floating portals for all home page native cards. [DONE]
+  - [!] *Known Bug*: Sometimes bubbles persist on screen (will address later).
+- [X] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
+- [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
 
 ---
@@ -74,9 +91,9 @@
 
 - [Plan: Social Activity Module Refinement](file:///C:/Users/ricca/.gemini/antigravity/brain/dd7e044c-453b-4dcf-a6ab-189b6a43b3c4/implementation_plan.md)
 
-
 - [X] **Comment Caching** - Persistent storage for user notes/comments. [DONE]
------------------------------------------------------
+
+---
 
 ## ✅ ARCHIVE (COMPLETED)
 

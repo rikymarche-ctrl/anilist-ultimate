@@ -31,7 +31,7 @@ import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
-import { FriendActivity, SocialActivityDetailed, SocialFilter } from '@core/types';
+import { FriendActivity, MediaListStatus, SocialActivityDetailed, SocialFilter } from '@core/types';
 import { PERFORMANCE } from '@core/constants';
 
 @injectable()
@@ -151,7 +151,7 @@ export class SocialService {
     mediaId: number, 
     filter: SocialFilter, 
     page: number = 1,
-    status?: string
+    status?: MediaListStatus | 'all'
   ): Promise<{ nodes: SocialActivityDetailed[], hasNextPage: boolean }> {
     const query = `
       query($mediaId: Int, $isFollowing: Boolean, $userId: Int, $page: Int, $status: MediaListStatus) {

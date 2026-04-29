@@ -175,8 +175,14 @@ export class AstraModule extends BaseModule {
         const card = wrapper.closest<HTMLElement>('.media-preview-card, .media-card');
         const titleEl = card?.querySelector('.title');
         const title = titleEl?.textContent?.trim() || 'Anime';
+        
+        // Extract type from link
+        const link = (card as any)?.href || card?.querySelector<HTMLAnchorElement>('a.cover')?.href || card?.querySelector<HTMLAnchorElement>('a')?.href;
+        const typeMatch = link?.match(/\/(anime|manga)\//);
+        const type = typeMatch ? typeMatch[1].toUpperCase() : 'ANIME';
+
         window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-          detail: { mediaId, title, element: card }
+          detail: { mediaId, title, element: card, type }
         }));
       }
     }, { capture: true });

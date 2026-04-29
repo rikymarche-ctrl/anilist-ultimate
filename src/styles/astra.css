@@ -369,6 +369,7 @@
   gap: 6px;
 }
 
+
 .astra-stacked-field {
   display: flex;
   align-items: center;
@@ -376,13 +377,10 @@
 }
 
 .astra-label-xs {
-  font-size: 9px;
-  text-transform: uppercase;
   font-size: 8px;
   text-transform: uppercase;
   color: var(--astra-muted);
   font-weight: 800;
-  width: 32px;
   letter-spacing: 0.05em;
 }
 
@@ -790,17 +788,17 @@
 .astra-dropdown-trigger {
   background: var(--astra-bg-elev-2);
   border: 1px solid var(--astra-border);
-  border-radius: 6px;
-  padding: 8px 14px;
+  border-radius: 12px;
+  padding: 8px 12px;
   color: var(--astra-text-dim);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   transition: all 0.2s;
-  height: 38px;
+  height: 34px;
 }
 
 .astra-dropdown-trigger i {
@@ -821,7 +819,8 @@
 .astra-dropdown-menu {
   position: absolute;
   top: calc(100% + 10px);
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
   width: 260px;
   background: var(--astra-bg-elev);
   border: 1px solid var(--astra-border);
@@ -830,14 +829,13 @@
   padding: 10px;
   z-index: var(--z-dropdown);
   opacity: 0;
-  transform: translateY(-10px);
   pointer-events: none;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .astra-dropdown.active .astra-dropdown-menu {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
   pointer-events: auto;
 }
 
@@ -1192,22 +1190,24 @@
 .astra-macro-categories {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .astra-macro-chip {
-  padding: 8px 16px;
+  padding: 8px 12px;
   border-radius: 12px;
   border: 1px solid var(--astra-border);
   background: var(--astra-bg-elev);
   color: var(--astra-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .astra-macro-chip i {
@@ -1228,32 +1228,48 @@
 }
 
 .astra-filter-spacer {
-  flex: 1;
+  width: 12px;
 }
 
 .astra-secondary-filters {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 12px;
+}
+
+.astra-secondary-stacked {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+}
+
+.astra-secondary-stacked .astra-dropdown {
+  min-width: auto;
+}
+
+.astra-secondary-stacked .astra-dropdown-menu {
+  width: 160px;
 }
 
 .astra-dashboard-controls {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 20px;
   position: sticky;
   top: 0;
   z-index: 100;
   background: var(--astra-bg);
-  padding: 20px 0;
-  border-bottom: 1px solid var(--astra-border-soft);
+  padding: 10px 0 20px 0;
 }
 
 .astra-filter-bar {
   display: flex;
   align-items: center;
   width: 100%;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .astra-filter-divider {
@@ -1288,6 +1304,13 @@
   width: 100%;
 }
 
+.astra-section-weight {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 60px;
+}
+
 .astra-filter-group {
   display: flex;
   flex-direction: column;
@@ -1305,7 +1328,8 @@
 
 .astra-filter-chips {
   display: flex;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -1366,22 +1390,22 @@
 /* ============ ASTRA GRID SYSTEM ============ */
 
 .astra-table-wrap {
-  background: var(--astra-bg-elev-2);
-  border: 1px solid var(--astra-bg-elev-2);
   border-radius: 12px;
   padding-bottom: 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   margin-bottom: 40px;
   position: relative;
-  scrollbar-gutter: stable;
 }
 
 .astra-grid {
   display: flex;
   flex-direction: column;
   width: 100%;
+  border: 1px solid var(--astra-border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--astra-bg-elev);
 }
 
 .astra-grid-header {
@@ -1396,6 +1420,10 @@
   padding: 14px 20px;
   border-bottom: 1px solid var(--astra-border-soft);
   min-width: 100%;
+  position: sticky;
+  z-index: 20;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
 }
 
 .astra-grid-header>div {
@@ -1455,14 +1483,13 @@
 .astra-grid-group-header {
   display: flex;
   align-items: center;
-  padding: 20px 24px 10px 24px;
+  padding: 16px 24px;
   background: var(--astra-bg);
   cursor: pointer;
   user-select: none;
   grid-column: 1 / -1;
   gap: 16px;
   position: sticky;
-  top: 60px;
   z-index: 10;
   transition: all 0.2s;
 }
@@ -1557,10 +1584,11 @@
 
 .astra-table-title-box {
   display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   width: 100%;
+  overflow: hidden;
 }
 
 .astra-grid-row .astra-table-subtitle {
@@ -1934,22 +1962,12 @@
 .astra-section-weight {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: auto;
-}
-
-.astra-section-weight .astra-label-xs {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--astra-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  opacity: 0.8;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .astra-section-weight .astra-input {
-  width: 60px;
+  width: 50px;
   text-align: center;
   font-family: var(--astra-font-mono);
   font-weight: 700;
@@ -2104,6 +2122,18 @@
   background: rgba(235, 87, 87, 0.1) !important;
   border-color: var(--astra-score-bad) !important;
   color: var(--astra-score-bad) !important;
+}
+
+.astra-add-sub {
+  color: var(--astra-accent) !important;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.astra-add-sub:hover {
+  transform: scale(1.2);
+  color: #60a5fa !important;
+  background: rgba(59, 130, 246, 0.1) !important;
 }
 
 @keyframes astra-fade-in {
@@ -2261,11 +2291,19 @@
   scrollbar-color: var(--astra-accent-a20) transparent;
 }
 
-.astra-modal-main::-webkit-scrollbar {
+.astra-modal-main::-webkit-scrollbar,
+.astra-table-wrap::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
-.astra-modal-main::-webkit-scrollbar-thumb {
+.astra-modal-main::-webkit-scrollbar-track,
+.astra-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.astra-modal-main::-webkit-scrollbar-thumb,
+.astra-table-wrap::-webkit-scrollbar-thumb {
   background: var(--astra-accent-a20);
   border-radius: 10px;
 }

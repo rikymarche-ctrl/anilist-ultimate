@@ -26,6 +26,8 @@
 import { injectable, singleton } from 'tsyringe';
 import { log } from '@core/logger';
 
+import { MediaListStatus } from '@/api/AnilistTypes';
+
 export interface AstraWork {
   id: string;
   mediaId: number;
@@ -35,7 +37,7 @@ export interface AstraWork {
   cover?: string;
   coverColor?: string;
   anilistUrl?: string;
-  status: string;
+  status: MediaListStatus;
   customLists: string[];
   tags: string[];
   seasons: AstraSeason[];
@@ -138,14 +140,12 @@ export class AstraService {
         // Build the Map index for fast lookup
         this.rebuildWorkIndex();
         this.settings = data.settings || DEFAULT_SETTINGS;
-        // Merge stored sections with defaults to ensure new IDs appear during development
-        const storedSections = data.sections || [];
-        const merged = [...DEFAULT_SECTIONS];
-        storedSections.forEach((s: AstraSection) => {
-          const idx = merged.findIndex(m => m.id === s.id);
-          if (idx >= 0) merged[idx] = s;
-        });
-        this.sections = merged;
+        // Use stored sections if they exist, otherwise fallback to defaults
+        if (data.sections && data.sections.length > 0) {
+          this.sections = data.sections;
+        } else {
+          this.sections = [...DEFAULT_SECTIONS];
+        }
       }
       this.isLoaded = true;
       log.info(`[AstraService] Loaded ${this.works.length} works`);
@@ -351,7 +351,7 @@ export class AstraService {
         id: `w_${generateUUID()}`,
         title: 'Unknown',
         type: 'anime',
-        status: 'PLANNING',
+        status: MediaListStatus.PLANNING,
         tags: [],
         seasons: [this.createDefaultSeason()],
         notes: '',

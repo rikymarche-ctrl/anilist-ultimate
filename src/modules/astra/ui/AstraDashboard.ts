@@ -19,6 +19,8 @@
  */
 
 import { injectable, singleton, inject } from 'tsyringe';
+import { MediaListStatus } from '@/api/AnilistTypes';
+import { getStatusLabel } from '@core/utils/UIHelpers';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { AstraService, AstraWork } from '../AstraService';
 import { log } from '@core/logger';
@@ -277,10 +279,13 @@ export class AstraDashboard extends BaseComponent {
                       <input type="text" class="astra-input" value="${s.name}" data-field="name" placeholder="Section Name">
                     </div>
                     <div class="astra-section-weight">
-                      <span class="astra-label-xs">Global Weight</span>
+                      <span class="astra-label-xs">Weight</span>
                       <input type="number" class="astra-input" value="${s.weight}" data-field="weight" step="0.1" min="0.1" max="10">
                     </div>
                     <div class="astra-section-actions">
+                      <button class="astra-icon-btn astra-add-sub" data-section-id="${s.id}" title="Add Sub-section">
+                        <i class="fa fa-plus-circle"></i>
+                      </button>
                       <button class="astra-icon-btn astra-delete-section" title="Delete Section">
                         <i class="fa fa-trash"></i>
                       </button>
@@ -301,9 +306,6 @@ export class AstraDashboard extends BaseComponent {
                         </button>
                       </div>
                     `).join('')}
-                    <button class="astra-btn astra-btn--ghost astra-btn--xs astra-add-sub" data-section-id="${s.id}">
-                      <i class="fa fa-plus"></i> Add Component
-                    </button>
                   </div>
                 </div>
               `).join('')}
@@ -424,13 +426,18 @@ export class AstraDashboard extends BaseComponent {
           const groups = new Map<string, any[]>();
           
           sortedWorks.forEach(w => {
-            const status = (w.status || 'UNKNOWN').toUpperCase();
+            let status = (w.status || 'UNKNOWN').toUpperCase();
+            if (status === MediaListStatus.CURRENT) {
+              status = w.type === 'manga' ? MediaListStatus.READING : MediaListStatus.WATCHING;
+            } else if (status === MediaListStatus.REPEATING) {
+              status = w.type === 'manga' ? MediaListStatus.REREADING : MediaListStatus.REWATCHING;
+            }
             if (!groups.has(status)) groups.set(status, []);
             groups.get(status)!.push(w);
           });
 
           // Order groups: CURRENT/WATCHING/READING first, then COMPLETED, then others
-          const statusOrder = ['WATCHING', 'READING', 'CURRENT', 'REPEATING', 'COMPLETED', 'PLANNING', 'PAUSED', 'DROPPED', 'UNKNOWN'];
+          const statusOrder = [MediaListStatus.WATCHING, MediaListStatus.READING, MediaListStatus.REWATCHING, MediaListStatus.REREADING, MediaListStatus.COMPLETED, MediaListStatus.PLANNING, MediaListStatus.PAUSED, MediaListStatus.DROPPED, 'UNKNOWN'];
           const sortedStatuses = Array.from(groups.keys()).sort((a, b) => {
             const idxA = statusOrder.indexOf(a);
             const idxB = statusOrder.indexOf(b);
@@ -465,18 +472,34 @@ export class AstraDashboard extends BaseComponent {
     // Update List Chips
     const listContainer = this.overlay.querySelector('#astra-list-filters');
     if (listContainer) {
-      const standardLists = ['COMPLETED', 'DROPPED', 'PAUSED', 'PLANNING', 'WATCHING', 'READING', 'REPEATING', 'CURRENT'];
+      const standardLists = [MediaListStatus.COMPLETED, MediaListStatus.DROPPED, MediaListStatus.PAUSED, MediaListStatus.PLANNING, MediaListStatus.WATCHING, MediaListStatus.READING, MediaListStatus.REPEATING, MediaListStatus.CURRENT];
       const customLists = Array.from(new Set(works.flatMap(w => w.customLists || [])))
-        .filter(l => !standardLists.includes(l.toUpperCase()))
+        .filter(l => !standardLists.includes(l.toUpperCase() as MediaListStatus))
         .sort();
 
-      const mainStatuses = [
-        { id: 'all', label: 'All', icon: 'fa-layer-group' },
-        { id: 'CURRENT', label: 'Current', icon: 'fa-play' },
-        { id: 'COMPLETED', label: 'Completed', icon: 'fa-check' },
-        { id: 'PLANNING', label: 'Planning', icon: 'fa-calendar' },
-        { id: 'PAUSED', label: 'Paused', icon: 'fa-pause' }
+      const mainStatuses: any[] = [
+        { id: 'all', label: 'All', icon: 'fa-layer-group' }
       ];
+
+      if (this.state.type === 'all' || this.state.type === 'anime') {
+        mainStatuses.push({ id: MediaListStatus.WATCHING, label: 'Watching', icon: 'fa-play' });
+      }
+      if (this.state.type === 'all' || this.state.type === 'manga') {
+        mainStatuses.push({ id: MediaListStatus.READING, label: 'Reading', icon: 'fa-book-open' });
+      }
+      if (this.state.type === 'all' || this.state.type === 'anime') {
+        mainStatuses.push({ id: MediaListStatus.REWATCHING, label: 'Rewatching', icon: 'fa-redo' });
+      }
+      if (this.state.type === 'all' || this.state.type === 'manga') {
+        mainStatuses.push({ id: MediaListStatus.REREADING, label: 'Rereading', icon: 'fa-redo' });
+      }
+
+      mainStatuses.push(
+        { id: MediaListStatus.COMPLETED, label: 'Completed', icon: 'fa-check' },
+        { id: MediaListStatus.PAUSED, label: 'Paused', icon: 'fa-pause' },
+        { id: MediaListStatus.DROPPED, label: 'Dropped', icon: 'fa-times-circle' },
+        { id: MediaListStatus.PLANNING, label: 'Planning', icon: 'fa-calendar' }
+      );
 
       listContainer.innerHTML = `
         <div class="astra-macro-categories">
@@ -485,43 +508,79 @@ export class AstraDashboard extends BaseComponent {
               <i class="fa ${s.icon}"></i> ${s.label}
             </button>
           `).join('')}
-          
-          <div class="astra-filter-divider"></div>
-          
-          <div class="astra-dropdown">
-            <button class="astra-chip astra-dropdown-trigger ${this.state.status !== 'all' ? 'active' : ''}">
-              <i class="fa fa-list-ul"></i> ${this.state.status !== 'all' ? this.state.status : 'Custom Lists'}
-              <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
-            </button>
-            <div class="astra-dropdown-menu">
-              <div class="astra-dropdown-item" data-val="all">
-                <i class="fa fa-times"></i> Clear Custom Filter
-              </div>
-              <div class="astra-dropdown-divider"></div>
-              ${customLists.map(list => `
-                <div class="astra-dropdown-item ${this.state.status === list ? 'active' : ''}" data-val="${list}">
-                  <i class="fa fa-tag"></i> ${list}
-                </div>
-              `).join('')}
+        </div>
+
+        <div class="astra-filter-divider"></div>
+
+        <div class="astra-dropdown">
+          <button class="astra-chip astra-dropdown-trigger ${this.state.status !== 'all' ? 'active' : ''}">
+            <i class="fa fa-list-ul"></i> ${this.state.status !== 'all' ? this.state.status : 'Custom Lists'}
+            <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
+          </button>
+          <div class="astra-dropdown-menu">
+            <div class="astra-dropdown-item" data-val="all">
+              <i class="fa fa-times"></i> Clear Custom Filter
             </div>
+            <div class="astra-dropdown-divider"></div>
+            ${customLists.map(list => `
+              <div class="astra-dropdown-item ${this.state.status === list ? 'active' : ''}" data-val="${list}">
+                <i class="fa fa-tag"></i> ${list}
+              </div>
+            `).join('')}
           </div>
         </div>
 
-        <div class="astra-filter-spacer"></div>
+        <div class="astra-filter-divider"></div>
 
         <div class="astra-secondary-filters">
-          <select class="astra-chip astra-select-chip ${this.state.type !== 'all' ? 'active' : ''}" data-filter="type">
-            <option value="all">Any Type</option>
-            <option value="anime" ${this.state.type === 'anime' ? 'selected' : ''}>Anime</option>
-            <option value="manga" ${this.state.type === 'manga' ? 'selected' : ''}>Manga</option>
-            <option value="novel" ${this.state.type === 'novel' ? 'selected' : ''}>Novel</option>
-          </select>
-          <select class="astra-chip astra-select-chip ${this.state.country !== 'all' ? 'active' : ''}" data-filter="country">
-            <option value="all">Any Country</option>
-            <option value="JP" ${this.state.country === 'JP' ? 'selected' : ''}>Japan</option>
-            <option value="CN" ${this.state.country === 'CN' ? 'selected' : ''}>China</option>
-            <option value="KR" ${this.state.country === 'KR' ? 'selected' : ''}>Korea</option>
-          </select>
+          <div class="astra-secondary-stacked">
+            <div class="astra-dropdown">
+              <button class="astra-chip astra-dropdown-trigger ${this.state.type !== 'all' ? 'active' : ''}" data-dropdown="type">
+                <i class="fa fa-film"></i> ${this.state.type === 'all' ? 'Type' : this.state.type.charAt(0).toUpperCase() + this.state.type.slice(1)}
+                <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
+              </button>
+              <div class="astra-dropdown-menu">
+                <div class="astra-dropdown-item ${this.state.type === 'all' ? 'active' : ''}" data-filter="type" data-val="all">
+                  <i class="fa fa-times"></i> All Types
+                </div>
+                <div class="astra-dropdown-divider"></div>
+                <div class="astra-dropdown-item ${this.state.type === 'anime' ? 'active' : ''}" data-filter="type" data-val="anime">
+                  <i class="fa fa-tv"></i> Anime
+                </div>
+                <div class="astra-dropdown-item ${this.state.type === 'manga' ? 'active' : ''}" data-filter="type" data-val="manga">
+                  <i class="fa fa-book"></i> Manga
+                </div>
+                <div class="astra-dropdown-item ${this.state.type === 'novel' ? 'active' : ''}" data-filter="type" data-val="novel">
+                  <i class="fa fa-book-open"></i> Novel
+                </div>
+              </div>
+            </div>
+
+            <div class="astra-dropdown">
+              <button class="astra-chip astra-dropdown-trigger ${this.state.country !== 'all' ? 'active' : ''}" data-dropdown="country">
+                <i class="fa fa-globe"></i> ${this.state.country === 'all' ? 'Country' : this.getCountryLabel(this.state.country)}
+                <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
+              </button>
+              <div class="astra-dropdown-menu">
+                <div class="astra-dropdown-item ${this.state.country === 'all' ? 'active' : ''}" data-filter="country" data-val="all">
+                  <i class="fa fa-times"></i> All Countries
+                </div>
+                <div class="astra-dropdown-divider"></div>
+                <div class="astra-dropdown-item ${this.state.country === 'JP' ? 'active' : ''}" data-filter="country" data-val="JP">
+                  <i class="fa fa-flag"></i> Japan
+                </div>
+                <div class="astra-dropdown-item ${this.state.country === 'CN' ? 'active' : ''}" data-filter="country" data-val="CN">
+                  <i class="fa fa-flag"></i> China
+                </div>
+                <div class="astra-dropdown-item ${this.state.country === 'KR' ? 'active' : ''}" data-filter="country" data-val="KR">
+                  <i class="fa fa-flag"></i> Korea
+                </div>
+                <div class="astra-dropdown-item ${this.state.country === 'TW' ? 'active' : ''}" data-filter="country" data-val="TW">
+                  <i class="fa fa-flag"></i> Taiwan
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       `;
 
@@ -532,9 +591,6 @@ export class AstraDashboard extends BaseComponent {
           if (status === 'all') {
             this.state.anilistStatus = 'all';
             this.state.status = 'all';
-          } else if (status === 'CURRENT') {
-            this.state.anilistStatus = 'WATCHING'; // We handle CURRENT as WATCHING/READING in getFilteredWorks
-            this.state.status = 'all';
           } else {
             this.state.anilistStatus = status;
             this.state.status = 'all';
@@ -543,46 +599,63 @@ export class AstraDashboard extends BaseComponent {
         });
       });
 
-      // Attach dropdown events
-      const trigger = listContainer.querySelector('.astra-dropdown-trigger');
-      const menu = listContainer.querySelector('.astra-dropdown-menu');
-      trigger?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        menu?.parentElement?.classList.toggle('active');
-      });
+      // Attach dropdown events for all dropdowns (Custom Lists, Type, Country)
+      listContainer.querySelectorAll('.astra-dropdown').forEach(dropdown => {
+        const trigger = dropdown.querySelector('.astra-dropdown-trigger');
 
-      listContainer.querySelectorAll('.astra-dropdown-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const val = item.getAttribute('data-val')!;
-          this.state.status = val;
-          this.state.anilistStatus = 'all'; // Clear status filter when using custom list
-          this.updateDashboardDynamic();
-          menu?.parentElement?.classList.remove('active');
+        trigger?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // Close other dropdowns
+          listContainer.querySelectorAll('.astra-dropdown.active').forEach(d => {
+            if (d !== dropdown) d.classList.remove('active');
+          });
+          dropdown.classList.toggle('active');
+        });
+
+        dropdown.querySelectorAll('.astra-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const val = item.getAttribute('data-val')!;
+            const filter = item.getAttribute('data-filter');
+
+            let needsUpdate = false;
+
+            if (filter === 'type') {
+              if (this.state.type !== val) {
+                this.state.type = val;
+                needsUpdate = true;
+              }
+            } else if (filter === 'country') {
+              if (this.state.country !== val) {
+                this.state.country = val;
+                needsUpdate = true;
+              }
+            } else {
+              // Custom list filter
+              if (this.state.status !== val) {
+                this.state.status = val;
+                this.state.anilistStatus = 'all'; // Clear status filter when using custom list
+                needsUpdate = true;
+              }
+            }
+
+            if (needsUpdate) {
+              this.updateDashboardDynamic();
+            }
+            dropdown.classList.remove('active');
+          });
         });
       });
 
-      // Re-attach chip and select events
-      listContainer.querySelectorAll('.astra-chip').forEach(el => {
-        if (el.tagName === 'SELECT') {
-          el.addEventListener('change', (e) => {
-            const target = e.currentTarget as HTMLSelectElement;
-            const filter = target.getAttribute('data-filter');
-            if (filter === 'type') this.state.type = target.value;
-            else if (filter === 'country') this.state.country = target.value;
-            else if (filter === 'anilistStatus') this.state.anilistStatus = target.value;
-            this.updateDashboardDynamic();
-          });
-        } else {
-          el.addEventListener('click', (e) => {
-            const target = e.currentTarget as HTMLElement;
-            const val = target.getAttribute('data-val');
-            if (val) {
-              this.state.status = val;
-              this.updateDashboardDynamic();
-            }
-          });
+      // Close dropdowns when clicking outside
+      this.overlay!.addEventListener('click', (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.astra-dropdown')) {
+          this.overlay!.querySelectorAll('.astra-dropdown.active').forEach(d => d.classList.remove('active'));
         }
       });
+
+      // Note: Dropdown events are now handled above in the unified dropdown handler
     }
 
     // Update active chips for Type and Country
@@ -633,7 +706,7 @@ export class AstraDashboard extends BaseComponent {
       <div class="astra-grid-group-header ${isCollapsed ? 'collapsed' : ''}" data-status="${status}">
         <div class="astra-group-info">
           <i class="fa ${icon}"></i>
-          <span class="astra-group-title">${status}</span>
+          <span class="astra-group-title">${getStatusLabel(status as MediaListStatus, this.state.type === 'manga' ? 'MANGA' : 'ANIME')}</span>
           <span class="astra-group-badge">${count}</span>
         </div>
         <div class="astra-group-line"></div>
@@ -649,10 +722,14 @@ export class AstraDashboard extends BaseComponent {
       let matchAnilistStatus = true;
       if (this.state.anilistStatus !== 'all') {
         const wStatus = (w.status || '').toUpperCase();
-        if (this.state.anilistStatus === 'WATCHING') {
-          matchAnilistStatus = wStatus === 'CURRENT' && w.type === 'anime';
-        } else if (this.state.anilistStatus === 'READING') {
-          matchAnilistStatus = wStatus === 'CURRENT' && w.type === 'manga';
+        if (this.state.anilistStatus === MediaListStatus.WATCHING) {
+          matchAnilistStatus = wStatus === MediaListStatus.CURRENT && w.type === 'anime';
+        } else if (this.state.anilistStatus === MediaListStatus.READING) {
+          matchAnilistStatus = wStatus === MediaListStatus.CURRENT && w.type === 'manga';
+        } else if (this.state.anilistStatus === MediaListStatus.REWATCHING) {
+          matchAnilistStatus = wStatus === MediaListStatus.REPEATING && w.type === 'anime';
+        } else if (this.state.anilistStatus === MediaListStatus.REREADING) {
+          matchAnilistStatus = wStatus === MediaListStatus.REPEATING && w.type === 'manga';
         } else {
           matchAnilistStatus = wStatus === this.state.anilistStatus;
         }
@@ -1060,7 +1137,7 @@ export class AstraDashboard extends BaseComponent {
             <input type="text" class="astra-input" value="New Category" data-field="name">
           </div>
           <div class="astra-section-weight">
-            <span class="astra-label-xs">Global Weight</span>
+            <span class="astra-label-xs">Weight</span>
             <input type="number" class="astra-input" value="1" data-field="weight" step="0.1" min="0.1">
           </div>
           <div class="astra-section-actions">
@@ -1168,8 +1245,8 @@ export class AstraDashboard extends BaseComponent {
 
     // Get and calculate stats
     const works = this.service.getWorks();
-    const activeWorks = works.filter(w => ['COMPLETED', 'CURRENT'].includes(w.status));
-    const completedWorks = works.filter(w => w.status === 'COMPLETED');
+    const activeWorks = works.filter(w => [MediaListStatus.COMPLETED, MediaListStatus.CURRENT].includes(w.status));
+    const completedWorks = works.filter(w => w.status === MediaListStatus.COMPLETED);
     const anime = activeWorks.filter(w => w.type === 'anime');
     const manga = activeWorks.filter(w => w.type === 'manga');
     const completedAnime = completedWorks.filter(w => w.type === 'anime');
@@ -1182,11 +1259,11 @@ export class AstraDashboard extends BaseComponent {
       totalChapters: completedManga.reduce((acc, w) => acc + (w.chapters || 0), 0),
       animeDays: completedAnime.reduce((acc, w) => acc + ((w.episodes || 0) * (w.duration || 24)), 0) / (60 * 24),
       completed: completedWorks.length,
-      watching: works.filter(w => w.status === 'CURRENT').length,
-      planning: works.filter(w => w.status === 'PLANNING').length,
-      dropped: works.filter(w => w.status === 'DROPPED').length,
-      paused: works.filter(w => w.status === 'PAUSED').length,
-      rewatching: works.filter(w => w.status === 'REPEATING').length,
+      watching: works.filter(w => w.status === MediaListStatus.CURRENT).length,
+      planning: works.filter(w => w.status === MediaListStatus.PLANNING).length,
+      dropped: works.filter(w => w.status === MediaListStatus.DROPPED).length,
+      paused: works.filter(w => w.status === MediaListStatus.PAUSED).length,
+      rewatching: works.filter(w => w.status === MediaListStatus.REPEATING).length,
     };
 
     // Calculate mean scores
@@ -1359,14 +1436,14 @@ export class AstraDashboard extends BaseComponent {
     const y2 = 400;
     const cw = 270;
     const gap = 20;
-    drawCompactCard(70, y2, cw, 120, 'COMPLETED', stats.completed.toString(), '#10b981');
-    drawCompactCard(70 + cw + gap, y2, cw, 120, 'WATCHING', stats.watching.toString(), '#3b82f6');
-    drawCompactCard(70 + (cw + gap) * 2, y2, cw, 120, 'PLANNING', stats.planning.toString(), '#f59e0b');
-    drawCompactCard(70 + (cw + gap) * 3, y2, cw, 120, 'DROPPED', stats.dropped.toString(), '#ef4444');
+    drawCompactCard(70, y2, cw, 120, MediaListStatus.COMPLETED, stats.completed.toString(), '#10b981');
+    drawCompactCard(70 + cw + gap, y2, cw, 120, MediaListStatus.WATCHING, stats.watching.toString(), '#3db4f2');
+    drawCompactCard(70 + (cw + gap) * 2, y2, cw, 120, MediaListStatus.PLANNING, stats.planning.toString(), '#f59e0b');
+    drawCompactCard(70 + (cw + gap) * 3, y2, cw, 120, MediaListStatus.DROPPED, stats.dropped.toString(), '#ef4444');
 
     const y3 = y2 + 140;
-    drawCompactCard(70, y3, cw, 120, 'PAUSED', stats.paused.toString(), '#6366f1');
-    drawCompactCard(70 + cw + gap, y3, cw, 120, 'REWATCHING', stats.rewatching.toString(), '#06b6d4');
+    drawCompactCard(70, y3, cw, 120, MediaListStatus.PAUSED, stats.paused.toString(), '#6366f1');
+    drawCompactCard(70 + cw + gap, y3, cw, 120, MediaListStatus.REWATCHING, stats.rewatching.toString(), '#06b6d4');
     drawCompactCard(70 + (cw + gap) * 2, y3, cw, 120, 'MEAN SCORE', overallMean.toFixed(1), '#ffffff');
     drawCompactCard(70 + (cw + gap) * 3, y3, cw, 120, 'TOTAL', activeWorks.length.toString(), '#a855f7');
 
@@ -1541,5 +1618,18 @@ export class AstraDashboard extends BaseComponent {
     link.download = `astra-wrapped-${new Date().getFullYear()}.png`;
     link.href = canvas.toDataURL('image/png', 1.0);
     link.click();
+  }
+
+  /**
+   * Get human-readable country label from country code
+   */
+  private getCountryLabel(code: string): string {
+    const labels: Record<string, string> = {
+      'JP': 'Japan',
+      'CN': 'China',
+      'KR': 'Korea',
+      'TW': 'Taiwan'
+    };
+    return labels[code] || code;
   }
 }

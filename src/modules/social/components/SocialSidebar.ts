@@ -21,8 +21,9 @@
 import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { SocialService } from '../SocialService';
-import { SocialActivityDetailed, SocialFilter } from '@core/types';
+import { MediaListStatus, MediaType, SocialActivityDetailed, SocialFilter } from '@core/types';
 import { ScoreFormatter } from '@core/utils/ScoreFormatter';
+import { getStatusLabel } from '@core/utils/UIHelpers';
 import { BestFriendService } from '../BestFriendService';
 import { CustomListService } from '../CustomListService';
 import { log } from '@core/logger';
@@ -33,13 +34,14 @@ export class SocialSidebar extends BaseComponent {
   private currentMediaId: number | null = null;
   private currentFilter: SocialFilter = 'self';
   private currentCustomList: string | null = null; // New: track selected custom list
-  private currentStatus: string = 'all';
+  private currentStatus: MediaListStatus | 'all' = 'all';
   private searchQuery: string = '';
   private currentPage = 1;
   private hasNextPage = true;
   private isLoading = false;
   private currentAnchor: HTMLElement | null = null;
   private currentAnimeTitle: string = '';
+  private currentMediaType: MediaType = 'ANIME';
   private lastLoadedNodes: SocialActivityDetailed[] = [];
 
   constructor(
@@ -77,11 +79,11 @@ export class SocialSidebar extends BaseComponent {
       </div>
       <div class="au-status-tabs">
         <div class="au-status-filter active" data-status="all">All</div>
-        <div class="au-status-filter" data-status="current">Watching</div>
-        <div class="au-status-filter" data-status="planning">Plans</div>
-        <div class="au-status-filter" data-status="completed">Completed</div>
-        <div class="au-status-filter" data-status="paused">Paused</div>
-        <div class="au-status-filter" data-status="dropped">Dropped</div>
+        <div class="au-status-filter" data-status="${MediaListStatus.CURRENT}">Watching</div>
+        <div class="au-status-filter" data-status="${MediaListStatus.PLANNING}">Plans</div>
+        <div class="au-status-filter" data-status="${MediaListStatus.COMPLETED}">Completed</div>
+        <div class="au-status-filter" data-status="${MediaListStatus.PAUSED}">Paused</div>
+        <div class="au-status-filter" data-status="${MediaListStatus.DROPPED}">Dropped</div>
       </div>
       <div class="au-social-search-wrapper">
         <div class="au-social-search-inner">
@@ -105,8 +107,8 @@ export class SocialSidebar extends BaseComponent {
 
     // Listen for open events
     window.addEventListener('au-open-social-sidebar', ((e: CustomEvent) => {
-      const { mediaId, title, element } = e.detail;
-      this.open(mediaId, title, element);
+      const { mediaId, title, element, type } = e.detail;
+      this.open(mediaId, title, element, type);
     }) as EventListener);
 
     // Close button
@@ -250,13 +252,14 @@ export class SocialSidebar extends BaseComponent {
     }
   }
 
-  public open(mediaId: number, title: string, anchor?: HTMLElement): void {
+  public open(mediaId: number, title: string, anchor?: HTMLElement, type: MediaType = 'ANIME'): void {
     if (this.currentMediaId === mediaId && this.element.classList.contains('active')) {
       return;
     }
 
     this.currentMediaId = mediaId;
     this.currentAnimeTitle = title;
+    this.currentMediaType = type;
     this.currentPage = 1;
     this.hasNextPage = true;
 
@@ -307,9 +310,10 @@ export class SocialSidebar extends BaseComponent {
   }
 
   private setStatus(status: string): void {
-    if (this.currentStatus === status) return;
+    const statusVal = status === 'all' ? 'all' : status as MediaListStatus;
+    if (this.currentStatus === statusVal) return;
 
-    this.currentStatus = status;
+    this.currentStatus = statusVal;
     this.currentPage = 1;
     this.hasNextPage = true;
 
@@ -512,18 +516,22 @@ export class SocialSidebar extends BaseComponent {
 
   private getStatusColor(status: string): string {
     switch (status) {
-      case 'CURRENT': return '#3db4f2';
-      case 'COMPLETED': return '#68d639';
-      case 'PAUSED': return '#e89e3a';
-      case 'DROPPED': return '#f14242';
+      case MediaListStatus.CURRENT: return '#3db4f2';
+      case MediaListStatus.COMPLETED: return '#68d639';
+      case MediaListStatus.PAUSED: return '#e89e3a';
+      case MediaListStatus.DROPPED: return '#f14242';
       default: return '#9195a3';
     }
   }
 
   private formatStatus(node: SocialActivityDetailed): string {
-    if (node.status === 'CURRENT') return `Watching Ep ${node.progress}`;
-    if (node.status === 'COMPLETED') return 'Completed';
-    return node.status.charAt(0) + node.status.slice(1).toLowerCase();
+    const label = getStatusLabel(node.status, this.currentMediaType);
+    
+    if (node.status === MediaListStatus.CURRENT) {
+      return `${label} Ep ${node.progress}`;
+    }
+    
+    return label;
   }
 
   private timeAgo(timestamp: number): string {

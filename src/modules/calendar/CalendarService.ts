@@ -15,6 +15,7 @@ import { USER_ANIME_LIST_QUERY, UPDATE_PROGRESS_MUTATION } from '@/api/queries/c
 import { log } from '@core/logger';
 import { DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, MediaListResponse } from '@core/types';
+import { MediaListStatus } from '@core/types';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
@@ -41,7 +42,7 @@ export class CalendarService implements ICalendarService {
       const data = await this.apiClient.query<MediaListResponse>(USER_ANIME_LIST_QUERY, {
         userId,
         type: 'ANIME',
-        status: 'CURRENT',
+        status: MediaListStatus.CURRENT,
       });
 
       const entries = this.transformToAnimeEntries(data);

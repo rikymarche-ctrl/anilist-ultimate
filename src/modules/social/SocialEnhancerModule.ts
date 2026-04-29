@@ -45,7 +45,7 @@ export class SocialEnhancerModule extends BaseModule {
   private portalControllers: Map<HTMLElement, AbortController> = new Map();
 
   /** Cards waiting for their first API fetch, keyed by mediaId */
-  private pendingCards: Map<number, HTMLElement[]> = new Map();
+  private pendingCards: Map<number, { elements: HTMLElement[], type: any }> = new Map();
 
   /** Cache of fetched activities, keyed by mediaId — used for instant re-inject */
   private activityCache: Map<number, FriendActivity[]> = new Map();
@@ -173,8 +173,13 @@ export class SocialEnhancerModule extends BaseModule {
       const titleEl = card.querySelector('.title');
       const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
 
+      // Extract type for portal
+      const link = (card as any)?.href || card.querySelector<HTMLAnchorElement>('a.cover')?.href || card.querySelector<HTMLAnchorElement>('a')?.href;
+      const typeMatch = link?.match(/\/(anime|manga)\//);
+      const type = (typeMatch ? typeMatch[1].toUpperCase() : 'ANIME') as any;
+
       // Re-inject with current preferences (SocialRenderer checks prefs internally)
-      const controller = SocialRenderer.attachPortal(card, mediaId, title, activities);
+      const controller = SocialRenderer.attachPortal(card, mediaId, title, activities, type);
       this.portalControllers.set(card, controller);
     });
 
@@ -217,8 +222,9 @@ export class SocialEnhancerModule extends BaseModule {
       // Skip already-processed cards
       if (card.hasAttribute(PROCESSED_ATTR)) return;
 
-      const mediaId = this.extractMediaId(card);
-      if (!mediaId) return;
+      const extracted = this.extractMediaInfo(card);
+      if (!extracted) return;
+      const { mediaId, type } = extracted;
 
       // Tag the card so we can find it later by mediaId
       card.setAttribute(PROCESSED_ATTR, 'true');
@@ -231,16 +237,17 @@ export class SocialEnhancerModule extends BaseModule {
         const titleEl = card.querySelector('.title');
         const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
         
-        const controller = SocialRenderer.attachPortal(card, mediaId, title, activities);
+        // We know the type from extraction above
+        const controller = SocialRenderer.attachPortal(card, mediaId, title, activities, type);
         this.portalControllers.set(card, controller);
         return;
       }
 
       // Otherwise queue for batch fetch
       if (!this.pendingCards.has(mediaId)) {
-        this.pendingCards.set(mediaId, []);
+        this.pendingCards.set(mediaId, { elements: [], type });
       }
-      this.pendingCards.get(mediaId)!.push(card);
+      this.pendingCards.get(mediaId)!.elements.push(card);
       added = true;
     });
 
@@ -249,7 +256,7 @@ export class SocialEnhancerModule extends BaseModule {
     }
   }
 
-  private extractMediaId(card: HTMLElement): number | null {
+  private extractMediaInfo(card: HTMLElement): { mediaId: number, type: any } | null {
     const link = (card as any).href ||
       card.querySelector<HTMLAnchorElement>('a.cover')?.href ||
       card.querySelector<HTMLAnchorElement>('a')?.href;
@@ -257,7 +264,12 @@ export class SocialEnhancerModule extends BaseModule {
     if (!link) return null;
 
     const match = link.match(/\/(anime|manga)\/(\d+)/);
-    return match ? parseInt(match[2], 10) : null;
+    if (!match) return null;
+    
+    return {
+      mediaId: parseInt(match[2], 10),
+      type: match[1].toUpperCase()
+    };
   }
 
   private scheduleBatchFetch(): void {
@@ -280,17 +292,17 @@ export class SocialEnhancerModule extends BaseModule {
     try {
       const results = await this.socialService.getFriendActivityBatch(ids);
 
-      currentBatch.forEach((elements, mediaId) => {
+      currentBatch.forEach((data, mediaId) => {
         const activities = results.get(mediaId) ?? [];
 
         // Store in cache for instant re-apply on future pref changes
         this.setCachedActivities(mediaId, activities); // PERF-002 fix: use LRU cache
 
-        elements.forEach(card => {
+        data.elements.forEach(card => {
           const titleEl = card.querySelector('.title');
           const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
           
-          const controller = SocialRenderer.attachPortal(card, mediaId, title, activities);
+          const controller = SocialRenderer.attachPortal(card, mediaId, title, activities, data.type);
           this.portalControllers.set(card, controller);
         });
       });

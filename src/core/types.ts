@@ -39,7 +39,7 @@ export interface AnimeEntry {
 
 export interface FriendActivity {
   id: number;
-  status: MediaStatus;
+  status: MediaListStatus;
   progress: number;
   score: number;
   user: {
@@ -54,12 +54,13 @@ export interface FriendActivity {
 export interface MediaProgress {
   mediaId: number;
   progress: number;
-  status: MediaStatus;
+  status: MediaListStatus;
 }
 
-export type MediaStatus = 'CURRENT' | 'PLANNING' | 'COMPLETED' | 'DROPPED' | 'PAUSED' | 'REPEATING';
-
-export type MediaType = 'ANIME' | 'MANGA';
+import { MediaListStatus } from '@/api/AnilistTypes';
+import type { MediaType } from '@/api/AnilistTypes';
+export { MediaListStatus };
+export type { MediaType };
 
 // ============================================================================
 // Calendar Types
@@ -181,7 +182,7 @@ export interface MediaListResponse {
         id: number;
         mediaId: number;
         progress: number;
-        status: MediaStatus;
+        status: MediaListStatus;
         media: {
           id: number;
           title: {
@@ -259,7 +260,7 @@ export type ScoreFormat = 'POINT_100' | 'POINT_10_DECIMAL' | 'POINT_10' | 'POINT
 
 export interface SocialActivityDetailed {
   id: number;
-  status: MediaStatus;
+  status: MediaListStatus;
   progress: number;
   score: number;
   notes: string | null;
