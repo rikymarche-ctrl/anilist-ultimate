@@ -141,7 +141,8 @@
   height: 100%;
   display: block;
   background: var(--astra-bg);
-  overflow: auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
   position: relative;
 }
 
@@ -1292,7 +1293,7 @@
   align-items: center;
   width: 100%;
   gap: 6px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .astra-filter-divider {
@@ -1500,6 +1501,7 @@
   letter-spacing: 0.1em;
   position: relative;
   z-index: 20;
+  border-radius: 12px 12px 0 0;
 }
 
 .astra-grid-header>div {
@@ -1532,19 +1534,27 @@
   position: relative;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   transition: background-color 0.2s, background-size 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-  background-color: var(--astra-bg);
+  --row-bg: var(--astra-bg);
+  background-color: var(--row-bg);
   background-repeat: no-repeat;
   background-position: 0 0;
   min-width: 100%;
   width: max-content;
+  overflow: hidden;
 }
 
 .astra-grid-row:last-child {
   border-bottom: none;
+  border-radius: 0 0 12px 12px;
+}
+
+.astra-grid-row:last-child .astra-table-actions {
+  border-bottom-right-radius: 12px;
 }
 
 .astra-grid-row:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  --row-bg: rgba(255, 255, 255, 0.02);
+  background-color: var(--row-bg);
 }
 
 /* THE PROGRESS ENGINE - BACKGROUND INJECTION */
@@ -1563,12 +1573,18 @@
   padding: 16px 24px;
   background: var(--astra-bg);
   cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   user-select: none;
   grid-column: 1 / -1;
   gap: 16px;
   position: sticky;
   z-index: 10;
   transition: all 0.2s;
+}
+
+.astra-grid-group-header:last-child {
+  border-bottom: none;
+  border-radius: 0 0 12px 12px;
 }
 
 .astra-grid-group-header:hover {
@@ -1709,30 +1725,31 @@
 
 .astra-grid-row .astra-table-actions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   justify-content: flex-end;
+  align-items: center;
   position: sticky;
   right: 0;
-  background: linear-gradient(90deg, transparent, var(--astra-bg) 5px, var(--astra-bg) 100%);
-  padding-left: 10px;
-  padding-right: 20px;
-  margin-right: -20px;
+  background: transparent;
+  padding-left: 30px;
+  padding-right: 15px;
   z-index: 30;
-  transition: background 0.2s;
+  pointer-events: none;
 }
 
 .astra-grid-row:hover .astra-table-actions {
-  background: linear-gradient(90deg, transparent, #121c27 5px, #121c27 100%);
+  background: transparent;
 }
 
 .astra-grid-header>div:last-child {
   position: sticky;
   right: 0;
-  background: linear-gradient(90deg, transparent, var(--astra-bg-elev-2) 5px, var(--astra-bg-elev-2) 100%);
-  padding-left: 10px;
-  padding-right: 20px;
-  margin-right: -20px;
+  background: transparent;
+  padding-left: 30px;
+  padding-right: 15px;
   z-index: 25;
+  text-align: right;
+  pointer-events: none;
 }
 
 .astra-icon-btn {
@@ -1863,15 +1880,16 @@
   border: 1px solid var(--astra-border-soft);
   color: var(--astra-muted) !important;
   text-decoration: none !important;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
 }
 
 .astra-icon-btn:hover {
@@ -1879,7 +1897,7 @@
   border-color: var(--astra-accent);
   color: var(--astra-accent) !important;
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), 0 0 10px var(--astra-accent-a20);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 10px var(--astra-accent-a20);
 }
 
 .astra-icon-btn i {
@@ -2563,22 +2581,106 @@
   font-family: var(--astra-font-mono);
 }
 
-/* Horizontal Table Scroll Fix */
+/* Horizontal Table Scroll - Nascosta native, custom sempre visibile */
 .astra-table-wrap {
   width: 100%;
   overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--astra-border-soft) transparent;
-  padding-bottom: 8px;
+  padding: 0 24px 0 24px;
+  scrollbar-width: none;
 }
 
 .astra-table-wrap::-webkit-scrollbar {
-  height: 6px;
+  display: none;
 }
 
-.astra-table-wrap::-webkit-scrollbar-thumb {
-  background: var(--astra-border-soft);
+/* Custom Scrollbar - Fixed in fondo, IDENTICO a quello verticale */
+.astra-scrollbar-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 6px;
+  height: 6px;
+  background: transparent;
+  z-index: 200;
+  padding: 0;
+  margin: 0;
+  border: none;
+  display: none;
+}
+
+.astra-scrollbar-fixed.visible {
+  display: block;
+}
+
+.astra-scrollbar-track {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: pointer;
+  background: transparent;
+}
+
+.astra-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  height: 6px;
+  background: var(--astra-accent-a20);
   border-radius: 10px;
+  cursor: grab;
+  transition: background 0.2s;
+  min-width: 30px;
+}
+
+.astra-scrollbar-thumb:hover {
+  background: var(--astra-accent-a50);
+}
+
+.astra-scrollbar-thumb:active {
+  cursor: grabbing;
+  background: var(--astra-accent-a50);
+}
+
+/* Custom Horizontal Scrollbar - Always Visible */
+.astra-custom-scrollbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  display: none;
+  backdrop-filter: blur(5px);
+}
+
+.astra-custom-scrollbar.visible {
+  display: block;
+}
+
+.astra-custom-scrollbar-track {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: pointer;
+}
+
+.astra-custom-scrollbar-thumb {
+  position: absolute;
+  top: 2px;
+  height: 8px;
+  background: var(--astra-accent-a20);
+  border-radius: 4px;
+  cursor: grab;
+  transition: background 0.2s;
+}
+
+.astra-custom-scrollbar-thumb:hover {
+  background: var(--astra-accent-a50);
+}
+
+.astra-custom-scrollbar-thumb:active {
+  cursor: grabbing;
+  background: var(--astra-accent);
 }
 
 .astra-table {
@@ -2937,9 +3039,8 @@
   position: relative;
   background: var(--astra-bg);
   padding: 0;
-  display: inline-block;
-  min-width: 100%;
-  width: max-content;
+  display: block;
+  width: 100%;
 }
 
 
