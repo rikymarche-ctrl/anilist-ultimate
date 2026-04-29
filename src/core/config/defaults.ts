@@ -31,6 +31,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     activityScore: true,
     webComponents: true,
     virtualScroll: false,
+    mediaMetadata: true,
   },
 
   debug: {

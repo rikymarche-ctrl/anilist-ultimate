@@ -49,7 +49,8 @@
 
 ## ✨ P8 - NEW FEATURES & INTEGRATIONS
 
-- [ ] **Media Metadata** - Add MAL score, MAL link, and Subreddit link to media pages.
+- [x] **Media Metadata** - Add MAL score, MAL link, and Subreddit link to media pages (with caching and native styling). [DONE]
+- [ ] **Watch Section** - Implement a "Watch" section with search links for official and unofficial sites (Intro/Outro support).
 - [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
 - [ ] **Bulk Editor** - Create a tool for bulk editing items within custom lists.
 - [ ] **Progress Notes** - Show/edit notes immediately when incrementing episode/chapter progress.

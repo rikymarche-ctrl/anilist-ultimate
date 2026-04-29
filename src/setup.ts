@@ -68,6 +68,7 @@ import { SocialActivityModule } from '@/modules/social/SocialActivityModule';
 import { SocialEnhancerModule } from '@/modules/social/SocialEnhancerModule';
 import { CustomListModule } from '@/modules/social/CustomListModule';
 import { MediaSocialEnhancer } from '@/modules/social/MediaSocialEnhancer';
+import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
 import { AstraModule } from '@/modules/astra/AstraModule';
 import { AstraService } from '@/modules/astra/AstraService';
 import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
@@ -280,6 +281,13 @@ export async function setupDI(): Promise<void> {
       enabled: true,
       factory: () => container.resolve(AstraModule),
       pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra'),
+    },
+    {
+      name: 'mediaMetadata',
+      description: 'External media metadata (MAL, Reddit)',
+      enabled: config.isFeatureEnabled('mediaMetadata'),
+      factory: () => container.resolve(MediaMetadataModule),
+      pageMatch: (path) => /^\/(anime|manga)\/\d+/.test(path),
     },
   ];
 

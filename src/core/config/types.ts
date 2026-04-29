@@ -29,6 +29,7 @@ export interface FeatureFlags {
   activityScore: boolean;
   webComponents: boolean;
   virtualScroll: boolean;
+  mediaMetadata: boolean;
 }
 
 /**
