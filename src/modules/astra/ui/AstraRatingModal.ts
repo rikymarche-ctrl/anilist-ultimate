@@ -38,7 +38,14 @@ export class AstraRatingModal {
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
     @inject(TOKENS.ApiClient) private api: IApiClient
-  ) {}
+  ) {
+    // BUG-020: Ensure UI stays consistent on resize
+    window.addEventListener('resize', () => {
+      if (this.overlay) {
+        this.updateLivePreview();
+      }
+    });
+  }
 
   private get dashboard(): AstraDashboard {
     return container.resolve<AstraDashboard>(TOKENS.AstraDashboard);

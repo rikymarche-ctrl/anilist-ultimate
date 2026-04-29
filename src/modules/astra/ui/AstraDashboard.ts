@@ -41,7 +41,9 @@ export class AstraDashboard extends BaseComponent {
     showStats: false,
     showProgress: true,
     country: 'all',
-    activeTab: 'dashboard' as 'dashboard' | 'settings'
+    activeTab: 'dashboard' as 'dashboard' | 'settings',
+    isGrouped: true,
+    collapsedGroups: new Set<string>()
   };
   private renderProcessId = 0;
 
@@ -62,6 +64,13 @@ export class AstraDashboard extends BaseComponent {
     // BUG-009 Fix: Listen for global open event directly in the dashboard component
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, () => {
       this.open();
+    });
+
+    // BUG-020: Refresh dynamic elements on resize
+    window.addEventListener('resize', () => {
+      if (this.overlay) {
+        this.updateDashboardDynamic();
+      }
     });
   }
 
@@ -171,6 +180,9 @@ export class AstraDashboard extends BaseComponent {
             </button>
             <button class="astra-btn astra-btn--ghost ${this.state.showProgress ? 'active' : ''}" id="astra-toggle-progress" title="Toggle Progress Fill">
               <i class="fa fa-tasks"></i>
+            </button>
+            <button class="astra-btn astra-btn--ghost ${this.state.isGrouped ? 'active' : ''}" id="astra-toggle-grouping" title="Group by Status">
+              <i class="fa fa-layer-group"></i> ${this.state.isGrouped ? 'Grouped' : 'Flat'}
             </button>
             <button class="astra-btn astra-btn--ghost" id="astra-export-wrapped" title="Export Stats as PNG">
               <i class="fa fa-image"></i> Export Wrapped
@@ -407,7 +419,40 @@ export class AstraDashboard extends BaseComponent {
       const currentProcessId = this.renderProcessId;
 
       if (sortedWorks.length > 0) {
-        this.renderChunks(sortedWorks, 0, 50, currentProcessId, tbody as HTMLElement);
+        if (this.state.isGrouped) {
+          const groupedItems: any[] = [];
+          const groups = new Map<string, any[]>();
+          
+          sortedWorks.forEach(w => {
+            const status = (w.status || 'UNKNOWN').toUpperCase();
+            if (!groups.has(status)) groups.set(status, []);
+            groups.get(status)!.push(w);
+          });
+
+          // Order groups: CURRENT/WATCHING/READING first, then COMPLETED, then others
+          const statusOrder = ['WATCHING', 'READING', 'CURRENT', 'REPEATING', 'COMPLETED', 'PLANNING', 'PAUSED', 'DROPPED', 'UNKNOWN'];
+          const sortedStatuses = Array.from(groups.keys()).sort((a, b) => {
+            const idxA = statusOrder.indexOf(a);
+            const idxB = statusOrder.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return a.localeCompare(b);
+          });
+
+          sortedStatuses.forEach(status => {
+            const groupWorks = groups.get(status)!;
+            const isCollapsed = this.state.collapsedGroups.has(status);
+            groupedItems.push({ isHeader: true, status, count: groupWorks.length, isCollapsed });
+            if (!isCollapsed) {
+              groupedItems.push(...groupWorks);
+            }
+          });
+
+          this.renderChunks(groupedItems, 0, 50, currentProcessId, tbody as HTMLElement);
+        } else {
+          this.renderChunks(sortedWorks, 0, 50, currentProcessId, tbody as HTMLElement);
+        }
       } else {
         tbody.innerHTML = `
           <div style="text-align: center; padding: 48px; color: var(--astra-muted); grid-column: 1 / -1">
@@ -421,39 +466,100 @@ export class AstraDashboard extends BaseComponent {
     const listContainer = this.overlay.querySelector('#astra-list-filters');
     if (listContainer) {
       const standardLists = ['COMPLETED', 'DROPPED', 'PAUSED', 'PLANNING', 'WATCHING', 'READING', 'REPEATING', 'CURRENT'];
-      const allLists = Array.from(new Set(works.flatMap(w => w.customLists || [])))
+      const customLists = Array.from(new Set(works.flatMap(w => w.customLists || [])))
         .filter(l => !standardLists.includes(l.toUpperCase()))
         .sort();
 
+      const mainStatuses = [
+        { id: 'all', label: 'All', icon: 'fa-layer-group' },
+        { id: 'CURRENT', label: 'Current', icon: 'fa-play' },
+        { id: 'COMPLETED', label: 'Completed', icon: 'fa-check' },
+        { id: 'PLANNING', label: 'Planning', icon: 'fa-calendar' },
+        { id: 'PAUSED', label: 'Paused', icon: 'fa-pause' }
+      ];
+
       listContainer.innerHTML = `
-        <select class="astra-chip astra-select-chip ${this.state.type !== 'all' ? 'active' : ''}" data-filter="type">
-          <option value="all">${this.state.type !== 'all' ? '✕ Clear' : 'Type'}</option>
-          <option value="anime" ${this.state.type === 'anime' ? 'selected' : ''}>Anime</option>
-          <option value="manga" ${this.state.type === 'manga' ? 'selected' : ''}>Manga</option>
-          <option value="novel" ${this.state.type === 'novel' ? 'selected' : ''}>Novel</option>
-        </select>
-        <select class="astra-chip astra-select-chip ${this.state.country !== 'all' ? 'active' : ''}" data-filter="country">
-          <option value="all">${this.state.country !== 'all' ? '✕ Clear' : 'Country'}</option>
-          <option value="JP" ${this.state.country === 'JP' ? 'selected' : ''}>Japan</option>
-          <option value="CN" ${this.state.country === 'CN' ? 'selected' : ''}>China</option>
-          <option value="KR" ${this.state.country === 'KR' ? 'selected' : ''}>Korea</option>
-        </select>
-        <select class="astra-chip astra-select-chip ${this.state.anilistStatus !== 'all' ? 'active' : ''}" id="astra-filter-status" data-filter="anilistStatus">
-          <option value="all">${this.state.anilistStatus !== 'all' ? '✕ Clear' : 'Status'}</option>
-          <option value="WATCHING" ${this.state.anilistStatus === 'WATCHING' ? 'selected' : ''}>Watching</option>
-          <option value="READING" ${this.state.anilistStatus === 'READING' ? 'selected' : ''}>Reading</option>
-          <option value="COMPLETED" ${this.state.anilistStatus === 'COMPLETED' ? 'selected' : ''}>Completed</option>
-          <option value="PLANNING" ${this.state.anilistStatus === 'PLANNING' ? 'selected' : ''}>Planning</option>
-          <option value="PAUSED" ${this.state.anilistStatus === 'PAUSED' ? 'selected' : ''}>Paused</option>
-          <option value="DROPPED" ${this.state.anilistStatus === 'DROPPED' ? 'selected' : ''}>Dropped</option>
-          <option value="REPEATING" ${this.state.anilistStatus === 'REPEATING' ? 'selected' : ''}>Rewatching</option>
-        </select>
-        <div class="astra-filter-divider"></div>
-        <button class="astra-chip ${this.state.status === 'all' && this.state.anilistStatus === 'all' && this.state.type === 'all' && this.state.country === 'all' ? 'active' : ''}" data-val="all">All</button>
-        ${allLists.map(list => `
-          <button class="astra-chip ${this.state.status === list ? 'active' : ''}" data-val="${list}">${list}</button>
-        `).join('')}
+        <div class="astra-macro-categories">
+          ${mainStatuses.map(s => `
+            <button class="astra-macro-chip ${this.state.anilistStatus === s.id || (s.id === 'all' && this.state.anilistStatus === 'all' && this.state.status === 'all') ? 'active' : ''}" data-status="${s.id}">
+              <i class="fa ${s.icon}"></i> ${s.label}
+            </button>
+          `).join('')}
+          
+          <div class="astra-filter-divider"></div>
+          
+          <div class="astra-dropdown">
+            <button class="astra-chip astra-dropdown-trigger ${this.state.status !== 'all' ? 'active' : ''}">
+              <i class="fa fa-list-ul"></i> ${this.state.status !== 'all' ? this.state.status : 'Custom Lists'}
+              <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
+            </button>
+            <div class="astra-dropdown-menu">
+              <div class="astra-dropdown-item" data-val="all">
+                <i class="fa fa-times"></i> Clear Custom Filter
+              </div>
+              <div class="astra-dropdown-divider"></div>
+              ${customLists.map(list => `
+                <div class="astra-dropdown-item ${this.state.status === list ? 'active' : ''}" data-val="${list}">
+                  <i class="fa fa-tag"></i> ${list}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="astra-filter-spacer"></div>
+
+        <div class="astra-secondary-filters">
+          <select class="astra-chip astra-select-chip ${this.state.type !== 'all' ? 'active' : ''}" data-filter="type">
+            <option value="all">Any Type</option>
+            <option value="anime" ${this.state.type === 'anime' ? 'selected' : ''}>Anime</option>
+            <option value="manga" ${this.state.type === 'manga' ? 'selected' : ''}>Manga</option>
+            <option value="novel" ${this.state.type === 'novel' ? 'selected' : ''}>Novel</option>
+          </select>
+          <select class="astra-chip astra-select-chip ${this.state.country !== 'all' ? 'active' : ''}" data-filter="country">
+            <option value="all">Any Country</option>
+            <option value="JP" ${this.state.country === 'JP' ? 'selected' : ''}>Japan</option>
+            <option value="CN" ${this.state.country === 'CN' ? 'selected' : ''}>China</option>
+            <option value="KR" ${this.state.country === 'KR' ? 'selected' : ''}>Korea</option>
+          </select>
+        </div>
       `;
+
+      // Attach macro events
+      listContainer.querySelectorAll('.astra-macro-chip').forEach(el => {
+        el.addEventListener('click', () => {
+          const status = el.getAttribute('data-status')!;
+          if (status === 'all') {
+            this.state.anilistStatus = 'all';
+            this.state.status = 'all';
+          } else if (status === 'CURRENT') {
+            this.state.anilistStatus = 'WATCHING'; // We handle CURRENT as WATCHING/READING in getFilteredWorks
+            this.state.status = 'all';
+          } else {
+            this.state.anilistStatus = status;
+            this.state.status = 'all';
+          }
+          this.updateDashboardDynamic();
+        });
+      });
+
+      // Attach dropdown events
+      const trigger = listContainer.querySelector('.astra-dropdown-trigger');
+      const menu = listContainer.querySelector('.astra-dropdown-menu');
+      trigger?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu?.parentElement?.classList.toggle('active');
+      });
+
+      listContainer.querySelectorAll('.astra-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const val = item.getAttribute('data-val')!;
+          this.state.status = val;
+          this.state.anilistStatus = 'all'; // Clear status filter when using custom list
+          this.updateDashboardDynamic();
+          menu?.parentElement?.classList.remove('active');
+        });
+      });
 
       // Re-attach chip and select events
       listContainer.querySelectorAll('.astra-chip').forEach(el => {
@@ -500,21 +606,39 @@ export class AstraDashboard extends BaseComponent {
     }
   }
 
-  private renderChunks(works: AstraWork[], start: number, count: number, processId: number, container: HTMLElement): void {
+  private renderChunks(items: any[], start: number, count: number, processId: number, container: HTMLElement): void {
     if (processId !== this.renderProcessId || !this.overlay) return;
 
-    const chunk = works.slice(start, start + count);
+    const chunk = items.slice(start, start + count);
     if (chunk.length === 0) return;
 
-    const html = chunk.map(w => this.renderRow(w)).join('');
+    const html = chunk.map(item => {
+      if (item.isHeader) {
+        return this.renderGroupHeader(item.status, item.count, item.isCollapsed);
+      }
+      return this.renderRow(item);
+    }).join('');
     container.insertAdjacentHTML('beforeend', html);
 
-    // Rows are rendered in chunks, but events are delegated from the parent
-    if (start + count < works.length) {
+    if (start + count < items.length) {
       requestAnimationFrame(() => {
-        this.renderChunks(works, start + count, count, processId, container);
+        this.renderChunks(items, start + count, count, processId, container);
       });
     }
+  }
+
+  private renderGroupHeader(status: string, count: number, isCollapsed: boolean): string {
+    const icon = isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down';
+    return `
+      <div class="astra-grid-group-header ${isCollapsed ? 'collapsed' : ''}" data-status="${status}">
+        <div class="astra-group-info">
+          <i class="fa ${icon}"></i>
+          <span class="astra-group-title">${status}</span>
+          <span class="astra-group-badge">${count}</span>
+        </div>
+        <div class="astra-group-line"></div>
+      </div>
+    `;
   }
 
   private getFilteredWorks(works: AstraWork[]): AstraWork[] {
@@ -718,6 +842,15 @@ export class AstraDashboard extends BaseComponent {
       this.updateDashboardDynamic(); // Refresh to apply/remove background styles
     });
 
+    // Toggle Grouping
+    overlay.querySelector('#astra-toggle-grouping')?.addEventListener('click', (e) => {
+      this.state.isGrouped = !this.state.isGrouped;
+      const btn = e.currentTarget as HTMLElement;
+      btn.classList.toggle('active', this.state.isGrouped);
+      btn.innerHTML = `<i class="fa fa-layer-group"></i> ${this.state.isGrouped ? 'Grouped' : 'Flat'}`;
+      this.updateDashboardDynamic();
+    });
+
     // Search
     const searchInput = overlay.querySelector('#astra-search') as HTMLInputElement;
     searchInput?.addEventListener('input', () => {
@@ -785,6 +918,23 @@ export class AstraDashboard extends BaseComponent {
         this.state.sort = `${field}-${newDir}`;
         this.updateDashboardDynamic();
       });
+    });
+
+    // Group Header Toggle (Delegated)
+    overlay.querySelector('#astra-table-body')?.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const header = target.closest('.astra-grid-group-header');
+      if (header) {
+        const status = header.getAttribute('data-status');
+        if (status) {
+          if (this.state.collapsedGroups.has(status)) {
+            this.state.collapsedGroups.delete(status);
+          } else {
+            this.state.collapsedGroups.add(status);
+          }
+          this.updateDashboardDynamic();
+        }
+      }
     });
 
     // Delegated Row Events (Edit, Delete)

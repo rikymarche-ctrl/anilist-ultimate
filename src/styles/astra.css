@@ -215,6 +215,7 @@
   max-height: 275px;
   overflow-y: auto;
   padding-right: 12px;
+  scrollbar-gutter: stable;
 }
 
 .astra-field-group {
@@ -630,6 +631,7 @@
   overflow-y: auto;
   padding-right: 8px;
   padding-bottom: 80px;
+  scrollbar-gutter: stable;
 }
 
 .astra-form-scroll {
@@ -1187,6 +1189,54 @@
   margin-bottom: 24px;
 }
 
+.astra-macro-categories {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.astra-macro-chip {
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--astra-border);
+  background: var(--astra-bg-elev);
+  color: var(--astra-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.astra-macro-chip i {
+  font-size: 14px;
+}
+
+.astra-macro-chip:hover {
+  background: var(--astra-bg-elev-2);
+  border-color: var(--astra-accent-a50);
+  color: var(--astra-text);
+}
+
+.astra-macro-chip.active {
+  background: var(--astra-accent-a20);
+  color: var(--astra-accent);
+  border-color: var(--astra-accent);
+  box-shadow: 0 4px 15px rgba(var(--astra-accent-rgb), 0.15);
+}
+
+.astra-filter-spacer {
+  flex: 1;
+}
+
+.astra-secondary-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 .astra-dashboard-controls {
   display: flex;
   flex-direction: column;
@@ -1196,25 +1246,14 @@
   top: 0;
   z-index: 100;
   background: var(--astra-bg);
-  padding: 10px 0;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
-}
-
-.astra-dashboard-controls.is-sticky {
-  border-bottom-color: var(--astra-border-soft);
-}
-
-.astra-search-box-row {
-  width: 100%;
-  display: flex;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--astra-border-soft);
 }
 
 .astra-filter-bar {
   display: flex;
-  gap: 12px;
   align-items: center;
-  flex-wrap: wrap;
+  width: 100%;
 }
 
 .astra-filter-divider {
@@ -1336,6 +1375,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   margin-bottom: 40px;
   position: relative;
+  scrollbar-gutter: stable;
 }
 
 .astra-grid {
@@ -1409,6 +1449,68 @@
       rgba(59, 130, 246, 0.2) 100%);
   background-size: calc(var(--progress-val, 0) * 1%) 100%;
   box-shadow: inset 3px 0 0 #3b82f6;
+}
+
+/* Group Headers */
+.astra-grid-group-header {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px 10px 24px;
+  background: var(--astra-bg);
+  cursor: pointer;
+  user-select: none;
+  grid-column: 1 / -1;
+  gap: 16px;
+  position: sticky;
+  top: 60px;
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.astra-grid-group-header:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.astra-group-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.astra-group-info i {
+  width: 16px;
+  color: var(--astra-accent);
+  transition: transform 0.2s;
+}
+
+.astra-grid-group-header.collapsed .astra-group-info i {
+  transform: rotate(-90deg);
+}
+
+.astra-group-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--astra-text);
+}
+
+.astra-group-badge {
+  background: var(--astra-bg-elev-2);
+  color: var(--astra-muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--astra-border-soft);
+}
+
+.astra-group-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--astra-border-soft) 0%, transparent 100%);
+  opacity: 0.5;
 }
 
 .astra-grid-row::before {
@@ -2403,11 +2505,6 @@
   pointer-events: auto;
 }
 
-/* Prevent AniList's image-overlay from intercepting our pill button clicks */
-.media-preview-card .image-overlay {
-  pointer-events: none;
-}
-
 .media-preview-card .action-pill {
   transform: translateY(10px) scale(0.9);
   background: rgba(10, 10, 15, 0.75);
@@ -2417,6 +2514,11 @@
 
 .media-preview-card:hover .action-pill {
   transform: translateY(0) scale(1);
+}
+
+
+.action-pill--with-social {
+  width: 130px;
 }
 
 /* Click animation — fires via JS adding/removing this class */

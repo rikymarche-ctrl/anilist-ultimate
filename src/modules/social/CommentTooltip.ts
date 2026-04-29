@@ -23,12 +23,13 @@ interface CommentTooltipProps {
 
 export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
   private currentComment: UserComment | null = null;
+  private currentTarget: HTMLElement | null = null;
   private hideTimer: number | null = null;
   private hoverStates = { icon: false, tooltip: false };
 
   protected render(): HTMLElement {
     const tooltip = this.createElement('div', { id: 'anilist-tooltip' });
-    
+
     // Initial empty state
     tooltip.innerHTML = `
       <div class="tooltip-header">
@@ -42,6 +43,7 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
 
   public show(element: HTMLElement, comment: UserComment): void {
     this.currentComment = comment;
+    this.currentTarget = element;
     this.updateContent();
 
     // Clear any pending hide timer
@@ -59,6 +61,7 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     this.element.classList.remove('visible');
     this.hoverStates.icon = false;
     this.hoverStates.tooltip = false;
+    this.currentTarget = null;
   }
 
   public scheduleHide(): void {
@@ -145,6 +148,13 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     this.addEventListener(this.element, 'mouseleave', () => {
       this.hoverStates.tooltip = false;
       this.scheduleHide();
+    });
+
+    // BUG-020: Re-position on window resize if visible
+    window.addEventListener('resize', () => {
+      if (this.element.classList.contains('visible') && this.currentTarget) {
+        this.updatePosition(this.currentTarget);
+      }
     });
   }
 }

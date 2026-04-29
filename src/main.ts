@@ -40,7 +40,8 @@ import './styles/social-activity.css';
 import './styles/custom-lists.css';
 import './styles/astra.css';
 // BUG-010 fix: Font Awesome bundled locally instead of CDN
-import '@fortawesome/fontawesome-free/css/all.min.css';
+// Using JS version (SVG) for maximum compatibility with AniList CSP
+import '@fortawesome/fontawesome-free/js/all.min.js';
 
 /**
  * Initialize the global debug object

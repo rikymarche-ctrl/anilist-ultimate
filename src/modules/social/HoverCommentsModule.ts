@@ -26,6 +26,7 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ILogger } from '@core/interfaces/ILogger';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { CommentTooltip } from './CommentTooltip';
+import { localStorage } from '@core/storage/StorageManager';
 import '../../styles/hover-comments.css';
 
 @injectable()
@@ -35,7 +36,7 @@ export class HoverCommentsModule extends BaseModule {
   private processedMediaId: number | null = null;
   private currentMediaId: number | null = null; // BUG-033 fix: track current context
   private isProcessing = false;
-  private readonly ICON_SVG = `<svg class="au-comment-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M512 240c0 114.9-114.6 208-256 208c-37.1 0-72.3-6.4-104.1-17.9c-11.9 8.7-31.3 20.6-54.3 30.6C73.6 471.1 44.7 480 16 480c-6.5 0-12.3-3.9-14.8-9.9c-2.5-6-1.1-12.8 3.4-17.4l4.1-4.1c10.1-10.1 16.6-23.3 18.2-38.1C11.2 367.1 0 306.7 0 240C0 125.1 114.6 32 256 32s256 93.1 256 208z"/></svg>`;
+  private readonly ICON_SVG = `<svg class="au-comment-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M256 32C114.6 32 0 125.1 0 240c0 67.6 39.1 127.9 100.1 163.8c-3.1 13.1-13.8 37.7-35 53.7c-6.3 4.8-3.1 14.7 4.8 15c66.2 3.3 115.1-34.7 140.3-54.9c14.7 1.5 29.8 2.4 45.8 2.4c141.4 0 256-93.1 256-208S397.4 32 256 32z"/></svg>`;
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
@@ -50,6 +51,7 @@ export class HoverCommentsModule extends BaseModule {
 
   public async init(): Promise<void> {
     this.logger.info('[HoverComments] Initializing...');
+    await this.loadCache();
 
     this.onPageChange(() => {
       this.fullReset();
@@ -133,9 +135,26 @@ export class HoverCommentsModule extends BaseModule {
 
     if (usernames.length === 0) return;
 
-    this.logger.info(`[HoverComments] Fetching notes for ${usernames.length} users`);
-    const notes = await this.fetchBatchNotes(usernames, mediaId);
+    // 1. Immediate injection for cached users
+    const usernamesToFetch: string[] = [];
+    userLinks.forEach(link => {
+      const username = this.extractUsername(link);
+      if (!username) return;
+      const cacheKey = this.getCacheKey(username, mediaId);
+      if (this.notesCache[cacheKey]) {
+        this.injectIcon(link, username, mediaId, this.notesCache[cacheKey].notes);
+      } else {
+        usernamesToFetch.push(username);
+      }
+    });
 
+    if (usernamesToFetch.length === 0) return;
+
+    // 2. Fetch missing ones in background
+    this.logger.info(`[HoverComments] Fetching notes for ${usernamesToFetch.length} new users`);
+    const notes = await this.fetchBatchNotes(usernamesToFetch, mediaId);
+
+    // 3. Inject newly fetched icons
     userLinks.forEach(link => {
       const username = this.extractUsername(link);
       if (username && notes[username]) {
@@ -144,7 +163,31 @@ export class HoverCommentsModule extends BaseModule {
     });
   }
 
-  private notesCache: Record<string, string> = {};
+  private notesCache: Record<string, { notes: string, timestamp: number }> = {};
+  private readonly CACHE_KEY = 'hover_comments_cache';
+
+  private async loadCache(): Promise<void> {
+    try {
+      const stored = await localStorage.get<Record<string, any>>(this.CACHE_KEY);
+      if (stored) {
+        this.notesCache = stored;
+      }
+    } catch (e) {
+      this.logger.debug('[HoverComments] Failed to load cache', e);
+    }
+  }
+
+  private async saveCache(): Promise<void> {
+    try {
+      await localStorage.set(this.CACHE_KEY, this.notesCache);
+    } catch (e) {
+      this.logger.debug('[HoverComments] Failed to save cache', e);
+    }
+  }
+
+  private getCacheKey(username: string, mediaId: number): string {
+    return `${username.toLowerCase()}_${mediaId}`;
+  }
 
   private injectIconsIfMissing(mediaId: number): void {
     const followingSection = this.findFollowingSection();
@@ -155,8 +198,9 @@ export class HoverCommentsModule extends BaseModule {
 
     userLinks.forEach(link => {
       const username = this.extractUsername(link);
-      if (username && this.notesCache[username]) {
-        this.injectIcon(link, username, mediaId, this.notesCache[username]);
+      const cacheKey = username ? this.getCacheKey(username, mediaId) : null;
+      if (username && cacheKey && this.notesCache[cacheKey]) {
+        this.injectIcon(link, username, mediaId, this.notesCache[cacheKey].notes);
       }
     });
 
@@ -171,13 +215,20 @@ export class HoverCommentsModule extends BaseModule {
     const results: Record<string, string> = {};
     
     // Filter out users already in cache
-    const usersToFetch = usernames.filter(u => !this.notesCache[u]);
-    if (usersToFetch.length === 0) return this.notesCache;
+    const usersToFetch = usernames.filter(u => !this.notesCache[this.getCacheKey(u, mediaId)]);
+    if (usersToFetch.length === 0) {
+      // All users are in cache, but we need to return the notes for the current mediaId
+      usernames.forEach(u => {
+        const cached = this.notesCache[this.getCacheKey(u, mediaId)];
+        if (cached) results[u] = cached.notes;
+      });
+      return results;
+    }
 
     this.logger.info(`[HoverComments] Batch fetching notes for ${usersToFetch.length} new users...`);
 
     try {
-      // Build a batched query using GraphQL variables (prevents injection via usernames)
+      // Build a batched query using GraphQL variables
       const varDecls = usersToFetch.map((_, i) => `$u${i}: String!`).join(', ');
       const aliasParts = usersToFetch.map((_, i) =>
         `user_${i}: MediaList(userName: $u${i}, mediaId: $mid) { notes }`
@@ -189,39 +240,40 @@ export class HoverCommentsModule extends BaseModule {
 
       const data = await this.apiClient.query<any>(query, variables);
 
-      // BUG-033 fix: Only update cache if still on same media (prevent race condition)
+      // Only update cache if still on same media
       if (this.currentMediaId === mediaId) {
         usersToFetch.forEach((username, index) => {
           const safeAlias = `user_${index}`;
           const notes = data?.[safeAlias]?.notes;
           if (notes) {
-            this.notesCache[username] = notes;
+            const cacheKey = this.getCacheKey(username, mediaId);
+            this.notesCache[cacheKey] = { notes, timestamp: Date.now() };
             results[username] = notes;
           }
         });
-      } else {
-        this.logger.info('[HoverComments] Page changed during fetch, discarding results');
+        await this.saveCache();
       }
     } catch (error) {
       this.logger.error('[HoverComments] Batch fetch failed', error);
-      // Fallback to sequential if batching fails for some reason (e.g. one bad username)
+      // Fallback to sequential
       for (const username of usersToFetch) {
         try {
           const query = `query ($u: String, $m: Int) { MediaList(userName: $u, mediaId: $m) { notes } }`;
           const data = await this.apiClient.query<any>(query, { u: username, m: mediaId });
 
-          // BUG-033 fix: Only update cache if still on same media
           if (this.currentMediaId === mediaId && data?.MediaList?.notes) {
-            this.notesCache[username] = data.MediaList.notes;
+            const cacheKey = this.getCacheKey(username, mediaId);
+            const notes = data.MediaList.notes;
+            this.notesCache[cacheKey] = { notes, timestamp: Date.now() };
+            results[username] = notes;
           }
           await new Promise(r => setTimeout(r, 100));
-        } catch (e) {
-          // Skip if individual fetch fails
-        }
+        } catch (e) {}
       }
+      await this.saveCache();
     }
 
-    return this.notesCache;
+    return results;
   }
 
   private injectIcon(link: HTMLAnchorElement, username: string, mediaId: number, notes: string): void {

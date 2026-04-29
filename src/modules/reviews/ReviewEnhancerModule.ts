@@ -55,6 +55,8 @@ export class ReviewEnhancerModule extends BaseModule {
   public async init(): Promise<void> {
     log.info('[ReviewEnhancer] Initializing strategic version');
 
+    await this.reviewService.init();
+
     this.onPageChange(() => {
       this.fullReset();
       this.startObservation();

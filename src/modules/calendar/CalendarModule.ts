@@ -28,6 +28,7 @@ import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import { CalendarDomService } from './services/CalendarDomService';
 import { CalendarDataService } from './services/CalendarDataService';
 import { CalendarSocialService } from './services/CalendarSocialService';
+import { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { SettingsPanel } from './components/SettingsPanel';
 
 @injectable()
@@ -40,6 +41,7 @@ export class CalendarModule extends BaseModule {
     @inject(TOKENS.CalendarDomService) private domService: CalendarDomService,
     @inject(TOKENS.CalendarDataService) private dataService: CalendarDataService,
     @inject(TOKENS.CalendarSocialService) private socialService: CalendarSocialService,
+    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.Config) private config: IConfigManager,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
@@ -87,6 +89,19 @@ export class CalendarModule extends BaseModule {
         }
       });
 
+      // BUG-FIX: Handle resize events that might disrupt the layout or detach the container
+      window.addEventListener('resize', () => {
+        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+        if (isHomePage) {
+          // If calendar is missing but we are on home page, re-inject
+          const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+          if (!calendarExists && !this.isProcessing) {
+            log.info('[Calendar] Calendar missing after resize, re-injecting...');
+            this.runInjectionFlow();
+          }
+        }
+      });
+
       log.success('[Calendar] Module initialized successfully');
     } catch (error) {
       log.error('[Calendar] Initialization failed', error);
@@ -99,49 +114,33 @@ export class CalendarModule extends BaseModule {
    * Setup observer to watch for the Airing section being added to the DOM
    */
   private async setupSectionDetection(): Promise<void> {
-    log.debug('[Calendar] Setting up section detection observer');
+    log.debug('[Calendar] Setting up section detection using SharedGlobalObserver');
 
-    // BUG-007 fix: Observe .home container instead of document.body
-    const homeContainer = await this.waitForElement('.home', 5000);
-    const target = homeContainer || document.body;
+    this.sharedObserver.register('calendar-airing-detector', async () => {
+      // Only run if on home page and calendar doesn't exist
+      const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+      if (!isHomePage) return;
 
-    if (homeContainer) {
-      log.debug('[Calendar] Observing .home container (BUG-007 optimization)');
-    } else {
-      log.warn('[Calendar] .home container not found, falling back to document.body');
-    }
+      const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+      if (calendarExists) return;
 
-    this.registerObserver(
-      'airing-section-detector',
-      target,
-      { childList: true, subtree: true },
-      async () => {
-        // Only run if on home page and calendar doesn't exist
-        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-        if (!isHomePage) return;
-
-        const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
-        if (calendarExists) return;
-
-        // Try to find the section
-        const section = await this.domService.findAiringSection();
-        if (section) {
-          log.info('[Calendar] Airing section detected via mutation, triggering injection');
-          this.runInjectionFlow();
-        }
-      },
-      500 // Throttle to 500ms
-    );
+      // Try to find the section
+      const section = await this.domService.findAiringSection();
+      if (section) {
+        log.info('[Calendar] Airing section detected via shared observer, triggering injection');
+        this.runInjectionFlow();
+      }
+    }, 1000); // 1s throttle is enough
   }
 
   /**
    * Main flow to inject UI and load data
    */
-  private async runInjectionFlow(): Promise<void> {
+  private async runInjectionFlow(forceRefresh: boolean = false): Promise<void> {
     if (this.isProcessing) return;
     
     const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
-    if (calendarExists) return;
+    if (calendarExists && !forceRefresh) return;
 
     try {
       this.isProcessing = true;
@@ -160,7 +159,20 @@ export class CalendarModule extends BaseModule {
 
       // 2. Load Data via Data Service
       if (this.userId) {
-        await this.dataService.loadSchedule(this.userId);
+        try {
+          await this.dataService.loadSchedule(this.userId, forceRefresh);
+        } catch (err) {
+          log.warn('[Calendar] Schedule load failed, attempting stale cache fallback', err);
+          // DataService already sets error in store, but we can try to force stale load if entries are 0
+          const state = calendarStore.getState();
+          if (state.entries.length === 0) {
+            const stale = await calendarStore.loadEntriesFromCache(true); // true = allowStale
+            if (stale) {
+              log.info('[Calendar] Fallback successful: using stale entries');
+              calendarStore.setEntries(stale);
+            }
+          }
+        }
 
         // 3. Load Social Data (Async, non-blocking)
         if (this.config.isFeatureEnabled('friendActivity')) {

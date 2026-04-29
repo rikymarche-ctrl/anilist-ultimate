@@ -30,22 +30,27 @@
 }
 
 .comment-icon-ghost.au-in-social-feed {
-  right: 115px;
+  right: 120px;
 }
 
 .comment-icon-ghost .anilist-comment-icon {
   pointer-events: auto;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
   transition: all var(--au-transition);
+  background: transparent;
+  flex-shrink: 0;
 }
 
 .comment-icon-ghost .anilist-comment-icon .au-comment-svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 20px !important;
+  height: 20px !important;
   shape-rendering: geometricPrecision;
   image-rendering: -webkit-optimize-contrast;
 }
@@ -58,7 +63,6 @@
 
 .comment-icon-ghost .anilist-comment-icon:hover {
   color: var(--au-primary);
-  /* Removed scale and drop-shadow */
 }
 
 /* Row Stability */

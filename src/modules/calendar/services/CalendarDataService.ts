@@ -79,7 +79,27 @@ export class CalendarDataService {
         fromCache: false,
       });
     } catch (error) {
-      log.error('[CalendarData] Failed to load schedule', error);
+      log.error('[CalendarData] Failed to load schedule from API', error);
+      
+      // FALLBACK: Try loading stale cache if we haven't already
+      const state = calendarStore.getState();
+      if (state.entries.length === 0) {
+        log.info('[CalendarData] Attempting stale cache fallback after API failure...');
+        const staleEntries = await calendarStore.loadEntriesFromCache(true);
+        if (staleEntries) {
+          calendarStore.setEntries(staleEntries);
+          log.success(`[CalendarData] Fallback successful: Loaded ${staleEntries.length} stale entries`);
+          
+          this.eventBus.emit(EVENT_TYPES.CALENDAR_LOADED, {
+            scheduleCount: staleEntries.length,
+            progressCount: staleEntries.filter((e: any) => e.progress !== undefined).length,
+            timestamp: new Date(),
+            fromCache: true,
+          });
+          return; // Success via fallback
+        }
+      }
+
       calendarStore.setError(error as Error);
       throw error;
     } finally {

@@ -110,10 +110,10 @@ export class AstraModule extends BaseModule {
     (container as HTMLElement).style.display = 'block';
 
     this.dashboard.mount(container as HTMLElement);
-    
+
     // BUG-009 Fix: Lazy sync on tab open
     if (this.service) {
-      this.service.syncWithAniList((this as any).apiClient).then(({updated}) => {
+      this.service.syncWithAniList((this as any).apiClient).then(({ updated }) => {
         if (updated > 0) this.dashboard.refresh();
       }).catch((e: any) => log.error('[Astra] Lazy sync failed', e));
     }
@@ -190,68 +190,134 @@ export class AstraModule extends BaseModule {
     const path = window.location.pathname;
     const isHome = path === '/' || path === '/home';
     const isUserList = path.includes('/animelist') || path.includes('/mangalist');
+    const isMediaPage = !!path.match(/\/(anime|manga)\/\d+/);
 
-    if (!isHome && !isUserList) {
-      log.debug('[Astra] enhanceNativeCards: skipping — path not matched', path);
-      return;
+    if (!isHome && !isUserList && !isMediaPage) return;
+
+    if (isHome) {
+      // Restore 'Missing UI Elements' - Target 'In Progress' sections by searching for H2 text
+      const headers = Array.from(document.querySelectorAll('h2, .section-header'));
+
+      headers.forEach(header => {
+        const headerText = header.textContent?.toLowerCase() || '';
+
+        // Skip Airing/Schedule sections to avoid fighting with CalendarModule
+        if (headerText.includes('airing') || headerText.includes('schedule')) {
+          return;
+        }
+
+        if (headerText.includes('in progress')) {
+          const sectionContainer = header.closest('.list-preview-wrap, .list-preview, .section, [data-v-4f9e87dc]');
+          if (sectionContainer && !sectionContainer.querySelector('#au-calendar')) {
+            const cards = sectionContainer.querySelectorAll('.media-preview-card, .media-card');
+            log.info(`[Astra] Found "In Progress" section ("${headerText}") with ${cards.length} cards`);
+            cards.forEach(card => {
+              this.processCard(card as HTMLElement, true);
+            });
+          }
+        }
+      });
+    } else if (isUserList) {
+      // Standard list cards
+      document.querySelectorAll('.media-preview-card, .media-card').forEach(card => {
+        this.processCard(card as HTMLElement, true);
+      });
     }
 
-    const noMarkWatched: Set<Element> = isHome
-      ? this.buildNoMarkWatchedSet()
-      : new Set();
-
-    const cards = document.querySelectorAll('.media-preview-card, .media-card');
-    log.debug(`[Astra] enhanceNativeCards: found ${cards.length} cards on ${path}`);
-
-    let injected = 0;
-    cards.forEach(card => {
-      if (card.querySelector('.au-pill-wrapper') || card.hasAttribute('data-astra-processed')) return;
-      card.setAttribute('data-astra-processed', 'true');
-
-      const link = card.querySelector('a.cover')?.getAttribute('href') || (card as HTMLAnchorElement).href;
-      if (!link) {
-        log.debug('[Astra] enhanceNativeCards: skipping card — no link', card);
-        return;
-      }
-
-      const match = link.match(/\/(anime|manga)\/(\d+)/);
-      if (!match) {
-        log.debug('[Astra] enhanceNativeCards: skipping card — link does not match', link);
-        return;
-      }
-
-      const mediaId = parseInt(match[2]);
-      const isUserListCard = !noMarkWatched.has(card);
-      log.debug(`[Astra] injectCardPill: mediaId=${mediaId} isUserListCard=${isUserListCard}`);
-
-      this.injectCardPill(card as HTMLElement, mediaId, isUserListCard);
-      injected++;
-    });
-
-    log.debug(`[Astra] enhanceNativeCards: injected pills into ${injected} cards`);
+    if (isMediaPage) {
+      this.enhanceMediaPageSidebar();
+    }
   }
 
   /**
-   * Scans the DOM for the three known "non-list" sections by their h2.section-header text
-   * and returns a Set of all card elements within them.
-   * DOM structure: <div data-v-xxx><h2 class="section-header">Title</h2><div.media-preview>...cards</div></div>
+   * Internal helper to process a single card and inject the pill
    */
-  private buildNoMarkWatchedSet(): Set<Element> {
-    const excluded = new Set<Element>();
-    const noListTitles = ['Trending Anime & Manga', 'Newly Added Anime', 'Newly Added Manga'];
+  private processCard(card: HTMLElement, isUserListCard: boolean): void {
+    if (card.querySelector('.au-pill-wrapper') || card.hasAttribute('data-astra-processed')) return;
 
-    document.querySelectorAll<HTMLElement>('h2.section-header').forEach(h2 => {
-      const text = h2.textContent?.trim() ?? '';
-      if (noListTitles.some(title => text.includes(title))) {
-        const parent = h2.parentElement;
-        parent?.querySelectorAll('.media-preview-card, .media-card').forEach(card => {
-          excluded.add(card);
-        });
-      }
+    const link = card.querySelector('a.cover')?.getAttribute('href') || (card as any).href;
+    if (!link) return;
+
+    const match = link.match(/\/(anime|manga)\/(\d+)/);
+    if (!match) return;
+
+    const mediaId = parseInt(match[2]);
+    card.setAttribute('data-astra-processed', 'true');
+    this.injectCardPill(card, mediaId, isUserListCard);
+  }
+
+  /**
+   * Enhances the media page sidebar with action pills
+   */
+  private enhanceMediaPageSidebar(): void {
+    const path = window.location.pathname;
+    const mediaIdMatch = path.match(/\/(anime|manga)\/(\d+)/);
+    if (!mediaIdMatch) return;
+    const mediaId = parseInt(mediaIdMatch[2]);
+
+    // Target the sidebar status section
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar || sidebar.querySelector('.au-pill-wrapper')) return;
+
+    // Look for the "Status" or "Progress" label in the sidebar
+    const labels = Array.from(sidebar.querySelectorAll('.label, .type'));
+    const statusLabel = labels.find(l => {
+      const text = l.textContent?.toLowerCase() || '';
+      return text.includes('status') || text.includes('progress');
     });
 
-    return excluded;
+    if (statusLabel) {
+      const container = statusLabel.parentElement;
+      if (container && !container.querySelector('.au-pill-wrapper')) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'au-pill-wrapper au-pill-wrapper--sidebar';
+        wrapper.style.marginTop = '10px';
+        wrapper.style.display = 'flex';
+        wrapper.style.justifyContent = 'center';
+        wrapper.setAttribute('data-au-media-id', String(mediaId));
+
+        // Reuse the same pill HTML generator
+        wrapper.innerHTML = this.renderPillHTML(true, true);
+        container.appendChild(wrapper);
+      }
+    }
   }
+
+  /**
+   * Helper to render the common action pill HTML
+   */
+  private renderPillHTML(showMarkWatched: boolean, isSidebar: boolean = false): string {
+    const { socialEnabled, socialShowAvatars } = this.calendarStore.getState().preferences;
+    const showSocial = socialEnabled && !socialShowAvatars;
+
+    const socialHTML = showSocial ? `
+      <div class="pill-separator"></div>
+      <div class="pill-section" data-action="social-activity" title="Social Activity">
+        <i class="fa fa-users"></i>
+      </div>
+    ` : '';
+
+    const markWatchedHTML = showMarkWatched ? `
+      <div class="pill-section" data-action="mark-watched" title="Increment Progress">
+        <i class="fa fa-plus"></i>
+      </div>
+      <div class="pill-separator"></div>
+    ` : '';
+
+    const sidebarStyle = isSidebar ? 'style="position: static; opacity: 1; pointer-events: auto; transform: none; background: var(--astra-bg-elev); border: 1px solid var(--astra-border-soft); box-shadow: var(--au-shadow); width: auto; padding: 4px 8px; border-radius: 10px;"' : '';
+    const socialWidth = showSocial ? '130px' : '90px';
+
+    return `
+      <div class="action-pill" ${sidebarStyle} role="toolbar" style="${!isSidebar ? `width: ${socialWidth};` : ''}">
+        ${markWatchedHTML}
+        <div class="pill-section" data-action="edit-entry" title="Quick Rate (Astra)">
+          <i class="fa fa-pencil"></i>
+        </div>
+        ${socialHTML}
+      </div>
+    `;
+  }
+
 
   /**
    * Injects the action pill into a native AniList card.

@@ -55,7 +55,7 @@ export class ModuleRegistry {
     @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
     // Logger and EventBus will be injected via DI
-    
+
     // Listen for SPA navigation to initialize modules that didn't match the initial page load
     this.eventBus.on(EVENT_TYPES.PAGE_CHANGED, () => {
       this.checkPendingModules();

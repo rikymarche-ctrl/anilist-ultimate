@@ -1,356 +1,123 @@
-# AniList Ultimate v2 - TODO List
+# 🚀 AniList Ultimate - Roadmap & TODO
 
-**Last Updated:** 2026-04-28
-**Status:** P5 Complete ✅ (Data Consistency & Astra Stability Milestone)
-
----
-
-## ✅ P1 - CRITICAL SECURITY (COMPLETE)
-
-### ~~BUG-029: GraphQL Injection in SocialService~~ ✅
-
-- **Status:** FIXED in commit `c20eb67`
-- **File:** `src/modules/social/SocialService.ts:87`
-- **Fix Applied:** Uses GraphQL typed variables (`$m${idx}: Int!`) instead of direct interpolation
-- **Impact:** Prevents GraphQL injection attacks
+**Last Updated:** 2026-04-29
+**Current Status:** Phase 6 (UI/UX Refinement) 🟢
 
 ---
 
-## ✅ SISTEMA DI CACHING INTELLIGENTE (COMPLETE)
+## 🏗️ P6 - UI/UX REFINEMENT (IN PROGRESS)
 
-### Obiettivo ✅
+*Focus: Polishing the interface, fixing layout regressions, and improving transitions.*
 
-Implementare caching con **fingerprint-based invalidation** invece di solo TTL - COMPLETATO!
+### Astra Dashboard & Core UI
 
-### Implementazione Completa
+- [X] **BUG-020: Resize Handler** - Ensure extension elements (Astra, Tooltips) don't break when resizing the window.
+- [ ] **Astra Layout Refinement** - Fix elements shifting when the slider appears (Slider should be ignored for width calculations).
+- [X] **Astra Navigation** - Implement macro-categories (Reading, Completed, All, etc.) as dropdowns or tabs instead of just tags. [RICONTROLLARE]
+- [ ] **Sticky Search** - Make the search bar in Astra sticky so it stays visible during scroll. [DONE]
+- [ ] **Closing Animation** - Add a smooth "outro" animation when closing the Astra dashboard.
+- [ ] **Alignment Fix** - Correct decentered items above the votes/scores section.
+- [ ] **Transition Smoothing** - Fix the "brusque" interruption/transition in some UI components.
+- [X] **Icon Loading** - Switched to Font Awesome SVG/JS to fix CSP font-blocking issues. [DONE]
 
-#### 1. ✅ Fix scoreCache Memory Leak (ActivityService)
+### Page Enhancements (Media & User)
 
-- **File:** `src/modules/activity/ActivityService.ts`
-- **Implemented:**
-  - LRU cache (max 100 entries)
-  - TTL 5 minuti
-  - getCachedScore/setCachedScore wrappers
-  - clearCache() method
+- [ ] **Media Page Stability** - Fix social activity bubbles, comments, and filters on individual anime/manga pages (currently broken).
+- [ ] **User Activity Enhancements** - Add votes and filters to the single user activity feed.
+- [ ] **Banner Action** - Add a "+" button near the "Follow" button in user banners to quickly add/remove from custom lists.
+- [ ] **Follower Stats** - Add follower/following counters to relevant profile sections.
+- [X] **Missing UI Elements** - Restored the "pill" buttons in the media page sidebar "In Progress" section. [DONE]
 
-#### 2. ✅ Intelligent Review Caching
+### Visual & Assets
 
-- **Files:** `src/modules/reviews/ReviewService.ts`, `ReviewEnhancerModule.ts`
-- **Implemented:**
-  - LRU cache (max 200 entries) + TTL 30min in ReviewService
-  - Fingerprint-based batch deduplication in ReviewEnhancerModule
-  - Confronta sorted review IDs prima di fetch
-  - Skip API call se fingerprint uguale (homepage 4 reviews)
-
-#### 3. ✅ Intelligent Calendar Caching
-
-- **Files:** `src/modules/calendar/CalendarStore.ts`, `CalendarDataService.ts`
-- **Implemented:**
-  - Cache persistente in chrome.storage.local (TTL 30min)
-  - Fingerprint FNV-1a hash da mediaId + airingAt
-  - loadEntriesFromCache() con TTL validation
-  - Auto-invalidazione su progress update
-  - forceRefresh parameter in loadSchedule()
-
-#### 4. ✅ Intelligent Notification Caching
-
-- **File:** `src/modules/notifications/services/NotificationFetchService.ts`
-- **Implemented:**
-  - Cache persistente in `chrome.storage.local` (TTL 30 giorni)
-  - LRU cache aumentata a **1000 voci** per coprire lo storico completo
-  - Persistenza dei dettagli attività tra le sessioni
-  - Rimosso reset su navigazione SPA (performance istantanea)
-  - Ottimizzato per merge/unmerge toggle con validazione ID
-
-#### 5. ✅ Manual Cache Invalidation
-
-- **Status:** Methods implemented in all services
-- **Available:**
-  - ActivityService.clearCache()
-  - ReviewService.clearCache()
-  - CalendarStore.invalidateCache()
-  - NotificationFetchService.clearCache()
-  - SocialService.invalidateFollowingsCache()
-  - SocialService.clearAllCaches()
-- **TODO:** Expose in UI (settings panel) - P6 UI task
-
-#### 6. ✅ Followings Cache Improvements
-
-- **File:** `src/modules/social/SocialService.ts`
-- **Implemented:**
-  - refreshFollowings() method (force refresh)
-  - invalidateFollowingsCache() method
-  - clearAllCaches() for full reset
-- **TODO:** Add button in settings UI - P6 UI task
+- [X] **BUG-021: Comment Icon** - Replace low-res SVG with high-quality version and fix hover trigger area. [DONE]
+- [ ] **BUG-025: Weight Position** - Move the Global Weight indicator to the left in Astra rows.
+- [ ] **COS-002: Calendar Redesign** - Rework the graphics for social activity within the calendar cards.
+- [ ] una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
+- [ ] anche lo slider default di anilist è stato cambiato con quello di astra, no. Analisit deve avere il suo nella home
 
 ---
 
-## ✅ P3 - PERFORMANCE (COMPLETE)
+## 🛠️ P7 - DEBUG & ERRORS
 
-- **Status:** FIXED all 5 performance bottlenecks.
-- **Milestone:** Implementation of SharedGlobalObserver (BUG-007).
-
-### BUG-007: MutationObserver Optimization ✅
-
-- **Implemented:**
-  1. Shared single observer pattern via `SharedGlobalObserver.ts`
-  2. Target containers (`.notifications`, `.activity-feed`) instead of document.body
-  3. Optimized `BaseModule.registerObserver` to support specific targets
-
-### BUG-010: Font Awesome Local Bundle ✅
-
-- **Status:** FIXED - local import of `@fortawesome/fontawesome-free`
-
-### BUG-011: Manifest CSS Bundling ✅
-
-- **Status:** FIXED - all module CSS files added to `manifest.json`
-
-### BUG-012: CalendarStore DI Pattern ✅
-
-- **Status:** FIXED - resolved via container in `AstraModule`
-
-### BUG-013: Proxy Singleton Race Condition ✅
-
-- **Status:** FIXED - removed proxy pattern in `AnilistClient.ts` (replaced with direct DI)
+- [ ] **Runtime Fix** - `TypeError: Cannot read properties of undefined (reading 'init')` at `settings#au-custom-lists`.
+- [ ] **BUG-034: Logging System** - Fix `src/core/logger.ts` so logs actually appear in the console.
+- [X] **API Resilience** - Ensure cached data (Reviews, Calendar) is shown if API is down. [DONE]
+- [ ] **Astra Bug Hunt** - Systematic testing of internal Astra logic to catch edge-case crashes.
 
 ---
 
-## ✅ P4 - TYPE SAFETY (COMPLETE)
+## ✨ P8 - NEW FEATURES & INTEGRATIONS
 
-- **Status:** FIXED all type safety leaks and `any` usages in core modules.
-
-### BUG-014: EventBus Generic Fallback ✅
-
-- **Status:** FIXED - removed `[key: string]: any` from `AppEventMap`
-
-### BUG-016: ConfigManager Any Type ✅
-
-- **Status:** FIXED - storage typed as `IStorageService`
-
-### BUG-017: AstraModule Any Types ✅
-
-- **Status:** FIXED - resolved `IApiClient` and `ToastService` with proper types
-
-### API Transparency & Error Handling ✅
-
-- **Status:** FIXED in commit `7a8b9c2`
-- **Implemented:**
-  - Estrazione dettagliata errori GraphQL (da payload `errors`)
-  - Toast di avviso immediato per Rate Limit (429) con countdown 60s
-  - Rimozione completa di `any` nella gestione errori API
+- [ ] **Media Metadata** - Add MAL score, MAL link, and Subreddit link to media pages.
+- [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
+- [ ] **Bulk Editor** - Create a tool for bulk editing items within custom lists.
+- [ ] **Progress Notes** - Show/edit notes immediately when incrementing episode/chapter progress.
+- [ ] **Wrapped 2026** - Complete the implementation of the annual summary feature.
+- [ ] **Offline Astra** - Research keeping Astra functional (read-only) even without an active API connection.
 
 ---
 
----
+## 🧹 P9 - STABILITY & REFACTORING
 
-## ✅ P5 - DATA CONSISTENCY (COMPLETE)
+- [ ] **Brand Cleanup** - Remove all "v2" references from the codebase, naming, and tokens.
+- [ ] **Status Enums** - Replace hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum to prevent errors.
+- [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
 
-### ~~BUG-008: Calendar Social Avatar Always Show~~ ✅
+- [X] **Comment Caching** - Persistent storage for user notes/comments. [DONE]
+-----------------------------------------------------
 
-- **File:** `src/modules/calendar/`
-- **Status:** FIXED - Always shows the social button on calendar cards even if `friendActivity` is empty, ensuring UI consistency and access to the sidebar.
+## ✅ ARCHIVE (COMPLETED)
 
-### ~~BUG-009: Astra Dashboard Initialization Race Condition~~ ✅
+<details>
+<summary><b>Click to view completed Milestones (P1 - P5)</b></summary>
 
-- **Problem:** Astra dashboard failed to open via direct calendar button click but worked via secondary navigation.
-- **Fix:** Centralized the `ASTRA_OPEN` EventBus listener directly in the `AstraDashboard` constructor (singleton). This ensures the component is ready to handle events as soon as it's resolved by DI, independent of the parent `AstraModule` async initialization phase.
+### P5 - Data Consistency & Astra Stability
 
-### ~~BUG-031: worksByMediaId Index Not Updated~~ ✅
+- ✅ **BUG-008**: Calendar social avatars always show.
+- ✅ **BUG-009**: Astra dashboard initialization race condition fix.
+- ✅ **BUG-031**: Works index map sync.
+- ✅ **ARCH-003**: Vue.js Router interference prevention (`stopPropagation`).
+- ✅ **UI-001**: Layout shift fix (inset box-shadow + scrollbar-gutter).
 
-- **File:** `src/modules/astra/AstraService.ts`
-- **Status:** FIXED - Rebuilt map index after `syncWithAniList` and properly set reference in `saveWork()`.
+### P4 - Type Safety
 
-### Astra Dashboard Stability ✅
+- ✅ **BUG-014/16/17**: Removed `any` from EventBus, Config, and AstraModule.
+- ✅ **API Transparency**: Detailed GQL error extraction and 429 Toast warnings.
 
-- **Fix:** Added `✅ ARCH-003: DOM Stability (Vue.js Crash Prevention)` - Added `e.stopPropagation()` and `e.preventDefault()` to all critical injected buttons (Astra, Settings) to prevent Vue Router interference.
-- **Fix:** `✅ UI-001: Astra Dashboard Layout Shift` - Replaced `border-left` with `box-shadow: inset` and added `scrollbar-gutter: stable` to the modal container.
+### P3 - Performance
 
----
+- ✅ **BUG-007**: SharedGlobalObserver implementation.
+- ✅ **BUG-010**: Local Font Awesome bundle.
+- ✅ **BUG-011**: Manifest CSS bundling.
 
-## 🟤 P6 - UI/UX (6h effort)
+### P2 - High Impact
 
-### BUG-018: All Statuses Dropdown Arrow Repeat
+- ✅ **BUG-003/006**: Notification merge/unmerge logic.
+- ✅ **BUG-028**: API spam reduction in SocialService.
+- ✅ **BUG-033**: Comment cache corruption fix.
 
-- **Issue:** Arrow indicators repeat infinitely when value selected
-- **Fix:** CSS fix for dropdown arrow
-- FATTO
+### P1 & Caching
 
-### BUG-019: Custom Lists Rendering
+- ✅ **Security**: GraphQL injection prevention in SocialService.
+- ✅ **Smart Caching**: Implemented fingerprint-based invalidation for Activities, Reviews, Calendar, and Notifications.
 
-- **Issue:** Malrenduto in activity feed
-- **Fix:** Use cloneNode() instead of HTML reconstruction
+</details>
 
-### BUG-020: Resize Handler
+<details>
+<summary><b>Recently Finished UI Tasks (P6)</b></summary>
 
-- **Issue:** Extension elements break on window resize
-- **Fix:** Add resize event listeners
+- ✅ **BUG-018**: Dropdown arrow repetition fix.
+- ✅ **BUG-026**: Progress bar color darkened.
+- ✅ **BUG-027**: Row width set to 100%.
+- ✅ **COS-001**: Title Case for "All Statuses".
+- ✅ **COS-003**: Bouncy pop-up animation for Astra.
+- ✅ **COS-005**: Default filters set to "All".
+- ✅ **Astra Search**: Fixed sticky positioning.
+- ✅ **BUG-020**: Resize Handler (Tooltips & Dashboard).
+- ✅ **Astra Layout**: Scrollbar-gutter stability.
+- ✅ **Astra Navigation**: Macro-categories & Grouped view.
 
-### BUG-021: Comment Icon Low Resolution
-
-- **Issue:** SVG icon bassa qualità
-- **Fix:** Higher quality SVG + fix hover area
-
-### BUG-022: AniList Color Mismatch
-
-- **Issue:** Extension colors don't match user's AniList theme
-- **Fix:** Read CSS custom properties from AniList DOM
-- CHISSENEFREGA. L IMPORTANTE È IL THERME DETECTION
-
-### BUG-023: Import/Export Labels
-
-- **Issue:** Possibly inverted in Astra
-- **Fix:** Verify and swap if needed
-
-### BUG-024: Wrapped Feature
-
-- **Issue:** Annual summary incomplete/broken
-- **Fix:** Complete implementation
-
-### BUG-025: Global Weight Position
-
-- **Issue:** Positioned incorrectly in Astra
-- **Fix:** Move to left
-
-### BUG-026: Progress Bar Color
-
-- **Issue:** Too bright blue
-- **Fix:** Darker shade
-- FATTO
-
-### BUG-027: Row Content Width
-
-- **Issue:** Doesn't fill horizontal space
-- **Fix:** width: 100%
-- FATTO
-
-### COS-001: All Statuses Text
-
-- **Issue:** All caps looks out of place
-- **Fix:** Title case
-- FATTO
-
-### COS-002: Calendar Social Redesign
-
-- **Goal:** Rework grafico social activity dal calendario
-
-### COS-003: Astra Dashboard Animation ✅
-
-- **Goal:** Opening animation for smoother UX
-- **Status:** FIXED - Implemented bouncy pop-up entry and smooth fade-out exit transitions.
-
-### COS-004: Color Scheme
-
-- **Suggestion:** Orange instead of teal? NO, È FORTE, ALTERNATIVE?
-
-### COS-005: Filter Defaults ✅
-
-- **Goal:** Set "All" as default in all 3 sections
-- **Status:** FIXED - Forced reset to 'All' on every dashboard open.
+</details>
 
 ---
-
-## ⚫ P7 - DEBUG TOOLS (Last Priority)
-
-### BUG-034: Logging System Not Working
-
-- **Files:** `src/core/logger.ts`, multiple modules
-- **Issue:**
-  - DEBUG.ENABLED = true ma nessun log appare
-  - console.log() diretti non funzionano
-  - Possibili cause: context mismatch, browser filtering, extension not loaded
-- **Fix:**
-  1. Investigate why logs don't appear
-  2. Verificare content script context
-  3. Test con diversi log levels
-  4. Aggiungere fallback logging method
-- **Note:** Da fare PER ULTIMO - non blocca funzionalità utente
-
----
-
-## ✅ COMPLETED (P0, P1 partial, P2)
-
-### P0 - Blockers
-
-- ✅ BUG-001: Dual token management
-- ✅ BUG-002: Store.reset() bug
-
-### P2 - High Impact (8/8)
-
-- ✅ BUG-003: Notification merge on scroll
-- ✅ BUG-004: Activity filter state
-- ✅ BUG-005: Custom list auto-reset
-- ✅ BUG-006: Merge/unmerge race
-- ✅ BUG-028: getAllFollowings() spam
-- ✅ BUG-030: Memory leak activityCache
-- ✅ BUG-032: UUID Astra IDs
-- ✅ BUG-033: Comment cache corruption
-
-### P5 - Data Consistency (3/3) ✅
-
-| Task                  | Bug IDs                                  | Effort | Status               |
-| :-------------------- | :--------------------------------------- | :----- | :------------------- |
-| P5 (Data Consistency) | ~~BUG-008~~, ~~BUG-009~~, ~~BUG-031~~ | 3h     | ✅**COMPLETE** |
-
-### Bonus UI / Reactivity
-
-- ✅ Real-time Settings: Calendar settings now auto-save and apply instantly without page refresh.
-- ✅ Global Preferences Sync: Fixed `SocialEnhancerModule` loading default preferences on non-home pages due to missing `calendarStore` initialization.
-- ✅ API Spam: 99% reduction (1000+ → ~8 errors)
-- ✅ HTTP 404: Validation + graceful handling
-- ✅ HTTP 429: Batching + rate limiting
-
----
-
-## 🎯 EXECUTION ORDER
-
-1. ~~**P1 Security**~~ ✅ COMPLETE
-2. ~~**Caching Intelligente**~~ ✅ COMPLETE
-3. ~~**P3 Performance**~~ ✅ COMPLETE
-4. ~~**P4 Type Safety**~~ ✅ COMPLETE
-5. ~~**P5 Data Consistency**~~ ✅ COMPLETE
-6. **P6 UI/UX** (6h) - NEXT
-7. **P7 Debug** (1h - LAST)
-
-**Total Remaining:** ~10h (Architecture Stable)
-
----
-
-## 🎯 OTHER
-
-Mettere i voti anche nell activity del singolo utente, e ovviamente anche i filtri (qua le liste personalizzate non servono, però un tasto + per aggiungere l utente alla lista piuttosto che permetterlo salle dalle impostazioni non è affatto una brutta idea, da qualche aprte nel banner, magari vicino a follow, avrebbe sensissimo)): ![1777333963404](image/TODO/1777333963404.png)![1777334790868](image/TODO/1777334790868.png)
-
-Rimuovere TUTTI i v2 (compreso dal token per esempio) da anilist ultimate v2
-
-I bottoni pillola sono spariti dalle sezioni anime e manga in progress
-
-Bulk editor tipo per le liste?
-
-manca l animazione outro per la chisurua di astra
-
-anche la pagina delle reviews ha il caching? https://anilist.co/reviews
-
-[DONE] sempre in astra, fare lo scorrimento che si ferma alla barra di ricerca, quella deve essere sempre visibile.
-
-le liste devono essere divise in macrocategorie: Reading, Completed, All, ecc. non solo un tag dentro i record. o almeno mettere l opzione di scelta. Però secondo me è meglio avere All come iniziale, poi le altre, watching, completed ecc, ognuna chiudibile con un dropdown
-
-assicurarsi che nella pagine delle singole opere, la bolla del social activity, i commenti e i filtri siano ok. ora come ora non lo sono
-
-ci sono troppe liste con plan, reading, watching ecc. troppe possibilità di errore, un enum? sono ovunque nella codebase ora come ora
-
-se cambio dimensioni al browser rimane tutto ok nel browser o si sfascia tutto? si distrugge tutto GIA SEGNATO NEL P6?
-
-le voci sono decentrate
-
-![1777345488184](image/TODO/1777345488184.png)
-
-[DONE] le voci non sono centrate sopra i voti
-
-![1777344580887](image/TODO/1777344580887.png)
-
-[DONE] quando c è lo slider gli elementi a sinistra si ridimensionano occupando meno spazio. Lo slider deve essere IGNORATO
-
-![1777346070105](image/TODO/1777346070105.png)
-
-Astra ha problemi interni di funzionamento, ma leggeri, bug hunting da fare
-
-L interruzione è un po brusca, cosa fare? ![1777347456840](image/TODO/1777347456840.png)

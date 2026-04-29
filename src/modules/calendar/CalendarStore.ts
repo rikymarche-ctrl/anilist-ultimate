@@ -385,9 +385,10 @@ export class CalendarStore extends Store<CalendarState> {
 
   /**
    * Load entries from cache if valid and fresh
-   * Returns null if cache is stale, expired, or invalid
+   * Returns null if cache is missing or corrupted
+   * @param allowStale If true, returns data even if TTL has expired
    */
-  async loadEntriesFromCache(): Promise<AnimeEntry[] | null> {
+  async loadEntriesFromCache(allowStale: boolean = false): Promise<AnimeEntry[] | null> {
     try {
       const cache = await storage.get<CalendarCache>(STORAGE_KEYS.CACHE_SCHEDULE);
 
@@ -398,9 +399,13 @@ export class CalendarStore extends Store<CalendarState> {
 
       // Check TTL
       const age = Date.now() - cache.timestamp;
-      if (age > this.CACHE_TTL_MS) {
+      if (!allowStale && age > this.CACHE_TTL_MS) {
         log.debug(`[CalendarStore] Cache expired (${Math.round(age / 60000)}min old)`);
         return null;
+      }
+
+      if (allowStale && age > this.CACHE_TTL_MS) {
+        log.info(`[CalendarStore] Using stale cache (${Math.round(age / 60000)}min old) as fallback`);
       }
 
       // Validate fingerprint matches (optional paranoia check)

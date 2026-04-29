@@ -45,16 +45,54 @@ export class ReviewService {
   private reviewCache: Map<number, ReviewData> = new Map();
 
   /** Intelligent Caching: LRU eviction to prevent unbounded growth */
-  private readonly MAX_CACHE_SIZE = 200;
+  private readonly MAX_CACHE_SIZE = 500; // Increased for persistence
   private cacheOrder: number[] = []; // LRU tracking
 
   /** Intelligent Caching: TTL for stale data invalidation */
-  private readonly CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+  private readonly CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours (increased since we persist)
   private cacheTimestamps: Map<number, number> = new Map();
+  
+  private readonly STORAGE_KEY = 'au_review_cache';
+  private isLoaded = false;
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient
   ) {}
+
+  /** Load cache from persistent storage */
+  public async init(): Promise<void> {
+    if (this.isLoaded) return;
+    try {
+      const data = await new Promise<any>((resolve) => {
+        chrome.storage.local.get(this.STORAGE_KEY, (res) => resolve(res[this.STORAGE_KEY]));
+      });
+
+      if (data && data.cache) {
+        this.reviewCache = new Map(data.cache.map((entry: any) => [entry.id, entry.data]));
+        this.cacheTimestamps = new Map(data.cache.map((entry: any) => [entry.id, entry.timestamp]));
+        this.cacheOrder = data.cache.map((entry: any) => entry.id);
+        log.info(`[ReviewService] Loaded ${this.reviewCache.size} reviews from persistent cache`);
+      }
+    } catch (e) {
+      log.warn('[ReviewService] Failed to load persistent cache', e);
+    }
+    this.isLoaded = true;
+  }
+
+  private async persist(): Promise<void> {
+    const cacheArray = Array.from(this.reviewCache.entries()).map(([id, data]) => ({
+      id,
+      data,
+      timestamp: this.cacheTimestamps.get(id) || Date.now()
+    }));
+
+    await chrome.storage.local.set({
+      [this.STORAGE_KEY]: {
+        cache: cacheArray,
+        lastUpdated: Date.now()
+      }
+    });
+  }
 
   /**
    * Get multiple reviews via GraphQL Alias Batching
@@ -62,15 +100,21 @@ export class ReviewService {
    */
   public async getReviewBatch(ids: number[], chunkSize: number = 50): Promise<ReviewData[]> {
     if (ids.length === 0) return [];
+    
+    // Ensure we are loaded
+    if (!this.isLoaded) await this.init();
 
     const results: ReviewData[] = [];
-    const pendingIds = ids.filter(id => {
+    const pendingIds: number[] = [];
+
+    ids.forEach(id => {
       const cached = this.getCachedReview(id);
       if (cached !== undefined) {
         results.push(cached);
-        return false;
+      } else {
+        // Even if expired, keep track for fallback if API fails
+        pendingIds.push(id);
       }
-      return true;
     });
 
     if (pendingIds.length === 0) return results;
@@ -104,9 +148,7 @@ export class ReviewService {
 
         if (response) {
           const responseEntries = Object.entries(response);
-          const successCount = responseEntries.filter(([_, review]) => review && review.id).length;
-          const failedCount = responseEntries.length - successCount;
-
+          
           responseEntries.forEach(([alias, review]) => {
             if (review && review.id) {
               this.setCachedReview(review.id, review);
@@ -114,15 +156,28 @@ export class ReviewService {
             } else {
               const reviewId = alias.replace('r', '');
               log.warn(`%c[ReviewService] ⚠️ Review ${reviewId} not accessible (deleted/private)`, 'color: #ff9800;');
+              
+              // FALLBACK: If API says it's not found but we have it in cache (expired), use it anyway
+              const fallback = this.reviewCache.get(parseInt(reviewId));
+              if (fallback) {
+                log.info(`[ReviewService] Using stale fallback for inaccessible review ${reviewId}`);
+                results.push(fallback);
+              }
             }
           });
-
-          if (failedCount > 0) {
-            log.info(`%c[ReviewService] 📊 Batch ${chunkIndex}: ${successCount} OK, ${failedCount} failed`, 'color: #ff9800; font-weight: bold;');
-          }
+          
+          await this.persist();
         }
       } catch (error) {
-        log.error(`ReviewService: Failed to fetch alias batch ${chunkIndex}/${totalChunks}`, error);
+        log.error(`ReviewService: Failed to fetch alias batch ${chunkIndex}/${totalChunks}. Using stale fallbacks.`, error);
+        
+        // STALE-WHILE-REVALIDATE: If API fails, return whatever we have in cache even if expired
+        chunk.forEach(id => {
+          const stale = this.reviewCache.get(id);
+          if (stale) {
+            results.push(stale);
+          }
+        });
       }
 
       // Rate limit protection: wait 900ms between chunks
@@ -132,7 +187,7 @@ export class ReviewService {
       }
     }
 
-    log.info(`%c[ReviewService] ✅ Completed: ${results.length} reviews fetched successfully`, 'color: #46d369; font-weight: bold;');
+    log.info(`%c[ReviewService] ✅ Completed: ${results.length} reviews fetched (including fallbacks)`, 'color: #46d369; font-weight: bold;');
     return results;
   }
 
@@ -155,6 +210,7 @@ export class ReviewService {
       this.reviewCache.clear();
       this.cacheTimestamps.clear();
       this.cacheOrder = [];
+      chrome.storage.local.remove(this.STORAGE_KEY);
       log.info(`[ReviewService] Cache cleared (${size} entries)`);
     }
   }
@@ -163,7 +219,7 @@ export class ReviewService {
 
   /**
    * Get from cache with LRU tracking and TTL validation
-   * @returns cached review or undefined if not found or expired
+   * @returns cached review or undefined if expired (but keeps it in memory for fallback)
    */
   private getCachedReview(id: number): ReviewData | undefined {
     if (!this.reviewCache.has(id)) return undefined;
@@ -171,11 +227,8 @@ export class ReviewService {
     // Check if entry is still fresh
     const timestamp = this.cacheTimestamps.get(id);
     if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
-      // Expired - evict and return undefined
-      this.reviewCache.delete(id);
-      this.cacheTimestamps.delete(id);
-      this.cacheOrder = this.cacheOrder.filter(k => k !== id);
-      log.debug(`[ReviewService] Cache expired for review ${id}`);
+      // Expired - return undefined to trigger re-fetch, but DO NOT delete yet (for fallback)
+      log.debug(`[ReviewService] Cache expired (stale) for review ${id}`);
       return undefined;
     }
 
