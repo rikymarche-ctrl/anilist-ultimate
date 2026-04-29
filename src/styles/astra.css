@@ -137,11 +137,34 @@
 /* Main Content */
 .astra-modal-main {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: block;
   background: var(--astra-bg);
-  scrollbar-gutter: stable;
+  overflow: auto !important;
+  position: relative;
+}
+
+.astra-modal-main::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.astra-modal-main::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.astra-modal-main::-webkit-scrollbar-thumb {
+  background: var(--astra-accent-a20);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.astra-modal-main::-webkit-scrollbar-thumb:hover {
+  background: var(--astra-accent);
+  background-clip: padding-box;
 }
 
 .astra-modal-header {
@@ -941,6 +964,9 @@
   opacity: 0;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 0;
+  padding: 0 24px;
+  background: var(--astra-bg);
+  flex-shrink: 0;
 }
 
 .astra-stats-wrapper.expanded {
@@ -1258,11 +1284,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--astra-bg);
-  padding: 10px 0 20px 0;
+  padding-bottom: 20px;
 }
 
 .astra-filter-bar {
@@ -1391,41 +1413,93 @@
 /* ============ ASTRA GRID SYSTEM ============ */
 
 .astra-table-wrap {
-  width: 100%;
-  border-radius: 12px;
-  padding-bottom: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  margin-bottom: 40px;
+  padding: 0 24px 24px 24px;
+  width: max-content;
+  min-width: 100%;
   position: relative;
 }
 
 .astra-grid {
-  display: flex;
-  flex-direction: column;
+  display: block;
   width: 100%;
+  min-width: max-content;
   border: 1px solid var(--astra-border-soft);
   border-radius: 12px;
-  overflow: hidden;
   background: var(--astra-bg-elev);
+}
+
+.astra-lists-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.astra-list-multi {
+  cursor: pointer;
+  background: var(--astra-accent-a20) !important;
+  color: var(--astra-accent) !important;
+  border: 1px solid var(--astra-accent-a30) !important;
+  font-weight: 800 !important;
+}
+
+.astra-lists-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  background: #1a2333;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 180px;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.astra-lists-dropdown:hover .astra-lists-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.astra-list-menu-item {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--astra-text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.astra-list-menu-item i {
+  font-size: 10px;
+  color: var(--astra-accent);
+  opacity: 0.7;
+}
+
+.astra-list-menu-item:not(:last-child) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .astra-grid-header {
   display: grid;
-  grid-template-columns: 80px 1fr 100px 90px var(--astra-dynamic-cols) 120px;
-  background: var(--astra-bg-elev-2);
-  color: var(--astra-muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-  padding: 14px 20px;
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 1fr 80px;
+  gap: 15px;
+  padding: 15px;
+  background: var(--astra-bg-elev);
   border-bottom: 1px solid var(--astra-border-soft);
-  min-width: 100%;
-  position: sticky;
+  color: var(--astra-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  position: relative;
   z-index: 20;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
 }
 
 .astra-grid-header>div {
@@ -1452,7 +1526,7 @@
 
 .astra-grid-row {
   display: grid;
-  grid-template-columns: 80px 1fr 100px 90px var(--astra-dynamic-cols) 120px;
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 1fr 80px;
   padding: 12px 20px;
   align-items: center;
   position: relative;
@@ -1462,6 +1536,7 @@
   background-repeat: no-repeat;
   background-position: 0 0;
   min-width: 100%;
+  width: max-content;
 }
 
 .astra-grid-row:last-child {
@@ -1552,7 +1627,7 @@
   position: relative;
   z-index: var(--z-base);
   font-size: 13px;
-  padding: 0 10px;
+  padding: 0 15px;
   overflow: visible;
 }
 
@@ -1577,11 +1652,13 @@
 
 .astra-grid-row .astra-table-title {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--astra-text);
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 220px;
 }
 
 .astra-table-title-box {
@@ -1598,6 +1675,7 @@
   gap: 8px;
   align-items: center;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .astra-table-score-badge {
@@ -1633,6 +1711,48 @@
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  position: sticky;
+  right: 0;
+  background: linear-gradient(90deg, transparent, var(--astra-bg) 5px, var(--astra-bg) 100%);
+  padding-left: 10px;
+  padding-right: 20px;
+  margin-right: -20px;
+  z-index: 30;
+  transition: background 0.2s;
+}
+
+.astra-grid-row:hover .astra-table-actions {
+  background: linear-gradient(90deg, transparent, #121c27 5px, #121c27 100%);
+}
+
+.astra-grid-header>div:last-child {
+  position: sticky;
+  right: 0;
+  background: linear-gradient(90deg, transparent, var(--astra-bg-elev-2) 5px, var(--astra-bg-elev-2) 100%);
+  padding-left: 10px;
+  padding-right: 20px;
+  margin-right: -20px;
+  z-index: 25;
+}
+
+.astra-icon-btn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--astra-muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.astra-icon-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1) !important;
+  transform: scale(1.1);
 }
 
 .astra-table-cover {
@@ -1920,9 +2040,10 @@
 }
 
 .astra-sections-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 .astra-section-card {
@@ -1937,7 +2058,7 @@
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .astra-section-header {
@@ -2028,7 +2149,7 @@
 .astra-weight-pill--sm {
   padding: 1px 6px;
   border-radius: 6px;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .astra-weight-pill--sm .astra-weight-input {
@@ -2808,6 +2929,37 @@
   to {
     opacity: 1;
   }
+}
+
+
+
+#astra-dashboard-container {
+  position: relative;
+  background: var(--astra-bg);
+  padding: 0;
+  display: inline-block;
+  min-width: 100%;
+  width: max-content;
+}
+
+
+
+.astra-dashboard-top {
+  padding: 24px 24px 0 24px;
+  background: var(--astra-bg);
+  z-index: 100;
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+
+
+.astra-table-spacer {
+  grid-column: span 1;
+  min-width: 20px;
 }
 
 @keyframes astraPop {

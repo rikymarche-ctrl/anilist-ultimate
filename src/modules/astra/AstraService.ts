@@ -248,6 +248,9 @@ export class AstraService {
       let added = 0;
       let updated = 0;
 
+      // Reset custom lists for all existing works before sync to ensure accuracy
+      this.works.forEach(w => w.customLists = []);
+
       const processResult = (result: any) => {
         const collection = result?.MediaListCollection;
         if (!collection?.lists) return;
@@ -264,8 +267,11 @@ export class AstraService {
                 existing.status = entry.status;
                 updated++;
               }
-              // Sync list name
-              existing.customLists = [listName];
+              // Sync list names (accumulate instead of overwrite)
+              if (!existing.customLists) existing.customLists = [];
+              if (!existing.customLists.includes(listName)) {
+                existing.customLists.push(listName);
+              }
               existing.genres = entry.media.genres || [];
               existing.episodes = entry.media.episodes;
               existing.chapters = entry.media.chapters;

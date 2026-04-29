@@ -165,54 +165,56 @@ export class AstraDashboard extends BaseComponent {
     const works = this.service!.getWorks();
     return `
       <div class="astra-dashboard ${this.state.showProgress ? 'astra-show-progress' : ''}" id="astra-dashboard-container">
-        <header class="astra-dashboard-header">
-          <div class="astra-dashboard-title-box">
-            <h1 class="astra-dashboard-title">Astra Dashboard</h1>
-          </div>
-          <div class="astra-dashboard-actions">
-            <button class="astra-btn astra-btn--primary" id="astra-sync-anilist" title="Sync all lists from AniList">
-              <i class="fa fa-sync"></i> Sync
-            </button>
-            <button class="astra-btn astra-btn--danger" id="astra-clear-all" title="Reset Astra Database (Delete All)">
-              <i class="fa fa-trash"></i>
-            </button>
-            <div class="astra-action-divider"></div>
-            <button class="astra-btn astra-btn--ghost" id="astra-toggle-stats" title="Toggle Analytics">
-              <i class="fa fa-chart-line"></i> ${this.state.showStats ? 'Hide' : 'Stats'}
-            </button>
-            <button class="astra-btn astra-btn--ghost ${this.state.showProgress ? 'active' : ''}" id="astra-toggle-progress" title="Toggle Progress Fill">
-              <i class="fa fa-tasks"></i>
-            </button>
-            <button class="astra-btn astra-btn--ghost" id="astra-export-wrapped" title="Export Stats as PNG">
-              <i class="fa fa-image"></i> Export Wrapped
-            </button>
-            <div class="astra-action-divider"></div>
-            <button class="astra-btn astra-btn--secondary" id="astra-export">
-              <i class="fa fa-download"></i> Export
-            </button>
-            <button class="astra-btn astra-btn--secondary" id="astra-import">
-              <i class="fa fa-upload"></i> Import
-            </button>
-            <input type="file" id="astra-import-file" style="display: none" accept=".json">
-          </div>
-        </header>
+        <div class="astra-dashboard-top">
+          <header class="astra-dashboard-header">
+            <div class="astra-dashboard-title-box">
+              <h1 class="astra-dashboard-title">Astra Dashboard</h1>
+            </div>
+            <div class="astra-dashboard-actions">
+              <button class="astra-btn astra-btn--primary" id="astra-sync-anilist" title="Sync all lists from AniList">
+                <i class="fa fa-sync"></i> Sync
+              </button>
+              <button class="astra-btn astra-btn--danger" id="astra-clear-all" title="Reset Astra Database (Delete All)">
+                <i class="fa fa-trash"></i>
+              </button>
+              <div class="astra-action-divider"></div>
+              <button class="astra-btn astra-btn--ghost" id="astra-toggle-stats" title="Toggle Analytics">
+                <i class="fa fa-chart-line"></i> ${this.state.showStats ? 'Hide' : 'Stats'}
+              </button>
+              <button class="astra-btn astra-btn--ghost ${this.state.showProgress ? 'active' : ''}" id="astra-toggle-progress" title="Toggle Progress Fill">
+                <i class="fa fa-tasks"></i>
+              </button>
+              <button class="astra-btn astra-btn--ghost" id="astra-export-wrapped" title="Export Stats as PNG">
+                <i class="fa fa-image"></i> Export Wrapped
+              </button>
+              <div class="astra-action-divider"></div>
+              <button class="astra-btn astra-btn--secondary" id="astra-export">
+                <i class="fa fa-download"></i> Export
+              </button>
+              <button class="astra-btn astra-btn--secondary" id="astra-import">
+                <i class="fa fa-upload"></i> Import
+              </button>
+              <input type="file" id="astra-import-file" style="display: none" accept=".json">
+            </div>
+          </header>
 
-        <div class="astra-stats-wrapper ${this.state.showStats ? 'expanded' : ''}">
-          <div class="astra-stats-strip" id="astra-stats-container">
-            <!-- Dynamic Stats -->
-          </div>
-        </div>
-
-        <div class="astra-dashboard-controls">
-          <div class="astra-search-box-row">
-            <div class="astra-search-box">
-              <i class="fa fa-search"></i>
-              <input type="text" id="astra-search" placeholder="Search by title..." value="${this.state.search}">
+          <div class="astra-stats-wrapper ${this.state.showStats ? 'expanded' : ''}">
+            <div class="astra-stats-strip" id="astra-stats-container">
+              <!-- Dynamic Stats -->
             </div>
           </div>
-          
-          <div class="astra-filter-bar" id="astra-list-filters">
-            <!-- Dynamic Filters & Chips -->
+
+          <div class="astra-dashboard-controls">
+            <div class="astra-search-box-row">
+              <div class="astra-search-box">
+                <i class="fa fa-search"></i>
+                <input type="text" id="astra-search" placeholder="Search by title..." value="${this.state.search}">
+              </div>
+            </div>
+            
+            <div class="astra-filter-bar" id="astra-list-filters">
+              <!-- Dynamic Filters & Chips -->
+            </div>
           </div>
         </div>
 
@@ -922,7 +924,18 @@ export class AstraDashboard extends BaseComponent {
             <div class="astra-table-subtitle">
               <span class="astra-badge astra-badge--country">${work.country || 'JP'}</span>
               <span class="astra-badge astra-badge--progress">${work.progress || 0} / ${total || '?'}</span>
-              ${(work.customLists || []).map((l: string) => `<span class="astra-badge astra-badge--list-item">${l}</span>`).join('')}
+              ${(() => {
+                const lists = work.customLists || [];
+                if (lists.length === 0) return '';
+                return `
+                  <div class="astra-lists-dropdown">
+                    <span class="astra-badge astra-badge--list-item astra-list-multi">+${lists.length}</span>
+                    <div class="astra-lists-menu">
+                      ${lists.map(l => `<div class="astra-list-menu-item"><i class="fa fa-tag"></i> ${l}</div>`).join('')}
+                    </div>
+                  </div>
+                `;
+              })()}
             </div>
           </div>
         </div>
@@ -936,10 +949,11 @@ export class AstraDashboard extends BaseComponent {
       const score = lastSeason.scores[s.id];
       return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
     }).join('')}
+        <div class="astra-table-spacer"></div>
         <div class="astra-table-actions">
-          <a href="${work.anilistUrl}" target="_blank" class="astra-icon-btn astra-external-link" title="Open on AniList">
-            <i class="fa fa-external-link-alt"></i>
-          </a>
+          <button class="astra-icon-btn astra-delete-row" title="Delete from Astra">
+            <i class="fa fa-trash"></i>
+          </button>
         </div>
       </div>
     `;
@@ -949,14 +963,15 @@ export class AstraDashboard extends BaseComponent {
     const sections = this.service!.getSections();
 
     return `
-      <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 90px)">
+      <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 110px)">
         <div class="astra-grid-header">
           <div style="width: 80px">Cover</div>
-          <div class="astra-sortable" data-sort="title">Title</div>
-          <div class="astra-sortable" data-sort="type">Type</div>
-          <div class="astra-sortable" data-sort="score">Score</div>
+          <div class="astra-sortable" data-sort="title" style="width: 220px">Title</div>
+          <div class="astra-sortable" data-sort="type" style="width: 100px">Type</div>
+          <div class="astra-sortable" data-sort="score" style="width: 90px">Score</div>
           ${sections.map(s => `<div class="astra-sortable" data-sort="section-${s.id}">${s.name}</div>`).join('')}
-          <div style="text-align: right; justify-content: flex-end">Actions</div>
+          <div class="astra-table-spacer"></div>
+          <div style="text-align: right; justify-content: flex-end; width: 80px">Actions</div>
         </div>
         <div id="astra-table-body">
            <!-- Rows will be injected by updateDashboardDynamic -->
@@ -1283,7 +1298,7 @@ export class AstraDashboard extends BaseComponent {
       btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
 
       const sections: any[] = [];
-      this.overlay!.querySelectorAll('.astra-section-edit-group').forEach(group => {
+      this.overlay!.querySelectorAll('.astra-section-card').forEach(group => {
         const id = (group as HTMLElement).dataset.id!;
         const name = (group.querySelector('[data-field="name"]') as HTMLInputElement).value;
         const weight = parseFloat((group.querySelector('[data-field="weight"]') as HTMLInputElement).value);
