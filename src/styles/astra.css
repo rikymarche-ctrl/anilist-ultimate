@@ -1900,159 +1900,239 @@
 .astra-settings-card {
   background: var(--astra-bg-elev-1);
   border: 1px solid var(--astra-border-soft);
-  border-radius: 12px;
-  padding: 16px 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
 .astra-card-header {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
   border-bottom: 1px solid var(--astra-border-soft);
-  padding-bottom: 12px;
+  padding-bottom: 16px;
 }
 
 .astra-card-header h3 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
+  margin: 0 0 8px 0;
+  font-size: 18px;
   color: var(--astra-text);
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
 .astra-sections-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
-.astra-section-edit-group {
+.astra-section-card {
   background: var(--astra-bg-elev-2);
   border: 1px solid var(--astra-border-soft);
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.astra-section-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.astra-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid transparent;
   transition: border-color 0.2s;
 }
 
-.astra-section-edit-group:focus-within {
-  border-color: var(--astra-accent-a50);
+.astra-section-card:has(.astra-sub-edit-row) .astra-section-header {
+  border-bottom-color: var(--astra-border-soft);
 }
 
-.astra-section-edit-row {
+.astra-section-info {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.01);
-}
-
-.astra-section-name {
   flex: 1;
 }
 
-.astra-section-name .astra-input {
+.astra-section-drag {
+  color: var(--astra-muted);
+  opacity: 0.3;
+  cursor: grab;
   font-size: 14px;
-  font-weight: 700;
+}
+
+.astra-input-ghost {
   background: transparent;
-  border-color: transparent;
-  padding-left: 0;
+  border: none;
+  color: var(--astra-text);
+  font-family: inherit;
+  outline: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
 }
 
-.astra-section-name .astra-input:focus {
-  border-color: var(--astra-accent-a50);
-  background: rgba(255, 255, 255, 0.03);
-  padding-left: 12px;
+.astra-input-ghost:focus {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.astra-section-weight {
+.astra-section-name-input {
+  font-size: 16px;
+  font-weight: 800;
+  width: 100%;
+}
+
+.astra-section-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: auto;
+  gap: 16px;
 }
 
-.astra-section-weight .astra-input {
-  width: 50px;
-  text-align: center;
+.astra-weight-pill {
+  display: flex;
+  align-items: center;
+  background: var(--astra-bg-elev-1);
+  border: 1px solid var(--astra-border-soft);
+  border-radius: 8px;
+  padding: 2px 8px;
+  gap: 8px;
+}
+
+.astra-weight-pill .label {
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--astra-muted);
+  letter-spacing: 0.05em;
+}
+
+.astra-weight-input {
+  width: 40px;
+  background: transparent;
+  border: none;
+  color: var(--astra-accent);
   font-family: var(--astra-font-mono);
   font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+}
+
+.astra-weight-pill--sm {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.2);
+}
+
+.astra-weight-pill--sm .astra-weight-input {
+  font-size: 11px;
+  width: 32px;
+}
+
+.astra-section-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.astra-btn-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--astra-text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.astra-btn-icon:hover {
+  background: var(--astra-accent);
+  color: black;
+}
+
+.astra-btn-icon--danger:hover {
+  background: #ff4d4d;
+}
+
+.astra-btn-icon--sm {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 10px;
 }
 
 .astra-sub-sections-editor {
-  padding: 4px 16px 12px 40px;
-  background: rgba(0, 0, 0, 0.1);
+  padding: 8px 12px 12px 32px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  border-top: 1px solid var(--astra-border-soft);
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .astra-sub-edit-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  animation: astra-fade-in 0.3s ease-out;
-  padding: 2px 0;
+  gap: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
 }
 
-.astra-sub-connector {
-  color: var(--astra-muted);
-  opacity: 0.4;
-  font-size: 14px;
-  margin-right: 4px;
-  padding-bottom: 8px;
-  /* Align with input */
+.astra-sub-edit-row:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.astra-sub-weight {
+.astra-sub-indicator {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--astra-accent);
+  opacity: 0.5;
+}
+
+.astra-sub-name-input {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--astra-text-dim);
+}
+
+.astra-sub-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.astra-sub-weight .astra-label-xs {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--astra-muted);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.astra-sub-weight .astra-input {
-  width: 55px;
-  text-align: center;
-  font-family: var(--astra-font-mono);
-}
-
-.astra-input--sm {
-  padding: 4px 10px !important;
-  font-size: 12px !important;
-  height: 28px !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-}
-
-.astra-add-sub {
-  margin-top: 8px;
-  color: var(--astra-accent) !important;
-  border: 1px dashed var(--astra-accent-a30) !important;
-  background: transparent !important;
+  gap: 12px;
 }
 
 #astra-add-section {
   width: 100%;
   justify-content: center;
-  padding: 12px;
+  padding: 14px;
   font-size: 14px;
   border-style: dashed;
+  margin-top: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  color: var(--astra-accent);
+  transition: all 0.2s;
 }
 
 #astra-add-section:hover {
+  background: var(--astra-accent-a10);
   border-style: solid;
+  transform: translateY(-2px);
 }
 
-
-.astra-add-sub:hover {
-  background: var(--astra-accent-a10) !important;
-  border-style: solid !important;
-}
 
 /* Rating Modal Groups */
 .astra-score-group {

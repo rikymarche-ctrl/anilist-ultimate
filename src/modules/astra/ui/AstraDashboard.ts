@@ -270,37 +270,44 @@ export class AstraDashboard extends BaseComponent {
             
             <div class="astra-sections-list" id="astra-sections-editor">
               ${sections.map(s => `
-                <div class="astra-section-edit-group" data-id="${s.id}">
-                  <div class="astra-section-edit-row">
-                    <div class="astra-section-name">
-                      <input type="text" class="astra-input" value="${s.name}" data-field="name" placeholder="Section Name">
+                <div class="astra-section-card" data-id="${s.id}">
+                  <div class="astra-section-header">
+                    <div class="astra-section-info">
+                      <div class="astra-section-drag"><i class="fa fa-grip-vertical"></i></div>
+                      <input type="text" class="astra-input-ghost astra-section-name-input" value="${s.name}" data-field="name" placeholder="Section Name">
                     </div>
-                    <div class="astra-section-weight">
-                      <span class="astra-label-xs">Weight</span>
-                      <input type="number" class="astra-input" value="${s.weight}" data-field="weight" step="0.1" min="0.1" max="10">
-                    </div>
-                    <div class="astra-section-actions">
-                      <button class="astra-icon-btn astra-add-sub" data-section-id="${s.id}" title="Add Sub-section">
-                        <i class="fa fa-plus-circle"></i>
-                      </button>
-                      <button class="astra-icon-btn astra-delete-section" title="Delete Section">
-                        <i class="fa fa-trash"></i>
-                      </button>
+                    
+                    <div class="astra-section-controls">
+                      <div class="astra-weight-pill">
+                        <span class="label">Weight</span>
+                        <input type="number" class="astra-weight-input" value="${s.weight}" data-field="weight" step="0.1" min="0.1" max="10">
+                      </div>
+                      
+                      <div class="astra-section-btns">
+                        <button class="astra-btn-icon astra-add-sub" data-section-id="${s.id}" title="Add Component">
+                          <i class="fa fa-plus"></i>
+                        </button>
+                        <button class="astra-btn-icon astra-btn-icon--danger astra-delete-section" title="Delete Category">
+                          <i class="fa fa-trash-alt"></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
                   <div class="astra-sub-sections-editor">
                     ${(s.subSections || []).map(sub => `
                       <div class="astra-sub-edit-row" data-sub-id="${sub.id}">
-                        <div class="astra-sub-connector"><i class="fa fa-level-up fa-rotate-90"></i></div>
-                        <input type="text" class="astra-input astra-input--sm" value="${sub.name}" data-field="sub-name" placeholder="Sub-section Name">
-                        <div class="astra-sub-weight">
-                          <span class="astra-label-xs">Weight</span>
-                          <input type="number" class="astra-input astra-input--sm" value="${sub.weight}" data-field="sub-weight" step="0.1" min="0.1">
+                        <div class="astra-sub-indicator"></div>
+                        <input type="text" class="astra-input-ghost astra-sub-name-input" value="${sub.name}" data-field="sub-name" placeholder="Component Name">
+                        
+                        <div class="astra-sub-controls">
+                          <div class="astra-weight-pill astra-weight-pill--sm">
+                            <input type="number" class="astra-weight-input" value="${sub.weight}" data-field="sub-weight" step="0.1" min="0.1">
+                          </div>
+                          <button class="astra-btn-icon astra-btn-icon--sm astra-delete-sub" title="Delete Component">
+                            <i class="fa fa-times"></i>
+                          </button>
                         </div>
-                        <button class="astra-icon-btn astra-delete-sub" title="Delete Sub-section">
-                          <i class="fa fa-times"></i>
-                        </button>
                       </div>
                     `).join('')}
                   </div>
@@ -512,6 +519,30 @@ export class AstraDashboard extends BaseComponent {
             { status: MediaListStatus.PLAN_TO_WATCH, type: 'anime', label: 'Plan to Watch', icon: 'fa-calendar' },
             { status: MediaListStatus.PLAN_TO_READ, type: 'manga', label: 'Plan to Read', icon: 'fa-calendar' }
           ]
+        },
+        {
+          id: 'cycle-completed',
+          options: [
+            { status: MediaListStatus.COMPLETED, type: 'all', label: 'Completed', icon: 'fa-check-double' },
+            { status: MediaListStatus.COMPLETED, type: 'anime', label: 'Completed Anime', icon: 'fa-check-double' },
+            { status: MediaListStatus.COMPLETED, type: 'manga', label: 'Completed Manga', icon: 'fa-check-double' }
+          ]
+        },
+        {
+          id: 'cycle-paused',
+          options: [
+            { status: MediaListStatus.PAUSED, type: 'all', label: 'Paused', icon: 'fa-pause-circle' },
+            { status: MediaListStatus.PAUSED, type: 'anime', label: 'Paused Anime', icon: 'fa-pause-circle' },
+            { status: MediaListStatus.PAUSED, type: 'manga', label: 'Paused Manga', icon: 'fa-pause-circle' }
+          ]
+        },
+        {
+          id: 'cycle-dropped',
+          options: [
+            { status: MediaListStatus.DROPPED, type: 'all', label: 'Dropped', icon: 'fa-trash-alt' },
+            { status: MediaListStatus.DROPPED, type: 'anime', label: 'Dropped Anime', icon: 'fa-trash-alt' },
+            { status: MediaListStatus.DROPPED, type: 'manga', label: 'Dropped Manga', icon: 'fa-trash-alt' }
+          ]
         }
       ];
 
@@ -520,9 +551,12 @@ export class AstraDashboard extends BaseComponent {
 
       // Determine which chip to show for each cycle
       cycles.forEach(cycle => {
-        // Find which option is currently active
-        // An option is active if its status matches anilistStatus
-        const activeIdx = cycle.options.findIndex(opt => this.state.anilistStatus === opt.status);
+        // An option is active if its status matches anilistStatus AND its type matches state.type
+        const activeIdx = cycle.options.findIndex(opt => 
+          this.state.anilistStatus === opt.status && 
+          (this.state.type === opt.type)
+        );
+        
         const isActive = activeIdx !== -1;
         const displayOpt = isActive ? cycle.options[activeIdx] : cycle.options[0];
 
@@ -532,26 +566,20 @@ export class AstraDashboard extends BaseComponent {
           label: displayOpt.label,
           icon: displayOpt.icon,
           isActive,
-          cycle
+          type: displayOpt.type,
+          options: cycle.options
         });
       });
-
-      // Add static statuses
-      mainStatuses.push(
-        { id: MediaListStatus.COMPLETED, label: 'Completed', icon: 'fa-check', type: 'all' },
-        { id: MediaListStatus.PAUSED, label: 'Paused', icon: 'fa-pause', type: 'all' },
-        { id: MediaListStatus.DROPPED, label: 'Dropped', icon: 'fa-times-circle', type: 'all' }
-      );
 
       listContainer.innerHTML = `
         <div class="astra-macro-categories">
           ${mainStatuses.map(s => {
-        const activeClass = s.id === 'all' ? (isAllActive ? 'active' : '') : (s.isActive || (this.state.anilistStatus === s.id) ? 'active' : '');
-        return `
+            const activeClass = s.isActive || (s.id === 'all' && isAllActive) ? 'active' : '';
+            return `
               <button class="astra-macro-chip ${activeClass}" 
                       data-id="${s.id}" 
                       data-status="${s.status || s.id}"
-                      ${s.cycle ? `data-cycle='${JSON.stringify(s.cycle.id)}'` : ''}>
+                      ${s.options ? `data-cycle='${JSON.stringify(s.options).replace(/'/g, "&apos;")}'` : ''}>
                 <i class="fa ${s.icon}"></i> ${s.label}
               </button>
             `;
@@ -641,28 +669,12 @@ export class AstraDashboard extends BaseComponent {
             this.state.status = 'all';
             this.state.type = 'all';
           } else if (cycleId) {
-            const cid = JSON.parse(cycleId);
-            // Find cycle definition
-            const cycleDefs: any = {
-              'cycle-current': [
-                { status: MediaListStatus.CURRENT, type: 'all' },
-                { status: MediaListStatus.WATCHING, type: 'anime' },
-                { status: MediaListStatus.READING, type: 'manga' }
-              ],
-              'cycle-repeating': [
-                { status: MediaListStatus.REPEATING, type: 'all' },
-                { status: MediaListStatus.REWATCHING, type: 'anime' },
-                { status: MediaListStatus.REREADING, type: 'manga' }
-              ],
-              'cycle-planning': [
-                { status: MediaListStatus.PLANNING, type: 'all' },
-                { status: MediaListStatus.PLAN_TO_WATCH, type: 'anime' },
-                { status: MediaListStatus.PLAN_TO_READ, type: 'manga' }
-              ]
-            };
-
-            const options = cycleDefs[cid];
-            const currentIdx = options.findIndex((opt: any) => this.state.anilistStatus === opt.status);
+            const options = JSON.parse(cycleId);
+            const currentIdx = options.findIndex((opt: any) => 
+              this.state.anilistStatus === opt.status && 
+              this.state.type === opt.type
+            );
+            
             const nextIdx = (currentIdx + 1) % options.length;
             const nextOpt = options[nextIdx];
 
@@ -1222,33 +1234,45 @@ export class AstraDashboard extends BaseComponent {
 
       const newId = `c_${Math.random().toString(36).slice(2, 7)}`;
       const div = document.createElement('div');
-      div.className = 'astra-section-edit-group';
+      div.className = 'astra-section-card';
       div.dataset.id = newId;
       div.innerHTML = `
-        <div class="astra-section-edit-row">
-          <div class="astra-section-name">
-            <input type="text" class="astra-input" value="New Category" data-field="name">
+        <div class="astra-section-header">
+          <div class="astra-section-info">
+            <div class="astra-section-drag"><i class="fa fa-grip-vertical"></i></div>
+            <input type="text" class="astra-input-ghost astra-section-name-input" value="New Category" data-field="name">
           </div>
-          <div class="astra-section-weight">
-            <span class="astra-label-xs">Weight</span>
-            <input type="number" class="astra-input" value="1" data-field="weight" step="0.1" min="0.1">
-          </div>
-          <div class="astra-section-actions">
-            <button class="astra-icon-btn astra-delete-section"><i class="fa fa-trash"></i></button>
+          
+          <div class="astra-section-controls">
+            <div class="astra-weight-pill">
+              <span class="label">Weight</span>
+              <input type="number" class="astra-weight-input" value="1" data-field="weight" step="0.1" min="0.1">
+            </div>
+            
+            <div class="astra-section-btns">
+              <button class="astra-btn-icon astra-add-sub" data-section-id="${newId}" title="Add Component">
+                <i class="fa fa-plus"></i>
+              </button>
+              <button class="astra-btn-icon astra-btn-icon--danger astra-delete-section" title="Delete Category">
+                <i class="fa fa-trash-alt"></i>
+              </button>
+            </div>
           </div>
         </div>
-        <div class="astra-sub-sections-editor">
-          <button class="astra-btn astra-btn--ghost astra-btn--xs astra-add-sub" data-section-id="${newId}">
-            <i class="fa fa-plus"></i> Add Component
-          </button>
-        </div>
+        <div class="astra-sub-sections-editor"></div>
       `;
       editor.appendChild(div);
       this.attachSettingsItemEvents(div);
+      
+      const input = div.querySelector('.astra-section-name-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
     });
 
     // Existing items
-    this.overlay.querySelectorAll('.astra-section-edit-group').forEach(group => {
+    this.overlay.querySelectorAll('.astra-section-card').forEach(group => {
       this.attachSettingsItemEvents(group as HTMLElement);
     });
 
@@ -1293,8 +1317,7 @@ export class AstraDashboard extends BaseComponent {
     });
 
     // Add Sub
-    group.querySelector('.astra-add-sub')?.addEventListener('click', (e) => {
-      const btn = e.currentTarget as HTMLElement;
+    group.querySelector('.astra-add-sub')?.addEventListener('click', () => {
       const editor = group.querySelector('.astra-sub-sections-editor');
       if (!editor) return;
 
@@ -1303,15 +1326,25 @@ export class AstraDashboard extends BaseComponent {
       subDiv.className = 'astra-sub-edit-row';
       subDiv.dataset.subId = subId;
       subDiv.innerHTML = `
-        <div class="astra-sub-connector"><i class="fa fa-level-up fa-rotate-90"></i></div>
-        <input type="text" class="astra-input astra-input--sm" value="New Component" data-field="sub-name">
-        <div class="astra-sub-weight">
-          <span class="astra-label-xs">Weight</span>
-          <input type="number" class="astra-input astra-input--sm" value="1" data-field="sub-weight" step="0.1" min="0.1">
+        <div class="astra-sub-indicator"></div>
+        <input type="text" class="astra-input-ghost astra-sub-name-input" value="New Component" data-field="sub-name">
+        
+        <div class="astra-sub-controls">
+          <div class="astra-weight-pill astra-weight-pill--sm">
+            <input type="number" class="astra-weight-input" value="1" data-field="sub-weight" step="0.1" min="0.1">
+          </div>
+          <button class="astra-btn-icon astra-btn-icon--sm astra-delete-sub" title="Delete Component">
+            <i class="fa fa-times"></i>
+          </button>
         </div>
-        <button class="astra-icon-btn astra-delete-sub"><i class="fa fa-times"></i></button>
       `;
-      editor.insertBefore(subDiv, btn);
+      editor.appendChild(subDiv);
+
+      const input = subDiv.querySelector('.astra-sub-name-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
 
       subDiv.querySelector('.astra-delete-sub')?.addEventListener('click', () => subDiv.remove());
     });
@@ -1322,7 +1355,6 @@ export class AstraDashboard extends BaseComponent {
         (btn.closest('.astra-sub-edit-row') as HTMLElement).remove();
       });
     });
-
   }
 
   // Row events are now handled via delegation in attachDashboardEvents
