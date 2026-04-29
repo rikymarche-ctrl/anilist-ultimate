@@ -25,7 +25,7 @@ import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { CustomListService } from '../social/CustomListService';
-import type { AniListActivity, ActivityType } from './ActivityUtils';
+import type { AniListActivity, ActivityFilterType } from './ActivityUtils';
 import {
   ActivityFilterBar,
   ActivityRenderer,
@@ -42,7 +42,7 @@ export class ActivityEnhancerModule extends BaseModule {
   private readonly OBSERVER_NAME = 'activity-continuous';
   private customActivitiesContainer: HTMLElement | null = null;
   private isProcessing = false;
-  private savedFilterState: { activeFilters: ActivityType[]; searchQuery: string } | null = null; // BUG-004 fix
+  private savedFilterState: { activeFilters: ActivityFilterType[]; searchQuery: string } | null = null; // BUG-004 fix
   private activeListName: string | null = null; // BUG-005 fix
 
   constructor(

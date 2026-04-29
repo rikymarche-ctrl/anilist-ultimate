@@ -16,7 +16,7 @@ import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { escapeHtml } from '@core/utils/Template';
 import type { ILogger } from '@core/interfaces/ILogger';
-import type { ActivityType, AniListActivity } from '../ActivityUtils';
+import type { ActivityFilterType, AniListActivity } from '../ActivityUtils';
 import { getActivityType, getTimeAgo } from '../ActivityUtils';
 
 export interface RendererOptions {
@@ -57,7 +57,7 @@ export class ActivityRenderer {
    * Apply filters to native activities
    */
   applyFilters(
-    activeFilters: Set<ActivityType>,
+    activeFilters: Set<ActivityFilterType>,
     searchQuery: string = ''
   ): { shown: number; hidden: number } {
     const activities = Array.from(
@@ -72,7 +72,7 @@ export class ActivityRenderer {
     activities.forEach((el) => {
       const text = el.textContent?.toLowerCase() || '';
       const type = getActivityType(text);
-      const typeMatch = activeFilters.has('all') || activeFilters.has(type);
+      const typeMatch = activeFilters.has('ALL') || activeFilters.has(type);
       const searchMatch = !searchQuery || text.includes(searchQuery);
 
       if (typeMatch && searchMatch) {

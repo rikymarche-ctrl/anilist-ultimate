@@ -18,13 +18,14 @@
  */
 
 import { injectable } from 'tsyringe';
-import type { ActivityType } from '../ActivityUtils';
+import { MediaListStatus } from '@/api/AnilistTypes';
+import type { ActivityFilterType } from '../ActivityUtils';
 
 export interface FilterBarOptions {
   /**
    * Available filter buttons
    */
-  filters: Array<{ type: ActivityType; label: string }>;
+  filters: Array<{ type: ActivityFilterType; label: string }>;
 
   /**
    * Whether to show search input
@@ -34,7 +35,7 @@ export interface FilterBarOptions {
   /**
    * Callback when filters change
    */
-  onFilterChange?: (activeFilters: Set<ActivityType>) => void;
+  onFilterChange?: (activeFilters: Set<ActivityFilterType>) => void;
 
   /**
    * Callback when search query changes
@@ -48,7 +49,7 @@ export interface FilterBarOptions {
  */
 @injectable()
 export class ActivityFilterBar {
-  private activeFilters: Set<ActivityType> = new Set(['all']);
+  private activeFilters: Set<ActivityFilterType> = new Set(['ALL']);
   private searchQuery: string = '';
   private container: HTMLElement | null = null;
   private options: FilterBarOptions;
@@ -56,14 +57,14 @@ export class ActivityFilterBar {
   constructor() {
     this.options = {
       filters: [
-        { type: 'all', label: 'All' },
-        { type: 'watched', label: 'Watched' },
-        { type: 'read', label: 'Read' },
-        { type: 'completed', label: 'Completed' },
-        { type: 'plans', label: 'Plans' },
-        { type: 'dropped', label: 'Dropped' },
-        { type: 'paused', label: 'Paused' },
-        { type: 'text', label: 'Text posts' },
+        { type: 'ALL', label: 'All' },
+        { type: MediaListStatus.WATCHING, label: 'Watched' },
+        { type: MediaListStatus.READING, label: 'Read' },
+        { type: MediaListStatus.COMPLETED, label: 'Completed' },
+        { type: MediaListStatus.PLANNING, label: 'Plans' },
+        { type: MediaListStatus.DROPPED, label: 'Dropped' },
+        { type: MediaListStatus.PAUSED, label: 'Paused' },
+        { type: 'TEXT', label: 'Text posts' },
       ],
       showSearch: true,
     };
@@ -72,27 +73,27 @@ export class ActivityFilterBar {
   /**
    * Get standard filter set based on context
    */
-  public static getStandardFilters(type: 'anime' | 'manga' | 'all' = 'all', includeTextPosts: boolean = true): Array<{ type: ActivityType; label: string }> {
-    const filters: Array<{ type: ActivityType; label: string }> = [
-      { type: 'all', label: 'All' }
+  public static getStandardFilters(type: 'anime' | 'manga' | 'all' = 'all', includeTextPosts: boolean = true): Array<{ type: ActivityFilterType; label: string }> {
+    const filters: Array<{ type: ActivityFilterType; label: string }> = [
+      { type: 'ALL', label: 'All' }
     ];
 
     if (type === 'anime' || type === 'all') {
-      filters.push({ type: 'watched', label: 'Watched' });
+      filters.push({ type: MediaListStatus.WATCHING, label: 'Watched' });
     }
     if (type === 'manga' || type === 'all') {
-      filters.push({ type: 'read', label: 'Read' });
+      filters.push({ type: MediaListStatus.READING, label: 'Read' });
     }
 
     filters.push(
-      { type: 'completed', label: 'Completed' },
-      { type: 'paused', label: 'Paused' },
-      { type: 'dropped', label: 'Dropped' },
-      { type: 'plans', label: 'Plans' }
+      { type: MediaListStatus.COMPLETED, label: 'Completed' },
+      { type: MediaListStatus.PAUSED, label: 'Paused' },
+      { type: MediaListStatus.DROPPED, label: 'Dropped' },
+      { type: MediaListStatus.PLANNING, label: 'Plans' }
     );
 
     if (includeTextPosts) {
-      filters.push({ type: 'text', label: 'Text posts' });
+      filters.push({ type: 'TEXT', label: 'Text posts' });
     }
 
     return filters;
@@ -159,7 +160,7 @@ export class ActivityFilterBar {
     const filterBtns = this.container.querySelectorAll('.au-filter-btn');
     filterBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
-        const filter = btn.getAttribute('data-filter') as ActivityType;
+        const filter = btn.getAttribute('data-filter') as ActivityFilterType;
         this.toggleFilter(filter);
       });
     });
@@ -179,7 +180,7 @@ export class ActivityFilterBar {
   /**
    * Toggle filter (single-select logic)
    */
-  private toggleFilter(filter: ActivityType): void {
+  private toggleFilter(filter: ActivityFilterType): void {
     this.activeFilters.clear();
     this.activeFilters.add(filter);
     this.updateUI();
@@ -193,7 +194,7 @@ export class ActivityFilterBar {
     if (!this.container) return;
 
     this.container.querySelectorAll('.au-filter-btn').forEach((btn) => {
-      const f = btn.getAttribute('data-filter') as ActivityType;
+      const f = btn.getAttribute('data-filter') as ActivityFilterType;
       btn.classList.toggle('active', this.activeFilters.has(f));
     });
   }
@@ -201,7 +202,7 @@ export class ActivityFilterBar {
   /**
    * Get current active filters
    */
-  getActiveFilters(): Set<ActivityType> {
+  getActiveFilters(): Set<ActivityFilterType> {
     return new Set(this.activeFilters);
   }
 
@@ -215,7 +216,7 @@ export class ActivityFilterBar {
   /**
    * Set active filter programmatically
    */
-  setFilter(filter: ActivityType): void {
+  setFilter(filter: ActivityFilterType): void {
     this.toggleFilter(filter);
   }
 
@@ -224,7 +225,7 @@ export class ActivityFilterBar {
    */
   reset(): void {
     this.activeFilters.clear();
-    this.activeFilters.add('all');
+    this.activeFilters.add('ALL');
     this.searchQuery = '';
     this.updateUI();
 
@@ -241,7 +242,7 @@ export class ActivityFilterBar {
    * Get current filter state
    * BUG-004 fix: Save state before cleanup to restore after navigation
    */
-  getState(): { activeFilters: ActivityType[]; searchQuery: string } {
+  getState(): { activeFilters: ActivityFilterType[]; searchQuery: string } {
     return {
       activeFilters: Array.from(this.activeFilters),
       searchQuery: this.searchQuery,
@@ -252,7 +253,7 @@ export class ActivityFilterBar {
    * Restore filter state
    * BUG-004 fix: Restore state after re-injection on navigation
    */
-  setState(state: { activeFilters: ActivityType[]; searchQuery: string }): void {
+  setState(state: { activeFilters: ActivityFilterType[]; searchQuery: string }): void {
     this.activeFilters = new Set(state.activeFilters);
     this.searchQuery = state.searchQuery;
 

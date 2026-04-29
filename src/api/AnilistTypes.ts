@@ -54,7 +54,19 @@ export interface AniListUser {
 export type MediaType = 'ANIME' | 'MANGA';
 export type MediaFormat = 'TV' | 'TV_SHORT' | 'MOVIE' | 'SPECIAL' | 'OVA' | 'ONA' | 'MUSIC' | 'MANGA' | 'NOVEL' | 'ONE_SHOT';
 export type MediaStatus = 'FINISHED' | 'RELEASING' | 'NOT_YET_RELEASED' | 'CANCELLED' | 'HIATUS';
-export type MediaListStatus = 'CURRENT' | 'PLANNING' | 'COMPLETED' | 'DROPPED' | 'PAUSED' | 'REPEATING';
+export enum MediaListStatus {
+  CURRENT = 'CURRENT',
+  PLANNING = 'PLANNING',
+  COMPLETED = 'COMPLETED',
+  DROPPED = 'DROPPED',
+  PAUSED = 'PAUSED',
+  REPEATING = 'REPEATING',
+  // Internal/Virtual statuses
+  WATCHING = 'WATCHING',
+  READING = 'READING',
+  REWATCHING = 'REWATCHING',
+  REREADING = 'REREADING',
+}
 
 export interface AniListMediaListEntry {
   status: MediaListStatus;
