@@ -61,9 +61,19 @@
 
 ## 🧹 P9 - STABILITY & REFACTORING
 
-- [ ] **Brand Cleanup** - Remove all "v2" references from the codebase, naming, and tokens.
+- [x] **Social Activity Stabilization** - Restricted social bubbles to home page and ensured cleanup on navigation. [DONE]
+- [x] **Home Page Social Bubbles** - Implemented calendar-style floating portals for all home page native cards. [DONE]
+    - [!] *Known Bug*: Sometimes bubbles persist on screen (will address later).
+- [x] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
 - [ ] **Status Enums** - Replace hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum to prevent errors.
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
+
+---
+
+## 📋 CURRENT WORK & PLANS
+
+- [Plan: Social Activity Module Refinement](file:///C:/Users/ricca/.gemini/antigravity/brain/dd7e044c-453b-4dcf-a6ab-189b6a43b3c4/implementation_plan.md)
+
 
 - [X] **Comment Caching** - Persistent storage for user notes/comments. [DONE]
 -----------------------------------------------------

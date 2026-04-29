@@ -40,6 +40,9 @@ const MEDIA_ID_ATTR = 'data-au-social-media-id';
 @injectable()
 export class SocialEnhancerModule extends BaseModule {
   private batchTimeout: ReturnType<typeof setTimeout> | null = null;
+  
+  /** Track portal controllers to prevent duplicates and cleanup on page change */
+  private portalControllers: Map<HTMLElement, AbortController> = new Map();
 
   /** Cards waiting for their first API fetch, keyed by mediaId */
   private pendingCards: Map<number, HTMLElement[]> = new Map();
@@ -72,11 +75,29 @@ export class SocialEnhancerModule extends BaseModule {
     // BUG-030 fix: Clear cache on page navigation to prevent unbounded growth
     this.onPageChange(() => {
       const cacheSize = this.activityCache.size;
+      
+      // Cleanup DOM immediately on navigation to prevent orphaned bubbles
+      this.removeAllWrappers();
+      this.pendingCards.clear();
+      if (this.batchTimeout) {
+        clearTimeout(this.batchTimeout);
+        this.batchTimeout = null;
+      }
+
       if (cacheSize > 0) {
         this.activityCache.clear();
         this.cacheTimestamps.clear();
         this.cacheOrder = [];
         log.debug(`[SocialEnhancer] Cache cleared on page change (was ${cacheSize} entries)`);
+      }
+
+      // If we moved away from home, stop observation
+      if (!this.isOnHomePage()) {
+        this.stopObservation();
+      } else {
+        // If we moved to/stayed on home, ensure observation is active
+        this.startObservation();
+        this.processNewCards();
       }
     });
 
@@ -99,10 +120,20 @@ export class SocialEnhancerModule extends BaseModule {
     );
 
     const { socialEnabled } = calendarStore.getState().preferences;
-    if (socialEnabled) {
+    if (socialEnabled && this.isOnHomePage()) {
       this.startObservation();
       this.processNewCards();
     }
+  }
+
+  /**
+   * Check if the current page is the AniList home page
+   */
+  private isOnHomePage(): boolean {
+    const path = window.location.pathname;
+    const isHome = path === '/' || path === '/home' || path === '/home/' || path.startsWith('/home?');
+    log.debug(`[SocialEnhancer] Path check: ${path} -> isHome: ${isHome}`);
+    return isHome;
   }
 
   public getName(): string {
@@ -136,11 +167,15 @@ export class SocialEnhancerModule extends BaseModule {
       const mediaId = parseInt(card.getAttribute(MEDIA_ID_ATTR)!, 10);
       const activities = this.getCachedActivities(mediaId) ?? []; // PERF-002 fix: use LRU cache
 
-      // Remove existing wrapper first
-      card.querySelector('.au-social-wrapper')?.remove();
+      // Cleanup existing portal if any
+      this.portalControllers.get(card)?.abort();
+
+      const titleEl = card.querySelector('.title');
+      const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
 
       // Re-inject with current preferences (SocialRenderer checks prefs internally)
-      SocialRenderer.injectIntoCard(card, mediaId, activities);
+      const controller = SocialRenderer.attachPortal(card, mediaId, title, activities);
+      this.portalControllers.set(card, controller);
     });
 
     // Also ensure observer is running and pick up any new cards
@@ -152,7 +187,9 @@ export class SocialEnhancerModule extends BaseModule {
    * Remove all social wrappers from the DOM (when social is fully disabled).
    */
   private removeAllWrappers(): void {
-    document.querySelectorAll('.au-social-wrapper').forEach(el => el.remove());
+    this.portalControllers.forEach(controller => controller.abort());
+    this.portalControllers.clear();
+
     // Remove processed marks so cards can be re-picked if social is re-enabled later
     document.querySelectorAll<HTMLElement>(`[${PROCESSED_ATTR}]`).forEach(el => {
       el.removeAttribute(PROCESSED_ATTR);
@@ -171,7 +208,7 @@ export class SocialEnhancerModule extends BaseModule {
    */
   private processNewCards(): void {
     const { socialEnabled } = calendarStore.getState().preferences;
-    if (!socialEnabled) return;
+    if (!socialEnabled || !this.isOnHomePage()) return;
 
     const cards = Array.from(document.querySelectorAll<HTMLElement>('.media-preview-card, .media-card'));
 
@@ -191,7 +228,11 @@ export class SocialEnhancerModule extends BaseModule {
       const cachedActivities = this.getCachedActivities(mediaId); // PERF-002 fix: use LRU cache
       if (cachedActivities) {
         const activities = cachedActivities;
-        SocialRenderer.injectIntoCard(card, mediaId, activities);
+        const titleEl = card.querySelector('.title');
+        const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
+        
+        const controller = SocialRenderer.attachPortal(card, mediaId, title, activities);
+        this.portalControllers.set(card, controller);
         return;
       }
 
@@ -246,7 +287,11 @@ export class SocialEnhancerModule extends BaseModule {
         this.setCachedActivities(mediaId, activities); // PERF-002 fix: use LRU cache
 
         elements.forEach(card => {
-          SocialRenderer.injectIntoCard(card, mediaId, activities);
+          const titleEl = card.querySelector('.title');
+          const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
+          
+          const controller = SocialRenderer.attachPortal(card, mediaId, title, activities);
+          this.portalControllers.set(card, controller);
         });
       });
     } catch (e) {

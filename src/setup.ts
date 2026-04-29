@@ -179,7 +179,6 @@ export async function setupDI(): Promise<void> {
   // ============================================================================
 
   // Load configuration
-  // Load configuration
   const config = container.resolve<IConfigManager>(TOKENS.Config);
   await config.load();
   console.log('[Setup] Configuration loaded');

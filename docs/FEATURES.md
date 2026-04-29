@@ -1,4 +1,4 @@
-# Anilist Ultimate v2 - Feature Requests & Enhancements
+# Anilist Ultimate - Feature Requests & Enhancements
 
 **Last Updated:** 2026-04-27
 **Source:** TODO.md + User feedback

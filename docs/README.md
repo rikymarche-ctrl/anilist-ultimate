@@ -1,6 +1,6 @@
-# Anilist Ultimate v2 - Documentation Index
+# Anilist Ultimate - Documentation Index
 
-Benvenuto nella documentazione tecnica di **Anilist Ultimate v2**. Questa cartella contiene tutta la documentazione di progetto, suddivisa per categoria.
+Benvenuto nella documentazione tecnica di **Anilist Ultimate**. Questa cartella contiene tutta la documentazione di progetto, suddivisa per categoria.
 
 ---
 

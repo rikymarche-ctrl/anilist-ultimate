@@ -1,6 +1,6 @@
 /**
  * @file main.ts
- * @description Anilist Ultimate v2 - Application Entry Point
+ * @description Anilist Ultimate - Application Entry Point
  *
  * Bootstrap sequence:
  *   1. Import reflect-metadata (required by tsyringe DI)
@@ -19,7 +19,7 @@
  */
 
 console.log('========================================');
-console.log('ANILIST ULTIMATE V2 - MAIN.TS LOADING');
+console.log('ANILIST ULTIMATE - MAIN.TS LOADING');
 console.log('========================================');
 
 import 'reflect-metadata'; // Required for tsyringe

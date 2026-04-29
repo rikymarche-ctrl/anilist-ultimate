@@ -6,7 +6,7 @@
  * synced across devices) and chrome.storage.local (large data, device-local).
  *
  * Features:
- *   - Automatic key prefixing (anilist_ultimate_v2_) to avoid collisions
+ *   - Automatic key prefixing (anilist_ultimate_) to avoid collisions
  *   - Anti-double-prefix protection
  *   - Batch get/set operations
  *   - Change listeners via chrome.storage.onChanged

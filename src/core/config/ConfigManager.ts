@@ -101,7 +101,7 @@ export class ConfigManager implements IConfigManager {
   /**
    * Storage key for configuration
    */
-  private readonly STORAGE_KEY = 'anilist_ultimate_v2_config';
+  private readonly STORAGE_KEY = 'anilist_ultimate_config';
 
   constructor(
     @inject(TOKENS.Storage) private storage: IStorageService,

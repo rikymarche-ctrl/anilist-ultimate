@@ -1,4 +1,4 @@
-# Anilist Ultimate v2
+# Anilist Ultimate
 
 **The definitive Chrome extension for power users of [AniList](https://anilist.co).** Modular, TypeScript-first architecture delivering calendar views, social features, advanced scoring, notification grouping, and more.
 
@@ -75,7 +75,7 @@ Full architecture documentation: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ```bash
 git clone https://github.com/rikymarche-ctrl/anilist-ultimate.git
-cd anilist-ultimate/anilist-ultimate-v2
+cd anilist-ultimate/anilist-ultimate
 npm install
 ```
 
@@ -110,7 +110,7 @@ The extension uses AniList OAuth (implicit grant). On first use:
 ## Project Structure
 
 ```
-anilist-ultimate-v2/
+anilist-ultimate/
   public/
     manifest.json              Manifest V3 configuration
     icons/                     Extension icons

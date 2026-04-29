@@ -1,4 +1,4 @@
-# Anilist Ultimate v2 - Bug Report
+# Anilist Ultimate - Bug Report
 
 **Report Date:** 2026-04-26
 **Source:** Code review + TODO.md cross-reference

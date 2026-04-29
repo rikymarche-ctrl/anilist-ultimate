@@ -24,7 +24,7 @@ export const APP_VERSION = '2.0.0';
 // Storage Keys
 // ============================================================================
 
-export const STORAGE_PREFIX = 'anilist_ultimate_v2_';
+export const STORAGE_PREFIX = 'anilist_ultimate_';
 
 export const STORAGE_KEYS = {
   USER_PREFERENCES: `${STORAGE_PREFIX}user_preferences`,

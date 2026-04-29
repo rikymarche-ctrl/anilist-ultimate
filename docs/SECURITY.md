@@ -1,4 +1,4 @@
-# Anilist Ultimate v2 - Security Audit Report
+# Anilist Ultimate - Security Audit Report
 
 **Audit Date:** 2026-04-26
 **Auditor:** Automated Code Review

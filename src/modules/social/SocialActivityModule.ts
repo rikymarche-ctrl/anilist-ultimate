@@ -35,6 +35,14 @@ export class SocialActivityModule extends BaseModule {
     try {
       // Initialize and mount the global sidebar
       this.initSidebar();
+
+      // Ensure sidebar is closed when navigating away
+      this.onPageChange(() => {
+        if (this.sidebar) {
+          log.debug('[SocialActivity] Closing sidebar on navigation');
+          this.sidebar.close();
+        }
+      });
       
       log.success('Social Activity Module initialized');
     } catch (e) {

@@ -27,7 +27,7 @@
 
 ## 1. System Overview
 
-Anilist Ultimate v2 is a **Chrome Extension** (Manifest V3) that enhances the [AniList](https://anilist.co) anime tracking website. It operates as a **content script** injected into `https://anilist.co/*` pages, modifying the DOM to add features like an airing calendar, social activity overlays, notification grouping, advanced scoring (Astra), and more.
+Anilist Ultimate is a **Chrome Extension** (Manifest V3) that enhances the [AniList](https://anilist.co) anime tracking website. It operates as a **content script** injected into `https://anilist.co/*` pages, modifying the DOM to add features like an airing calendar, social activity overlays, notification grouping, advanced scoring (Astra), and more.
 
 ### High-Level Architecture
 
@@ -114,7 +114,7 @@ Anilist Ultimate v2 is a **Chrome Extension** (Manifest V3) that enhances the [A
 ## 3. Project Structure
 
 ```
-anilist-ultimate-v2/
+anilist-ultimate/
 ├── public/
 │   ├── manifest.json          # Chrome MV3 manifest
 │   └── icons/                 # Extension icons (16, 48, 128)

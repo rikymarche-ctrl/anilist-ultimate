@@ -26,9 +26,7 @@ interface AnimeCardProps {
 
 @injectable()
 export class AnimeCard extends BaseComponent<AnimeCardProps> {
-  private socialBubble: HTMLElement | null = null;
-  /** AbortController for portal-related card hover listeners — aborted on destroySocialPortal() */
-  private portalAbortController: AbortController | null = null;
+  private socialPortalController: AbortController | null = null;
   /** Cached DOM queries for performance - invalidated on render */
   private cachedActionPills: NodeListOf<HTMLElement> | null = null;
 
@@ -129,18 +127,9 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    * Destroy social portal and its event bindings cleanly
    */
   private destroySocialPortal(): void {
-    if (this.socialBubble) {
-      console.log('[AnimeCard] Destroying portal');
-    }
-
-    // Abort card hover listeners first (prevents stuck-visible bubble)
-    this.portalAbortController?.abort();
-    this.portalAbortController = null;
-
-    if (this.socialBubble) {
-      this.socialBubble.classList.remove('visible');
-      this.socialBubble.remove();
-      this.socialBubble = null;
+    if (this.socialPortalController) {
+      this.socialPortalController.abort();
+      this.socialPortalController = null;
     }
   }
 
@@ -152,11 +141,17 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
     const { anime } = this.props;
 
-    // BUG-008 Fix: Always show portal (for the button) if social features and avatars are enabled,
-    // even if there is no friend activity.
-    if (socialEnabled && socialShowAvatars) {
-      if (!this.socialBubble) {
-        this.createSocialPortal(anime);
+    // Only show portal on home page (BUG-035 fix)
+    const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+
+    if (socialEnabled && socialShowAvatars && isHomePage) {
+      if (!this.socialPortalController) {
+        this.socialPortalController = SocialRenderer.attachPortal(
+          this.element,
+          anime.mediaId,
+          anime.cleanTitle,
+          anime.friendActivity || []
+        );
       }
     } else {
       this.destroySocialPortal();
@@ -302,7 +297,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     }
 
     if (layoutMode === 'extended') {
-      // Extended mode: Vertical card with full-width cover (v2's old standard)
+      // Extended mode: Vertical card with full-width cover
       const coverHTML = `
         <div class="anime-card__cover">
           <img
@@ -584,118 +579,6 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    */
   public show(): void {
     this.element.classList.remove('anime-card--hidden');
-  }
-
-  /**
-   * Create social bubble as portal (position: fixed outside calendar)
-   */
-  private createSocialPortal(anime: AnimeEntry): void {
-    // Safety: destroy any existing portal first to prevent duplicates
-    if (this.socialBubble) {
-      console.error('[AnimeCard] DUPLICATE PORTAL DETECTED! Stack:', new Error().stack);
-      this.destroySocialPortal();
-    }
-
-    console.log('[AnimeCard] Creating portal for:', anime.cleanTitle);
-
-    // Create bubble element
-    const bubble = document.createElement('div');
-    bubble.className = 'au-social-bubble-portal';
-    bubble.innerHTML = `
-      ${SocialRenderer.getAvatarsHTML(anime.friendActivity || [])}
-      ${SocialRenderer.getSocialButtonHTML()}
-    `;
-
-    document.body.appendChild(bubble);
-    this.socialBubble = bubble;
-
-    // Create a fresh AbortController for this portal's card-hover listeners
-    this.portalAbortController = new AbortController();
-    const { signal } = this.portalAbortController;
-
-    // Handle mouse enter/leave on card — using { signal } so they're removed atomically on destroy
-    this.element.addEventListener('mouseenter', () => {
-      this.positionAndShowBubble();
-    }, { signal });
-
-    this.element.addEventListener('mouseleave', (e) => {
-      // If mouse is going to the bubble itself, keep it visible
-      const relatedTarget = e.relatedTarget as HTMLElement | null;
-      if (!relatedTarget || !bubble.contains(relatedTarget)) {
-        bubble.classList.remove('visible');
-      }
-    }, { signal });
-
-    // Keep bubble visible when hovering it — using { signal } for cleanup
-    bubble.addEventListener('mouseenter', () => {
-      bubble.classList.add('visible');
-    }, { signal });
-
-    bubble.addEventListener('mouseleave', () => {
-      bubble.classList.remove('visible');
-    }, { signal });
-
-    // Handle avatar clicks — using { signal } for cleanup
-    bubble.querySelectorAll('.friend-avatar').forEach(avatar => {
-      avatar.addEventListener('click', (e) => {
-        const userName = (avatar as HTMLElement).getAttribute('data-user-name');
-        if (userName) {
-          e.stopPropagation();
-          window.open(`/user/${userName}`, '_blank');
-        }
-      }, { signal });
-    });
-
-    // Handle social button click — using { signal } for cleanup
-    const socialBtn = bubble.querySelector('[data-action="social-activity"]');
-    if (socialBtn) {
-      socialBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-          detail: {
-            mediaId: anime.mediaId,
-            title: anime.cleanTitle,
-            element: this.element
-          }
-        }));
-      }, { signal });
-    }
-  }
-
-  /**
-   * Position and show the social bubble portal
-   */
-  private positionAndShowBubble(): void {
-    if (!this.socialBubble) return;
-
-    // Make bubble visible off-screen to calculate height
-    this.socialBubble.style.left = '-9999px';
-    this.socialBubble.style.top = '-9999px';
-    this.socialBubble.style.transform = 'none';
-    this.socialBubble.classList.add('visible');
-
-    // Force reflow
-    void this.socialBubble.offsetHeight;
-
-    const cardRect = this.element.getBoundingClientRect();
-    const bubbleHeight = this.socialBubble.offsetHeight;
-
-    // Calculate center of card horizontally
-    const cardCenterX = cardRect.left + (cardRect.width / 2);
-
-    // Position above card
-    let top = cardRect.top - bubbleHeight - 3; // 3px gap
-
-    // Prevent from going off-screen vertically
-    const padding = 10;
-    if (top < padding) {
-      top = cardRect.bottom + 3;
-    }
-
-    // Use transform to center perfectly - this ALWAYS centers regardless of bubble width
-    this.socialBubble.style.left = `${cardCenterX}px`;
-    this.socialBubble.style.top = `${top}px`;
-    this.socialBubble.style.transform = 'translateX(-50%)';
   }
 
   /**

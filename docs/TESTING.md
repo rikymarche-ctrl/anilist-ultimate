@@ -29,7 +29,7 @@
 2. Navigate to: chrome://extensions/
 3. Enable "Developer mode" (toggle in top-right)
 4. Click "Load unpacked"
-5. Select folder: C:\Users\ricca\Documenti\Anilist\anilist-ultimate-v2\dist
+5. Select folder: C:\Users\ricca\Documenti\Anilist\anilist-ultimate\dist
 ```
 
 ### 2. Verify Installation

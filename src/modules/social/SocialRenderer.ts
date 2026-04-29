@@ -72,58 +72,121 @@ export class SocialRenderer {
    * @param activities - Friend activities to display
    * @param signal - Optional AbortSignal for cleanup (recommended to prevent memory leaks)
    */
-  public static injectIntoCard(card: HTMLElement, mediaId: number, activities: FriendActivity[] = [], signal?: AbortSignal): void {
-    const { socialEnabled } = calendarStore.getState().preferences;
-    if (!socialEnabled) return;
+  /**
+   * Creates a social bubble portal attached to a card
+   * @returns AbortController for cleanup
+   */
+  public static attachPortal(
+    card: HTMLElement,
+    mediaId: number,
+    title: string,
+    activities: FriendActivity[]
+  ): AbortController {
+    const abortController = new AbortController();
+    const { signal } = abortController;
 
-    // 1. Remove existing wrapper to prevent duplicate listeners
-    card.querySelector('.au-social-wrapper')?.remove();
+    let bubble: HTMLElement | null = null;
 
-    // 2. Find target container (usually .cover or .image)
-    const target = card.querySelector('.cover, .image, .image-container');
-    if (!target) return;
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'au-social-wrapper';
-    wrapper.innerHTML = `
-      ${this.getAvatarsHTML(activities)}
-      ${this.getSocialButtonHTML()}
-    `;
-
-    target.appendChild(wrapper);
-
-    // 3. Prevent bubble background clicks from triggering the card's navigation
-    // but allowed specific elements (avatars and button) to work
-    // Use signal if provided for automatic cleanup
-    const listenerOptions = signal ? { signal } : undefined;
-
-    wrapper.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.classList.contains('friend-avatar')) {
-        const userName = target.getAttribute('data-user-name');
-        if (userName) {
-          e.stopPropagation();
-          window.open(`/user/${userName}`, '_blank');
-        }
-      } else {
-        e.stopPropagation();
+    const destroyBubble = () => {
+      if (bubble) {
+        bubble.remove();
+        bubble = null;
       }
-    }, listenerOptions);
+    };
 
-    // 4. Attach event to button with signal for cleanup
-    const btn = wrapper.querySelector('.au-social-button');
-    if (btn) {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
+    const positionAndShow = () => {
+      if (!bubble) return;
+      
+      // Make visible off-screen to calculate height
+      bubble.style.left = '-9999px';
+      bubble.style.top = '-9999px';
+      bubble.style.transform = 'none';
+      bubble.classList.add('visible');
 
-        const titleEl = card.querySelector('.title');
-        const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
+      // Force reflow
+      void bubble.offsetHeight;
 
-        window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-          detail: { mediaId, title, element: card }
-        }));
-      }, listenerOptions);
-    }
+      const cardRect = card.getBoundingClientRect();
+      const bubbleHeight = bubble.offsetHeight;
+      const cardCenterX = cardRect.left + (cardRect.width / 2);
+
+      // Position above card
+      let top = cardRect.top - bubbleHeight - 3; // 3px gap
+      
+      // Prevent from going off-screen vertically
+      const padding = 10;
+      if (top < padding) {
+        top = cardRect.bottom + 3;
+      }
+
+      bubble.style.left = `${cardCenterX + window.scrollX}px`;
+      bubble.style.top = `${top + window.scrollY}px`;
+      bubble.style.transform = 'translateX(-50%)';
+    };
+
+    const createBubble = () => {
+      if (bubble) return;
+      
+      bubble = document.createElement('div');
+      bubble.className = 'au-social-bubble-portal';
+      bubble.innerHTML = `
+        ${this.getAvatarsHTML(activities)}
+        ${this.getSocialButtonHTML()}
+      `;
+      document.body.appendChild(bubble);
+
+      // Hover on bubble itself keeps it visible
+      bubble.addEventListener('mouseenter', () => {
+        bubble?.classList.add('visible');
+      }, { signal });
+
+      bubble.addEventListener('mouseleave', () => {
+        bubble?.classList.remove('visible');
+      }, { signal });
+
+      // Handle avatar clicks
+      bubble.querySelectorAll('.friend-avatar').forEach(avatar => {
+        avatar.addEventListener('click', (e) => {
+          const userName = (avatar as HTMLElement).getAttribute('data-user-name');
+          if (userName) {
+            e.stopPropagation();
+            window.open(`/user/${userName}`, '_blank');
+          }
+        }, { signal });
+      });
+
+      // Handle social button click
+      const socialBtn = bubble.querySelector('[data-action="social-activity"]');
+      if (socialBtn) {
+        socialBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
+            detail: { mediaId, title, element: card }
+          }));
+        }, { signal });
+      }
+    };
+
+    card.addEventListener('mouseenter', () => {
+      const { socialEnabled } = calendarStore.getState().preferences;
+      if (!socialEnabled) return;
+
+      createBubble();
+      positionAndShow();
+    }, { signal });
+
+    card.addEventListener('mouseleave', (e) => {
+      const relatedTarget = e.relatedTarget as HTMLElement | null;
+      if (bubble && (!relatedTarget || !bubble.contains(relatedTarget))) {
+        bubble.classList.remove('visible');
+      }
+    }, { signal });
+
+    // Cleanup on signal abort
+    signal.addEventListener('abort', () => {
+      destroyBubble();
+    });
+
+    return abortController;
   }
 }

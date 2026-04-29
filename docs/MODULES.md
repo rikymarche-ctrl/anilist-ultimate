@@ -1,4 +1,4 @@
-# Anilist Ultimate v2 - Module Documentation
+# Anilist Ultimate - Module Documentation
 
 ## Table of Contents
 

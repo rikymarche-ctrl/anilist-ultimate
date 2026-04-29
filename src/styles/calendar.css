@@ -9,11 +9,14 @@
 
 .anilist-calendar {
   width: 100%;
-  margin: 10px 0 20px 0; /* Reduced top margin */
+  margin: 10px 0 20px 0;
+  /* Reduced top margin */
   padding: 0;
   background: var(--cal-background);
-  border-radius: 5px; /* Subtle rounded corners */
-  overflow: hidden; /* Hide overflow for rounded corners to work */
+  border-radius: 5px;
+  /* Subtle rounded corners */
+  overflow: hidden;
+  /* Hide overflow for rounded corners to work */
   position: relative;
   z-index: 10;
 }
@@ -36,14 +39,16 @@
 .au-calendar-title {
   font-family: 'JetBrains Mono', 'Roboto Mono', 'Fira Code', monospace;
   text-transform: uppercase;
-  letter-spacing: 0.25em; /* Increased spacing for techy feel */
+  letter-spacing: 0.25em;
+  /* Increased spacing for techy feel */
   font-size: 1.3rem !important;
   font-weight: 700 !important;
   color: var(--cal-text) !important;
   display: flex;
   align-items: center;
   gap: 15px;
-  margin-left: 2px; /* Slight nudge away from the edge */
+  margin-left: 2px;
+  /* Slight nudge away from the edge */
 }
 
 /* Removed the bar (::before) */
@@ -53,7 +58,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0;
-  padding: 8px 0; /* Reduced padding */
+  padding: 8px 0;
+  /* Reduced padding */
   background: transparent;
 }
 
@@ -248,7 +254,8 @@
   color: var(--cal-text-light);
   font-size: 14px;
   font-style: italic;
-  opacity: 0.6; /* Dim the 'No anime airing' text specifically */
+  opacity: 0.6;
+  /* Dim the 'No anime airing' text specifically */
   min-height: 60px;
   display: flex;
   align-items: center;
@@ -290,7 +297,8 @@
   background: var(--cal-anime-bg);
   border: 1px solid var(--cal-border);
   border-radius: 6px;
-  overflow: visible; /* Allow external floating social bubble */
+  overflow: visible;
+  /* Allow external floating social bubble */
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -312,7 +320,8 @@
   flex-direction: inherit;
   width: 100%;
   height: 100%;
-  overflow: hidden; /* Clips everything inside the card perfectly */
+  overflow: hidden;
+  /* Clips everything inside the card perfectly */
   border-radius: inherit;
   position: relative;
 }
@@ -489,10 +498,14 @@
   transition: all 0.2s ease;
   color: #e5e7eb;
   font-size: 14px;
-  background: transparent; /* Reset default background */
-  border: none; /* Remove default button border */
-  padding: 0; /* Remove default button padding */
-  appearance: none; /* Remove OS-level styling */
+  background: transparent;
+  /* Reset default background */
+  border: none;
+  /* Remove default button border */
+  padding: 0;
+  /* Remove default button padding */
+  appearance: none;
+  /* Remove OS-level styling */
   outline: none;
 }
 
@@ -719,7 +732,8 @@
   height: 56px;
   width: 100%;
   max-width: 100%;
-  position: relative; /* Ensure overlay positions correctly */
+  position: relative;
+  /* Ensure overlay positions correctly */
 }
 
 /* Removed duplicate block created by error in previous step */
@@ -870,7 +884,8 @@
 }
 
 .anime-card--extended .anime-card__title {
-  margin: 0 0 6px 0; /* Reduced margin */
+  margin: 0 0 6px 0;
+  /* Reduced margin */
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
@@ -885,7 +900,8 @@
 .anime-card--extended .anime-card__details {
   display: flex;
   flex-direction: column;
-  gap: 6px; /* Reduced gap */
+  gap: 6px;
+  /* Reduced gap */
   margin-top: 6px;
 }
 
@@ -904,12 +920,14 @@
 
 .anime-card--extended .anime-card__time {
   font-size: 11px;
-  color: var(--au-text, #8ba0b2); /* Neutralized color */
+  color: var(--au-text, #8ba0b2);
+  /* Neutralized color */
   opacity: 0.8;
 }
 
 .anime-card--extended .anime-card__progress {
-  padding: 4px 8px; /* Reduced padding */
+  padding: 4px 8px;
+  /* Reduced padding */
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
@@ -956,7 +974,8 @@
   z-index: 2 !important;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 100%) !important;
   opacity: 1 !important;
-  border-radius: 6px !important; /* Matches card border-radius */
+  border-radius: 6px !important;
+  /* Matches card border-radius */
 }
 
 .anime-card--full-width-images.anime-card--standard:hover .anime-card__image-overlay {
@@ -1159,161 +1178,4 @@
   .calendar-day-column__day-abbr {
     display: none;
   }
-}
-
-/* --- Quick Edit Modal V2 --- */
-.au-v2-editor-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8) !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100000 !important;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.25s ease;
-  backdrop-filter: blur(5px);
-}
-
-.au-v2-editor--open {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.au-v2-editor-modal {
-  width: 500px;
-  max-width: 90vw;
-  background: #0b1622;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  transform: scale(0.95);
-  transition: transform 0.25s ease;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.au-v2-editor--open .au-v2-editor-modal {
-  transform: scale(1);
-}
-
-.au-v2-editor-header {
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.03);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.au-v2-editor-title {
-  margin: 0;
-  font-size: 17px;
-  color: #edf1f5;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.au-v2-editor-close {
-  background: none;
-  border: none;
-  color: #8ba0b2;
-  cursor: pointer;
-  font-size: 20px;
-  padding: 4px;
-}
-
-.au-v2-editor-body {
-  position: relative;
-  min-height: 200px;
-}
-
-.au-v2-loading {
-  padding: 60px;
-  text-align: center;
-  color: #3db4f2;
-  font-size: 18px;
-}
-
-.au-v2-cover {
-  height: 140px;
-  background-size: cover;
-  background-position: center;
-  position: relative;
-}
-
-.au-v2-cover::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 60%;
-  background: linear-gradient(180deg, transparent, #0b1622);
-}
-
-.au-v2-form {
-  padding: 0 25px 25px;
-}
-
-.au-v2-row {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.au-v2-row label {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  color: #8ba0b2;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.au-v2-row select,
-.au-v2-row input,
-.au-v2-row textarea {
-  background: #151f2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 10px 12px;
-  color: #edf1f5;
-  font-family: inherit;
-}
-
-.au-v2-row textarea {
-  resize: vertical;
-}
-
-.au-v2-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.au-v2-btn-primary {
-  background: #3db4f2;
-  color: #fff;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.au-v2-btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  color: #edf1f5;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 6px;
-  cursor: pointer;
 }

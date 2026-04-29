@@ -6,7 +6,7 @@
  * Replaces the previous pattern of 6 duplicate localStorage keys.
  *
  * Token Storage:
- *   - Primary key: localStorage['anilist_ultimate_v2_access_token']
+ *   - Primary key: localStorage['anilist_ultimate_access_token']
  *   - Legacy migration: checks 5 legacy keys and migrates to primary
  *   - In-memory cache to avoid repeated localStorage reads
  *
@@ -35,7 +35,7 @@ export class AuthTokenService {
   /**
    * Single standardized storage key
    */
-  private readonly STORAGE_KEY = 'anilist_ultimate_v2_access_token';
+  private readonly STORAGE_KEY = 'anilist_ultimate_access_token';
 
   /**
    * Legacy keys to check for migration

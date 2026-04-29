@@ -1,4 +1,4 @@
-# Anilist Ultimate v2 - Changelog
+# Anilist Ultimate - Changelog
 
 ## [2.0.0] - 2026-04-07
 
@@ -204,7 +204,7 @@ Total: ~3,550 lines of code
 
 ### Breaking Changes
 
-- **New folder:** `anilist-ultimate-v2` (separate from v1)
+- **New folder:** `anilist-ultimate` (separate from v1)
 - **New manifest:** Manifest V3 format
 - **Settings location:** Chrome sync storage (new keys)
 - **No backward compatibility:** Fresh start
