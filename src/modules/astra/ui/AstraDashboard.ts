@@ -183,9 +183,6 @@ export class AstraDashboard extends BaseComponent {
             <button class="astra-btn astra-btn--ghost ${this.state.showProgress ? 'active' : ''}" id="astra-toggle-progress" title="Toggle Progress Fill">
               <i class="fa fa-tasks"></i>
             </button>
-            <button class="astra-btn astra-btn--ghost ${this.state.isGrouped ? 'active' : ''}" id="astra-toggle-grouping" title="Group by Status">
-              <i class="fa fa-layer-group"></i> ${this.state.isGrouped ? 'Grouped' : 'Flat'}
-            </button>
             <button class="astra-btn astra-btn--ghost" id="astra-export-wrapped" title="Export Stats as PNG">
               <i class="fa fa-image"></i> Export Wrapped
             </button>
@@ -421,45 +418,54 @@ export class AstraDashboard extends BaseComponent {
       const currentProcessId = this.renderProcessId;
 
       if (sortedWorks.length > 0) {
-        if (this.state.isGrouped) {
-          const groupedItems: any[] = [];
-          const groups = new Map<string, any[]>();
-          
-          sortedWorks.forEach(w => {
-            let status = (w.status || 'UNKNOWN').toUpperCase();
-            if (status === MediaListStatus.CURRENT) {
-              status = w.type === 'manga' ? MediaListStatus.READING : MediaListStatus.WATCHING;
-            } else if (status === MediaListStatus.REPEATING) {
-              status = w.type === 'manga' ? MediaListStatus.REREADING : MediaListStatus.REWATCHING;
-            }
-            if (!groups.has(status)) groups.set(status, []);
-            groups.get(status)!.push(w);
-          });
+        const groupedItems: any[] = [];
+        const groups = new Map<string, any[]>();
 
-          // Order groups: CURRENT/WATCHING/READING first, then COMPLETED, then others
-          const statusOrder = [MediaListStatus.WATCHING, MediaListStatus.READING, MediaListStatus.REWATCHING, MediaListStatus.REREADING, MediaListStatus.COMPLETED, MediaListStatus.PLANNING, MediaListStatus.PAUSED, MediaListStatus.DROPPED, 'UNKNOWN'];
-          const sortedStatuses = Array.from(groups.keys()).sort((a, b) => {
-            const idxA = statusOrder.indexOf(a);
-            const idxB = statusOrder.indexOf(b);
-            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-            if (idxA !== -1) return -1;
-            if (idxB !== -1) return 1;
-            return a.localeCompare(b);
-          });
+        sortedWorks.forEach(w => {
+          let status = (w.status || 'UNKNOWN').toUpperCase();
+          if (status === MediaListStatus.CURRENT) {
+            status = w.type === 'manga' ? MediaListStatus.READING : MediaListStatus.WATCHING;
+          } else if (status === MediaListStatus.REPEATING) {
+            status = w.type === 'manga' ? MediaListStatus.REREADING : MediaListStatus.REWATCHING;
+          } else if (status === MediaListStatus.PLANNING) {
+            status = w.type === 'manga' ? MediaListStatus.PLAN_TO_READ : MediaListStatus.PLAN_TO_WATCH;
+          }
+          if (!groups.has(status)) groups.set(status, []);
+          groups.get(status)!.push(w);
+        });
 
-          sortedStatuses.forEach(status => {
-            const groupWorks = groups.get(status)!;
-            const isCollapsed = this.state.collapsedGroups.has(status);
-            groupedItems.push({ isHeader: true, status, count: groupWorks.length, isCollapsed });
-            if (!isCollapsed) {
-              groupedItems.push(...groupWorks);
-            }
-          });
+        // Order groups: CURRENT/WATCHING/READING first, then COMPLETED, then others
+        const statusOrder = [
+          MediaListStatus.WATCHING,
+          MediaListStatus.READING,
+          MediaListStatus.REWATCHING,
+          MediaListStatus.REREADING,
+          MediaListStatus.COMPLETED,
+          MediaListStatus.PLAN_TO_WATCH,
+          MediaListStatus.PLAN_TO_READ,
+          MediaListStatus.PAUSED,
+          MediaListStatus.DROPPED,
+          'UNKNOWN'
+        ];
+        const sortedStatuses = Array.from(groups.keys()).sort((a, b) => {
+          const idxA = statusOrder.indexOf(a);
+          const idxB = statusOrder.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return a.localeCompare(b);
+        });
 
-          this.renderChunks(groupedItems, 0, 50, currentProcessId, tbody as HTMLElement);
-        } else {
-          this.renderChunks(sortedWorks, 0, 50, currentProcessId, tbody as HTMLElement);
-        }
+        sortedStatuses.forEach(status => {
+          const groupWorks = groups.get(status)!;
+          const isCollapsed = this.state.collapsedGroups.has(status);
+          groupedItems.push({ isHeader: true, status, count: groupWorks.length, isCollapsed });
+          if (!isCollapsed) {
+            groupedItems.push(...groupWorks);
+          }
+        });
+
+        this.renderChunks(groupedItems, 0, 50, currentProcessId, tbody as HTMLElement);
       } else {
         tbody.innerHTML = `
           <div style="text-align: center; padding: 48px; color: var(--astra-muted); grid-column: 1 / -1">
@@ -478,41 +484,81 @@ export class AstraDashboard extends BaseComponent {
         .sort();
 
       const mainStatuses: any[] = [
-        { id: 'all', label: 'All', icon: 'fa-layer-group' }
+        { id: 'all', label: 'All', icon: 'fa-layer-group', type: 'all' }
       ];
 
-      if (this.state.type === 'all' || this.state.type === 'anime') {
-        mainStatuses.push({ id: MediaListStatus.WATCHING, label: 'Watching', icon: 'fa-play' });
-      }
-      if (this.state.type === 'all' || this.state.type === 'manga') {
-        mainStatuses.push({ id: MediaListStatus.READING, label: 'Reading', icon: 'fa-book-open' });
-      }
-      if (this.state.type === 'all' || this.state.type === 'anime') {
-        mainStatuses.push({ id: MediaListStatus.REWATCHING, label: 'Rewatching', icon: 'fa-redo' });
-      }
-      if (this.state.type === 'all' || this.state.type === 'manga') {
-        mainStatuses.push({ id: MediaListStatus.REREADING, label: 'Rereading', icon: 'fa-redo' });
-      }
+      // Define Cycles
+      const cycles = [
+        {
+          id: 'cycle-current',
+          options: [
+            { status: MediaListStatus.CURRENT, type: 'all', label: 'In Progress', icon: 'fa-play' },
+            { status: MediaListStatus.WATCHING, type: 'anime', label: 'Watching', icon: 'fa-play' },
+            { status: MediaListStatus.READING, type: 'manga', label: 'Reading', icon: 'fa-book-open' }
+          ]
+        },
+        {
+          id: 'cycle-repeating',
+          options: [
+            { status: MediaListStatus.REPEATING, type: 'all', label: 'Repeating', icon: 'fa-redo' },
+            { status: MediaListStatus.REWATCHING, type: 'anime', label: 'Rewatching', icon: 'fa-redo' },
+            { status: MediaListStatus.REREADING, type: 'manga', label: 'Rereading', icon: 'fa-redo' }
+          ]
+        },
+        {
+          id: 'cycle-planning',
+          options: [
+            { status: MediaListStatus.PLANNING, type: 'all', label: 'Planning', icon: 'fa-calendar' },
+            { status: MediaListStatus.PLAN_TO_WATCH, type: 'anime', label: 'Plan to Watch', icon: 'fa-calendar' },
+            { status: MediaListStatus.PLAN_TO_READ, type: 'manga', label: 'Plan to Read', icon: 'fa-calendar' }
+          ]
+        }
+      ];
 
+      // Add "All" chip
+      const isAllActive = this.state.anilistStatus === 'all' && this.state.status === 'all';
+
+      // Determine which chip to show for each cycle
+      cycles.forEach(cycle => {
+        // Find which option is currently active
+        // An option is active if its status matches anilistStatus
+        const activeIdx = cycle.options.findIndex(opt => this.state.anilistStatus === opt.status);
+        const isActive = activeIdx !== -1;
+        const displayOpt = isActive ? cycle.options[activeIdx] : cycle.options[0];
+
+        mainStatuses.push({
+          id: cycle.id,
+          status: displayOpt.status,
+          label: displayOpt.label,
+          icon: displayOpt.icon,
+          isActive,
+          cycle
+        });
+      });
+
+      // Add static statuses
       mainStatuses.push(
-        { id: MediaListStatus.COMPLETED, label: 'Completed', icon: 'fa-check' },
-        { id: MediaListStatus.PAUSED, label: 'Paused', icon: 'fa-pause' },
-        { id: MediaListStatus.DROPPED, label: 'Dropped', icon: 'fa-times-circle' },
-        { id: MediaListStatus.PLANNING, label: 'Planning', icon: 'fa-calendar' }
+        { id: MediaListStatus.COMPLETED, label: 'Completed', icon: 'fa-check', type: 'all' },
+        { id: MediaListStatus.PAUSED, label: 'Paused', icon: 'fa-pause', type: 'all' },
+        { id: MediaListStatus.DROPPED, label: 'Dropped', icon: 'fa-times-circle', type: 'all' }
       );
 
       listContainer.innerHTML = `
         <div class="astra-macro-categories">
-          ${mainStatuses.map(s => `
-            <button class="astra-macro-chip ${this.state.anilistStatus === s.id || (s.id === 'all' && this.state.anilistStatus === 'all' && this.state.status === 'all') ? 'active' : ''}" data-status="${s.id}">
-              <i class="fa ${s.icon}"></i> ${s.label}
-            </button>
-          `).join('')}
+          ${mainStatuses.map(s => {
+        const activeClass = s.id === 'all' ? (isAllActive ? 'active' : '') : (s.isActive || (this.state.anilistStatus === s.id) ? 'active' : '');
+        return `
+              <button class="astra-macro-chip ${activeClass}" 
+                      data-id="${s.id}" 
+                      data-status="${s.status || s.id}"
+                      ${s.cycle ? `data-cycle='${JSON.stringify(s.cycle.id)}'` : ''}>
+                <i class="fa ${s.icon}"></i> ${s.label}
+              </button>
+            `;
+      }).join('')}
         </div>
 
-        <div class="astra-filter-divider"></div>
-
-        <div class="astra-dropdown">
+        <div class="astra-dropdown" style="margin-left: auto">
           <button class="astra-chip astra-dropdown-trigger ${this.state.status !== 'all' ? 'active' : ''}">
             <i class="fa fa-list-ul"></i> ${this.state.status !== 'all' ? this.state.status : 'Custom Lists'}
             <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
@@ -587,11 +633,45 @@ export class AstraDashboard extends BaseComponent {
       // Attach macro events
       listContainer.querySelectorAll('.astra-macro-chip').forEach(el => {
         el.addEventListener('click', () => {
-          const status = el.getAttribute('data-status')!;
-          if (status === 'all') {
+          const id = el.getAttribute('data-id')!;
+          const cycleId = el.getAttribute('data-cycle')?.replace(/'/g, '"');
+
+          if (id === 'all') {
             this.state.anilistStatus = 'all';
             this.state.status = 'all';
+            this.state.type = 'all';
+          } else if (cycleId) {
+            const cid = JSON.parse(cycleId);
+            // Find cycle definition
+            const cycleDefs: any = {
+              'cycle-current': [
+                { status: MediaListStatus.CURRENT, type: 'all' },
+                { status: MediaListStatus.WATCHING, type: 'anime' },
+                { status: MediaListStatus.READING, type: 'manga' }
+              ],
+              'cycle-repeating': [
+                { status: MediaListStatus.REPEATING, type: 'all' },
+                { status: MediaListStatus.REWATCHING, type: 'anime' },
+                { status: MediaListStatus.REREADING, type: 'manga' }
+              ],
+              'cycle-planning': [
+                { status: MediaListStatus.PLANNING, type: 'all' },
+                { status: MediaListStatus.PLAN_TO_WATCH, type: 'anime' },
+                { status: MediaListStatus.PLAN_TO_READ, type: 'manga' }
+              ]
+            };
+
+            const options = cycleDefs[cid];
+            const currentIdx = options.findIndex((opt: any) => this.state.anilistStatus === opt.status);
+            const nextIdx = (currentIdx + 1) % options.length;
+            const nextOpt = options[nextIdx];
+
+            this.state.anilistStatus = nextOpt.status;
+            this.state.type = nextOpt.type;
+            this.state.status = 'all';
           } else {
+            // Static statuses
+            const status = el.getAttribute('data-status')!;
             this.state.anilistStatus = status;
             this.state.status = 'all';
           }
@@ -623,6 +703,27 @@ export class AstraDashboard extends BaseComponent {
             if (filter === 'type') {
               if (this.state.type !== val) {
                 this.state.type = val;
+
+                // Bidirectional sync: if current anilistStatus belongs to a cycle, 
+                // update it to match the new type
+                const cycleBaseMap: Record<string, Record<string, string>> = {
+                  [MediaListStatus.CURRENT]: { anime: MediaListStatus.WATCHING, manga: MediaListStatus.READING, all: MediaListStatus.CURRENT },
+                  [MediaListStatus.WATCHING]: { anime: MediaListStatus.WATCHING, manga: MediaListStatus.READING, all: MediaListStatus.CURRENT },
+                  [MediaListStatus.READING]: { anime: MediaListStatus.WATCHING, manga: MediaListStatus.READING, all: MediaListStatus.CURRENT },
+                  [MediaListStatus.REPEATING]: { anime: MediaListStatus.REWATCHING, manga: MediaListStatus.REREADING, all: MediaListStatus.REPEATING },
+                  [MediaListStatus.REWATCHING]: { anime: MediaListStatus.REWATCHING, manga: MediaListStatus.REREADING, all: MediaListStatus.REPEATING },
+                  [MediaListStatus.REREADING]: { anime: MediaListStatus.REWATCHING, manga: MediaListStatus.REREADING, all: MediaListStatus.REPEATING },
+                  [MediaListStatus.PLANNING]: { anime: MediaListStatus.PLAN_TO_WATCH, manga: MediaListStatus.PLAN_TO_READ, all: MediaListStatus.PLANNING },
+                  [MediaListStatus.PLAN_TO_WATCH]: { anime: MediaListStatus.PLAN_TO_WATCH, manga: MediaListStatus.PLAN_TO_READ, all: MediaListStatus.PLANNING },
+                  [MediaListStatus.PLAN_TO_READ]: { anime: MediaListStatus.PLAN_TO_WATCH, manga: MediaListStatus.PLAN_TO_READ, all: MediaListStatus.PLANNING }
+                };
+
+                const currentStatus = this.state.anilistStatus;
+                if (cycleBaseMap[currentStatus]) {
+                  const typeKey = (val === 'anime' || val === 'manga') ? val : 'all';
+                  this.state.anilistStatus = cycleBaseMap[currentStatus][typeKey] || currentStatus;
+                }
+
                 needsUpdate = true;
               }
             } else if (filter === 'country') {
@@ -730,6 +831,10 @@ export class AstraDashboard extends BaseComponent {
           matchAnilistStatus = wStatus === MediaListStatus.REPEATING && w.type === 'anime';
         } else if (this.state.anilistStatus === MediaListStatus.REREADING) {
           matchAnilistStatus = wStatus === MediaListStatus.REPEATING && w.type === 'manga';
+        } else if (this.state.anilistStatus === MediaListStatus.PLAN_TO_WATCH) {
+          matchAnilistStatus = wStatus === MediaListStatus.PLANNING && w.type === 'anime';
+        } else if (this.state.anilistStatus === MediaListStatus.PLAN_TO_READ) {
+          matchAnilistStatus = wStatus === MediaListStatus.PLANNING && w.type === 'manga';
         } else {
           matchAnilistStatus = wStatus === this.state.anilistStatus;
         }
@@ -823,9 +928,6 @@ export class AstraDashboard extends BaseComponent {
           <a href="${work.anilistUrl}" target="_blank" class="astra-icon-btn astra-external-link" title="Open on AniList">
             <i class="fa fa-external-link-alt"></i>
           </a>
-          <button class="astra-icon-btn astra-edit-btn" title="Quick Edit">
-            <i class="fa fa-pencil-alt"></i>
-          </button>
         </div>
       </div>
     `;
@@ -917,15 +1019,6 @@ export class AstraDashboard extends BaseComponent {
       btn.classList.toggle('active', this.state.showProgress);
       container?.classList.toggle('astra-show-progress', this.state.showProgress);
       this.updateDashboardDynamic(); // Refresh to apply/remove background styles
-    });
-
-    // Toggle Grouping
-    overlay.querySelector('#astra-toggle-grouping')?.addEventListener('click', (e) => {
-      this.state.isGrouped = !this.state.isGrouped;
-      const btn = e.currentTarget as HTMLElement;
-      btn.classList.toggle('active', this.state.isGrouped);
-      btn.innerHTML = `<i class="fa fa-layer-group"></i> ${this.state.isGrouped ? 'Grouped' : 'Flat'}`;
-      this.updateDashboardDynamic();
     });
 
     // Search

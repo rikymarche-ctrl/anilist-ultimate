@@ -888,6 +888,7 @@
 /* Dashboard Specific */
 .astra-dashboard {
   padding: 24px 40px;
+  width: 100%;
   max-width: 1600px;
   margin: 0 auto;
   color: var(--astra-text);
@@ -1390,6 +1391,7 @@
 /* ============ ASTRA GRID SYSTEM ============ */
 
 .astra-table-wrap {
+  width: 100%;
   border-radius: 12px;
   padding-bottom: 8px;
   overflow-x: auto;
@@ -1551,7 +1553,7 @@
   z-index: var(--z-base);
   font-size: 13px;
   padding: 0 10px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .astra-edit-row {
@@ -1739,7 +1741,8 @@
 .astra-icon-btn {
   background: var(--astra-bg-elev-2);
   border: 1px solid var(--astra-border-soft);
-  color: var(--astra-muted);
+  color: var(--astra-muted) !important;
+  text-decoration: none !important;
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -1754,7 +1757,7 @@
 .astra-icon-btn:hover {
   background: var(--astra-accent-a20);
   border-color: var(--astra-accent);
-  color: var(--astra-accent);
+  color: var(--astra-accent) !important;
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), 0 0 10px var(--astra-accent-a20);
 }

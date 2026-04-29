@@ -37,21 +37,20 @@
 - [ ] una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
 - [ ] anche lo slider default di anilist è stato cambiato con quello di astra, no. Analisit deve avere il suo nella home
 
-
-
 ![1777438848637](image/TODO/1777438848637.png)
 
 prime e dopo type e country c è dello spazio indesiderato, che siano in qualche wrap non voluto?
-
 
 ![1777438902234](image/TODO/1777438902234.png)
 
 direi che l add component possiamo aggiungerlo direttametne sopra eh, così guadaganmo molto spazio verticalmetne
 
-
 ![1777439039311](image/TODO/1777439039311.png)
 
 mettere un altro tag +N, dove quando vai su N esce un popup dicendo tutte le altre liste di cui fa parte, anzi forse meglio farslo subito dopo il numero di ep? tanto lo status verrà tolto cacnellando ol opzione Flat/grouped e lasciando solo grouped
+
+
+Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su astra dashoboard, stessa cosa vale per ogni volta che su anilist la entry subisce modifiche
 
 ---
 

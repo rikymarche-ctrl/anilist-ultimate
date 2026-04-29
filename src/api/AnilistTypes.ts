@@ -66,6 +66,8 @@ export enum MediaListStatus {
   READING = 'READING',
   REWATCHING = 'REWATCHING',
   REREADING = 'REREADING',
+  PLAN_TO_WATCH = 'PLAN_TO_WATCH',
+  PLAN_TO_READ = 'PLAN_TO_READ',
 }
 
 export interface AniListMediaListEntry {
