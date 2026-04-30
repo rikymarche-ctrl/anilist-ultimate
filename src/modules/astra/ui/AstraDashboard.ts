@@ -925,7 +925,7 @@ export class AstraDashboard extends BaseComponent {
     const noProgressClass = (work.progress || 0) === 0 ? 'astra-row-no-progress' : '';
 
     const rowStyle = this.state.showProgress && (work.progress || 0) > 0
-      ? `background-image: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%); background-size: ${percent}% 100%; box-shadow: inset 3px 0 0 #3b82f6;`
+      ? `background-image: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%); background-size: ${percent}% 100%; box-shadow: inset 1px 0 0 #3b82f6;`
       : '';
 
     return `

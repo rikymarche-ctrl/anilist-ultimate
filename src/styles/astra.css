@@ -30,15 +30,15 @@
 .astra-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  z-index: var(--z-modal-backdrop);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  z-index: var(--z-modal);
   opacity: 0;
-  pointer-events: none;
   transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
 .astra-modal-overlay--open {
@@ -175,7 +175,8 @@
 .astra-modal-main {
   flex: 1;
   min-height: 0;
-  display: block;
+  display: flex;
+  flex-direction: column;
   background: var(--astra-bg);
   overflow: hidden;
   position: relative;
@@ -1151,8 +1152,7 @@
 /* Dashboard Specific */
 .astra-dashboard {
   width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
+  height: 100%;
   color: var(--astra-text);
   animation: astra-fade-in 0.3s ease-out;
   display: flex;
@@ -1161,6 +1161,20 @@
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+.astra-settings {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.astra-settings-grid {
+  flex: 1;
+  overflow-y: auto !important;
+  padding: 0 24px 40px 24px;
+  min-height: 0;
 }
 
 @keyframes astra-fade-in {
@@ -1176,9 +1190,11 @@
 }
 
 .astra-modal--dashboard {
-  max-width: 1600px;
-  width: 95vw;
-  height: 92vh;
+  width: 100vw;
+  max-width: 100vw;
+  height: 96vh;
+  border-radius: 20px 20px 0 0;
+  border-bottom: none;
 }
 
 .astra-dashboard-header {
