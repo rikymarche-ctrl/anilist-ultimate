@@ -11,6 +11,7 @@
   --astra-muted: oklch(0.58 0.010 250);
 
   --astra-accent: oklch(0.72 0.14 195);
+  --astra-accent-a10: oklch(0.72 0.14 195 / 0.12);
   --astra-accent-a20: oklch(0.72 0.14 195 / 0.22);
   --astra-accent-a50: oklch(0.72 0.14 195 / 0.55);
 
@@ -61,6 +62,42 @@
 }
 
 .astra-modal-overlay--open .astra-modal {
+  transform: scale(1);
+}
+
+/* Image Lightbox */
+.astra-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(20px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.astra-lightbox--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.astra-lightbox-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 16px;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+  transform: scale(0.85);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  object-fit: contain;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.astra-lightbox--open .astra-lightbox-content {
   transform: scale(1);
 }
 
@@ -1478,7 +1515,7 @@
 
 .astra-grid-header {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 50px;
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 70px;
   gap: 15px;
   padding: 15px 20px;
   background: var(--astra-bg-elev);
@@ -1517,7 +1554,7 @@
 
 .astra-grid-row {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 50px;
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 70px;
   gap: 15px;
   padding: 12px 20px;
   align-items: center;
@@ -1714,6 +1751,11 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 4px;
+}
+
+.astra-anilist-link {
+  text-decoration: none;
 }
 
 .astra-icon-btn {
@@ -1731,9 +1773,14 @@
 }
 
 .astra-icon-btn:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1) !important;
+  color: var(--astra-text);
+  background: rgba(255, 255, 255, 0.08) !important;
   transform: scale(1.1);
+}
+
+.astra-anilist-link:hover {
+  color: var(--astra-accent) !important;
+  background: var(--astra-accent-a10) !important;
 }
 
 .astra-table-cover {

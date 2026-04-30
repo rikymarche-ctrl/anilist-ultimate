@@ -83,6 +83,8 @@ Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su 
 - [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
 - [ ] attenzione che il calendario c è ed ok, ma a votla compare anche la sezione airing, ovvero la duplicaizone del calendairo
+- [ ] implementare una ricerca multipla, con più liste ad esempio? non so, ci penserò
+- [ ] Togliere quel pallino fastidioso che fa da stanghetta alal A nel logo Astra
 
 ---
 

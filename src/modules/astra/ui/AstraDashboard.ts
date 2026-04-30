@@ -29,6 +29,7 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { TOKENS } from '@core/di/tokens';
 import { ToastService } from '@core/services/ToastService';
+import { AstraRatingModal } from './AstraRatingModal';
 
 @injectable()
 @singleton()
@@ -53,7 +54,8 @@ export class AstraDashboard extends BaseComponent {
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.ToastService) private toast: ToastService,
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
-    @inject(TOKENS.EventBus) private eventBus: IEventBus
+    @inject(TOKENS.EventBus) private eventBus: IEventBus,
+    @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal
   ) {
     super({});
 
@@ -556,11 +558,11 @@ export class AstraDashboard extends BaseComponent {
       // Determine which chip to show for each cycle
       cycles.forEach(cycle => {
         // An option is active if its status matches anilistStatus AND its type matches state.type
-        const activeIdx = cycle.options.findIndex(opt => 
-          this.state.anilistStatus === opt.status && 
+        const activeIdx = cycle.options.findIndex(opt =>
+          this.state.anilistStatus === opt.status &&
           (this.state.type === opt.type)
         );
-        
+
         const isActive = activeIdx !== -1;
         const displayOpt = isActive ? cycle.options[activeIdx] : cycle.options[0];
 
@@ -578,8 +580,8 @@ export class AstraDashboard extends BaseComponent {
       listContainer.innerHTML = `
         <div class="astra-macro-categories">
           ${mainStatuses.map(s => {
-            const activeClass = s.isActive || (s.id === 'all' && isAllActive) ? 'active' : '';
-            return `
+        const activeClass = s.isActive || (s.id === 'all' && isAllActive) ? 'active' : '';
+        return `
               <button class="astra-macro-chip ${activeClass}" 
                       data-id="${s.id}" 
                       data-status="${s.status || s.id}"
@@ -682,11 +684,11 @@ export class AstraDashboard extends BaseComponent {
             this.state.type = 'all';
           } else if (cycleId) {
             const options = JSON.parse(cycleId);
-            const currentIdx = options.findIndex((opt: any) => 
-              this.state.anilistStatus === opt.status && 
+            const currentIdx = options.findIndex((opt: any) =>
+              this.state.anilistStatus === opt.status &&
               this.state.type === opt.type
             );
-            
+
             const nextIdx = (currentIdx + 1) % options.length;
             const nextOpt = options[nextIdx];
 
@@ -930,17 +932,17 @@ export class AstraDashboard extends BaseComponent {
         </div>
         <div class="astra-edit-row">
           <div class="astra-table-title-box">
-            <div class="astra-table-title" title="${work.title}">${work.title}</div>
+            <div class="astra-table-title" title="Open Rating Modal">${work.title}</div>
             <div class="astra-table-subtitle">
               <span class="astra-badge astra-badge--country">${work.country || 'JP'}</span>
               <span class="astra-badge astra-badge--progress">${work.progress || 0} / ${total || '?'}</span>
               ${(() => {
-                const allLists = work.customLists || [];
-                if (allLists.length === 0) return '';
-                const SPECIAL = ['Private', 'Hide from status lists'];
-                const normal = allLists.filter(l => !SPECIAL.includes(l));
-                const special = allLists.filter(l => SPECIAL.includes(l));
-                return `
+        const allLists = work.customLists || [];
+        if (allLists.length === 0) return '';
+        const SPECIAL = ['Private', 'Hide from status lists'];
+        const normal = allLists.filter(l => !SPECIAL.includes(l));
+        const special = allLists.filter(l => SPECIAL.includes(l));
+        return `
                   <div class="astra-lists-dropdown">
                     <span class="astra-badge astra-badge--list-item astra-list-multi">+${allLists.length}</span>
                     <div class="astra-lists-menu">
@@ -949,7 +951,7 @@ export class AstraDashboard extends BaseComponent {
                     </div>
                   </div>
                 `;
-              })()}
+      })()}
             </div>
           </div>
         </div>
@@ -960,10 +962,13 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-table-score-badge ${scoreClass}">${overallScore ? overallScore.toFixed(1) : '-'}</div>
         </div>
         ${sections.map(s => {
-      const score = lastSeason.scores[s.id];
-      return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
-    }).join('')}
+        const score = lastSeason.scores[s.id];
+        return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
+      }).join('')}
         <div class="astra-table-actions">
+          <a class="astra-icon-btn astra-anilist-link" href="${work.anilistUrl || '#'}" target="_blank" title="Open on AniList">
+            <i class="fa fa-external-link-alt"></i>
+          </a>
           <button class="astra-icon-btn astra-delete-row" title="Delete from Astra">
             <i class="fa fa-trash"></i>
           </button>
@@ -1149,32 +1154,41 @@ export class AstraDashboard extends BaseComponent {
     });
 
     // Delegated Row Events (Edit, Delete)
-    overlay.querySelector('#astra-dashboard-container')?.addEventListener('click', (e) => {
+    // Table Interaction Delegation (Title, Lightbox, Delete)
+    overlay.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
+      
+      // 1. Cover Lightbox - High-resolution image preview
+      const coverImg = target.closest('.astra-table-cover') as HTMLImageElement;
+      if (coverImg) {
+        this.openImageLightbox(coverImg.src);
+        return;
+      }
+
       const row = target.closest('.astra-grid-row');
       if (!row) return;
 
       const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
       if (!mediaId) return;
 
-      // Delete Row
+      // 2. AniList redirection
+      if (target.closest('.astra-anilist-link')) return;
+
+      // 3. Delete entry from Astra database
       if (target.closest('.astra-delete-row')) {
-        if (confirm('Are you sure you want to delete this entry from Astra?')) {
+        const title = row.querySelector('.astra-table-title')?.textContent || 'this work';
+        if (confirm(`Are you sure you want to delete "${title}" from Astra?`)) {
           this.service!.deleteWork(mediaId);
           this.updateDashboardDynamic();
         }
         return;
       }
 
-      // Edit Row (Title, Cover, or Row background)
-      if (target.closest('.astra-edit-row') || target.classList.contains('astra-grid-row')) {
-        const work = this.service!.getWorks().find(w => w.mediaId === mediaId);
-        if (work) {
-          window.dispatchEvent(new CustomEvent('astra:edit-work', { detail: { work } }));
-        }
+      // 4. Launch Rating Modal for the specific work
+      if (target.closest('.astra-table-title')) {
+        this.ratingModal.open(mediaId);
         return;
       }
-
     });
 
     // Import/Export
@@ -1293,7 +1307,7 @@ export class AstraDashboard extends BaseComponent {
       `;
       editor.appendChild(div);
       this.attachSettingsItemEvents(div);
-      
+
       const input = div.querySelector('.astra-section-name-input') as HTMLInputElement;
       if (input) {
         input.focus();
@@ -1789,7 +1803,29 @@ export class AstraDashboard extends BaseComponent {
   }
 
   /**
-   * Setup custom scrollbar - SIMPLE approach
+   * Opens a full-screen lightbox for an image
    */
+  private openImageLightbox(url: string): void {
+    let lightbox = document.querySelector('.astra-lightbox') as HTMLElement;
+    if (!lightbox) {
+      lightbox = document.createElement('div');
+      lightbox.className = 'astra-lightbox';
+      lightbox.innerHTML = `<img class="astra-lightbox-content" src="${url.replace('/medium/', '/large/').replace('/small/', '/large/')}">`;
+      document.body.appendChild(lightbox);
 
+      lightbox.addEventListener('click', () => {
+        lightbox.classList.remove('astra-lightbox--open');
+        document.body.style.overflow = '';
+        setTimeout(() => lightbox.remove(), 300);
+      });
+    }
+
+    // Lock background scrolling for UX consistency
+    document.body.style.overflow = 'hidden';
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      lightbox.classList.add('astra-lightbox--open');
+    });
+  }
 }
