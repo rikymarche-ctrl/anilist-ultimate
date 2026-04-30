@@ -592,8 +592,6 @@ export class AstraDashboard extends BaseComponent {
       }).join('')}
         </div>
 
-        <div class="astra-filter-divider"></div>
-
         <div class="astra-secondary-filters">
           <!-- Custom Lists Dropdown -->
           <div class="astra-dropdown">
