@@ -313,12 +313,12 @@
   gap: 8px;
 }
 
-.astra-dropdown {
+.astra-modal--rating .astra-dropdown {
   position: relative;
   width: 100% !important;
 }
 
-.astra-dropdown-trigger {
+.astra-modal--rating .astra-dropdown-trigger {
   width: 100% !important;
   height: 30px !important;
   background: var(--astra-bg-elev-2) !important;
@@ -429,7 +429,7 @@
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-.astra-modal .astra-header-section {
+.astra-modal--rating .astra-header-section {
   display: flex !important;
   gap: 24px !important;
   margin-bottom: 24px !important;
@@ -437,7 +437,7 @@
   width: 100% !important;
 }
 
-.astra-modal .astra-header-cover {
+.astra-modal--rating .astra-header-cover {
   width: 100px !important;
   height: 145px !important;
   border-radius: 12px !important;
@@ -449,7 +449,7 @@
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease !important;
 }
 
-.astra-modal .astra-header-cover:hover {
+.astra-modal--rating .astra-header-cover:hover {
   transform: scale(1.05) !important;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.6), 0 0 10px var(--astra-accent-a20) !important;
   z-index: 10;
@@ -497,7 +497,7 @@
   to { transform: scale(1); opacity: 1; }
 }
 
-.astra-modal .astra-media-header {
+.astra-modal--rating .astra-media-header {
   flex: 1 !important;
   background: var(--astra-bg-elev) !important;
   padding: 20px !important;
@@ -636,8 +636,8 @@
   white-space: nowrap;
 }
 
-.astra-select,
-.astra-date-input {
+.astra-modal--rating .astra-select,
+.astra-modal--rating .astra-date-input {
   height: 30px !important;
   background: var(--astra-bg-elev-2) !important;
   border: 1px solid var(--astra-border) !important;
@@ -649,7 +649,7 @@
   width: 100% !important;
 }
 
-.astra-stepper {
+.astra-modal--rating .astra-stepper {
   display: flex !important;
   align-items: center !important;
   background: var(--astra-bg-elev-2) !important;
@@ -1518,9 +1518,10 @@
 .astra-secondary-stacked {
   display: flex;
   flex-direction: row;
-  gap: 6px;
+  gap: 12px;
   padding: 0;
   margin: 0;
+  align-items: center;
 }
 
 .astra-secondary-stacked .astra-dropdown {
@@ -1542,8 +1543,8 @@
   display: flex;
   align-items: center;
   width: 100%;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .astra-filter-divider {

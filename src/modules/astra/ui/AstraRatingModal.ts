@@ -145,7 +145,7 @@ export class AstraRatingModal {
     const entryCustomLists = entry?.customLists || {};
 
     this.overlay.innerHTML = `
-      <div class="astra-modal">
+      <div class="astra-modal astra-modal--rating">
         <nav class="astra-modal-nav">
           <div class="astra-nav-back" id="astra-dashboard-link" title="Go to Astra Dashboard">
             <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; transform: rotate(-90deg);">
