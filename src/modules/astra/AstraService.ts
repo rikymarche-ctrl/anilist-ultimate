@@ -25,6 +25,10 @@
  */
 import { injectable, singleton } from 'tsyringe';
 import { log } from '@core/logger';
+import { inject } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
+import { EVENT_TYPES } from '@core/events/EventTypes';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 
 import { MediaListStatus } from '@/api/AnilistTypes';
 
@@ -125,7 +129,9 @@ export class AstraService {
   private isLoaded = false;
   private readonly STORAGE_KEY = 'au_astra_data';
 
-  constructor() { }
+  constructor(
+    @inject(TOKENS.EventBus) private eventBus: IEventBus
+  ) { }
 
   /**
    * Initialize and load data from storage
@@ -404,6 +410,50 @@ export class AstraService {
   }
 
   /**
+   * Save a note for a specific episode
+   */
+  async saveEpisodeNote(mediaId: number, episode: number, text: string): Promise<void> {
+    await this.init();
+    let work = this.getWorkByMediaId(mediaId);
+    
+    if (!work) {
+      log.info(`[AstraService] Work not found for mediaId ${mediaId}. Creating new work for journal entry.`);
+      // We don't have full info, but we can seed a basic work
+      work = {
+        id: `w_${generateUUID()}`,
+        mediaId,
+        title: 'Unknown (Pending Sync)',
+        type: 'anime',
+        status: MediaListStatus.CURRENT,
+        customLists: [],
+        tags: [],
+        seasons: [this.createDefaultSeason()],
+        notes: '',
+        updatedAt: Date.now(),
+      };
+      this.works.push(work);
+      this.worksByMediaId.set(mediaId, work);
+    }
+
+    // Find the last season (current)
+    const season = work.seasons[work.seasons.length - 1];
+    if (!season) return;
+
+    if (!season.episodeNotes) {
+      season.episodeNotes = {};
+    }
+
+    season.episodeNotes[episode] = {
+      ...season.episodeNotes[episode],
+      text
+    };
+
+    work.updatedAt = Date.now();
+    await this.persist();
+    log.info(`[AstraService] Saved note for ${work.title} Ep ${episode}`);
+  }
+
+  /**
    * Delete a work
    */
   async deleteWork(mediaId: number): Promise<void> {
@@ -519,6 +569,10 @@ export class AstraService {
           settings: this.settings,
           lastUpdated: Date.now()
         }
+      });
+      
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {
+        timestamp: new Date()
       });
     } catch (error) {
       log.error('[AstraService] Persist failed', error);

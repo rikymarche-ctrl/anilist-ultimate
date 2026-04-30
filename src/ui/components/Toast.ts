@@ -21,7 +21,10 @@ export interface ToastProps {
   title?: string;
   message: string;
   duration?: number;
+  mediaId?: number;
+  progress?: number;
   onClose: (id: string) => void;
+  onSaveNote?: (mediaId: number, note: string) => Promise<any>;
 }
 
 export class Toast extends BaseComponent<ToastProps> {
@@ -44,8 +47,20 @@ export class Toast extends BaseComponent<ToastProps> {
         <i class="${iconClass}"></i>
       </div>
       <div class="au-toast__content">
-        ${title ? `<span class="au-toast__title">${escapeHtml(title)}</span>` : ''}
-        <div class="au-toast__message">${escapeHtml(message)}</div>
+        <div class="au-toast__body">
+          ${title ? `<span class="au-toast__title">${escapeHtml(title)}</span>` : ''}
+          <div class="au-toast__message">${escapeHtml(message)}</div>
+        </div>
+        ${this.props.mediaId ? `
+          <div class="au-toast__actions">
+            <div class="au-toast__note-field">
+              <input type="text" class="au-toast__note-input" placeholder="Quick Note..." />
+              <button class="au-toast__note-save" title="Save Note">
+                <i class="fa fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        ` : ''}
       </div>
       <button class="au-toast__close" aria-label="Close">
         <i class="fa fa-times"></i>
@@ -76,6 +91,47 @@ export class Toast extends BaseComponent<ToastProps> {
     // Pause on hover
     this.addEventListener(this.element, 'mouseenter', () => this.pauseTimer());
     this.addEventListener(this.element, 'mouseleave', () => this.resumeTimer());
+
+    // Note input events
+    if (this.props.mediaId) {
+      const input = this.querySelector('.au-toast__note-input') as HTMLInputElement;
+      const saveBtn = this.querySelector('.au-toast__note-save');
+
+      if (input && saveBtn) {
+        const handleSave = async () => {
+          const note = input.value.trim();
+          if (!note || !this.props.onSaveNote) return;
+
+          try {
+            input.disabled = true;
+            (saveBtn as HTMLButtonElement).disabled = true;
+            saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+            
+            await this.props.onSaveNote(this.props.mediaId!, note);
+            
+            saveBtn.innerHTML = '<i class="fa fa-check" style="color: var(--au-success)"></i>';
+            input.placeholder = 'Saved!';
+            input.value = '';
+            
+            // Re-enable and auto-dismiss after a short delay
+            setTimeout(() => this.dismiss(), 1500);
+          } catch (e) {
+            saveBtn.innerHTML = '<i class="fa fa-paper-plane"></i>';
+            input.disabled = false;
+            (saveBtn as HTMLButtonElement).disabled = false;
+          }
+        };
+
+        this.addEventListener(input, 'keypress', (e) => {
+          if (e.key === 'Enter') handleSave();
+        });
+
+        this.addEventListener(saveBtn as HTMLElement, 'click', handleSave);
+
+        // Stop propagation of clicks in the input field to prevent auto-dismiss/pause issues if needed
+        this.addEventListener(input, 'click', (e) => e.stopPropagation());
+      }
+    }
   }
 
   protected onMount(): void {

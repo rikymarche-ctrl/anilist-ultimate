@@ -79,6 +79,61 @@
 
 .au-toast__content {
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.au-toast__body {
+  flex: 1;
+}
+
+.au-toast__actions {
+  margin-top: 10px;
+  animation: au-toast-in 0.3s ease;
+}
+
+.au-toast__note-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: border-color 0.2s;
+}
+
+.au-toast__note-field:focus-within {
+  border-color: var(--au-primary);
+}
+
+.au-toast__note-input {
+  background: transparent;
+  border: none;
+  color: var(--au-text);
+  font-size: 12px;
+  padding: 4px 0;
+  width: 100%;
+  outline: none;
+}
+
+.au-toast__note-save {
+  background: transparent;
+  border: none;
+  color: var(--au-text-light);
+  cursor: pointer;
+  padding: 4px;
+  font-size: 12px;
+  transition: color 0.2s;
+}
+
+.au-toast__note-save:hover {
+  color: var(--au-primary);
+}
+
+.au-toast__note-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .au-toast__title {

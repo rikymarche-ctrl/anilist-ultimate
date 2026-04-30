@@ -13,6 +13,7 @@ import type { AnimeEntry } from '../types';
 export interface ICalendarService {
   fetchAiringSchedule(userId: number): Promise<AnimeEntry[]>;
   updateProgress(mediaId: number, newProgress: number): Promise<boolean>;
+  updateNotes(mediaId: number, episode: number, notes: string): Promise<boolean>;
   groupByDay(entries: AnimeEntry[]): Record<string, AnimeEntry[]>;
   getEntriesForDay(entries: AnimeEntry[], day: string): AnimeEntry[];
   getTodayEntries(entries: AnimeEntry[]): AnimeEntry[];

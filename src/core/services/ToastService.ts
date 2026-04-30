@@ -21,10 +21,13 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import { ToastContainer } from '@ui/components/ToastContainer';
 import { log } from '@core/logger';
 import type { ToastType } from '@ui/components/Toast';
+import type { ICalendarService } from '@core/interfaces/ICalendarService';
 
 export interface ToastOptions {
   title?: string;
   duration?: number;
+  mediaId?: number;
+  progress?: number;
 }
 
 @injectable()
@@ -33,7 +36,8 @@ export class ToastService {
   private readonly DEFAULT_DURATION = 5000;
 
   constructor(
-    @inject(TOKENS.EventBus) private eventBus: IEventBus
+    @inject(TOKENS.EventBus) private eventBus: IEventBus,
+    @inject(TOKENS.CalendarService) private calendarService: ICalendarService
   ) {
     this.setupEventListeners();
   }
@@ -93,8 +97,10 @@ export class ToastService {
       type,
       message,
       title: options.title,
-      duration
-    });
+      duration,
+      mediaId: options.mediaId,
+      progress: options.progress
+    }, options.mediaId ? (mId, note) => this.calendarService.updateNotes(mId, options.progress || 0, note) : undefined);
   }
 
   /**

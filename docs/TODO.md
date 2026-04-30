@@ -50,8 +50,14 @@
 ![1777529009783](image/TODO/1777529009783.png)
 
 - [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
-- [ ] **Progress Notes** - Show/edit notes immediately when incrementing episode/chapter progress, bastaerebbe anche il campo delle quick note nell avviso che appare, la stessa notifica delgi errori ecc.
+- [X] **Progress Notes** - Show/edit notes immediately when incrementing episode/chapter progress, bastaerebbe anche il campo delle quick note nell avviso che appare, la stessa notifica delgi errori ecc.
 - [ ] **Offline Astra** - Research keeping Astra functional (read-only) even without an active API connection.
+
+commented in un activity in cui sei iscritto
+
+mention
+
+il numero di episodio 
 
 ---
 
@@ -100,8 +106,6 @@ funzionalità
 - [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono perchè non servono. è corretto così?
 - [ ] astra quick edit: se clicchi dentro rating notes si illumina in maniera strana, edit veloce da fare
 - [ ] astra quick edit: episode journal, serve un leggero padding alla fine, l ultimo episodio si scontra con il bordo
-
-
 
 ---
 

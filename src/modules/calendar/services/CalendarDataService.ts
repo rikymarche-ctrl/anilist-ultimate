@@ -121,7 +121,7 @@ export class CalendarDataService {
 
       // Update local state
       calendarStore.updateEntry(mediaId, { progress: newProgress });
-      this.toastService.success(`Updated progress for ${entry.title}.`);
+      this.toastService.success(`Updated progress for ${entry.title}.`, { mediaId, progress: newProgress });
 
       // Invalidate cache since progress changed
       await calendarStore.invalidateCache();

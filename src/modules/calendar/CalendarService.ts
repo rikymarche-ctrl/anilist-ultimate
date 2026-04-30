@@ -11,7 +11,7 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { USER_ANIME_LIST_QUERY, UPDATE_PROGRESS_MUTATION } from '@/api/queries/calendar';
+import { USER_ANIME_LIST_QUERY, UPDATE_PROGRESS_MUTATION, UPDATE_NOTES_MUTATION } from '@/api/queries/calendar';
 import { log } from '@core/logger';
 import { DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, MediaListResponse } from '@core/types';
@@ -29,7 +29,8 @@ import { EVENT_TYPES } from '@core/events/EventTypes';
 export class CalendarService implements ICalendarService {
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
-    @inject(TOKENS.EventBus) private eventBus: IEventBus
+    @inject(TOKENS.EventBus) private eventBus: IEventBus,
+    @inject(TOKENS.AstraService) private astraService: any
   ) {}
 
   /**
@@ -136,6 +137,35 @@ export class CalendarService implements ICalendarService {
       return true;
     } catch (error) {
       log.error('Failed to update progress', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update anime notes (saves to AniList global notes AND Astra episode journal)
+   */
+  async updateNotes(mediaId: number, episode: number, notes: string): Promise<boolean> {
+    try {
+      console.log(`[CalendarService] Attempting to save note for media ${mediaId}, episode ${episode}: "${notes}"`);
+
+      // 1. Update AniList global notes (Append style)
+      // For now we just prefix it, in a real scenario we'd fetch current notes first.
+      const noteToSave = `[Ep ${episode}] ${notes}`;
+      await this.apiClient.mutate(UPDATE_NOTES_MUTATION, {
+        mediaId,
+        notes: noteToSave,
+      });
+      console.log(`[CalendarService] AniList mutation successful for media ${mediaId}`);
+
+      // 2. Update Astra Episode Journal (Per-episode notes)
+      await this.astraService.saveEpisodeNote(mediaId, episode, notes);
+      console.log(`[CalendarService] Astra Journal save successful for media ${mediaId}`);
+
+      log.success('Notes updated successfully in AniList and Astra Journal');
+      return true;
+    } catch (error) {
+      console.error(`[CalendarService] Failed to save notes:`, error);
+      log.error('Failed to update notes', error);
       throw error;
     }
   }

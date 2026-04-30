@@ -22,12 +22,13 @@ export class ToastContainer extends BaseComponent {
   /**
    * Add a new toast to the container
    */
-  public addToast(props: Omit<ToastProps, 'onClose'>): void {
+  public addToast(props: Omit<ToastProps, 'onClose' | 'onSaveNote'>, onSaveNote?: (mediaId: number, note: string) => Promise<any>): void {
     if (this.toasts.has(props.id)) return;
 
     const toast = new Toast({
       ...props,
-      onClose: (id) => this.removeToast(id)
+      onClose: (id) => this.removeToast(id),
+      onSaveNote
     });
 
     this.toasts.set(props.id, toast);

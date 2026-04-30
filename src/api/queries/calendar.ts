@@ -121,6 +121,20 @@ export const UPDATE_PROGRESS_MUTATION = `
 `;
 
 /**
+ * Update anime/manga notes
+ */
+export const UPDATE_NOTES_MUTATION = `
+  mutation UpdateNotes($mediaId: Int!, $notes: String!) {
+    SaveMediaListEntry(mediaId: $mediaId, notes: $notes) {
+      id
+      mediaId
+      notes
+      updatedAt
+    }
+  }
+`;
+
+/**
  * Fetch specific anime details
  */
 export const ANIME_DETAILS_QUERY = `
