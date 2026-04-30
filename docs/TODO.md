@@ -71,7 +71,7 @@ il numero di episodio
 - [X] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
 - [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
-- [X] **Calendar Sync Fix** - Resolved issue where the calendar would duplicate or fail to find its container. [DONE]
+- [] **Calendar Sync Fix** - Resolved issue where the calendar would duplicate or fail to find its container.
 - [X] **Optimistic Updates** - Implemented real-time UI synchronization between Astra and Calendar. [DONE]
 
 ci sono tutte le cose fuori da astra da applicare, tipo che i filtri nelle activity devono tornare su All a ogni cambio di pagina
@@ -100,7 +100,7 @@ funzionalità
 - [ ] Togliere quel pallino fastidioso che fa da stanghetta alla A nel logo Astra
 - [ ] Astra settings: Lo slider va oltre la rating sections, che scrolla sopra oltre il massimo previsto
 - [ ] astra settings: I 6 pallini ceh sembrano quelli con cui si attiva il drag and drop sulle sezioni dei voti Non funzionano
-- [X] **Astra settings: Rework Save Button** - Removed redundant Save Changes buttons in favor of auto-save logic. [DONE]
+- [ ] Astra settings: Rework al bottone save changes per matahcare quello del quick edit?
 - [ ] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera
 - [ ] astra dashboard, stessa cosa col sync e toggle progress, da reworkare?
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto

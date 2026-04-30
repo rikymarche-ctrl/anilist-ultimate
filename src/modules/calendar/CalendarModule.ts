@@ -118,8 +118,15 @@ export class CalendarModule extends BaseModule {
       this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, async (payload) => {
         // Optimistic update: update the store directly instead of re-fetching
         if (payload && payload.mediaId) {
-          log.info('[Calendar] Progress updated event received, performing optimistic update', payload);
+          log.info('[Calendar] Progress updated event received', payload);
           
+          const entry = calendarStore.getState().entries.find(e => e.mediaId === payload.mediaId);
+          if (entry) {
+             log.info(`[Calendar] Found entry ${entry.title} (mediaId: ${entry.mediaId}). Current progress: ${entry.progress}, New progress: ${payload.progress}`);
+          } else {
+             log.warn(`[Calendar] Could not find entry for mediaId: ${payload.mediaId}`);
+          }
+
           if (payload.status && payload.status !== MediaListStatus.CURRENT) {
             log.info('[Calendar] Media status is no longer CURRENT, removing from calendar', payload.status);
             calendarStore.removeEntry(payload.mediaId);

@@ -37,6 +37,8 @@ export class AstraRatingModal {
   private currentWork: AstraWork | null = null;
   private currentSeasonIdx: number = 0;
   private activeTab: string = 'rating';
+  private isSaving: boolean = false;
+  private media: any = null;
 
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
@@ -91,6 +93,7 @@ export class AstraRatingModal {
     };
 
     this.currentSeasonIdx = 0;
+    this.media = media;
     this.render(media, allCustomLists);
   }
 
@@ -651,12 +654,11 @@ export class AstraRatingModal {
       btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
 
       try {
-        await this.save();
-        await this.close();
+        await this.close(); // close() will call save() once
       } catch (err) {
         btn.disabled = false;
         btn.innerHTML = originalText;
-        alert('Failed to save changes. Check console for details.');
+        log.error('[AstraRatingModal] Save Entry failed', err);
       }
     });
   }
@@ -665,7 +667,10 @@ export class AstraRatingModal {
    * Centralized save logic
    */
   private async save(): Promise<void> {
-    if (!this.currentWork || !this.overlay) return;
+    if (this.isSaving || !this.currentWork || !this.overlay) return;
+    this.isSaving = true;
+    
+    try {
 
     const statusSelect = this.overlay.querySelector('#astra-status') as HTMLSelectElement;
     const progressInput = this.overlay.querySelector('#astra-progress') as HTMLInputElement;
@@ -720,7 +725,6 @@ export class AstraRatingModal {
       SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,scoreRaw:$score,repeat:$repeat,private:$private,hiddenFromStatusLists:$hidden,startedAt:$start,completedAt:$end,customLists:$lists) { id status progress score }
     }`;
 
-    try {
       await this.api.mutate(GQL_SAVE, {
         mediaId: this.currentWork.mediaId,
         status: statusSelect?.value || this.currentWork.status,
@@ -737,6 +741,12 @@ export class AstraRatingModal {
       // Emit events for sync
       this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId: this.currentWork.mediaId, timestamp: new Date() });
 
+      log.info('[AstraRatingModal] Emitting PROGRESS_UPDATED', {
+        mediaId: this.currentWork.mediaId,
+        progress,
+        status: (this.overlay?.querySelector('#astra-status') as HTMLSelectElement)?.value as MediaListStatus || this.currentWork.status
+      });
+
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
         mediaId: this.currentWork.mediaId,
         progress,
@@ -747,8 +757,11 @@ export class AstraRatingModal {
     } catch (err) {
       log.error('[AstraRatingModal] Failed to sync with AniList', err);
       // We don't throw here to avoid blocking local save
+    } finally {
+      this.isSaving = false;
     }
   }
+
 
   private updateSliderTrack(slider: HTMLInputElement): void {
     const val = parseFloat(slider.value);
@@ -774,7 +787,22 @@ export class AstraRatingModal {
 
   private renderEpisodeJournal(): void {
     const list = this.overlay!.querySelector('.astra-ep-list');
-    if (!list) return;
+    if (!list || !this.media) return;
+
+    const progressInput = this.overlay!.querySelector('#astra-progress') as HTMLInputElement;
+    const progress = parseInt(progressInput.value) || 0;
+    const season = this.currentWork!.seasons[this.currentSeasonIdx];
+    
+    const airedEpisodes = this.media.nextAiringEpisode 
+      ? this.media.nextAiringEpisode.episode - 1 
+      : (this.media.status === 'FINISHED' ? this.media.episodes : (this.media.episodes || 0));
+
+    list.innerHTML = this.renderEpisodeList(
+      progress, 
+      this.media.episodes, 
+      season.episodeNotes || {}, 
+      airedEpisodes
+    );
   }
 
   private renderEpisodeList(progress: number, total: number | null, notes: Record<number, { text: string }>, airedCount: number | null): string {
