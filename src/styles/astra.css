@@ -219,7 +219,7 @@
 .astra-tab-content {
   display: none;
   height: 100%;
-  padding: 24px;
+  padding: 12px 16px;
 }
 
 .astra-tab-content--active {
@@ -239,26 +239,38 @@
   gap: 24px;
   flex: 1;
   min-height: 0;
+  align-items: start;
 }
 
 .astra-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 8px;
   min-height: 0;
 }
 
 .astra-form-scroll {
-  max-height: 275px;
+  max-height: 280px;
   overflow-y: auto;
   padding-right: 12px;
+  padding-bottom: 0 !important;
   scrollbar-gutter: stable;
+  height: auto;
+  display: block;
 }
 
 .astra-field-group {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 12px 12px;
+  row-gap: 8px;
+  align-items: start;
+  grid-auto-rows: min-content;
+  height: min-content; /* Collapses to content height */
+}
+
+.astra-field-group > *:last-child {
+  margin-bottom: 0 !important;
 }
 
 /* Score Input Boxes */
@@ -266,12 +278,14 @@
   background: var(--astra-bg-elev);
   border: 1px solid var(--astra-border);
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   position: relative;
-  height: 68px;
+  min-height: 64px;
+  height: auto;
+  overflow: hidden; /* Prevent internal push */
 }
 
 .astra-score-label {
@@ -347,19 +361,44 @@
   -webkit-appearance: none;
   width: 100%;
   height: 4px;
-  background: var(--astra-bg-elev-2);
-  border-radius: 2px;
+  background: transparent;
   outline: none;
+  margin: 4px 0;
+}
+
+.astra-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+}
+
+.astra-slider::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
 }
 
 .astra-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--astra-accent);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  margin-top: -5px; /* Centers thumb on track */
+}
+
+.astra-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--astra-accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 /* Media Header */
@@ -536,8 +575,8 @@
 /* Footer Section */
 .astra-form-footer {
   display: flex;
-  gap: 20px;
-  margin-top: 16px;
+  gap: 16px;
+  margin-top: 4px;
   align-items: stretch;
 }
 
@@ -2320,28 +2359,85 @@
   text-shadow: 0 0 15px currentColor;
 }
 
+.astra-score-group {
+  grid-column: 1 / -1;
+  background: var(--astra-bg-elev);
+  border: 1px solid var(--astra-border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s;
+  margin: 0 !important;
+}
+
+.astra-score-group:focus-within {
+  border-color: var(--astra-accent-a50);
+}
+
+.astra-score-group-header {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--astra-border-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.astra-score-group-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--astra-text-dim);
+}
+
+.astra-group-avg {
+  font-family: var(--astra-font-mono);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--astra-accent);
+}
+
 .astra-sub-sections {
-  padding: 8px 0;
-  background: rgba(0, 0, 0, 0.1);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .astra-score-input--sub {
-  border-bottom: none !important;
-  padding: 10px 16px !important;
+  background: var(--astra-bg-elev-2) !important;
+  border: 1px solid var(--astra-border-soft) !important;
+  border-radius: 8px !important;
+  height: auto !important;
+  min-height: 52px;
+  padding: 10px 12px !important;
+  gap: 4px !important;
+}
+
+.astra-score-input--sub .astra-slider-row {
+  margin-top: 4px;
 }
 
 .astra-sub-label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--astra-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .astra-sub-label small {
   color: var(--astra-muted);
-  font-size: 11px;
-  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 4px;
   font-family: var(--astra-font-mono);
-  opacity: 0.7;
 }
 
 .astra-btn--xs {

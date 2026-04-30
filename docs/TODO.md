@@ -85,6 +85,7 @@ Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su 
 - [ ] attenzione che il calendario c è ed ok, ma a votla compare anche la sezione airing, ovvero la duplicaizone del calendairo
 - [ ] implementare una ricerca multipla, con più liste ad esempio? non so, ci penserò
 - [ ] Togliere quel pallino fastidioso che fa da stanghetta alal A nel logo Astra
+- [ ] Un modo epr mettere le Lodi? (+1 voto massimo?))
 
 ---
 
