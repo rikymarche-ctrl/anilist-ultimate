@@ -69,6 +69,7 @@ import { SocialEnhancerModule } from '@/modules/social/SocialEnhancerModule';
 import { CustomListModule } from '@/modules/social/CustomListModule';
 import { MediaSocialEnhancer } from '@/modules/social/MediaSocialEnhancer';
 import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
+import { UserBannerModule } from '@/modules/social/UserBannerModule';
 import { AstraModule } from '@/modules/astra/AstraModule';
 import { AstraService } from '@/modules/astra/AstraService';
 import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
@@ -273,6 +274,13 @@ export async function setupDI(): Promise<void> {
       description: 'Media page social enhancements',
       enabled: config.isFeatureEnabled('friendActivity'),
       factory: () => container.resolve(MediaSocialEnhancer),
+    },
+    {
+      name: 'userBanner',
+      description: 'User profile banner actions',
+      enabled: config.isFeatureEnabled('friendActivity'),
+      factory: () => container.resolve(UserBannerModule),
+      pageMatch: (path) => path.startsWith('/user/'),
     },
     {
       name: 'astra',

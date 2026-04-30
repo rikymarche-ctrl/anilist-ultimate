@@ -22,7 +22,7 @@
 
 - [X] **Media Page Stability** - Fix social activity bubbles, comments, and filters on individual anime/manga pages (currently broken).
 - [ ] **User Activity Enhancements** - Add votes and filters to the single user activity feed.
-- [ ] **Banner Action** - Add a "+" button near the "Follow" button in user banners to quickly add/remove from custom lists.
+- [X] **Banner Action** - Add a "+" button near the "Follow" button in user banners to quickly add/remove from custom lists.
 - [ ] **Follower Stats** - Add follower/following counters to relevant profile sections.
 - [X] **Missing UI Elements** - Restored the "pill" buttons in the media page sidebar "In Progress" section.
 

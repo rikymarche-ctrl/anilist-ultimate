@@ -323,6 +323,31 @@ export class SocialService {
   }
 
   /**
+   * Fetches a user's details by their username
+   */
+  public async getUserByName(name: string): Promise<{ id: number, name: string, avatar: { medium: string } } | null> {
+    const query = `
+      query ($name: String) {
+        User (name: $name) {
+          id
+          name
+          avatar {
+            medium
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await this.api.query<any>(query, { name });
+      return response.User;
+    } catch (e) {
+      log.error(`[SocialService] Failed to fetch user by name: ${name}`, e);
+      return null;
+    }
+  }
+
+  /**
    * Clear all in-memory caches (friend activity + viewer ID)
    * Useful for testing or when user logs out
    */
