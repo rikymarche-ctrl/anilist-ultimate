@@ -320,8 +320,11 @@ export class AstraRatingModal {
     if (section.subSections && section.subSections.length > 0) {
       return `
         <div class="astra-score-group" data-id="${section.id}">
-          <div class="astra-score-group-header">
-            <span class="astra-score-group-title">${section.name}</span>
+          <div class="astra-score-group-header astra-accordion-toggle">
+            <div class="astra-label-left">
+              <i class="fa fa-chevron-down astra-accordion-icon"></i>
+              <span class="astra-score-group-title">${section.name}</span>
+            </div>
             <span class="astra-group-avg" id="avg-${section.id}">—</span>
           </div>
           <div class="astra-sub-sections">
@@ -454,6 +457,14 @@ export class AstraRatingModal {
     const statusSelect = this.overlay!.querySelector('#astra-status') as HTMLSelectElement;
     const progressInput = this.overlay!.querySelector('#astra-progress') as HTMLInputElement;
     const repeatInput = this.overlay!.querySelector('#astra-repeat') as HTMLInputElement;
+    const accordions = this.overlay!.querySelectorAll('.astra-accordion-toggle');
+
+    accordions.forEach(acc => {
+      acc.addEventListener('click', () => {
+        const group = acc.closest('.astra-score-group');
+        group?.classList.toggle('astra-score-group--collapsed');
+      });
+    });
 
     const close = () => {
       this.overlay!.classList.remove('astra-modal-overlay--open');

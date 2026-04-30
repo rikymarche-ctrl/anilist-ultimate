@@ -2384,6 +2384,34 @@
   align-items: center;
 }
 
+.astra-accordion-toggle {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.astra-accordion-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.astra-accordion-icon {
+  font-size: 10px;
+  color: var(--astra-muted);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.astra-score-group--collapsed .astra-accordion-icon {
+  transform: rotate(-90deg);
+}
+
+.astra-score-group--collapsed .astra-sub-sections {
+  display: none;
+}
+
+.astra-score-group--collapsed {
+  border-bottom-color: transparent;
+}
+
 .astra-score-group-title {
   font-size: 11px;
   font-weight: 800;
