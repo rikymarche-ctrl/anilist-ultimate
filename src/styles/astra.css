@@ -445,6 +445,56 @@
   flex-shrink: 0 !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
   border: 1px solid var(--astra-border-soft) !important;
+  cursor: pointer !important;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease !important;
+}
+
+.astra-modal .astra-header-cover:hover {
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.6), 0 0 10px var(--astra-accent-a20) !important;
+  z-index: 10;
+  filter: brightness(1.1) !important;
+}
+
+/* Full Screen Overlay */
+.astra-cover-full-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  animation: astraFadeIn 0.3s ease;
+}
+
+.astra-cover-full-container {
+  max-width: 98vw;
+  max-height: 98vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: astraPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.astra-cover-full-img {
+  width: auto;
+  height: 95vh !important;
+  max-width: 98vw;
+  border-radius: 8px;
+  box-shadow: 0 0 100px rgba(0, 0, 0, 1);
+  object-fit: contain;
+  image-rendering: high-quality;
+}
+
+@keyframes astraPop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .astra-modal .astra-media-header {

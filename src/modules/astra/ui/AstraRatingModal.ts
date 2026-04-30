@@ -324,6 +324,23 @@ export class AstraRatingModal {
       </div>
     `;
 
+    const cover = this.overlay.querySelector('#astra-cover');
+    if (cover) {
+      cover.addEventListener('click', () => {
+        if (!this.currentWork?.cover) return;
+        const hiResCover = this.currentWork.cover.replace('/medium/', '/large/');
+        const fullOverlay = document.createElement('div');
+        fullOverlay.className = 'astra-cover-full-overlay';
+        fullOverlay.innerHTML = `
+          <div class="astra-cover-full-container">
+            <img src="${hiResCover}" class="astra-cover-full-img">
+          </div>
+        `;
+        fullOverlay.onclick = () => fullOverlay.remove();
+        document.body.appendChild(fullOverlay);
+      });
+    }
+
     this.attachEvents();
     this.updateLivePreview();
     this.overlay.classList.add('astra-modal-overlay--open');
