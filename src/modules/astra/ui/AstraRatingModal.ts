@@ -275,9 +275,11 @@ export class AstraRatingModal {
                       <span class="astra-label-sm">Rating Notes</span>
                       <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes || ''}</textarea>
                     </div>
-                    <div class="astra-overall-box">
-                      <span class="astra-overall-label">Weighted Score</span>
-                      <span class="astra-overall-val">—</span>
+                    <div class="astra-overall-area">
+                      <span class="astra-label-sm">Weighted Score</span>
+                      <div class="astra-overall-box">
+                        <span class="astra-overall-val">—</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -742,7 +744,13 @@ export class AstraRatingModal {
 
     const radarContainer = this.overlay!.querySelector('.astra-radar-container');
     if (radarContainer) {
-      radarContainer.innerHTML = AstraRadarChart.getHTML(season.scores, sections, season.skip, 250);
+      // Create a consolidated scores object that uses calculated averages for sections with sub-sections
+      const consolidatedScores: Record<string, number | null> = {};
+      sections.forEach(s => {
+        consolidatedScores[s.id] = this.astraService.calcSectionScore(s, season.scores);
+      });
+
+      radarContainer.innerHTML = AstraRadarChart.getHTML(consolidatedScores, sections, season.skip, 250);
     }
 
     sections.forEach(s => {

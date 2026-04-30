@@ -266,10 +266,11 @@
   row-gap: 8px;
   align-items: start;
   grid-auto-rows: min-content;
-  height: min-content; /* Collapses to content height */
+  height: min-content;
+  /* Collapses to content height */
 }
 
-.astra-field-group > *:last-child {
+.astra-field-group>*:last-child {
   margin-bottom: 0 !important;
 }
 
@@ -285,7 +286,8 @@
   position: relative;
   min-height: 64px;
   height: auto;
-  overflow: hidden; /* Prevent internal push */
+  overflow: hidden;
+  /* Prevent internal push */
 }
 
 .astra-score-label {
@@ -388,7 +390,8 @@
   background: var(--astra-accent);
   cursor: pointer;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-  margin-top: -5px; /* Centers thumb on track */
+  margin-top: -5px;
+  /* Centers thumb on track */
 }
 
 .astra-slider::-moz-range-thumb {
@@ -574,10 +577,13 @@
 
 /* Footer Section */
 .astra-form-footer {
-  display: flex;
-  gap: 16px;
-  margin-top: 4px;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  /* 75% Notes, 25% Score */
+  gap: 12px;
+  margin-top: 8px;
+  padding-bottom: 4px;
+  /* Safety margin from modal footer */
 }
 
 .astra-notes-area {
@@ -592,38 +598,38 @@
   background: var(--astra-bg-elev);
   border: 1px solid var(--astra-border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px 12px;
   color: var(--astra-text);
   font-size: 13px;
   resize: none;
-  flex: 1;
+  height: 60px;
+  transition: border-color 0.2s;
+}
+
+.astra-overall-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .astra-overall-box {
-  width: 180px;
-  background: var(--astra-bg-elev-2);
-  border-radius: 12px;
+  background: var(--astra-bg-elev);
+  border-radius: 8px;
   border: 1px solid var(--astra-border);
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 16px;
-}
-
-.astra-overall-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--astra-muted);
-  letter-spacing: 0.05em;
+  flex: 1;
+  height: 60px;
+  /* Match textarea */
 }
 
 .astra-overall-val {
-  font-size: 42px;
+  font-size: 32px;
+  /* Compact but readable */
   font-weight: 800;
   color: var(--astra-text);
   line-height: 1;
-  margin-top: 4px;
 }
 
 /* Advanced Fields */
@@ -2369,10 +2375,6 @@
   flex-direction: column;
   transition: transform 0.2s;
   margin: 0 !important;
-}
-
-.astra-score-group:focus-within {
-  border-color: var(--astra-accent-a50);
 }
 
 .astra-score-group-header {
