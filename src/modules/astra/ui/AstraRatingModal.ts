@@ -179,97 +179,101 @@ export class AstraRatingModal {
           <div class="astra-modal-body">
             <!-- RATING TAB -->
             <div id="astra-tab-rating" class="astra-tab-content ${this.activeTab === 'rating' ? 'astra-tab-content--active' : ''}">
+            <div class="astra-header-section">
+              <img src="${work.cover}" class="astra-header-cover" id="astra-cover">
               <div class="astra-media-header">
-                <img src="${work.cover}" class="astra-header-cover">
-                <div class="astra-header-info">
-                  <div class="astra-quick-grid-2x2">
-                    <!-- Row 1 Left: Status -->
-                    <div class="astra-grid-cell">
+                <div class="astra-quick-grid-2x2">
+                  <!-- Row 1 Left: Status (Full Width of Cell) -->
+                  <div class="astra-grid-cell">
+                    <div class="astra-input-box">
+                      <span class="astra-label-xs">STATUS</span>
+                      <select class="astra-select" id="astra-status">
+                        <option value="${MediaListStatus.CURRENT}" ${work.status === MediaListStatus.CURRENT ? 'selected' : ''}>${getStatusLabel(MediaListStatus.CURRENT, work.type)}</option>
+                        <option value="${MediaListStatus.COMPLETED}" ${work.status === MediaListStatus.COMPLETED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.COMPLETED, work.type)}</option>
+                        <option value="${MediaListStatus.PAUSED}" ${work.status === MediaListStatus.PAUSED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PAUSED, work.type)}</option>
+                        <option value="${MediaListStatus.DROPPED}" ${work.status === MediaListStatus.DROPPED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.DROPPED, work.type)}</option>
+                        <option value="${MediaListStatus.PLANNING}" ${work.status === MediaListStatus.PLANNING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PLANNING, work.type)}</option>
+                        <option value="${MediaListStatus.REPEATING}" ${work.status === MediaListStatus.REPEATING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.REPEATING, work.type)}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Row 1 Right: Dates (Split 50/50) -->
+                  <div class="astra-grid-cell">
+                    <div class="astra-input-split">
                       <div class="astra-input-box">
-                        <span class="astra-label-xs">STATUS</span>
-                        <select class="astra-select" id="astra-status">
-                          <option value="${MediaListStatus.CURRENT}" ${work.status === MediaListStatus.CURRENT ? 'selected' : ''}>${getStatusLabel(MediaListStatus.CURRENT, work.type)}</option>
-                          <option value="${MediaListStatus.COMPLETED}" ${work.status === MediaListStatus.COMPLETED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.COMPLETED, work.type)}</option>
-                          <option value="${MediaListStatus.PAUSED}" ${work.status === MediaListStatus.PAUSED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PAUSED, work.type)}</option>
-                          <option value="${MediaListStatus.DROPPED}" ${work.status === MediaListStatus.DROPPED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.DROPPED, work.type)}</option>
-                          <option value="${MediaListStatus.PLANNING}" ${work.status === MediaListStatus.PLANNING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PLANNING, work.type)}</option>
-                          <option value="${MediaListStatus.REPEATING}" ${work.status === MediaListStatus.REPEATING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.REPEATING, work.type)}</option>
-                        </select>
+                        <span class="astra-label-xs">START DATE</span>
+                        <input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}">
+                      </div>
+                      <div class="astra-input-box">
+                        <span class="astra-label-xs">FINISH DATE</span>
+                        <input type="date" class="astra-date-input" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}">
                       </div>
                     </div>
+                  </div>
 
-                    <!-- Row 1 Right: Dates (Split) -->
-                    <div class="astra-grid-cell">
-                      <div class="astra-input-split">
-                        <div class="astra-input-box">
-                          <span class="astra-label-xs">START DATE</span>
-                          <input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}">
-                        </div>
-                        <div class="astra-input-box">
-                          <span class="astra-label-xs">FINISH DATE</span>
-                          <input type="date" class="astra-date-input" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}">
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Row 2 Left: Numerical Stats (Split) -->
-                    <div class="astra-grid-cell">
-                      <div class="astra-input-split">
-                        <div class="astra-input-box">
-                          <span class="astra-label-xs">PROGRESS</span>
-                          <div class="astra-stepper">
-                            <button class="astra-step-btn" data-step-field="progress" data-step="-1">-</button>
+                  <!-- Row 2 Left: Progress (Split 50/50 with Stats) -->
+                  <div class="astra-grid-cell">
+                    <div class="astra-input-split">
+                      <div class="astra-input-box">
+                        <span class="astra-label-xs">PROGRESS</span>
+                        <div class="astra-stepper">
+                          <button class="astra-step-btn" data-step-field="progress" data-step="-1">-</button>
+                          <div class="astra-stepper-center">
                             <input type="number" class="astra-number-input" id="astra-progress" value="${meta.progress}">
-                            <button class="astra-step-btn" data-step-field="progress" data-step="1">+</button>
                             <span class="astra-muted-inline">/ ${meta.totalEpisodes || '?'}</span>
                           </div>
+                          <button class="astra-step-btn" data-step-field="progress" data-step="1">+</button>
                         </div>
-                        <div class="astra-input-box">
-                          <span class="astra-label-xs">REWATCHES</span>
-                          <div class="astra-stepper">
-                            <button class="astra-step-btn" data-step-field="repeat" data-step="-1">-</button>
+                      </div>
+                      <div class="astra-input-box">
+                        <span class="astra-label-xs">REWATCHES</span>
+                        <div class="astra-stepper">
+                          <button class="astra-step-btn" data-step-field="repeat" data-step="-1">-</button>
+                          <div class="astra-stepper-center">
                             <input type="number" class="astra-number-input" id="astra-repeat" value="${entry?.repeat || 0}">
-                            <button class="astra-step-btn" data-step-field="repeat" data-step="1">+</button>
                           </div>
+                          <button class="astra-step-btn" data-step-field="repeat" data-step="1">+</button>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <!-- Row 2 Right: Custom Lists -->
-                    <div class="astra-grid-cell">
-                      <div class="astra-input-box">
-                        <span class="astra-label-xs">CUSTOM LISTS</span>
-                        <div class="astra-dropdown" id="astra-lists-dropdown">
-                          <button class="astra-dropdown-trigger">
-                            <i class="fa fa-list-ul"></i>
-                            <span class="astra-dropdown-label">Manage Lists</span>
-                            <i class="fa fa-chevron-down"></i>
-                          </button>
-                          <div class="astra-dropdown-menu">
-                            <div class="astra-dropdown-scroll">
-                              ${allCustomLists.map((listName: string) => `
-                                <label class="astra-dropdown-item">
-                                  <input type="checkbox" class="astra-custom-list-cb" data-name="${listName}" ${entryCustomLists[listName] ? 'checked' : ''}>
-                                  <span>${listName}</span>
-                                </label>
-                              `).join('')}
-                            </div>
-                            <div class="astra-dropdown-divider"></div>
-                            <label class="astra-dropdown-item astra-dropdown-item--special">
-                              <input type="checkbox" id="astra-hide-cb" ${entry?.hiddenFromStatusLists ? 'checked' : ''}>
-                              <span>Hide from status lists</span>
-                            </label>
-                            <label class="astra-dropdown-item astra-dropdown-item--special">
-                              <input type="checkbox" id="astra-private-cb" ${entry?.private ? 'checked' : ''}>
-                              <span>Private Entry</span>
-                            </label>
+                  <!-- Row 2 Right: Custom Lists (Full Width of Cell) -->
+                  <div class="astra-grid-cell">
+                    <div class="astra-input-box">
+                      <span class="astra-label-xs">CUSTOM LISTS</span>
+                      <div class="astra-dropdown" id="astra-lists-dropdown">
+                        <button class="astra-dropdown-trigger">
+                          <i class="fa fa-list-ul"></i>
+                          <span class="astra-dropdown-label">Manage Lists</span>
+                          <i class="fa fa-chevron-down"></i>
+                        </button>
+                        <div class="astra-dropdown-menu">
+                          <div class="astra-dropdown-scroll">
+                            ${allCustomLists.map((listName: string) => `
+                              <label class="astra-dropdown-item">
+                                <input type="checkbox" class="astra-custom-list-cb" data-name="${listName}" ${entryCustomLists[listName] ? 'checked' : ''}>
+                                <span>${listName}</span>
+                              </label>
+                            `).join('')}
                           </div>
+                          <div class="astra-dropdown-divider"></div>
+                          <label class="astra-dropdown-item astra-dropdown-item--special">
+                            <input type="checkbox" id="astra-hide-cb" ${entry?.hiddenFromStatusLists ? 'checked' : ''}>
+                            <span>Hide from status lists</span>
+                          </label>
+                          <label class="astra-dropdown-item astra-dropdown-item--special">
+                            <input type="checkbox" id="astra-private-cb" ${entry?.private ? 'checked' : ''}>
+                            <span>Private Entry</span>
+                          </label>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
               <div class="astra-form-layout">
                 <div class="astra-form">

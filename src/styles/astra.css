@@ -313,6 +313,27 @@
   gap: 8px;
 }
 
+.astra-dropdown {
+  position: relative;
+  width: 100% !important;
+}
+
+.astra-dropdown-trigger {
+  width: 100% !important;
+  height: 30px !important;
+  background: var(--astra-bg-elev-2) !important;
+  border: 1px solid var(--astra-border) !important;
+  border-radius: 6px !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  cursor: pointer !important;
+  color: var(--astra-text) !important;
+  font-size: 13px !important;
+  transition: all 0.2s !important;
+}
+
 .astra-finale-toggle {
   width: 18px;
   height: 18px;
@@ -408,24 +429,34 @@
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-.astra-media-header {
-  display: flex;
-  gap: 16px;
-  background: var(--astra-bg-elev);
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--astra-border-soft);
-  margin-bottom: 16px;
-  align-items: center;
+.astra-modal .astra-header-section {
+  display: flex !important;
+  gap: 24px !important;
+  margin-bottom: 24px !important;
+  align-items: stretch !important;
+  width: 100% !important;
 }
 
-.astra-header-cover {
-  width: 70px;
-  height: 100px;
-  border-radius: 6px;
-  object-fit: cover;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  flex-shrink: 0;
+.astra-modal .astra-header-cover {
+  width: 100px !important;
+  height: 145px !important;
+  border-radius: 12px !important;
+  object-fit: cover !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--astra-border-soft) !important;
+}
+
+.astra-modal .astra-media-header {
+  flex: 1 !important;
+  background: var(--astra-bg-elev) !important;
+  padding: 20px !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--astra-border-soft) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  min-width: 0 !important;
 }
 
 .astra-header-info {
@@ -480,31 +511,7 @@
   width: 100%;
 }
 
-.astra-select,
-.astra-number-input,
-.astra-date-input {
-  height: 30px;
-  background: var(--astra-bg-elev-2);
-  border: 1px solid var(--astra-border);
-  border-radius: 6px;
-  padding: 0 10px;
-  color: var(--astra-text);
-  font-size: 13px;
-  outline: none;
-  width: 100%;
-}
 
-.astra-stepper {
-  display: flex;
-  align-items: center;
-  background: var(--astra-bg-elev-2);
-  border: 1px solid var(--astra-border);
-  border-radius: 6px;
-  height: 30px;
-  overflow: hidden;
-  width: fit-content;
-  min-width: 100px;
-}
 
 .astra-step-btn {
   width: 28px;
@@ -553,36 +560,66 @@
   min-width: 0;
 }
 
-.astra-input-split {
+.astra-number-input {
+  border: none !important;
+  background: transparent !important;
+  text-align: center;
+  width: 32px !important;
+  padding: 0 !important;
+  font-weight: 600;
+  color: var(--astra-text) !important;
+}
+
+.astra-stepper-center {
+  flex: 1;
   display: flex;
-  gap: 16px;
-  align-items: flex-end;
-  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.1);
+  height: 100%;
+}
+
+.astra-muted-inline {
+  font-size: 11px;
+  color: var(--astra-muted);
+  white-space: nowrap;
 }
 
 .astra-select,
-.astra-number-input,
 .astra-date-input {
-  height: 30px;
-  background: var(--astra-bg-elev-2);
-  border: 1px solid var(--astra-border);
-  border-radius: 6px;
-  padding: 0 10px;
-  color: var(--astra-text);
-  font-size: 13px;
-  outline: none;
-  width: 100%;
+  height: 30px !important;
+  background: var(--astra-bg-elev-2) !important;
+  border: 1px solid var(--astra-border) !important;
+  border-radius: 6px !important;
+  padding: 0 10px !important;
+  color: var(--astra-text) !important;
+  font-size: 13px !important;
+  outline: none !important;
+  width: 100% !important;
 }
 
 .astra-stepper {
-  display: flex;
-  align-items: center;
-  background: var(--astra-bg-elev-2);
-  border: 1px solid var(--astra-border);
-  border-radius: 6px;
-  overflow: hidden;
-  height: 30px;
-  width: fit-content;
+  display: flex !important;
+  align-items: center !important;
+  background: var(--astra-bg-elev-2) !important;
+  border: 1px solid var(--astra-border) !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  height: 30px !important;
+  width: 100% !important;
+}
+
+.astra-input-split {
+  display: flex !important;
+  gap: 16px !important;
+  align-items: flex-end !important;
+  width: 100% !important;
+}
+
+.astra-input-split > .astra-input-box {
+  flex: 1 !important;
+  width: 100% !important;
 }
 
 .astra-label-xs {
