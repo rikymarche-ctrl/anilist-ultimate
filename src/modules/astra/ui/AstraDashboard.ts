@@ -963,6 +963,11 @@ export class AstraDashboard extends BaseComponent {
       const score = lastSeason.scores[s.id];
       return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
     }).join('')}
+        <div class="astra-table-actions">
+          <button class="astra-icon-btn astra-delete-row" title="Delete from Astra">
+            <i class="fa fa-trash"></i>
+          </button>
+        </div>
       </div>
     `;
   }
@@ -978,6 +983,7 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-sortable" data-sort="type" style="width: 100px">Type</div>
           <div class="astra-sortable" data-sort="score" style="width: 90px">Score</div>
           ${sections.map(s => `<div class="astra-sortable" data-sort="section-${s.id}">${s.name}</div>`).join('')}
+          <div style="justify-content: center">Actions</div>
         </div>
         <div id="astra-table-body">
            <!-- Rows will be injected by updateDashboardDynamic -->
@@ -1150,6 +1156,15 @@ export class AstraDashboard extends BaseComponent {
 
       const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
       if (!mediaId) return;
+
+      // Delete Row
+      if (target.closest('.astra-delete-row')) {
+        if (confirm('Are you sure you want to delete this entry from Astra?')) {
+          this.service!.deleteWork(mediaId);
+          this.updateDashboardDynamic();
+        }
+        return;
+      }
 
       // Edit Row (Title, Cover, or Row background)
       if (target.closest('.astra-edit-row') || target.classList.contains('astra-grid-row')) {

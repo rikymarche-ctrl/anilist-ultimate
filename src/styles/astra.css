@@ -1478,9 +1478,9 @@
 
 .astra-grid-header {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols);
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 50px;
   gap: 15px;
-  padding: 15px;
+  padding: 15px 20px;
   background: var(--astra-bg-elev);
   border-bottom: 1px solid var(--astra-border-soft);
   color: var(--astra-muted);
@@ -1517,7 +1517,8 @@
 
 .astra-grid-row {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols);
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 50px;
+  gap: 15px;
   padding: 12px 20px;
   align-items: center;
   position: relative;
@@ -1709,11 +1710,10 @@
   color: #ef4444;
 }
 
-.astra-grid-header>div:last-child {
-  padding-right: 15px;
-  z-index: 25;
-  text-align: right;
-  pointer-events: none;
+.astra-table-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .astra-icon-btn {
