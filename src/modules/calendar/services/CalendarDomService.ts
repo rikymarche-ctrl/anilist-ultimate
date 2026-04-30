@@ -50,7 +50,13 @@ export class CalendarDomService {
       classes: targetContainer.className
     });
 
-    // Clean up existing instance if any
+    // Clean up existing instance and DOM element if any
+    const existingContainer = document.getElementById(CSS_CLASSES.CALENDAR);
+    if (existingContainer) {
+      log.debug('[CalendarDomService] Removing existing calendar container from DOM');
+      existingContainer.remove();
+    }
+
     if (this.calendarGrid) {
       log.debug('[CalendarDomService] Unmounting previous grid instance');
       this.calendarGrid.unmount();
@@ -62,9 +68,9 @@ export class CalendarDomService {
       ? headerElement
       : headerElement.querySelector<HTMLElement>('h2, h3');
     
-    if (actualHeader) {
+    if (actualHeader && !actualHeader.classList.contains('au-calendar-title')) {
       actualHeader.innerHTML = 'AU - Calendar';
-      actualHeader.className = 'au-calendar-title';
+      actualHeader.classList.add('au-calendar-title');
     }
 
     // Add settings buttons to the header
@@ -197,8 +203,10 @@ export class CalendarDomService {
         Array.from(document.querySelectorAll<HTMLElement>(s)).filter(el => el.textContent?.trim().includes(t));
 
       let airing = findText('h2', 'Airing')[0] || 
-                   Array.from(document.querySelectorAll<HTMLElement>('.section-header')).find(h => h.textContent?.includes('Airing')) ||
-                   Array.from(document.querySelectorAll<HTMLElement>('.home section')).find(s => s.textContent?.includes('Airing'))?.querySelector<HTMLElement>('h2, h3, .section-header');
+                   findText('h2', 'AU - Calendar')[0] ||
+                   findText('.au-calendar-title', 'AU - Calendar')[0] ||
+                   Array.from(document.querySelectorAll<HTMLElement>('.section-header')).find(h => h.textContent?.includes('Airing') || h.textContent?.includes('AU - Calendar')) ||
+                   Array.from(document.querySelectorAll<HTMLElement>('.home section')).find(s => s.textContent?.includes('Airing') || s.textContent?.includes('AU - Calendar'))?.querySelector<HTMLElement>('h2, h3, .section-header');
 
       // If AniList didn't render an Airing section (e.g., user has no airing anime), create one
       if (!airing) {

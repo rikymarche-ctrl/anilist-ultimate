@@ -129,9 +129,10 @@ export class CalendarDataService {
 
       // Emit progression event
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
-        animeId: mediaId,
+        mediaId,
         progress: newProgress,
-        timestamp: new Date(),
+        previousProgress: newProgress - 1,
+        userId: 0
       });
 
       return newProgress;

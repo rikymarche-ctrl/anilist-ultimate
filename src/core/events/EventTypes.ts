@@ -22,6 +22,8 @@
  * @see EventBus.ts for the pub/sub implementation
  */
 
+import { MediaListStatus } from '@/api/AnilistTypes';
+
 /**
  * Application Event Types
  * All events that can be emitted in the application
@@ -42,6 +44,7 @@ export const EVENT_TYPES = {
   CALENDAR_LOADING: 'calendar:loading',
   CALENDAR_ERROR: 'calendar:error',
   CALENDAR_SETTINGS_CHANGED: 'calendar:settings-changed',
+  CALENDAR_DATA_REFRESH: 'calendar:data-refresh',
 
   // Episode/Progress Events
   PROGRESS_UPDATED: 'calendar:progress-updated',
@@ -170,6 +173,7 @@ export interface ProgressUpdatedEvent {
   progress: number;
   previousProgress: number;
   userId: number;
+  status?: MediaListStatus;
 }
 
 export interface EpisodeMarkedWatchedEvent {
@@ -295,6 +299,7 @@ export interface AppEventMap {
   [EVENT_TYPES.CALENDAR_LOADING]: undefined;
   [EVENT_TYPES.CALENDAR_ERROR]: { error: any };
   [EVENT_TYPES.CALENDAR_SETTINGS_CHANGED]: any;
+  [EVENT_TYPES.CALENDAR_DATA_REFRESH]: undefined;
 
   [EVENT_TYPES.PROGRESS_UPDATED]: ProgressUpdatedEvent;
   [EVENT_TYPES.EPISODE_MARKED_WATCHED]: EpisodeMarkedWatchedEvent;

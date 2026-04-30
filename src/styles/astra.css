@@ -894,6 +894,13 @@
 }
 
 /* Journal */
+.astra-ep-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
 .astra-ep-list {
   display: flex;
   flex-direction: column;

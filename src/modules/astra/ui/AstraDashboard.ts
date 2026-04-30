@@ -70,6 +70,18 @@ export class AstraDashboard extends BaseComponent {
       this.open();
     });
 
+    this.eventBus.on(EVENT_TYPES.ASTRA_DATA_UPDATED, () => {
+      if (this.overlay) this.refresh();
+    });
+
+    this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, () => {
+      if (this.overlay) this.refresh();
+    });
+
+    this.eventBus.on(EVENT_TYPES.CALENDAR_LOADED, () => {
+      if (this.overlay) this.refresh();
+    });
+
     // BUG-020: Refresh dynamic elements on resize
     window.addEventListener('resize', () => {
       if (this.overlay) {

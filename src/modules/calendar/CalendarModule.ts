@@ -30,6 +30,7 @@ import { CalendarDataService } from './services/CalendarDataService';
 import { CalendarSocialService } from './services/CalendarSocialService';
 import { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { SettingsPanel } from './components/SettingsPanel';
+import { MediaListStatus } from '@/api/AnilistTypes';
 
 @injectable()
 export class CalendarModule extends BaseModule {
@@ -99,6 +100,40 @@ export class CalendarModule extends BaseModule {
             log.info('[Calendar] Calendar missing after resize, re-injecting...');
             this.runInjectionFlow();
           }
+        }
+      });
+
+      // Listen for data updates from other modules
+      this.eventBus.on(EVENT_TYPES.ASTRA_DATA_UPDATED, async () => {
+        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+        if (isHomePage) {
+          log.info('[Calendar] Astra data updated, refreshing schedule (delayed)...');
+          // Delay a bit to let AniList API sync after mutation
+          setTimeout(async () => {
+            await this.runInjectionFlow(true);
+          }, 1500);
+        }
+      });
+
+      this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, async (payload) => {
+        // Optimistic update: update the store directly instead of re-fetching
+        if (payload && payload.mediaId) {
+          log.info('[Calendar] Progress updated event received, performing optimistic update', payload);
+          
+          if (payload.status && payload.status !== MediaListStatus.CURRENT) {
+            log.info('[Calendar] Media status is no longer CURRENT, removing from calendar', payload.status);
+            calendarStore.removeEntry(payload.mediaId);
+          } else {
+            calendarStore.updateEntry(payload.mediaId, { progress: payload.progress });
+          }
+        }
+      });
+
+      this.eventBus.on(EVENT_TYPES.CALENDAR_DATA_REFRESH, async () => {
+        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+        if (isHomePage) {
+          log.info('[Calendar] Calendar data refresh requested...');
+          await this.runInjectionFlow(true);
         }
       });
 

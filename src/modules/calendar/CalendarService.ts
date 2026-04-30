@@ -31,7 +31,7 @@ export class CalendarService implements ICalendarService {
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.AstraService) private astraService: any
-  ) {}
+  ) { }
 
   /**
    * Fetch user's currently watching anime with airing schedules
@@ -129,9 +129,10 @@ export class CalendarService implements ICalendarService {
 
       // Emit PROGRESS_UPDATED event
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
-        animeId: mediaId,
+        mediaId,
         progress: newProgress,
-        timestamp: new Date(),
+        previousProgress: newProgress - 1,
+        userId: 0
       });
 
       return true;

@@ -27,6 +27,8 @@ import { log } from '@core/logger';
 import { AstraDashboard } from './AstraDashboard';
 import { MediaWithViewerResponse, MediaListStatus } from '@/api/AnilistTypes';
 import { getStatusLabel } from '@core/utils/UIHelpers';
+import * as EventBusTypes from '@core/interfaces/IEventBus';
+import { EVENT_TYPES } from '@core/events/EventTypes';
 
 @injectable()
 @singleton()
@@ -38,7 +40,8 @@ export class AstraRatingModal {
 
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
-    @inject(TOKENS.ApiClient) private api: IApiClient
+    @inject(TOKENS.ApiClient) private api: IApiClient,
+    @inject(TOKENS.EventBus) private eventBus: EventBusTypes.IEventBus
   ) {
     // BUG-020: Ensure UI stays consistent on resize
     window.addEventListener('resize', () => {
@@ -64,8 +67,8 @@ export class AstraRatingModal {
     const customLists: string[] = Array.isArray(customListsRaw)
       ? customListsRaw
       : customListsRaw
-      ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
-      : [];
+        ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
+        : [];
 
     this.currentWork = await this.astraService.getWork(mediaId) || {
       id: `w_${Math.random().toString(36).slice(2, 11)}`,
@@ -163,7 +166,7 @@ export class AstraRatingModal {
             <span>Journal</span>
           </button>
           <div class="astra-nav-spacer"></div>
-          <button class="astra-modal-close" title="Close modal">
+          <button class="astra-modal-close" title="Close modal" id="astra-modal-close-btn">
             <i class="fa fa-times"></i>
           </button>
         </nav>
@@ -310,8 +313,10 @@ export class AstraRatingModal {
             <!-- JOURNAL TAB -->
             <div id="astra-tab-journal" class="astra-tab-content ${this.activeTab === 'journal' ? 'astra-tab-content--active' : ''}">
               <div class="astra-ep-log-header">
-                <h3>Episode Journal</h3>
-                <p class="astra-muted">Track your thoughts for every single episode.</p>
+                <div class="astra-journal-title-box">
+                  <h3>Episode Journal</h3>
+                  <p class="astra-muted">Track your thoughts for every single episode.</p>
+                </div>
               </div>
               <div class="astra-ep-list">
                 ${this.renderEpisodeList(meta.progress, meta.totalEpisodes, season.episodeNotes || {}, meta.airedEpisodes)}
@@ -413,13 +418,21 @@ export class AstraRatingModal {
     `;
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     if (!this.overlay) return;
+
+    // Auto-save on close
+    try {
+      await this.save();
+    } catch (err) {
+      log.error('[AstraRatingModal] Auto-save on close failed', err);
+    }
+
     this.overlay.classList.remove('astra-modal-overlay--open');
     setTimeout(() => {
       this.overlay?.remove();
       this.overlay = null;
-      
+
       // Only reset overflow if no other Astra modals are open
       if (!document.querySelector('.astra-modal-overlay')) {
         document.body.style.overflow = '';
@@ -484,7 +497,6 @@ export class AstraRatingModal {
     const saveBtn = this.overlay!.querySelector('#astra-save');
     const navItems = this.overlay!.querySelectorAll('.astra-nav-item');
     const sliders = this.overlay!.querySelectorAll('.astra-slider');
-    const statusSelect = this.overlay!.querySelector('#astra-status') as HTMLSelectElement;
     const progressInput = this.overlay!.querySelector('#astra-progress') as HTMLInputElement;
     const repeatInput = this.overlay!.querySelector('#astra-repeat') as HTMLInputElement;
     const accordions = this.overlay!.querySelectorAll('.astra-accordion-toggle');
@@ -496,27 +508,16 @@ export class AstraRatingModal {
       });
     });
 
-    const close = () => {
-      this.overlay!.classList.remove('astra-modal-overlay--open');
-      setTimeout(() => {
-        this.overlay!.remove();
-        // Only reset overflow if NO other Astra modals (like Dashboard) are open
-        if (!document.querySelector('.astra-modal-overlay')) {
-          document.body.style.overflow = '';
-        }
-      }, 300);
-    };
+    closeBtns.forEach(btn => btn.addEventListener('click', async () => await this.close()));
 
-    closeBtns.forEach(btn => btn.addEventListener('click', close));
-
-    this.overlay!.addEventListener('click', (e) => {
-      if (e.target === this.overlay) close();
+    this.overlay!.addEventListener('click', async (e) => {
+      if (e.target === this.overlay) await this.close();
     });
 
     // ESC key to close modal (accessibility)
-    const handleEscKey = (e: KeyboardEvent) => {
+    const handleEscKey = async (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        close();
+        await this.close();
       }
     };
     document.addEventListener('keydown', handleEscKey);
@@ -536,9 +537,13 @@ export class AstraRatingModal {
 
     // Tabs
     navItems.forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', async () => {
         const tab = (item as HTMLElement).dataset.tab;
-        if (!tab) return;
+        if (!tab || tab === this.activeTab) return;
+
+        // Auto-save before switching tab
+        await this.save();
+
         this.activeTab = tab;
         this.overlay!.querySelectorAll('.astra-nav-item').forEach(i => i.classList.remove('active'));
         item.classList.add('active');
@@ -565,7 +570,7 @@ export class AstraRatingModal {
 
     // Sliders & Number Inputs
     const scoreInputs = this.overlay!.querySelectorAll('.astra-score-num-input');
-    
+
     sliders.forEach(slider => {
       const el = slider as HTMLInputElement;
       el.addEventListener('input', (e) => {
@@ -575,11 +580,11 @@ export class AstraRatingModal {
         const id = parent?.getAttribute('data-id');
         if (id) {
           this.currentWork!.seasons[this.currentSeasonIdx].scores[id] = val;
-          
+
           // Sync number input
           const numInput = parent?.querySelector('.astra-score-num-input') as HTMLInputElement;
           if (numInput) numInput.value = val.toFixed(1);
-          
+
           this.updateLivePreview();
           this.updateSliderTrack(target);
         }
@@ -594,19 +599,19 @@ export class AstraRatingModal {
         let val = parseFloat(target.value);
         if (isNaN(val)) val = 0;
         val = Math.max(0, Math.min(10, val));
-        
+
         const parent = target.closest('.astra-score-input');
         const id = parent?.getAttribute('data-id');
         if (id) {
           this.currentWork!.seasons[this.currentSeasonIdx].scores[id] = val;
-          
+
           // Sync slider
           const slider = parent?.querySelector('.astra-slider') as HTMLInputElement;
           if (slider) {
             slider.value = val.toString();
             this.updateSliderTrack(slider);
           }
-          
+
           this.updateLivePreview();
         }
       });
@@ -640,65 +645,109 @@ export class AstraRatingModal {
     });
 
     saveBtn?.addEventListener('click', async () => {
-      (saveBtn as HTMLButtonElement).disabled = true;
-      (saveBtn as HTMLButtonElement).innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
-      
-      this.currentWork!.status = statusSelect.value as MediaListStatus;
-      const currentSeason = this.currentWork!.seasons[this.currentSeasonIdx];
+      const btn = saveBtn as HTMLButtonElement;
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
 
-      const generalNotes = this.overlay!.querySelector('#astra-general-notes') as HTMLTextAreaElement;
-      if (generalNotes) currentSeason.notes = generalNotes.value;
+      try {
+        await this.save();
+        await this.close();
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        alert('Failed to save changes. Check console for details.');
+      }
+    });
+  }
 
-      const epTextareas = this.overlay!.querySelectorAll('.astra-ep-textarea');
-      currentSeason.episodeNotes = {};
+  /**
+   * Centralized save logic
+   */
+  private async save(): Promise<void> {
+    if (!this.currentWork || !this.overlay) return;
+
+    const statusSelect = this.overlay.querySelector('#astra-status') as HTMLSelectElement;
+    const progressInput = this.overlay.querySelector('#astra-progress') as HTMLInputElement;
+    const repeatInput = this.overlay.querySelector('#astra-repeat') as HTMLInputElement;
+    const generalNotes = this.overlay.querySelector('#astra-general-notes') as HTMLTextAreaElement;
+    const currentSeason = this.currentWork.seasons[this.currentSeasonIdx];
+
+    // Update work status and general info
+    if (statusSelect) this.currentWork.status = statusSelect.value as MediaListStatus;
+    if (generalNotes) currentSeason.notes = generalNotes.value;
+
+    // Update episode notes
+    const epTextareas = this.overlay.querySelectorAll('.astra-ep-textarea');
+    if (epTextareas.length > 0) {
+      if (!currentSeason.episodeNotes) currentSeason.episodeNotes = {};
       epTextareas.forEach(ta => {
         const epNum = parseInt((ta as HTMLElement).dataset.ep || '0');
         const text = (ta as HTMLTextAreaElement).value.trim();
         if (text) {
-          currentSeason.episodeNotes![epNum] = { text };
+          currentSeason.episodeNotes![epNum] = { ...currentSeason.episodeNotes![epNum], text };
+        } else if (currentSeason.episodeNotes![epNum]) {
+          // If text is cleared, we might want to keep the score but clear the text
+          currentSeason.episodeNotes![epNum].text = '';
         }
       });
+    }
 
-      // Collect advanced fields
-      const repeat = parseInt(repeatInput.value);
-      const privateEntry = (this.overlay!.querySelector('#astra-private-cb') as HTMLInputElement).checked;
-      const hidden = (this.overlay!.querySelector('#astra-hide-cb') as HTMLInputElement).checked;
-      const startedAt = this.parseDateFromInput((this.overlay!.querySelector('#astra-start-date') as HTMLInputElement).value);
-      const completedAt = this.parseDateFromInput((this.overlay!.querySelector('#astra-finish-date') as HTMLInputElement).value);
-      
-      const customLists: string[] = [];
-      this.overlay!.querySelectorAll('.astra-custom-list-cb:checked').forEach(cb => {
-        customLists.push((cb as HTMLInputElement).dataset.name!);
-      });
-      this.currentWork!.customLists = customLists;
+    // Advanced fields
+    const repeat = repeatInput ? parseInt(repeatInput.value) : 0;
+    const privateEntry = (this.overlay.querySelector('#astra-private-cb') as HTMLInputElement)?.checked || false;
+    const hidden = (this.overlay.querySelector('#astra-hide-cb') as HTMLInputElement)?.checked || false;
+    const startDateInput = this.overlay.querySelector('#astra-start-date') as HTMLInputElement;
+    const finishDateInput = this.overlay.querySelector('#astra-finish-date') as HTMLInputElement;
 
-      await this.astraService.saveWork(this.currentWork!);
-      const overall = this.astraService.calcSeasonOverall(currentSeason.scores, currentSeason.skip, currentSeason.isSeriesFinale) || 0;
-      
-      const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$repeat:Int,$private:Boolean,$hidden:Boolean,$start:FuzzyDateInput,$end:FuzzyDateInput,$lists:[String]) {
-        SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,scoreRaw:$score,repeat:$repeat,private:$private,hiddenFromStatusLists:$hidden,startedAt:$start,completedAt:$end,customLists:$lists) { id status progress score }
-      }`;
+    const startedAt = startDateInput ? this.parseDateFromInput(startDateInput.value) : null;
+    const completedAt = finishDateInput ? this.parseDateFromInput(finishDateInput.value) : null;
 
-      try {
-        await this.api.query(GQL_SAVE, {
-          mediaId: this.currentWork!.mediaId,
-          status: statusSelect.value,
-          progress: parseInt(progressInput.value),
-          score: Math.round(overall * 10),
-          repeat,
-          private: privateEntry,
-          hidden,
-          start: startedAt,
-          end: completedAt,
-          lists: customLists
-        });
-        window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
-      } catch (err) {
-        log.error('[AstraRatingModal] Failed to sync with AniList', err);
-      }
-      
-      close();
+    const customLists: string[] = [];
+    this.overlay.querySelectorAll('.astra-custom-list-cb:checked').forEach(cb => {
+      customLists.push((cb as HTMLInputElement).dataset.name!);
     });
+    this.currentWork.customLists = customLists;
+
+    // Save to local Astra service
+    await this.astraService.saveWork(this.currentWork);
+
+    // Sync to AniList
+    const overall = this.astraService.calcSeasonOverall(currentSeason.scores, currentSeason.skip, currentSeason.isSeriesFinale) || 0;
+    const progress = progressInput ? parseInt(progressInput.value) : (this.currentWork.progress || 0);
+
+    const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$repeat:Int,$private:Boolean,$hidden:Boolean,$start:FuzzyDateInput,$end:FuzzyDateInput,$lists:[String]) {
+      SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,scoreRaw:$score,repeat:$repeat,private:$private,hiddenFromStatusLists:$hidden,startedAt:$start,completedAt:$end,customLists:$lists) { id status progress score }
+    }`;
+
+    try {
+      await this.api.mutate(GQL_SAVE, {
+        mediaId: this.currentWork.mediaId,
+        status: statusSelect?.value || this.currentWork.status,
+        progress: progress,
+        score: Math.round(overall * 10),
+        repeat,
+        private: privateEntry,
+        hidden,
+        start: startedAt,
+        end: completedAt,
+        lists: customLists
+      });
+
+      // Emit events for sync
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId: this.currentWork.mediaId, timestamp: new Date() });
+
+      this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
+        mediaId: this.currentWork.mediaId,
+        progress,
+        previousProgress: 0,
+        userId: 0,
+        status: (this.overlay?.querySelector('#astra-status') as HTMLSelectElement)?.value as MediaListStatus || this.currentWork.status
+      });
+    } catch (err) {
+      log.error('[AstraRatingModal] Failed to sync with AniList', err);
+      // We don't throw here to avoid blocking local save
+    }
   }
 
   private updateSliderTrack(slider: HTMLInputElement): void {
@@ -731,14 +780,14 @@ export class AstraRatingModal {
   private renderEpisodeList(progress: number, total: number | null, notes: Record<number, { text: string }>, airedCount: number | null): string {
     const visibleCount = total || Math.max(progress, airedCount || 0, Object.keys(notes).length);
     let html = '';
-    
+
     for (let i = 1; i <= visibleCount; i++) {
       const note = notes[i]?.text || '';
       const hasAired = airedCount === null || i <= airedCount;
       const isWatched = i <= progress;
       const isNotAired = !hasAired;
       const isLocked = hasAired && !isWatched;
-      
+
       html += `
         <div class="astra-ep-row ${isLocked ? 'astra-ep-row--locked' : ''} ${isNotAired ? 'astra-ep-row--not-aired' : ''}">
           <div class="astra-ep-num">
@@ -783,7 +832,7 @@ export class AstraRatingModal {
 
     sections.forEach(s => {
       const val = this.astraService.calcSectionScore(s, season.scores);
-      
+
       // Update group avg if exists
       const groupAvg = this.overlay!.querySelector(`#avg-${s.id}`) as HTMLElement;
       if (groupAvg) {
