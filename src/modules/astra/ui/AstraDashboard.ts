@@ -578,35 +578,53 @@ export class AstraDashboard extends BaseComponent {
       });
 
       listContainer.innerHTML = `
-        <div class="astra-secondary-filters">
-          <div class="astra-secondary-stacked">
-            <!-- Custom Lists Dropdown -->
-            <div class="astra-dropdown">
-              <button class="astra-chip astra-dropdown-trigger ${this.state.status !== 'all' ? 'active' : ''}">
-                <i class="fa fa-list-ul"></i> ${this.state.status !== 'all' ? this.state.status : 'Custom Lists'}
-                <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
+        <div class="astra-macro-categories">
+          ${mainStatuses.map(s => {
+        const activeClass = s.isActive || (s.id === 'all' && isAllActive) ? 'active' : '';
+        return `
+              <button class="astra-macro-chip ${activeClass}" 
+                      data-id="${s.id}" 
+                      data-status="${s.status || s.id}"
+                      ${s.options ? `data-cycle='${JSON.stringify(s.options).replace(/'/g, "&apos;")}'` : ''}>
+                <i class="fa ${s.icon}"></i> ${s.label}
               </button>
-              <div class="astra-dropdown-menu">
-                <div class="astra-dropdown-item" data-val="all">
-                  <i class="fa fa-times"></i> Clear Custom Filter
+            `;
+      }).join('')}
+        </div>
+
+        <div class="astra-filter-divider"></div>
+
+        <div class="astra-secondary-filters">
+          <!-- Custom Lists Dropdown -->
+          <div class="astra-dropdown">
+            <button class="astra-chip astra-dropdown-trigger ${this.state.status !== 'all' ? 'active' : ''}">
+              <i class="fa fa-list-ul"></i> ${this.state.status !== 'all' ? this.state.status : 'Custom Lists'}
+              <i class="fa fa-chevron-down" style="font-size: 10px; opacity: 0.5"></i>
+            </button>
+            <div class="astra-dropdown-menu">
+              <div class="astra-dropdown-item" data-val="all">
+                <i class="fa fa-times"></i> Clear Custom Filter
+              </div>
+              <div class="astra-dropdown-divider"></div>
+              ${customLists.map(list => `
+                <div class="astra-dropdown-item ${this.state.status === list ? 'active' : ''}" data-val="${list}">
+                  <i class="fa fa-tag"></i> ${list}
                 </div>
+              `).join('')}
+              ${specialLists.length > 0 ? `
                 <div class="astra-dropdown-divider"></div>
-                ${customLists.map(list => `
-                  <div class="astra-dropdown-item ${this.state.status === list ? 'active' : ''}" data-val="${list}">
-                    <i class="fa fa-tag"></i> ${list}
+                ${specialLists.map(list => `
+                  <div class="astra-dropdown-item astra-dropdown-item--special ${this.state.status === list ? 'active' : ''}" data-val="${list}">
+                    <i class="fa fa-${list === 'Private' ? 'lock' : 'eye-slash'}"></i> ${list}
                   </div>
                 `).join('')}
-                ${specialLists.length > 0 ? `
-                  <div class="astra-dropdown-divider"></div>
-                  ${specialLists.map(list => `
-                    <div class="astra-dropdown-item astra-dropdown-item--special ${this.state.status === list ? 'active' : ''}" data-val="${list}">
-                      <i class="fa fa-${list === 'Private' ? 'lock' : 'eye-slash'}"></i> ${list}
-                    </div>
-                  `).join('')}
-                ` : ''}
-              </div>
+              ` : ''}
             </div>
+          </div>
 
+          <div class="astra-filter-divider"></div>
+
+          <div class="astra-secondary-stacked">
             <!-- Type Dropdown -->
             <div class="astra-dropdown">
               <button class="astra-chip astra-dropdown-trigger ${this.state.type !== 'all' ? 'active' : ''}" data-dropdown="type">
@@ -656,22 +674,6 @@ export class AstraDashboard extends BaseComponent {
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="astra-filter-divider"></div>
-
-        <div class="astra-macro-categories">
-          ${mainStatuses.map(s => {
-        const activeClass = s.isActive || (s.id === 'all' && isAllActive) ? 'active' : '';
-        return `
-              <button class="astra-macro-chip ${activeClass}" 
-                      data-id="${s.id}" 
-                      data-status="${s.status || s.id}"
-                      ${s.options ? `data-cycle='${JSON.stringify(s.options).replace(/'/g, "&apos;")}'` : ''}>
-                <i class="fa ${s.icon}"></i> ${s.label}
-              </button>
-            `;
-      }).join('')}
         </div>
       `;
 
