@@ -12,10 +12,7 @@
 ### Astra Dashboard & Core UI
 
 - [X] **BUG-020: Resize Handler** - Ensure extension elements (Astra, Tooltips) don't break when resizing the window.
-
-- [/] **Astra Layout Refinement** - Fix elements shifting when the slider appears (Slider should be ignored for width calculations).. Lo slider è ok, ma in base a certi ciriteri la riga si compatta leggeremntte ugualmetne
-
-- [X] **Astra Navigation** - Implement macro-categories (Reading, Completed, All, etc.) as dropdowns or tabs instead of just tags. [RICONTROLLARE]
+- [X] **Astra Navigation** - Implement macro-categories (Reading, Completed, All, etc.) as dropdowns or tabs instead of just tags.
 - [X] **Sticky Search** - Make the search bar in Astra sticky so it stays visible during scroll.
 - [ ] **Closing Animation** - Add a smooth "outro" animation when closing the Astra dashboard.
 - [X] **Alignment Fix** - Correct decentered items above the votes/scores section.
@@ -27,29 +24,13 @@
 - [ ] **User Activity Enhancements** - Add votes and filters to the single user activity feed.
 - [ ] **Banner Action** - Add a "+" button near the "Follow" button in user banners to quickly add/remove from custom lists.
 - [ ] **Follower Stats** - Add follower/following counters to relevant profile sections.
-- [X] **Missing UI Elements** - Restored the "pill" buttons in the media page sidebar "In Progress" section. [DONE]
+- [X] **Missing UI Elements** - Restored the "pill" buttons in the media page sidebar "In Progress" section.
 
 ### Visual & Assets
 
-- [X] **BUG-021: Comment Icon** - Replace low-res SVG with high-quality version and fix hover trigger area. [DONE]
+- [X] **BUG-021: Comment Icon** - Replace low-res SVG with high-quality version and fix hover trigger area.
 - [X] **BUG-025: Weight Position** - Move the Global Weight indicator to the left in Astra rows.
-- [ ] **COS-002: Calendar Redesign** - Rework the graphics for social activity within the calendar cards.
-- [ ] una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
-- [ ] anche lo slider default di anilist è stato cambiato con quello di astra, no. Analisit deve avere il suo nella home
-
-![1777438848637](image/TODO/1777438848637.png)
-
-prime e dopo type e country c è dello spazio indesiderato, che siano in qualche wrap non voluto?
-
-![1777438902234](image/TODO/1777438902234.png)
-
-direi che l add component possiamo aggiungerlo direttametne sopra eh, così guadaganmo molto spazio verticalmetne
-
-![1777439039311](image/TODO/1777439039311.png)
-
-mettere un altro tag +N, dove quando vai su N esce un popup dicendo tutte le altre liste di cui fa parte, anzi forse meglio farslo subito dopo il numero di ep? tanto lo status verrà tolto cacnellando ol opzione Flat/grouped e lasciando solo grouped
-
-Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su astra dashoboard, stessa cosa vale per ogni volta che su anilist la entry subisce modifiche
+- [X] **COS-002: Calendar Redesign** - Rework the graphics for social activity within the calendar cards.
 
 ---
 
@@ -65,11 +46,11 @@ Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su 
 ## ✨ P8 - NEW FEATURES & INTEGRATIONS
 
 - [X] **Media Metadata** - Add MAL score, MAL link, and Subreddit link to media pages (with caching and native styling). [DONE]
-- [ ] **Watch Section** - Implement a "Watch" section with search links for official and unofficial sites (Intro/Outro support).
+
+![1777529009783](image/TODO/1777529009783.png)
+
 - [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
-- [ ] **Bulk Editor** - Create a tool for bulk editing items within custom lists.
-- [ ] **Progress Notes** - Show/edit notes immediately when incrementing episode/chapter progress.
-- [ ] **Wrapped 2026** - Complete the implementation of the annual summary feature.
+- [ ] **Progress Notes** - Show/edit notes immediately when incrementing episode/chapter progress, bastaerebbe anche il campo delle quick note nell avviso che appare, la stessa notifica delgi errori ecc.
 - [ ] **Offline Astra** - Research keeping Astra functional (read-only) even without an active API connection.
 
 ---
@@ -78,14 +59,49 @@ Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su 
 
 - [X] **Social Activity Stabilization** - Restricted social bubbles to home page and ensured cleanup on navigation. [DONE]
 - [X] **Home Page Social Bubbles** - Implemented calendar-style floating portals for all home page native cards. [DONE]
+
   - [!] *Known Bug*: Sometimes bubbles persist on screen (will address later).
 - [X] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
 - [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
 - [ ] attenzione che il calendario c è ed ok, ma a votla compare anche la sezione airing, ovvero la duplicaizone del calendairo
-- [ ] implementare una ricerca multipla, con più liste ad esempio? non so, ci penserò
-- [ ] Togliere quel pallino fastidioso che fa da stanghetta alal A nel logo Astra
-- [ ] Un modo epr mettere le Lodi? (+1 voto massimo?))
+
+ci sono tutte le cose fuori da astra da applicare, tipo che i filtri nelle activity devono tornare su All a ogni cambio di pagina
+
+da reinserire il bottone capusle in anime e manga in progress, controllare se manca qualche direttiva @inject ad esempio. In home
+
+i cidimaine di commenti si sono spostati ancora leggermente sulla destra dentro le loro righe
+
+I fgiltri non funzionano bene, se ne fregano di read, completed ecc, specialmente dentro le poagine delle opere, e quindi forse se implementato anche in quello nella home nelle pagine degli utenti. Questa funzionalità ad esempio deve essere disponibile anche senza anilist API. Come tutte le cose già cachetate, inutile perderle
+
+Cancellare il + nella sezione anime e amnga in progress solo se le API sono disponibili, altrimenti non possiamo creare il bottone pillola, o sì?
+
+funzionalità
+
+- [ ] Un modo per mettere le Lodi? (+1 voto massimo?))
+
+  [ ]  Astra dashboard: implementare una ricerca multipla, con più liste ad esempio? non so, ci penserò
+
+  **[ ]  Astra dashboard: Bulk Editor** - Create a tool for bulk editing items within custom lists.
+
+  Ovviametne quando si clicca il + su anilist, deve aggiornarsi anche l entry su astra dashoboard, stessa cosa vale per ogni volta che su anilist la entry subisce modifiche
+
+  una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
+
+  Grafica
+- [ ] Togliere quel pallino fastidioso che fa da stanghetta alla A nel logo Astra
+- [ ] Astra settings: Lo slider va oltre la rating sections, che scrolla sopra oltre il massimo previsto
+- [ ] astra settings: I 6 pallini ceh sembrano quelli con cui si attiva il drag and drop sulle sezioni dei voti Non funzionano
+- [ ] Astra settings: Rework al bottone save changes per matahcare quello del quick edit?
+- [ ] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera
+- [ ] astra dashboard, stessa cosa col sync e toggle progress, da reworkare?
+- [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
+- [ ] astra dashbard: majopr rework da fare alle stats, pensre come
+- [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono perchè non servono. è corretto così?
+- [ ] astra quick edit: se clicchi dentro rating notes si illumina in maniera strana, edit veloce da fare
+- [ ] astra quick edit: episode journal, serve un leggero padding alla fine, l ultimo episodio si scontra con il bordo
+
+
 
 ---
 
