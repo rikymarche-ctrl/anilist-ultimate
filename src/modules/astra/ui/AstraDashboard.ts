@@ -218,7 +218,7 @@ export class AstraDashboard extends BaseComponent {
           </div>
         </div>
 
-        <div class="astra-table-wrap">
+        <div class="astra-table-wrap" id="astra-table-wrap">
           ${works.length > 0 ? this.renderGrid() : this.renderEmptyState()}
         </div>
       </div>
@@ -488,9 +488,11 @@ export class AstraDashboard extends BaseComponent {
     const listContainer = this.overlay.querySelector('#astra-list-filters');
     if (listContainer) {
       const standardLists = [MediaListStatus.COMPLETED, MediaListStatus.DROPPED, MediaListStatus.PAUSED, MediaListStatus.PLANNING, MediaListStatus.WATCHING, MediaListStatus.READING, MediaListStatus.REPEATING, MediaListStatus.CURRENT];
-      const customLists = Array.from(new Set(works.flatMap(w => w.customLists || [])))
-        .filter(l => !standardLists.includes(l.toUpperCase() as MediaListStatus))
-        .sort();
+      const SPECIAL_LISTS = ['Private', 'Hide from status lists'];
+      const allCustom = Array.from(new Set(works.flatMap(w => w.customLists || [])))
+        .filter(l => !standardLists.includes(l.toUpperCase() as MediaListStatus));
+      const customLists = allCustom.filter(l => !SPECIAL_LISTS.includes(l)).sort();
+      const specialLists = allCustom.filter(l => SPECIAL_LISTS.includes(l));
 
       const mainStatuses: any[] = [
         { id: 'all', label: 'All', icon: 'fa-layer-group', type: 'all' }
@@ -603,6 +605,14 @@ export class AstraDashboard extends BaseComponent {
                 <i class="fa fa-tag"></i> ${list}
               </div>
             `).join('')}
+            ${specialLists.length > 0 ? `
+              <div class="astra-dropdown-divider"></div>
+              ${specialLists.map(list => `
+                <div class="astra-dropdown-item astra-dropdown-item--special ${this.state.status === list ? 'active' : ''}" data-val="${list}">
+                  <i class="fa fa-${list === 'Private' ? 'lock' : 'eye-slash'}"></i> ${list}
+                </div>
+              `).join('')}
+            ` : ''}
           </div>
         </div>
 
@@ -925,13 +935,17 @@ export class AstraDashboard extends BaseComponent {
               <span class="astra-badge astra-badge--country">${work.country || 'JP'}</span>
               <span class="astra-badge astra-badge--progress">${work.progress || 0} / ${total || '?'}</span>
               ${(() => {
-                const lists = work.customLists || [];
-                if (lists.length === 0) return '';
+                const allLists = work.customLists || [];
+                if (allLists.length === 0) return '';
+                const SPECIAL = ['Private', 'Hide from status lists'];
+                const normal = allLists.filter(l => !SPECIAL.includes(l));
+                const special = allLists.filter(l => SPECIAL.includes(l));
                 return `
                   <div class="astra-lists-dropdown">
-                    <span class="astra-badge astra-badge--list-item astra-list-multi">+${lists.length}</span>
+                    <span class="astra-badge astra-badge--list-item astra-list-multi">+${allLists.length}</span>
                     <div class="astra-lists-menu">
-                      ${lists.map(l => `<div class="astra-list-menu-item"><i class="fa fa-tag"></i> ${l}</div>`).join('')}
+                      ${normal.map(l => `<div class="astra-list-menu-item"><i class="fa fa-tag"></i> ${l}</div>`).join('')}
+                      ${special.length > 0 ? `<div class="astra-lists-menu-divider"></div>${special.map(l => `<div class="astra-list-menu-item astra-list-menu-item--special"><i class="fa fa-${l === 'Private' ? 'lock' : 'eye-slash'}"></i> ${l}</div>`).join('')}` : ''}
                     </div>
                   </div>
                 `;
@@ -949,12 +963,6 @@ export class AstraDashboard extends BaseComponent {
       const score = lastSeason.scores[s.id];
       return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
     }).join('')}
-        <div class="astra-table-spacer"></div>
-        <div class="astra-table-actions">
-          <button class="astra-icon-btn astra-delete-row" title="Delete from Astra">
-            <i class="fa fa-trash"></i>
-          </button>
-        </div>
       </div>
     `;
   }
@@ -970,8 +978,6 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-sortable" data-sort="type" style="width: 100px">Type</div>
           <div class="astra-sortable" data-sort="score" style="width: 90px">Score</div>
           ${sections.map(s => `<div class="astra-sortable" data-sort="section-${s.id}">${s.name}</div>`).join('')}
-          <div class="astra-table-spacer"></div>
-          <div style="text-align: right; justify-content: flex-end; width: 80px">Actions</div>
         </div>
         <div id="astra-table-body">
            <!-- Rows will be injected by updateDashboardDynamic -->
@@ -1020,6 +1026,8 @@ export class AstraDashboard extends BaseComponent {
   private attachDashboardEvents(): void {
     if (!this.overlay) return;
     const overlay = this.overlay;
+
+
 
     // Toggle Stats
     overlay.querySelector('#astra-toggle-stats')?.addEventListener('click', () => {
@@ -1152,14 +1160,6 @@ export class AstraDashboard extends BaseComponent {
         return;
       }
 
-      // Delete Row
-      if (target.closest('.astra-delete-row')) {
-        if (confirm('Are you sure you want to delete this entry from Astra?')) {
-          this.service!.deleteWork(mediaId);
-          this.updateDashboardDynamic();
-        }
-        return;
-      }
     });
 
     // Import/Export
@@ -1772,4 +1772,9 @@ export class AstraDashboard extends BaseComponent {
     };
     return labels[code] || code;
   }
+
+  /**
+   * Setup custom scrollbar - SIMPLE approach
+   */
+
 }

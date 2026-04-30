@@ -134,38 +134,14 @@
   color: var(--astra-accent);
 }
 
-/* Main Content */
+/* Main Content - non scrolla, fa da shell flex */
 .astra-modal-main {
   flex: 1;
   min-height: 0;
-  height: 100%;
   display: block;
   background: var(--astra-bg);
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
+  overflow: hidden;
   position: relative;
-}
-
-.astra-modal-main::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.astra-modal-main::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-
-.astra-modal-main::-webkit-scrollbar-thumb {
-  background: var(--astra-accent-a20);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.astra-modal-main::-webkit-scrollbar-thumb:hover {
-  background: var(--astra-accent);
-  background-clip: padding-box;
 }
 
 .astra-modal-header {
@@ -911,12 +887,17 @@
 
 /* Dashboard Specific */
 .astra-dashboard {
-  padding: 24px 40px;
   width: 100%;
   max-width: 1600px;
   margin: 0 auto;
   color: var(--astra-text);
   animation: astra-fade-in 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 @keyframes astra-fade-in {
@@ -1414,9 +1395,6 @@
 /* ============ ASTRA GRID SYSTEM ============ */
 
 .astra-table-wrap {
-  padding: 0 24px 24px 24px;
-  width: max-content;
-  min-width: 100%;
   position: relative;
 }
 
@@ -1446,7 +1424,7 @@
   position: absolute;
   top: calc(100% + 5px);
   left: 0;
-  background: #1a2333;
+  background: #0b1622;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   padding: 8px;
@@ -1456,7 +1434,7 @@
   visibility: hidden;
   transform: translateY(10px);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 1);
   pointer-events: none;
 }
 
@@ -1483,13 +1461,24 @@
   opacity: 0.7;
 }
 
-.astra-list-menu-item:not(:last-child) {
+.astra-list-menu-item:not(:last-child):not(.astra-list-menu-item--special) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.astra-lists-menu-divider {
+  height: 1px;
+  background: var(--astra-border-soft);
+  margin: 4px 0;
+}
+
+.astra-list-menu-item--special {
+  opacity: 0.7;
+  font-style: italic;
 }
 
 .astra-grid-header {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 1fr 80px;
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols);
   gap: 15px;
   padding: 15px;
   background: var(--astra-bg-elev);
@@ -1500,7 +1489,7 @@
   font-weight: 800;
   letter-spacing: 0.1em;
   position: relative;
-  z-index: 20;
+  z-index: 100;
   border-radius: 12px 12px 0 0;
 }
 
@@ -1528,7 +1517,7 @@
 
 .astra-grid-row {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 1fr 80px;
+  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols);
   padding: 12px 20px;
   align-items: center;
   position: relative;
@@ -1540,7 +1529,7 @@
   background-position: 0 0;
   min-width: 100%;
   width: max-content;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .astra-grid-row:last-child {
@@ -1548,13 +1537,10 @@
   border-radius: 0 0 12px 12px;
 }
 
-.astra-grid-row:last-child .astra-table-actions {
-  border-bottom-right-radius: 12px;
-}
-
 .astra-grid-row:hover {
   --row-bg: rgba(255, 255, 255, 0.02);
   background-color: var(--row-bg);
+  z-index: 100;
 }
 
 /* THE PROGRESS ENGINE - BACKGROUND INJECTION */
@@ -1683,7 +1669,7 @@
   align-items: flex-start;
   gap: 4px;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .astra-grid-row .astra-table-subtitle {
@@ -1723,29 +1709,7 @@
   color: #ef4444;
 }
 
-.astra-grid-row .astra-table-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  align-items: center;
-  position: sticky;
-  right: 0;
-  background: transparent;
-  padding-left: 30px;
-  padding-right: 15px;
-  z-index: 30;
-  pointer-events: none;
-}
-
-.astra-grid-row:hover .astra-table-actions {
-  background: transparent;
-}
-
 .astra-grid-header>div:last-child {
-  position: sticky;
-  right: 0;
-  background: transparent;
-  padding-left: 30px;
   padding-right: 15px;
   z-index: 25;
   text-align: right;
@@ -2507,30 +2471,30 @@
 
 .astra-modal-main {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: var(--astra-accent-a20) transparent;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
-.astra-modal-main::-webkit-scrollbar,
 .astra-table-wrap::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 12px;
+  height: 12px;
 }
 
-.astra-modal-main::-webkit-scrollbar-track,
 .astra-table-wrap::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.astra-modal-main::-webkit-scrollbar-thumb,
 .astra-table-wrap::-webkit-scrollbar-thumb {
   background: var(--astra-accent-a20);
   border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
 }
 
-.astra-modal-main::-webkit-scrollbar-thumb:hover {
+.astra-table-wrap::-webkit-scrollbar-thumb:hover {
   background: var(--astra-accent-a50);
 }
 
@@ -2581,106 +2545,17 @@
   font-family: var(--astra-font-mono);
 }
 
-/* Horizontal Table Scroll - Nascosta native, custom sempre visibile */
+/* Table Wrap - unico container scrollabile, altezza fissa (fill remaining) */
 .astra-table-wrap {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: scroll;
+  overflow-y: auto;
   padding: 0 24px 0 24px;
-  scrollbar-width: none;
-}
-
-.astra-table-wrap::-webkit-scrollbar {
-  display: none;
-}
-
-/* Custom Scrollbar - Fixed in fondo, IDENTICO a quello verticale */
-.astra-scrollbar-fixed {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 6px;
-  height: 6px;
-  background: transparent;
-  z-index: 200;
-  padding: 0;
-  margin: 0;
-  border: none;
-  display: none;
-}
-
-.astra-scrollbar-fixed.visible {
-  display: block;
-}
-
-.astra-scrollbar-track {
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   position: relative;
-  cursor: pointer;
-  background: transparent;
-}
-
-.astra-scrollbar-thumb {
-  position: absolute;
-  top: 0;
-  height: 6px;
-  background: var(--astra-accent-a20);
-  border-radius: 10px;
-  cursor: grab;
-  transition: background 0.2s;
-  min-width: 30px;
-}
-
-.astra-scrollbar-thumb:hover {
-  background: var(--astra-accent-a50);
-}
-
-.astra-scrollbar-thumb:active {
-  cursor: grabbing;
-  background: var(--astra-accent-a50);
-}
-
-/* Custom Horizontal Scrollbar - Always Visible */
-.astra-custom-scrollbar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 12px;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 200;
-  display: none;
-  backdrop-filter: blur(5px);
-}
-
-.astra-custom-scrollbar.visible {
-  display: block;
-}
-
-.astra-custom-scrollbar-track {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  cursor: pointer;
-}
-
-.astra-custom-scrollbar-thumb {
-  position: absolute;
-  top: 2px;
-  height: 8px;
-  background: var(--astra-accent-a20);
-  border-radius: 4px;
-  cursor: grab;
-  transition: background 0.2s;
-}
-
-.astra-custom-scrollbar-thumb:hover {
-  background: var(--astra-accent-a50);
-}
-
-.astra-custom-scrollbar-thumb:active {
-  cursor: grabbing;
-  background: var(--astra-accent);
+  scrollbar-width: thin;
+  scrollbar-color: var(--astra-accent-a20) transparent;
 }
 
 .astra-table {
@@ -3035,33 +2910,24 @@
 
 
 
-#astra-dashboard-container {
-  position: relative;
-  background: var(--astra-bg);
-  padding: 0;
-  display: block;
-  width: 100%;
-}
+/* ID selector override rimosso - .astra-dashboard gestisce tutto */
 
 
 
 .astra-dashboard-top {
   padding: 24px 24px 0 24px;
   background: var(--astra-bg);
-  z-index: 100;
+  z-index: 1000;
   position: sticky;
   top: 0;
   left: 0;
   width: 100%;
+  flex-shrink: 0;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 
 
-.astra-table-spacer {
-  grid-column: span 1;
-  min-width: 20px;
-}
 
 @keyframes astraPop {
   from {

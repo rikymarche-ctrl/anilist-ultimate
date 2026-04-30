@@ -216,12 +216,14 @@ export class AstraService {
         query ($userId: Int, $type: MediaType) {
           MediaListCollection(userId: $userId, type: $type) {
             lists {
-              name
               entries {
                 mediaId
                 status
                 score(format: POINT_10)
                 progress
+                customLists
+                private
+                hiddenFromStatusLists
                 media {
                   title { romaji english native }
                   type
@@ -256,10 +258,9 @@ export class AstraService {
         if (!collection?.lists) return;
 
         for (const list of collection.lists) {
-          const listName = list.name;
           for (const entry of list.entries) {
             const existing = this.getWorkByMediaId(entry.mediaId);
-            
+
             if (existing) {
               const newTitle = entry.media.title.english || entry.media.title.romaji || entry.media.title.native;
               if (existing.status !== entry.status || existing.title !== newTitle) {
@@ -267,11 +268,25 @@ export class AstraService {
                 existing.status = entry.status;
                 updated++;
               }
-              // Sync list names (accumulate instead of overwrite)
-              if (!existing.customLists) existing.customLists = [];
-              if (!existing.customLists.includes(listName)) {
-                existing.customLists.push(listName);
+
+              // Extract custom lists from entry (same as modal)
+              existing.customLists = [];
+              if (entry.customLists) {
+                const customListsRaw = entry.customLists;
+                const customListsArray = typeof customListsRaw === 'object'
+                  ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
+                  : [];
+                existing.customLists = customListsArray;
               }
+
+              // Add Private and Hide from status lists flags (same as modal)
+              if (entry.private === true) {
+                existing.customLists.push('Private');
+              }
+              if (entry.hiddenFromStatusLists === true) {
+                existing.customLists.push('Hide from status lists');
+              }
+
               existing.genres = entry.media.genres || [];
               existing.episodes = entry.media.episodes;
               existing.chapters = entry.media.chapters;
@@ -280,7 +295,24 @@ export class AstraService {
             } else {
               const media = entry.media;
               const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
-              
+
+              // Extract custom lists from entry (same as modal)
+              let customListsArray: string[] = [];
+              if (entry.customLists) {
+                const customListsRaw = entry.customLists;
+                customListsArray = typeof customListsRaw === 'object'
+                  ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
+                  : [];
+              }
+
+              // Add Private and Hide from status lists flags (same as modal)
+              if (entry.private === true && !customListsArray.includes('Private')) {
+                customListsArray.push('Private');
+              }
+              if (entry.hiddenFromStatusLists === true && !customListsArray.includes('Hide from status lists')) {
+                customListsArray.push('Hide from status lists');
+              }
+
               const newWork: AstraWork = {
                 id: `w_${generateUUID()}`,
                 mediaId: entry.mediaId,
@@ -290,7 +322,7 @@ export class AstraService {
                 cover: media.coverImage.large || media.coverImage.medium,
                 anilistUrl: media.siteUrl,
                 status: entry.status,
-                customLists: [listName],
+                customLists: customListsArray,
                 tags: [],
                 seasons: [this.createDefaultSeason()],
                 notes: '',
@@ -319,12 +351,11 @@ export class AstraService {
       processResult(animeRes);
       processResult(mangaRes);
 
-      if (added > 0 || updated > 0) {
-        // Sort by updatedAt or mediaId to keep it consistent
-        this.works.sort((a, b) => b.updatedAt - a.updatedAt);
-        this.rebuildWorkIndex(); // BUG-031 Fix: Rebuild index after sync
-        await this.persist();
-      }
+      // Always persist after sync: customLists/private/hidden flags may have
+      // changed even when status/title didn't (which is what 'updated' tracks)
+      this.works.sort((a, b) => b.updatedAt - a.updatedAt);
+      this.rebuildWorkIndex();
+      await this.persist();
 
       log.info(`[AstraService] Sync complete: +${added} added, ~${updated} updated`);
       return { added, updated };

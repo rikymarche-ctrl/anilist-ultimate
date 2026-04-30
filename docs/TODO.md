@@ -49,7 +49,6 @@ direi che l add component possiamo aggiungerlo direttametne sopra eh, così guad
 
 mettere un altro tag +N, dove quando vai su N esce un popup dicendo tutte le altre liste di cui fa parte, anzi forse meglio farslo subito dopo il numero di ep? tanto lo status verrà tolto cacnellando ol opzione Flat/grouped e lasciando solo grouped
 
-
 Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su astra dashoboard, stessa cosa vale per ogni volta che su anilist la entry subisce modifiche
 
 ---
@@ -83,6 +82,7 @@ Ovviametne quando si clicca il + su anilist,m deve aggiornarsi anche le ntry su 
 - [X] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
 - [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
+- [ ] attenzione che il calendario c è ed ok, ma a votla compare anche la sezione airing, ovvero la duplicaizone del calendairo
 
 ---
 
