@@ -981,12 +981,12 @@ export class AstraDashboard extends BaseComponent {
     const sections = this.service!.getSections();
 
     return `
-      <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 110px)">
+      <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 105px)">
         <div class="astra-grid-header">
-          <div style="width: 80px">Cover</div>
+          <div style="width: 65px; justify-content: center; padding: 0;">Cover</div>
           <div class="astra-sortable" data-sort="title" style="width: 220px">Title</div>
-          <div class="astra-sortable" data-sort="type" style="width: 100px">Type</div>
-          <div class="astra-sortable" data-sort="score" style="width: 90px">Score</div>
+          <div class="astra-sortable" data-sort="type" style="width: 92px">Type</div>
+          <div class="astra-sortable" data-sort="score" style="width: 80px">Score</div>
           ${sections.map(s => `<div class="astra-sortable" data-sort="section-${s.id}">${s.name}</div>`).join('')}
           <div style="justify-content: center">Actions</div>
         </div>

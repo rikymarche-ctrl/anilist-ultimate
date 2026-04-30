@@ -1515,8 +1515,8 @@
 
 .astra-grid-header {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 70px;
-  gap: 15px;
+  grid-template-columns: 65px 220px 92px 80px var(--astra-dynamic-cols) 80px;
+  gap: 13px;
   padding: 15px 20px;
   background: var(--astra-bg-elev);
   border-bottom: 1px solid var(--astra-border-soft);
@@ -1538,14 +1538,16 @@
   padding: 0 10px;
 }
 
-.astra-grid-header>div:nth-child(n+3):not(:last-child),
-.astra-grid-row>.astra-edit-row:nth-child(n+3):not(:last-child) {
+.astra-grid-header>div:nth-child(n+2):not(:last-child),
+.astra-grid-row>.astra-edit-row:nth-child(n+2):not(:last-child) {
   justify-content: center;
   text-align: center;
 }
 
-.astra-grid-header>div:first-child {
-  padding-left: 0;
+.astra-grid-header>div:first-child,
+.astra-grid-row>div:first-child {
+  padding: 0;
+  justify-content: center;
 }
 
 .astra-grid-header>div:hover {
@@ -1554,8 +1556,8 @@
 
 .astra-grid-row {
   display: grid;
-  grid-template-columns: 80px 220px 100px 90px var(--astra-dynamic-cols) 70px;
-  gap: 15px;
+  grid-template-columns: 65px 220px 92px 80px var(--astra-dynamic-cols) 80px;
+  gap: 13px;
   padding: 12px 20px;
   align-items: center;
   position: relative;
