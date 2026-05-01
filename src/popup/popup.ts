@@ -48,7 +48,7 @@ async function handleLogin(): Promise<void> {
   try {
     // Disabilita bottone e mostra spinner
     loginBtn.disabled = true;
-    loginBtn.innerHTML = '<span class="spinner"></span> Synchronizing...';
+    loginBtn.innerHTML = '<span class="spinner"></span> Logging in...';
 
     const response = (await chrome.runtime.sendMessage({
       type: MSG.AUTH_LOGIN,
@@ -59,15 +59,15 @@ async function handleLogin(): Promise<void> {
       await checkAuthStatus(); // Aggiorna UI
     } else {
       console.error('[Popup] Login failed:', response.error);
-      alert(`Initialization failed: ${response.error || 'Unknown error'}`);
+      alert(`Login failed: ${response.error || 'Unknown error'}`);
       loginBtn.disabled = false;
-      loginBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Initialize Astra</span>';
+      loginBtn.innerHTML = '<i class="fa-solid fa-user-astronaut"></i> <span>Login with AniList</span>';
     }
   } catch (error) {
     console.error('[Popup] Login error:', error);
-    alert('Initialization failed. Please try again.');
+    alert('Login failed. Please try again.');
     loginBtn.disabled = false;
-    loginBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Initialize Astra</span>';
+    loginBtn.innerHTML = '<i class="fa-solid fa-user-astronaut"></i> <span>Login with AniList</span>';
   }
 }
 
@@ -77,12 +77,12 @@ async function handleLogin(): Promise<void> {
 async function handleLogout(): Promise<void> {
   try {
     // Conferma logout
-    if (!confirm('Are you sure you want to terminate the Astra session?')) {
+    if (!confirm('Are you sure you want to logout?')) {
       return;
     }
 
     logoutBtn.disabled = true;
-    logoutBtn.innerHTML = '<span class="spinner"></span> Terminating...';
+    logoutBtn.innerHTML = '<span class="spinner"></span> Logging out...';
 
     const response = (await chrome.runtime.sendMessage({
       type: MSG.AUTH_LOGOUT,
@@ -93,15 +93,15 @@ async function handleLogout(): Promise<void> {
       await checkAuthStatus(); // Aggiorna UI
     } else {
       console.error('[Popup] Logout failed');
-      alert('Termination failed. Please try again.');
+      alert('Logout failed. Please try again.');
       logoutBtn.disabled = false;
-      logoutBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>Terminate Session</span>';
+      logoutBtn.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket"></i> <span>Logout</span>';
     }
   } catch (error) {
     console.error('[Popup] Logout error:', error);
-    alert('Termination failed. Please try again.');
+    alert('Logout failed. Please try again.');
     logoutBtn.disabled = false;
-    logoutBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>Terminate Session</span>';
+    logoutBtn.innerHTML = '<i class="fa-solid fa-arrow-right-from-bracket"></i> <span>Logout</span>';
   }
 }
 
@@ -112,7 +112,7 @@ function updateUI(status: AuthStatusResponse): void {
   if (status.authenticated && status.userName) {
     // Utente autenticato
     authCard.classList.add('authenticated');
-    authStatusText.textContent = 'Synchronized';
+    authStatusText.textContent = 'Connected';
 
     statusIndicator.classList.remove('not-authenticated');
     statusIndicator.classList.add('authenticated');
@@ -123,7 +123,7 @@ function updateUI(status: AuthStatusResponse): void {
   } else {
     // Utente non autenticato
     authCard.classList.remove('authenticated');
-    authStatusText.textContent = 'Offline';
+    authStatusText.textContent = 'Disconnected';
 
     statusIndicator.classList.remove('authenticated');
     statusIndicator.classList.add('not-authenticated');
@@ -133,7 +133,7 @@ function updateUI(status: AuthStatusResponse): void {
 
     // Ripristina bottone login
     loginBtn.disabled = false;
-    loginBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Initialize Astra</span>';
+    loginBtn.innerHTML = '<i class="fa-solid fa-user-astronaut"></i> <span>Login with AniList</span>';
   }
 }
 
