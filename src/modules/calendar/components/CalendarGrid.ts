@@ -90,6 +90,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
           day,
           entries: entriesByDay[day] || [],
           isToday: day === today,
+          isExpanded: state.expandedDays.has(day),
           cardOptions: {
             layoutMode: preferences.layoutMode,
             showTime: preferences.showTime,
@@ -176,6 +177,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
       const shouldRerender =
         state.loading !== prevState.loading ||
         state.entries !== prevState.entries ||
+        state.expandedDays !== prevState.expandedDays ||
         !this.shallowEqualPreferences(state.preferences, prevState.preferences);
 
       if (shouldRerender) {

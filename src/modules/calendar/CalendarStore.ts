@@ -43,6 +43,7 @@ interface CalendarState {
 
   // UI state
   selectedDay: string | null;
+  expandedDays: Set<string>;
   countdownInterval: number | null;
 }
 
@@ -53,6 +54,7 @@ const initialState: CalendarState = {
   lastUpdate: null,
   preferences: { ...DEFAULT_CALENDAR_PREFERENCES },
   selectedDay: null,
+  expandedDays: new Set<string>(),
   countdownInterval: null,
 };
 
@@ -174,6 +176,22 @@ export class CalendarStore extends Store<CalendarState> {
   removeEntry(mediaId: number): void {
     const entries = this.getState().entries.filter((entry) => entry.mediaId !== mediaId);
     this.setState({ entries });
+  }
+
+  /**
+   * Toggle expanded state for a specific day
+   */
+  toggleExpandedDay(day: string): void {
+    const { expandedDays } = this.getState();
+    const newExpandedDays = new Set(expandedDays);
+    
+    if (newExpandedDays.has(day)) {
+      newExpandedDays.delete(day);
+    } else {
+      newExpandedDays.add(day);
+    }
+    
+    this.setState({ expandedDays: newExpandedDays });
   }
 
   /**

@@ -22,12 +22,12 @@ interface DayColumnProps {
   entries: AnimeEntry[];
   cardOptions: CardOptions;
   isToday?: boolean;
+  isExpanded?: boolean;
 }
 
 @injectable()
 export class DayColumn extends BaseComponent<DayColumnProps> {
   private animeCards: AnimeCard[] = [];
-  private isExpanded: boolean = false;
 
   constructor(
     @inject('DayColumnProps') props: DayColumnProps
@@ -36,11 +36,15 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
   }
 
   protected render(): HTMLElement {
-    const { day, entries, isToday, cardOptions } = this.props;
+    const { day, entries, isToday, cardOptions, isExpanded } = this.props;
 
     const column = this.createElement('div', {
       class: 'calendar-day-column',
     });
+
+    if (isExpanded) {
+      column.classList.add('calendar-day-column--expanded');
+    }
 
     if (isToday) {
       column.classList.add('calendar-day-column--today');
@@ -116,7 +120,7 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
 
           // Hide cards beyond maxCardsPerDay limit (if not expanded)
           const maxCards = this.props.cardOptions.maxCardsPerDay;
-          if (maxCards > 0 && index >= maxCards && !this.isExpanded) {
+          if (maxCards > 0 && index >= maxCards && !isExpanded) {
             card.hide();
           }
 
@@ -146,9 +150,9 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
         const remaining = entries.length - maxCards;
         const toggleBtn = this.createElement('button', { class: 'calendar-day-column__toggle' });
         toggleBtn.setAttribute('data-toggle', 'expand');
-        toggleBtn.setAttribute('aria-expanded', this.isExpanded ? 'true' : 'false');
-        toggleBtn.setAttribute('aria-label', this.isExpanded ? 'Show fewer anime' : `Show ${remaining} more anime`);
-        toggleBtn.textContent = this.isExpanded ? 'Show less' : `+${remaining} more`;
+        toggleBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+        toggleBtn.setAttribute('aria-label', isExpanded ? 'Show fewer anime' : `Show ${remaining} more anime`);
+        toggleBtn.textContent = isExpanded ? 'Show less' : `+${remaining} more`;
         entriesContainer.appendChild(toggleBtn);
       }
     }
@@ -160,45 +164,21 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
 
   protected attachEvents(): void {
     // Expand/collapse toggle
-    const toggleBtn = this.element.querySelector('.calendar-day-column__toggle');
+    const toggleBtn = this.element.querySelector('.calendar-day-column__toggle') as HTMLElement;
     if (toggleBtn) {
-      this.addEventListener(toggleBtn as HTMLElement, 'click', () => {
+      this.addEventListener(toggleBtn, 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         this.toggleExpand();
       });
     }
   }
 
   /**
-   * Toggle expand/collapse for max cards limit
+   * Toggle expand/collapse for max cards limit - delegates to store
    */
   private toggleExpand(): void {
-    this.isExpanded = !this.isExpanded;
-
-    const maxCards = this.props.cardOptions.maxCardsPerDay;
-    const toggleBtn = this.element.querySelector('.calendar-day-column__toggle') as HTMLButtonElement;
-
-    if (this.isExpanded) {
-      // Show all cards
-      this.animeCards.forEach((card) => {
-        card.show();
-      });
-
-      if (toggleBtn) {
-        toggleBtn.textContent = 'Show less';
-      }
-    } else {
-      // Hide cards beyond limit
-      this.animeCards.forEach((card, index) => {
-        if (maxCards > 0 && index >= maxCards) {
-          card.hide();
-        }
-      });
-
-      if (toggleBtn) {
-        const remaining = this.props.entries.length - maxCards;
-        toggleBtn.textContent = `+${remaining} more`;
-      }
-    }
+    calendarStore.toggleExpandedDay(this.props.day);
   }
 
   /**
