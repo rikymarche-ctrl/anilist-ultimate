@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuY5ytUpwpZ8V10d8Yh407gOueLrutdRVJG3ElImmGUtDmg/65c6lOmfAoo7k2WCI+vn74xxY8Fe11duHdJbpCjnr37VrTjaO7xMCRYhFvB/dX9WQIqN3Zg27m8KFksBoIqmIeufVXi+dfEBSfyTo45wtNnv9Fw6pyUrJSJPTBrW8uPNl8AyKpj43eiVw9jzTcd4iYDcQg4XfLm0esCr6pXMpKHGjV4ACQki3kFuo1aEIQNzbmeNSoeMgVJAncFM7fFVpj8E7k1fkeu55OQzqsXVkFQlSz2vVSrTklmjUBly6xYN3XnyRIV9oeLo3x624U9s89tfOjIxWiR+p6qO5lwIDAQAB",
   "name": "Anilist Ultimate",
   "version": "2.0.0",
   "description": "The ultimate Anilist extension suite. Modern calendar, hover comments, and more.",
   "author": "ExAstra",
   "homepage_url": "https://github.com/rikymarche-ctrl/anilist-ultimate",
-  "permissions": ["storage"],
+  "permissions": ["storage", "identity"],
   "host_permissions": [
     "https://anilist.co/*",
     "https://graphql.anilist.co/*"
@@ -14,6 +15,10 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
   },
   "action": {
     "default_icon": {

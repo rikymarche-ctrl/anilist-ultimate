@@ -37,6 +37,7 @@ export const TOKENS = {
 
   // Auth
   AuthTokenService: Symbol.for('AuthTokenService'),
+  AuthService: Symbol.for('AuthService'),
 
   // Theme
   ThemeManager: Symbol.for('ThemeManager'),

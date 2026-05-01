@@ -113,7 +113,6 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
    */
   public mount(parent: HTMLElement): void {
     if (this.mounted) {
-      console.warn('[BaseComponent] Component already mounted');
       return;
     }
 
@@ -127,7 +126,6 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
    */
   public unmount(): void {
     if (!this.mounted) {
-      console.warn('[BaseComponent] Component not mounted');
       return;
     }
 

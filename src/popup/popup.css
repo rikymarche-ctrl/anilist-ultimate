@@ -1,0 +1,220 @@
+/**
+ * @file popup.css
+ * @description Stili per il popup dell'estensione (login/logout UI)
+ * @author ExAstra
+ * @version 2.0.0
+ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --au-primary: #4a9eff;
+  --au-primary-hover: #3d8ae5;
+  --au-success: #4caf50;
+  --au-danger: #f44336;
+  --au-bg: #0b1622;
+  --au-bg-light: #152232;
+  --au-text: #cfe2f5;
+  --au-text-light: #8ba0b2;
+  --au-border: #1f2b3d;
+}
+
+body {
+  width: 320px;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+  background: var(--au-bg);
+  color: var(--au-text);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.version {
+  font-size: 11px;
+  color: var(--au-text-light);
+  letter-spacing: 0.5px;
+}
+
+.content {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, var(--au-primary) 0%, #667eea 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--au-text-light);
+  margin-bottom: 24px;
+}
+
+/* Auth Section */
+.auth-section {
+  background: var(--au-bg-light);
+  border: 1px solid var(--au-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.auth-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.auth-status.authenticated {
+  color: var(--au-success);
+}
+
+.auth-status.not-authenticated {
+  color: var(--au-text-light);
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-indicator.authenticated {
+  background: var(--au-success);
+  box-shadow: 0 0 8px var(--au-success);
+}
+
+.status-indicator.not-authenticated {
+  background: var(--au-text-light);
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--au-text);
+  margin-bottom: 12px;
+}
+
+/* Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  background: var(--au-primary);
+  color: white;
+  text-decoration: none;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.button:hover {
+  background: var(--au-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(74, 158, 255, 0.4);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button.secondary {
+  background: transparent;
+  border: 1px solid var(--au-border);
+  color: var(--au-text);
+  box-shadow: none;
+}
+
+.button.secondary:hover {
+  background: var(--au-bg-light);
+  border-color: var(--au-primary);
+  box-shadow: none;
+}
+
+.button.danger {
+  background: var(--au-danger);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+.button.danger:hover {
+  background: #d32f2f;
+  box-shadow: 0 6px 16px rgba(244, 67, 54, 0.4);
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hidden class */
+.hidden {
+  display: none !important;
+}
+
+/* Footer */
+.footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--au-border);
+  text-align: center;
+  font-size: 11px;
+  color: var(--au-text-light);
+  opacity: 0.8;
+}

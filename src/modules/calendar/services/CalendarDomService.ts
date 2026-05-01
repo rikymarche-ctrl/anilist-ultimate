@@ -255,7 +255,7 @@ export class CalendarDomService {
     return headerElement.closest('section') || headerElement.parentElement?.parentElement || null;
   }
 
-  public showAuthPrompt(): void {
+  public showAuthPrompt(onLoginClick: () => void): void {
     if (!this.containerElement) return;
     this.containerElement.innerHTML = `
       <div class="calendar-auth-prompt">
@@ -267,6 +267,15 @@ export class CalendarDomService {
         </div>
       </div>
     `;
+
+    // Aggiungi event listener al bottone
+    const loginBtn = this.containerElement.querySelector('.calendar-auth-prompt__btn');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', () => {
+        log.info('[CalendarDom] Login button clicked');
+        onLoginClick();
+      });
+    }
   }
 
   public getGrid(): CalendarGrid | null { return this.calendarGrid; }

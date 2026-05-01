@@ -5,11 +5,10 @@
  * Bootstrap sequence:
  *   1. Import reflect-metadata (required by tsyringe DI)
  *   2. Setup DI container (register all services and modules)
- *   3. Handle OAuth callback (extract token from URL hash)
- *   4. Initialize theme manager
- *   5. Load external resources (Font Awesome)
- *   6. Expose debug API on window
- *   7. Initialize all registered modules via ModuleRegistry
+ *   3. Initialize theme manager
+ *   4. Load external resources (Font Awesome)
+ *   5. Expose debug API on window
+ *   6. Initialize all registered modules via ModuleRegistry
  *
  * This file is injected as a content script into https://anilist.co/*
  * via the Chrome extension manifest (run_at: document_idle).
@@ -30,7 +29,6 @@ import { container } from '@core/di/container';
 import { TOKENS } from '@core/di/tokens';
 import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import type { ModuleRegistry } from '@core/modules/ModuleRegistry';
-import type { AuthTokenService } from '@core/auth/AuthTokenService';
 import { setupDI } from './setup';
 
 // Styles
@@ -62,29 +60,6 @@ function setupDebugExposure(config: IConfigManager, registry: ModuleRegistry): v
 }
 
 /**
- * Check for OAuth callback and save token
- */
-function checkOAuthCallback(authService: AuthTokenService): void {
-  if (window.location.hash && window.location.hash.includes('access_token')) {
-    try {
-      const params = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = params.get('access_token');
-      if (accessToken) {
-        log.info('OAuth token received, saving via AuthTokenService');
-
-        // Save using centralized service (migrates from legacy keys automatically)
-        authService.setToken(accessToken);
-
-        history.replaceState(null, document.title, window.location.pathname + window.location.search);
-        log.success('Access token saved successfully');
-      }
-    } catch (error) {
-      log.error('OAuth processing failed', error);
-    }
-  }
-}
-
-/**
  * Initialize the extension
  */
 async function init(): Promise<void> {
@@ -101,11 +76,7 @@ async function init(): Promise<void> {
     // Resolve services from container
     const config = container.resolve<IConfigManager>(TOKENS.Config);
     const registry = container.resolve<ModuleRegistry>(TOKENS.ModuleRegistry);
-    const authService = container.resolve<AuthTokenService>(TOKENS.AuthTokenService);
     console.log('[DEBUG] Services resolved');
-
-    // Setup OAuth handling
-    checkOAuthCallback(authService);
 
     // Initialize theme manager
     ThemeManager.getInstance();

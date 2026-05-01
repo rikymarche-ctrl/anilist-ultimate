@@ -1,125 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Anilist Ultimate</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anilist Ultimate</title>
+    <link rel="stylesheet" href="src/popup/popup.css" />
+  </head>
+  <body>
+    <div class="header">
+      <h1>Anilist Ultimate</h1>
+      <div class="version">2.0.0</div>
+    </div>
 
-    :root {
-      --au-primary: #4a9eff;
-      --au-bg: #0b1622;
-      --au-text: #cfe2f5;
-      --au-text-light: #8ba0b2;
-      --au-border: #1f2b3d;
-    }
+    <div class="content">
+      <div class="logo">📅</div>
 
-    body {
-      width: 320px;
-      padding: 24px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: var(--au-bg);
-      color: var(--au-text);
-    }
+      <!-- Auth Section -->
+      <div class="auth-section">
+        <div class="auth-status not-authenticated" id="auth-status">
+          <span class="status-indicator not-authenticated" id="status-indicator"></span>
+          Not authenticated
+        </div>
+        <div class="user-name hidden" id="user-name"></div>
 
-    .header {
-      text-align: center;
-      margin-bottom: 24px;
-    }
+        <!-- Login Button (shown when not authenticated) -->
+        <button class="button" id="login-btn">Login with AniList</button>
 
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 4px;
-      color: #fff;
-    }
+        <!-- Logout Button (shown when authenticated) -->
+        <button class="button danger hidden" id="logout-btn">Logout</button>
+      </div>
 
-    .version {
-      font-size: 11px;
-      color: var(--au-text-light);
-      letter-spacing: 0.5px;
-    }
+      <p class="description">
+        Modern anime calendar and tracking extension for Anilist.
+      </p>
 
-    .content {
-      text-align: center;
-      padding: 10px 0;
-    }
+      <a
+        href="https://anilist.co"
+        class="button secondary"
+        id="open-anilist-btn"
+        target="_blank"
+      >
+        Open Anilist
+      </a>
+    </div>
 
-    .logo {
-      width: 64px;
-      height: 64px;
-      margin: 0 auto 20px;
-      background: linear-gradient(135deg, var(--au-primary) 0%, #667eea 100%);
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-    }
+    <div class="footer">Built with ❤️ for the Anilist community</div>
 
-    .description {
-      font-size: 14px;
-      line-height: 1.5;
-      color: var(--au-text-light);
-      margin-bottom: 24px;
-    }
-
-    .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 24px;
-      background: var(--au-primary);
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 14px;
-      transition: all 0.2s;
-      box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
-    }
-
-    .button:hover {
-      background: #3d8ae5;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(74, 158, 255, 0.4);
-    }
-
-    .footer {
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 1px solid var(--au-border);
-      text-align: center;
-      font-size: 11px;
-      color: var(--au-text-light);
-      opacity: 0.8;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>Anilist Ultimate</h1>
-    <div class="version">2.0.0</div>
-  </div>
-
-  <div class="content">
-    <div class="logo">📅</div>
-    <p class="description">
-      Modern anime calendar and tracking extension for Anilist.
-    </p>
-    <a href="https://anilist.co" class="button" target="_blank">
-      Open Anilist
-    </a>
-  </div>
-
-  <div class="footer">
-    Built with ❤️ for the Anilist community
-  </div>
-</body>
+    <script type="module" src="src/popup/popup.ts"></script>
+  </body>
 </html>

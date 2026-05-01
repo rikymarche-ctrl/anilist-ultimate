@@ -98,10 +98,12 @@ export class SocialRenderer {
     const positionAndShow = () => {
       if (!bubble) return;
       
-      // Make visible off-screen to calculate height
+      // Use absolute positioning relative to document to scroll WITH the page
+      bubble.style.position = 'absolute';
       bubble.style.left = '-9999px';
       bubble.style.top = '-9999px';
       bubble.style.transform = 'none';
+      bubble.style.zIndex = '3000';
       bubble.classList.add('visible');
 
       // Force reflow
@@ -116,7 +118,7 @@ export class SocialRenderer {
       
       // Prevent from going off-screen vertically
       const padding = 10;
-      if (top < padding) {
+      if (top + window.scrollY < padding) {
         top = cardRect.bottom + 3;
       }
 

@@ -18,7 +18,7 @@ import { TOKENS } from '@core/di/tokens';
 import { html, map, when } from '@core/utils/Template';
 import type { CalendarPreferences } from '@core/types';
 import type { IApiClient } from '@core/interfaces/IApiClient';
-import type { AuthTokenService } from '@core/auth/AuthTokenService';
+import { MSG, type AuthLoginResponse } from '@shared/messages';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -32,8 +32,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
   constructor(
     @inject('SettingsPanelProps') props: SettingsPanelProps,
-    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
-    @inject(TOKENS.AuthTokenService) private authTokenService: AuthTokenService
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient
   ) {
     super(props);
   }
@@ -336,8 +335,21 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   private setupAccountEvents(): void {
     const authBtn = this.element.querySelector('#auth-button');
     if (authBtn) {
-      this.addEventListener(authBtn as HTMLElement, 'click', () => {
-        window.open(this.apiClient.getAuthUrl(), '_blank');
+      this.addEventListener(authBtn as HTMLElement, 'click', async () => {
+        try {
+          const response = await chrome.runtime.sendMessage({
+            type: MSG.AUTH_LOGIN,
+          }) as AuthLoginResponse;
+
+          if (response.success) {
+            log.success('Logged in successfully');
+            this.updateAuthStatus();
+          } else {
+            log.error('Login failed:', response.error);
+          }
+        } catch (error) {
+          log.error('Login error:', error);
+        }
       });
     }
 
@@ -421,11 +433,16 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     this.close();
   }
 
-  private handleLogout(): void {
+  private async handleLogout(): Promise<void> {
     if (confirm('Are you sure you want to logout?')) {
-      this.authTokenService.clearToken();
-      log.success('Logged out');
-      this.updateAuthStatus();
+      try {
+        await chrome.runtime.sendMessage({ type: MSG.AUTH_LOGOUT });
+        log.success('Logged out');
+        // chrome.storage.onChanged listener in AuthTokenService aggiornera' automaticamente
+        this.updateAuthStatus();
+      } catch (error) {
+        log.error('Logout error:', error);
+      }
     }
   }
 

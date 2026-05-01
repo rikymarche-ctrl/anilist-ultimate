@@ -50,6 +50,12 @@ export class HoverCommentsModule extends BaseModule {
   }
 
   public async init(): Promise<void> {
+    // Auth guard: modulo richiede autenticazione
+    if (!this.apiClient.isAuthenticated()) {
+      this.logger.warn('[HoverComments] Not authenticated, deferring initialization');
+      return; // Non crasha, semplicemente non si attiva
+    }
+
     this.logger.info('[HoverComments] Initializing...');
     await this.loadCache();
 

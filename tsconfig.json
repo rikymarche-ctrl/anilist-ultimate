@@ -31,7 +31,8 @@
       "@/*": ["src/*"],
       "@core/*": ["src/core/*"],
       "@modules/*": ["src/modules/*"],
-      "@ui/*": ["src/ui/*"]
+      "@ui/*": ["src/ui/*"],
+      "@shared/*": ["src/shared/*"]
     },
 
     /* Chrome Extension Types */

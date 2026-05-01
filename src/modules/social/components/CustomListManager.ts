@@ -17,7 +17,7 @@ import { SocialService } from '../SocialService';
 import { CustomListService, CustomListUser } from '../CustomListService';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
-import type { IApiClient } from '@core/interfaces/IApiClient';
+import { MSG, type AuthLoginResponse } from '@shared/messages';
 
 @injectable()
 export class CustomListManager extends BaseComponent<Record<string, never>> {
@@ -29,8 +29,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
 
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
-    @inject(TOKENS.CustomListService) private listService: CustomListService,
-    @inject(TOKENS.ApiClient) private apiClient: IApiClient
+    @inject(TOKENS.CustomListService) private listService: CustomListService
   ) {
     super({});
   }
@@ -141,8 +140,22 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
         </div>
       `;
 
-      content.querySelector('.au-cl-login-btn')?.addEventListener('click', () => {
-        window.open(this.apiClient.getAuthUrl(), '_blank');
+      content.querySelector('.au-cl-login-btn')?.addEventListener('click', async () => {
+        try {
+          const response = await chrome.runtime.sendMessage({
+            type: MSG.AUTH_LOGIN,
+          }) as AuthLoginResponse;
+
+          if (response.success) {
+            log.success('Logged in successfully');
+            // Ricarica la pagina per aggiornare la UI
+            location.reload();
+          } else {
+            log.error('Login failed:', response.error);
+          }
+        } catch (error) {
+          log.error('Login error:', error);
+        }
       });
     }
   }

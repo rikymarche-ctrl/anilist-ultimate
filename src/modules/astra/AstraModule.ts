@@ -53,10 +53,15 @@ export class AstraModule extends BaseModule {
   public async init(): Promise<void> {
     log.group('Astra Module Initialization');
 
-    // Do not await service init to avoid blocking other modules (like Calendar)
-    this.service.init().then(() => {
-      log.success('[Astra] Service data loaded');
-    });
+    // Auth guard: skip service init se non autenticato (ma il modulo puo' comunque iniettare UI)
+    if (this.apiClient.isAuthenticated()) {
+      // Do not await service init to avoid blocking other modules (like Calendar)
+      this.service.init().then(() => {
+        log.success('[Astra] Service data loaded');
+      });
+    } else {
+      log.warn('[Astra] Not authenticated, skipping service initialization (UI will still work)');
+    }
 
     this.onPageChange(async (event) => {
       const path = event?.path || window.location.pathname;

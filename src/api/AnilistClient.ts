@@ -24,7 +24,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import { GraphQLClient } from 'graphql-request';
-import { API_CONFIG, OAUTH_CONFIG } from '@core/constants';
+import { API_CONFIG } from '@core/constants';
 import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
 import { ApiError } from '@core/errors/ErrorTypes';
@@ -69,17 +69,12 @@ export class AnilistClient implements IApiClient {
   private queue: RequestQueueItem[] = [];
   private activeRequests = 0;
   private isRateLimited = false;
-  private accessToken: string | null = null;
 
   constructor(
     @inject(TOKENS.ErrorHandler) private errorHandler: IErrorHandler,
     @inject(TOKENS.AuthTokenService) private authTokenService: AuthTokenService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
-    // CRITICAL: Load token BEFORE creating GraphQLClient
-    // Otherwise headers won't include Authorization on first request
-    this.loadAccessToken();
-
     // Now create client with correct headers (including auth if available)
     this.client = new GraphQLClient(API_CONFIG.ENDPOINT, {
       headers: this.getHeaders(),
@@ -87,28 +82,8 @@ export class AnilistClient implements IApiClient {
 
     // Subscribe to auth state changes to update headers
     this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => {
-      this.loadAccessToken();
       this.updateHeaders();
     });
-  }
-
-  /**
-   * Load access token from AuthTokenService
-   */
-  private loadAccessToken(): void {
-    try {
-      const token = this.authTokenService.getToken();
-      if (token) {
-        this.accessToken = token;
-        log.info('Access token loaded from AuthTokenService');
-      } else {
-        this.accessToken = null;
-        log.warn('No access token available');
-      }
-    } catch (error) {
-      log.error('Failed to load access token', error);
-      this.accessToken = null;
-    }
   }
 
   /**
@@ -123,13 +98,6 @@ export class AnilistClient implements IApiClient {
    */
   public isAuthenticated(): boolean {
     return !!this.authTokenService.getToken();
-  }
-
-  /**
-   * Get authorization URL for OAuth
-   */
-  public getAuthUrl(): string {
-    return `${OAUTH_CONFIG.AUTH_URL}?client_id=${OAUTH_CONFIG.CLIENT_ID}&redirect_uri=${OAUTH_CONFIG.REDIRECT_URI}&response_type=${OAUTH_CONFIG.RESPONSE_TYPE}`;
   }
 
   /**
@@ -150,8 +118,9 @@ export class AnilistClient implements IApiClient {
       Accept: 'application/json',
     };
 
-    if (this.accessToken) {
-      headers.Authorization = `Bearer ${this.accessToken}`;
+    const token = this.authTokenService.getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
 
     return headers;
@@ -213,7 +182,7 @@ export class AnilistClient implements IApiClient {
       } else if (item.retries < API_CONFIG.RETRY_ATTEMPTS) {
         const delay = Math.pow(2, item.retries) * 1000; // Exponential backoff: 1s, 2s, 4s...
         log.warn(`Request failed, retry ${item.retries + 1}/${API_CONFIG.RETRY_ATTEMPTS} in ${delay}ms`);
-        
+
         item.retries++;
         setTimeout(() => {
           this.queue.unshift(item);
@@ -264,6 +233,9 @@ export class AnilistClient implements IApiClient {
   private async executeRequest(item: RequestQueueItem): Promise<any> {
     log.debug('Executing GraphQL request', { variables: item.variables });
 
+    // Ensure headers are fresh before each request (BUG-FIX: stale token on init)
+    this.updateHeaders();
+
     try {
       const data = await this.client.request(item.query, item.variables);
       return data;
@@ -272,7 +244,8 @@ export class AnilistClient implements IApiClient {
       const statusCode = isApiError(error) ? error.response?.status : undefined;
       if (statusCode === 401 || statusCode === 403) {
         log.error('Authentication error - token may be invalid');
-        this.accessToken = null;
+        // Token will be cleared by AuthTokenService if needed, but we should clear queue
+        this.clearQueue();
         throw new ApiError('Authentication required', statusCode, 'GraphQL', 0, error instanceof Error ? error : undefined);
       }
 

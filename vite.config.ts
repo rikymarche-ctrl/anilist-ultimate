@@ -11,6 +11,7 @@ export default defineConfig({
       '@core': resolve(__dirname, 'src/core'),
       '@modules': resolve(__dirname, 'src/modules'),
       '@ui': resolve(__dirname, 'src/ui'),
+      '@shared': resolve(__dirname, 'src/shared'),
     },
   },
   build: {
@@ -27,13 +28,13 @@ export default defineConfig({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.debug', 'console.info'], // Aggressive removal
+        drop_console: false, // TEMPORANEO: mantengo i log per debug
+        drop_debugger: false,
+        // pure_funcs: ['console.log', 'console.debug', 'console.info'],
         passes: 2,
       },
       format: {
-        comments: false, // Remove all comments
+        comments: false,
       },
     },
     reportCompressedSize: true,

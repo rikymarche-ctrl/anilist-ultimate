@@ -28,6 +28,7 @@ import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import { CalendarDomService } from './services/CalendarDomService';
 import { CalendarDataService } from './services/CalendarDataService';
 import { CalendarSocialService } from './services/CalendarSocialService';
+import { AuthService } from '@core/auth/AuthService';
 import { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { SettingsPanel } from './components/SettingsPanel';
 import { MediaListStatus } from '@/api/AnilistTypes';
@@ -44,6 +45,7 @@ export class CalendarModule extends BaseModule {
     @inject(TOKENS.CalendarSocialService) private socialService: CalendarSocialService,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.Config) private config: IConfigManager,
+    @inject(TOKENS.AuthService) private auth: AuthService,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -231,7 +233,16 @@ export class CalendarModule extends BaseModule {
   private async handleUnauthenticated(): Promise<void> {
     const calendarContainer = await this.domService.injectCalendar(() => {}, () => {}, async () => {});
     if (calendarContainer) {
-      this.domService.showAuthPrompt();
+      this.domService.showAuthPrompt(async () => {
+        try {
+          await this.auth.login();
+          log.success('[Calendar] Login successful, reloading page...');
+          window.location.reload();
+        } catch (error) {
+          log.error('[Calendar] Login error:', error);
+          alert('Login failed. Please try again.');
+        }
+      });
     }
   }
 

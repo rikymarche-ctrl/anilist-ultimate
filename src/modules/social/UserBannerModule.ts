@@ -8,6 +8,7 @@ import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { CustomListService, CustomListUser } from './CustomListService';
 import { SocialService } from './SocialService';
@@ -19,6 +20,7 @@ export class UserBannerModule extends BaseModule {
   private currentUser: CustomListUser | null = null;
 
   constructor(
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.CustomListService) private listService: CustomListService,
     @inject(TOKENS.SocialService) private socialService: SocialService,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
@@ -29,6 +31,12 @@ export class UserBannerModule extends BaseModule {
   }
 
   public async init(): Promise<void> {
+    // Auth guard: modulo richiede autenticazione
+    if (!this.apiClient.isAuthenticated()) {
+      log.warn('[UserBannerModule] Not authenticated, deferring initialization');
+      return;
+    }
+
     log.info('[UserBannerModule] Initializing...');
 
     // Load lists data

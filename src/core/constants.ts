@@ -56,12 +56,13 @@ export const API_CONFIG = {
 // ============================================================================
 // OAuth Configuration
 // ============================================================================
+// NOTE: OAuth flow migrato a chrome.identity (background.ts).
+//       Questi valori sono mantenuti per reference, ma il flusso OAuth
+//       non li usa più direttamente dal content script.
 
 export const OAUTH_CONFIG = {
   CLIENT_ID: '17661', // Anilist OAuth Client ID (public)
-  REDIRECT_URI: 'https://anilist.co/api/v2/oauth/pin',
   AUTH_URL: 'https://anilist.co/api/v2/oauth/authorize',
-  RESPONSE_TYPE: 'token',
 } as const;
 
 // ============================================================================

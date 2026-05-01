@@ -43,6 +43,7 @@ import { syncStorage } from '@core/storage/StorageManager';
 import { logger } from '@core/logger';
 import { ThemeManager } from '@core/ThemeManager';
 import { AuthTokenService } from '@core/auth/AuthTokenService';
+import { AuthService } from '@core/auth/AuthService';
 import { ToastService } from '@core/services/ToastService';
 
 // Feature Services
@@ -137,6 +138,7 @@ export async function setupDI(): Promise<void> {
 
   // AuthTokenService (singleton)
   container.registerSingleton(TOKENS.AuthTokenService, AuthTokenService);
+  container.registerSingleton(TOKENS.AuthService, AuthService);
 
   // ============================================================================
   // Theme
@@ -198,6 +200,11 @@ export async function setupDI(): Promise<void> {
   const navigationService = container.resolve<NavigationService>(TOKENS.NavigationService);
   navigationService.start();
   console.log('[Setup] Navigation service started');
+
+  // Initialize AuthTokenService (load token from chrome.storage.local)
+  const authTokenService = container.resolve<AuthTokenService>(TOKENS.AuthTokenService);
+  await authTokenService.initialize();
+  console.log('[Setup] Auth token service initialized');
 
   // ============================================================================
   // Register Modules

@@ -94,13 +94,25 @@ export class AstraDashboard extends BaseComponent {
     log.debug('[AstraDashboard] Opening dashboard...');
     if (this.overlay) return;
 
-    // BUG-FIX: Explicitly force all filter states to 'all' to ensure UI consistency
+    // Reset filters
     this.state.type = 'all';
     this.state.country = 'all';
     this.state.status = 'all';
     this.state.anilistStatus = 'all';
     this.state.search = '';
     this.state.activeTab = 'dashboard';
+
+    // Optimize: Collapse all groups by default except WATCHING and READING
+    this.state.collapsedGroups = new Set([
+      MediaListStatus.COMPLETED,
+      MediaListStatus.PLAN_TO_WATCH,
+      MediaListStatus.PLAN_TO_READ,
+      MediaListStatus.PAUSED,
+      MediaListStatus.DROPPED,
+      MediaListStatus.REWATCHING,
+      MediaListStatus.REREADING,
+      'UNKNOWN'
+    ]);
 
     // Ensure service is initialized before first render to avoid "0 entries" glitch
     await this.service.init();

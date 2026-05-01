@@ -51,9 +51,9 @@
 
 /* Portal bubbles use fixed positioning - no clipping needed */
 
-/* Social bubble portal - created via JavaScript with position: fixed */
+/* Social bubble portal - created via JavaScript with position: absolute */
 .au-social-bubble-portal {
-  position: fixed !important;
+  position: absolute !important;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.2s ease, visibility 0.2s ease;

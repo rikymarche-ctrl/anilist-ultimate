@@ -21,11 +21,6 @@ export interface IApiClient {
   getAccessToken(): string | null;
 
   /**
-   * Get authorization URL for OAuth
-   */
-  getAuthUrl(): string;
-
-  /**
    * Get current user ID
    */
   getCurrentUserId(): Promise<number>;
