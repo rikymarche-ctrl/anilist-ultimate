@@ -26,6 +26,8 @@ import { injectable, inject } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
+import { EVENT_TYPES } from '@core/events/EventTypes';
+import { calendarStore } from '@/modules/calendar/CalendarStore';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
@@ -33,7 +35,6 @@ import type { ToastService } from '@core/services/ToastService';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
 import { AstraRatingModal } from './ui/AstraRatingModal';
-import type { CalendarStore } from '../calendar/CalendarStore';
 
 @injectable()
 export class AstraModule extends BaseModule {
@@ -41,7 +42,6 @@ export class AstraModule extends BaseModule {
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard,
     @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal,
-    @inject(TOKENS.CalendarStore) private calendarStore: CalendarStore,
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.ToastService) private toast: ToastService,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
@@ -82,6 +82,13 @@ export class AstraModule extends BaseModule {
     // Initialize Progress Enhancer for home page cards
     this.initProgressEnhancer();
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // UI INJECTION - Complete Separation of Concerns
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // 1. Global Navbar Button: ALWAYS present, works everywhere
+    this.injectGlobalDashboardButton();
+
     log.groupEnd();
   }
 
@@ -105,6 +112,127 @@ export class AstraModule extends BaseModule {
 
     nav.appendChild(astraLink);
   }
+
+  /**
+   * Injects the Astra Dashboard button into the global AniList navigation bar.
+   * Uses SharedGlobalObserver to handle dynamic re-renders of the nav.
+   *
+   * SEPARATION OF CONCERNS:
+   * - This method handles ONLY the global navbar button (always present)
+   * - Home page fallback is handled separately in setupHomeFallback()
+   */
+  private injectGlobalDashboardButton(): void {
+    let lastInjectionTime = 0;
+    let injectionCount = 0;
+
+    const injectNavButton = () => {
+      // Strategy 1: Find .links container in navbar
+      let navLinks = document.querySelector('.nav .links')
+        || document.querySelector('.header .links')
+        || document.querySelector('.nav-wrap .links');
+
+      // Strategy 2: Find via existing Browse/Social links (more robust)
+      if (!navLinks) {
+        const browseLink = document.querySelector('a[href^="/browse"]')
+          || document.querySelector('a.link[href*="browse"]');
+        const socialLink = document.querySelector('a[href="/social"]')
+          || document.querySelector('a.link[href*="social"]');
+        navLinks = browseLink?.parentElement || socialLink?.parentElement || null;
+      }
+
+      // Strategy 3: Find any .link container in header/nav
+      if (!navLinks) {
+        const anyLink = document.querySelector('.nav a.link, .header a.link');
+        navLinks = anyLink?.parentElement || null;
+      }
+
+      if (!navLinks) {
+        // Silently fail if navbar not ready yet
+        return false;
+      }
+
+      // Check if already injected
+      if (navLinks.querySelector('.au-astra-nav')) {
+        return true; // Already present
+      }
+
+      // Throttle logging (solo ogni 2 secondi per non spammare)
+      const now = Date.now();
+      const shouldLog = (now - lastInjectionTime) > 2000;
+      lastInjectionTime = now;
+      injectionCount++;
+
+      if (shouldLog) {
+        log.info(`[Astra] Injecting navbar button (attempt #${injectionCount})`);
+      }
+
+      const astraLink = document.createElement('a');
+      astraLink.className = 'link au-astra-nav';
+      astraLink.href = '/astra';
+      astraLink.style.display = 'inline-flex';
+      astraLink.style.alignItems = 'center';
+      astraLink.style.gap = '0px';
+      astraLink.style.color = 'var(--astra-accent, #3db4f2)';
+      astraLink.style.fontWeight = '700';
+      astraLink.style.transition = 'all 0.2s';
+      astraLink.style.padding = '0 10px';
+
+      astraLink.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" 
+             style="width: 16px; height: 16px; transform: translateY(-1px); flex-shrink: 0; margin-right: -2px;">
+          <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
+        </svg>
+        <span class="desktop" style="line-height: 1; text-transform: none;">stra</span>
+      `;
+
+      astraLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN);
+      });
+
+      navLinks.appendChild(astraLink);
+
+      if (shouldLog) {
+        log.success('[Astra] Navbar button injected successfully');
+      }
+
+      return true;
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TRIPLE DEFENSE STRATEGY against React navbar re-renders
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // 1. Immediate attempt
+    injectNavButton();
+
+    // 2. Aggressive initial polling (first 15 seconds, every 200ms)
+    let earlyAttempts = 0;
+    const earlyInterval = setInterval(() => {
+      injectNavButton();
+      earlyAttempts++;
+      if (earlyAttempts >= 75) { // 75 * 200ms = 15 seconds
+        clearInterval(earlyInterval);
+      }
+    }, 200);
+
+    // 3. Long-term persistent polling (every 1 second, forever)
+    //    React può ridisegnare la navbar in qualsiasi momento
+    setInterval(() => {
+      injectNavButton();
+    }, 1000);
+
+    // 4. MutationObserver fallback
+    this.sharedObserver.register('astra-global-nav', () => injectNavButton());
+
+    // 5. Navigation event listener (SPA page changes)
+    this.eventBus.on(EVENT_TYPES.PAGE_CHANGED, () => {
+      // Delay per permettere a React di finire il render
+      setTimeout(() => injectNavButton(), 100);
+      setTimeout(() => injectNavButton(), 500);
+    });
+  }
+
 
   private renderDashboard(): void {
     const container = document.querySelector('.user .content');
@@ -135,12 +263,12 @@ export class AstraModule extends BaseModule {
     });
 
     // React to social preference changes: patch existing processed cards in place
-    this.calendarStore.subscribeToSelector(
-      state => ({
+    calendarStore.subscribeToSelector(
+      (state: any) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
       }),
-      (curr) => {
+      (curr: any) => {
         this.refreshNativeCardSocialPills(curr.socialEnabled, curr.socialShowAvatars);
       }
     );
@@ -180,7 +308,7 @@ export class AstraModule extends BaseModule {
         const card = wrapper.closest<HTMLElement>('.media-preview-card, .media-card');
         const titleEl = card?.querySelector('.title');
         const title = titleEl?.textContent?.trim() || 'Anime';
-        
+
         // Extract type from link
         const link = (card as any)?.href || card?.querySelector<HTMLAnchorElement>('a.cover')?.href || card?.querySelector<HTMLAnchorElement>('a')?.href;
         const typeMatch = link?.match(/\/(anime|manga)\//);
@@ -197,6 +325,14 @@ export class AstraModule extends BaseModule {
     this.enhanceNativeCards();
   }
 
+  /**
+   * Enhances media cards with Astra action pills (quick rate, increment progress, etc.)
+   *
+   * LOGIC SEPARATION:
+   * - Home Page "In Progress": Pills ONLY if Calendar is present (operates on calendar cards)
+   * - User Lists (/animelist, /mangalist): Pills ALWAYS (independent from calendar)
+   * - Media Page Sidebar: Pills ALWAYS (independent from calendar)
+   */
   private enhanceNativeCards(): void {
     const path = window.location.pathname;
     const isHome = path === '/' || path === '/home';
@@ -205,36 +341,62 @@ export class AstraModule extends BaseModule {
 
     if (!isHome && !isUserList && !isMediaPage) return;
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // HOME PAGE: Pills only for Calendar cards
+    // ══════════════════════════════════════════════════════════════════════════
     if (isHome) {
-      // Restore 'Missing UI Elements' - Target 'In Progress' sections by searching for H2 text
-      const headers = Array.from(document.querySelectorAll('h2, .section-header'));
+      const calendarPresent = !!document.querySelector('#anilist-calendar');
 
-      headers.forEach(header => {
-        const headerText = header.textContent?.toLowerCase() || '';
+      if (calendarPresent) {
+        log.debug('[Astra] Calendar present, adding pills to "In Progress" cards');
 
-        // Skip Airing/Schedule sections to avoid fighting with CalendarModule
-        if (headerText.includes('airing') || headerText.includes('schedule')) {
-          return;
-        }
+        // Find "In Progress" sections (Calendar target)
+        const headers = Array.from(document.querySelectorAll('h2, .section-header'));
 
-        if (headerText.includes('in progress')) {
-          const sectionContainer = header.closest('.list-preview-wrap, .list-preview, .section, [data-v-4f9e87dc]');
-          if (sectionContainer && !sectionContainer.querySelector('#au-calendar')) {
-            const cards = sectionContainer.querySelectorAll('.media-preview-card, .media-card');
-            log.info(`[Astra] Found "In Progress" section ("${headerText}") with ${cards.length} cards`);
-            cards.forEach(card => {
-              this.processCard(card as HTMLElement, true);
-            });
+        headers.forEach(header => {
+          const headerText = header.textContent?.toLowerCase() || '';
+
+          // Skip Airing/Schedule sections (Calendar manages those)
+          if (headerText.includes('airing') || headerText.includes('schedule')) {
+            return;
           }
-        }
-      });
-    } else if (isUserList) {
-      // Standard list cards
+
+          if (headerText.includes('in progress')) {
+            const sectionContainer = header.closest('.list-preview-wrap, .list-preview, .section, [data-v-4f9e87dc]');
+            if (sectionContainer) {
+              const cards = sectionContainer.querySelectorAll('.media-preview-card, .media-card');
+              log.info(`[Astra] Enhancing ${cards.length} cards in "In Progress" section`);
+              cards.forEach(card => {
+                this.processCard(card as HTMLElement, true);
+              });
+            }
+          }
+        });
+      } else {
+        // Calendar not present - remove any pills that might have been left
+        log.debug('[Astra] Calendar not present, removing pills from home page');
+        document.querySelectorAll('.au-pill-wrapper').forEach(p => {
+          // Only remove pills on home page, not on user lists or media pages
+          if (p.closest('.list-preview-wrap, .list-preview')) {
+            p.remove();
+          }
+        });
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // USER LISTS: Pills always present (independent from Calendar)
+    // ══════════════════════════════════════════════════════════════════════════
+    if (isUserList) {
+      log.debug('[Astra] Enhancing user list cards');
       document.querySelectorAll('.media-preview-card, .media-card').forEach(card => {
         this.processCard(card as HTMLElement, true);
       });
     }
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // MEDIA PAGE: Pills in sidebar (independent from Calendar)
+    // ══════════════════════════════════════════════════════════════════════════
     if (isMediaPage) {
       this.enhanceMediaPageSidebar();
     }
@@ -298,7 +460,7 @@ export class AstraModule extends BaseModule {
    * Helper to render the common action pill HTML
    */
   private renderPillHTML(showMarkWatched: boolean, isSidebar: boolean = false): string {
-    const { socialEnabled, socialShowAvatars } = this.calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
     const showSocial = socialEnabled && !socialShowAvatars;
 
     const socialHTML = showSocial ? `
@@ -336,7 +498,7 @@ export class AstraModule extends BaseModule {
    * @param isUserListCard - If false (trending/newly added), skip the mark-watched button.
    */
   private injectCardPill(card: HTMLElement, mediaId: number, isUserListCard: boolean): void {
-    const { socialEnabled, socialShowAvatars } = this.calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
     const showPillSocial = socialEnabled && !socialShowAvatars;
 
     const socialSectionHTML = showPillSocial ? `
@@ -491,6 +653,7 @@ export class AstraModule extends BaseModule {
   public override async destroy(): Promise<void> {
     // BUG-007 fix: Unregister from SharedGlobalObserver
     this.sharedObserver.unregister('astra-progress-enhancer');
+    this.sharedObserver.unregister('astra-global-nav');
     await super.destroy();
   }
 }

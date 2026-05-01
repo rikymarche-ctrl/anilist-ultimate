@@ -194,9 +194,6 @@ export class CalendarModule extends BaseModule {
       const astraEnabled = this.config.isFeatureEnabled('astra');
       const calendarContainer = await this.domService.injectCalendar(
         () => this.handleSettingsClick(),
-        () => {
-          this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN);
-        },
         (mediaId) => this.handleMarkWatched(mediaId),
         astraEnabled
       );
@@ -234,7 +231,7 @@ export class CalendarModule extends BaseModule {
 
   private async handleUnauthenticated(): Promise<void> {
     const astraEnabled = this.config.isFeatureEnabled('astra');
-    const calendarContainer = await this.domService.injectCalendar(() => {}, () => {}, async () => {}, astraEnabled);
+    const calendarContainer = await this.domService.injectCalendar(() => {}, async () => {}, astraEnabled);
     if (calendarContainer) {
       this.domService.showAuthPrompt(async () => {
         try {

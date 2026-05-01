@@ -11,29 +11,24 @@
  * @see docs/MODULES.md#1-calendar-module
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable } from 'tsyringe';
 import { log } from '@core/logger';
 import { CSS_CLASSES } from '@core/constants';
 import { container } from '@core/di/container';
 import { CalendarGrid } from '../components/CalendarGrid';
-import { TOKENS } from '@core/di/tokens';
-import type { IConfigManager } from '@core/interfaces/IConfigManager';
 
 @injectable()
 export class CalendarDomService {
   private containerElement: HTMLElement | null = null;
   private calendarGrid: CalendarGrid | null = null;
 
-  constructor(
-    @inject(TOKENS.Config) private config: IConfigManager
-  ) {}
+  constructor() { }
 
   /**
    * Inject the calendar container into the AniList DOM
    */
   public async injectCalendar(
     onSettingsClick: () => void,
-    onAstraClick: () => void,
     onMarkWatched: (mediaId: number) => Promise<void>,
     astraEnabled: boolean
   ): Promise<HTMLElement | null> {
@@ -74,7 +69,7 @@ export class CalendarDomService {
     const actualHeader = headerElement.tagName.toLowerCase() === 'h2' || headerElement.tagName.toLowerCase() === 'h3'
       ? headerElement
       : headerElement.querySelector<HTMLElement>('h2, h3');
-    
+
     if (actualHeader && !actualHeader.classList.contains('au-calendar-title')) {
       actualHeader.innerHTML = 'AU - Calendar';
       actualHeader.classList.add('au-calendar-title');
@@ -83,7 +78,7 @@ export class CalendarDomService {
     // Add settings buttons to the header
     const parentHeader = (headerElement.closest('.section-header') || headerElement.parentElement) as HTMLElement;
     if (parentHeader) {
-      this.injectSettingsButton(parentHeader, onSettingsClick, onAstraClick);
+      this.injectSettingsButton(parentHeader, onSettingsClick);
     }
 
     // Clear native content from the container
@@ -110,14 +105,14 @@ export class CalendarDomService {
     }
 
     this.containerElement = calendarContainer;
-    
+
     // Resolve and mount the grid component
     try {
       log.debug('[CalendarDomService] Resolving CalendarGrid from child container');
       const child = container.createChildContainer();
       child.register('CalendarGridProps', { useValue: { onMarkWatched, astraEnabled } });
       this.calendarGrid = child.resolve(CalendarGrid);
-      
+
       log.debug('[CalendarDomService] Mounting CalendarGrid');
       this.calendarGrid.mount(gridContainer);
     } catch (error) {
@@ -131,22 +126,12 @@ export class CalendarDomService {
   /**
    * Inject settings and dashboard buttons into the header
    */
-  private injectSettingsButton(parentHeader: HTMLElement, onSettingsClick: () => void, onAstraClick: () => void): void {
+  private injectSettingsButton(parentHeader: HTMLElement, onSettingsClick: () => void): void {
     if (parentHeader.querySelector('.calendar-header__actions')) return;
-
-    const astraEnabled = this.config.isFeatureEnabled('astra');
-    const astraButtonHTML = astraEnabled ? `
-      <button class="calendar-header__settings calendar-header__astra" title="Astra Dashboard">
-        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-          <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
-        </svg>
-      </button>
-    ` : '';
 
     const actionsContainer = document.createElement('div');
     actionsContainer.className = 'calendar-header__actions';
     actionsContainer.innerHTML = `
-      ${astraButtonHTML}
       <button class="calendar-header__settings" title="Calendar settings">
         <i class="fa fa-cog"></i>
       </button>
@@ -157,15 +142,10 @@ export class CalendarDomService {
     parentHeader.querySelectorAll('.view-selector, .grid-icon, .list-icon, [class*="view-selector"]')
       .forEach(el => (el as HTMLElement).style.display = 'none');
 
-    actionsContainer.querySelector('.calendar-header__settings:not(.calendar-header__astra)')?.addEventListener('click', (e) => {
+    actionsContainer.querySelector('.calendar-header__settings')?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       onSettingsClick();
-    });
-    actionsContainer.querySelector('.calendar-header__astra')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onAstraClick();
     });
   }
 
@@ -174,7 +154,7 @@ export class CalendarDomService {
    */
   private clearNativeAiringContent(container: HTMLElement, headerElement: HTMLElement): void {
     const sectionHeader = headerElement.closest('.section-header');
-    
+
     log.debug('[CalendarDomService] Clearing native content from container', {
       childCount: container.children.length
     });
@@ -184,17 +164,17 @@ export class CalendarDomService {
       if (child === sectionHeader || child.querySelector('.section-header') === sectionHeader) {
         return;
       }
-      
+
       // Don't remove our own calendar if it was already there
       if ((child as HTMLElement).id === CSS_CLASSES.CALENDAR) {
         return;
       }
 
       // Check if it's a native card grid or list
-      const isNativeGrid = child.classList.contains('grid-wrap') || 
-                           child.classList.contains('list-preview') ||
-                           child.querySelectorAll('.media-preview-card').length > 0;
-      
+      const isNativeGrid = child.classList.contains('grid-wrap') ||
+        child.classList.contains('list-preview') ||
+        child.querySelectorAll('.media-preview-card').length > 0;
+
       if (isNativeGrid) {
         log.debug('[CalendarDomService] Hiding native grid element');
         (child as HTMLElement).style.display = 'none';
@@ -211,14 +191,14 @@ export class CalendarDomService {
    */
   public findAiringSection(): Promise<HTMLElement | null> {
     return new Promise((resolve) => {
-      const findText = (s: string, t: string) => 
+      const findText = (s: string, t: string) =>
         Array.from(document.querySelectorAll<HTMLElement>(s)).filter(el => el.textContent?.trim().includes(t));
 
-      let airing = findText('h2', 'Airing')[0] || 
-                   findText('h2', 'AU - Calendar')[0] ||
-                   findText('.au-calendar-title', 'AU - Calendar')[0] ||
-                   Array.from(document.querySelectorAll<HTMLElement>('.section-header')).find(h => h.textContent?.includes('Airing') || h.textContent?.includes('AU - Calendar')) ||
-                   Array.from(document.querySelectorAll<HTMLElement>('.home section')).find(s => s.textContent?.includes('Airing') || s.textContent?.includes('AU - Calendar'))?.querySelector<HTMLElement>('h2, h3, .section-header');
+      let airing = findText('h2', 'Airing')[0] ||
+        findText('h2', 'AU - Calendar')[0] ||
+        findText('.au-calendar-title', 'AU - Calendar')[0] ||
+        Array.from(document.querySelectorAll<HTMLElement>('.section-header')).find(h => h.textContent?.includes('Airing') || h.textContent?.includes('AU - Calendar')) ||
+        Array.from(document.querySelectorAll<HTMLElement>('.home section')).find(s => s.textContent?.includes('Airing') || s.textContent?.includes('AU - Calendar'))?.querySelector<HTMLElement>('h2, h3, .section-header');
 
       // If AniList didn't render an Airing section (e.g., user has no airing anime), create one
       if (!airing) {
@@ -243,12 +223,12 @@ export class CalendarDomService {
    */
   private findAiringContainer(headerElement: HTMLElement): HTMLElement | null {
     const sectionHeader = headerElement.closest('.section-header');
-    
+
     // Strategy 1: Look for the list wrapper (most common)
     if (sectionHeader) {
       const wrap = sectionHeader.closest('.list-preview-wrap') || sectionHeader.closest('.list-preview');
       if (wrap) return wrap as HTMLElement;
-      
+
       // Strategy 2: Use the parent of the header if it looks like a section
       const parent = sectionHeader.parentElement;
       if (parent && (parent.tagName === 'SECTION' || parent.classList.contains('home'))) {

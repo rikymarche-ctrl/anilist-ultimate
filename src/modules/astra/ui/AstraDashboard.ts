@@ -30,6 +30,7 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import { TOKENS } from '@core/di/tokens';
 import { ToastService } from '@core/services/ToastService';
 import { AstraRatingModal } from './AstraRatingModal';
+import { AuthService } from '@core/auth/AuthService';
 
 @injectable()
 @singleton()
@@ -46,7 +47,8 @@ export class AstraDashboard extends BaseComponent {
     country: 'all',
     activeTab: 'dashboard' as 'dashboard' | 'settings',
     isGrouped: true,
-    collapsedGroups: new Set<string>()
+    collapsedGroups: new Set<string>(),
+    isAuthenticated: true
   };
   private renderProcessId = 0;
 
@@ -55,7 +57,8 @@ export class AstraDashboard extends BaseComponent {
     @inject(TOKENS.ToastService) private toast: ToastService,
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal
+    @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal,
+    @inject(TOKENS.AuthService) private authService: AuthService
   ) {
     super({});
 
@@ -113,6 +116,9 @@ export class AstraDashboard extends BaseComponent {
       MediaListStatus.REREADING,
       'UNKNOWN'
     ]);
+
+    // Check auth status
+    this.state.isAuthenticated = await this.authService.isAuthenticated();
 
     // Ensure service is initialized before first render to avoid "0 entries" glitch
     await this.service.init();
@@ -197,8 +203,11 @@ export class AstraDashboard extends BaseComponent {
               <h1 class="astra-dashboard-title">Astra Dashboard</h1>
             </div>
             <div class="astra-dashboard-actions">
-              <button class="astra-btn astra-btn--primary" id="astra-sync-anilist" title="Sync all lists from AniList">
-                <i class="fa fa-sync"></i> Sync
+              <button class="astra-btn ${this.state.isAuthenticated ? 'astra-btn--primary' : 'astra-btn--warning'}" 
+                      id="astra-sync-anilist" 
+                      title="${this.state.isAuthenticated ? 'Sync all lists from AniList' : 'Login required to sync'}">
+                <i class="fa ${this.state.isAuthenticated ? 'fa-sync' : 'fa-user-lock'}"></i> 
+                ${this.state.isAuthenticated ? 'Sync' : 'Login to Sync'}
               </button>
               <button class="astra-btn astra-btn--danger" id="astra-clear-all" title="Reset Astra Database (Delete All)">
                 <i class="fa fa-trash"></i>
@@ -262,8 +271,11 @@ export class AstraDashboard extends BaseComponent {
         <h2>Welcome to Astra</h2>
         <p>Your dashboard is currently empty. Start by importing your collection from AniList or creating a new entry.</p>
         <div class="astra-empty-actions">
-          <button class="astra-btn astra-btn--primary astra-btn--lg" id="astra-empty-sync">
-            <i class="fa fa-sync"></i> Import from AniList
+          <button class="astra-btn ${this.state.isAuthenticated ? 'astra-btn--primary' : 'astra-btn--warning'} astra-btn--lg" 
+                  id="astra-empty-sync"
+                  title="${this.state.isAuthenticated ? 'Sync from AniList' : 'Login required to sync'}">
+            <i class="fa ${this.state.isAuthenticated ? 'fa-sync' : 'fa-user-lock'}"></i> 
+            ${this.state.isAuthenticated ? 'Import from AniList' : 'Login to Sync'}
           </button>
           <button class="astra-btn astra-btn--secondary astra-btn--lg" id="astra-import-manual">
             <i class="fa fa-upload"></i> Import JSON
@@ -1261,6 +1273,17 @@ export class AstraDashboard extends BaseComponent {
     const importManualBtn = this.overlay.querySelector('#astra-import-manual');
 
     const handleSync = async (btn: HTMLElement) => {
+      if (!this.state.isAuthenticated) {
+        try {
+          await this.authService.login();
+          this.state.isAuthenticated = true;
+          this.refresh();
+        } catch (err) {
+          this.toast.error('Authentication failed');
+        }
+        return;
+      }
+
       const originalHTML = btn.innerHTML;
       btn.classList.add('astra-btn--loading');
       btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Syncing...';
