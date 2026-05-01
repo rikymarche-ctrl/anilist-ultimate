@@ -23,6 +23,7 @@ import type { DayOfWeek } from '@core/types';
 
 interface CalendarGridProps {
   onMarkWatched: (mediaId: number) => Promise<void>;
+  astraEnabled: boolean;
 }
 
 @injectable()
@@ -101,6 +102,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
             columnJustify: preferences.columnJustify,
             maxCardsPerDay: preferences.maxCardsPerDay,
             openInNewTab: preferences.openInNewTab,
+            astraEnabled: this.props.astraEnabled,
             onMarkWatched: this.props.onMarkWatched
           },
         };

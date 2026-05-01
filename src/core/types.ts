@@ -230,6 +230,7 @@ export interface CardOptions {
   columnJustify: ColumnJustify;
   maxCardsPerDay: number;
   openInNewTab: boolean;
+  astraEnabled: boolean;
   onMarkWatched?: (mediaId: number) => void;
   onClick?: (mediaId: number) => void;
 }

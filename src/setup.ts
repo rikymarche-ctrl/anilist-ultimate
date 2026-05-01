@@ -293,7 +293,7 @@ export async function setupDI(): Promise<void> {
     {
       name: 'astra',
       description: 'Advanced scoring system (Astra)',
-      enabled: true,
+      enabled: config.isFeatureEnabled('astra'),
       factory: () => container.resolve(AstraModule),
       pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra'),
     },

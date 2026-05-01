@@ -248,10 +248,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         <button type="button" class="pill-section" data-action="mark-watched" aria-label="Mark episode as watched">
           <i class="fa fa-plus" aria-hidden="true"></i>
         </button>
-        <div class="pill-separator" aria-hidden="true"></div>
-        <button type="button" class="pill-section" data-action="edit-entry" aria-label="Edit entry">
-          <i class="fa fa-pencil" aria-hidden="true"></i>
-        </button>
+        ${this.props.options.astraEnabled ? `
+          <div class="pill-separator" aria-hidden="true"></div>
+          <button type="button" class="pill-section" data-action="edit-entry" aria-label="Edit entry">
+            <i class="fa fa-pencil" aria-hidden="true"></i>
+          </button>
+        ` : ''}
         ${socialSectionHTML}
       </div>
     `;

@@ -191,12 +191,14 @@ export class CalendarModule extends BaseModule {
       log.info('[Calendar] Running injection flow...');
 
       // 1. Inject UI via DOM Service
+      const astraEnabled = this.config.isFeatureEnabled('astra');
       const calendarContainer = await this.domService.injectCalendar(
         () => this.handleSettingsClick(),
         () => {
           this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN);
         },
-        (mediaId) => this.handleMarkWatched(mediaId)
+        (mediaId) => this.handleMarkWatched(mediaId),
+        astraEnabled
       );
 
       if (!calendarContainer) return;
@@ -231,7 +233,8 @@ export class CalendarModule extends BaseModule {
   }
 
   private async handleUnauthenticated(): Promise<void> {
-    const calendarContainer = await this.domService.injectCalendar(() => {}, () => {}, async () => {});
+    const astraEnabled = this.config.isFeatureEnabled('astra');
+    const calendarContainer = await this.domService.injectCalendar(() => {}, () => {}, async () => {}, astraEnabled);
     if (calendarContainer) {
       this.domService.showAuthPrompt(async () => {
         try {

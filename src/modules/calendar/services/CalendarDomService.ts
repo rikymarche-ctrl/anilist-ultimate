@@ -11,16 +11,22 @@
  * @see docs/MODULES.md#1-calendar-module
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { log } from '@core/logger';
 import { CSS_CLASSES } from '@core/constants';
 import { container } from '@core/di/container';
 import { CalendarGrid } from '../components/CalendarGrid';
+import { TOKENS } from '@core/di/tokens';
+import type { IConfigManager } from '@core/interfaces/IConfigManager';
 
 @injectable()
 export class CalendarDomService {
   private containerElement: HTMLElement | null = null;
   private calendarGrid: CalendarGrid | null = null;
+
+  constructor(
+    @inject(TOKENS.Config) private config: IConfigManager
+  ) {}
 
   /**
    * Inject the calendar container into the AniList DOM
@@ -28,7 +34,8 @@ export class CalendarDomService {
   public async injectCalendar(
     onSettingsClick: () => void,
     onAstraClick: () => void,
-    onMarkWatched: (mediaId: number) => Promise<void>
+    onMarkWatched: (mediaId: number) => Promise<void>,
+    astraEnabled: boolean
   ): Promise<HTMLElement | null> {
     log.debug('[CalendarDomService] Starting injection flow...');
 
@@ -108,7 +115,7 @@ export class CalendarDomService {
     try {
       log.debug('[CalendarDomService] Resolving CalendarGrid from child container');
       const child = container.createChildContainer();
-      child.register('CalendarGridProps', { useValue: { onMarkWatched } });
+      child.register('CalendarGridProps', { useValue: { onMarkWatched, astraEnabled } });
       this.calendarGrid = child.resolve(CalendarGrid);
       
       log.debug('[CalendarDomService] Mounting CalendarGrid');
@@ -127,14 +134,19 @@ export class CalendarDomService {
   private injectSettingsButton(parentHeader: HTMLElement, onSettingsClick: () => void, onAstraClick: () => void): void {
     if (parentHeader.querySelector('.calendar-header__actions')) return;
 
-    const actionsContainer = document.createElement('div');
-    actionsContainer.className = 'calendar-header__actions';
-    actionsContainer.innerHTML = `
+    const astraEnabled = this.config.isFeatureEnabled('astra');
+    const astraButtonHTML = astraEnabled ? `
       <button class="calendar-header__settings calendar-header__astra" title="Astra Dashboard">
         <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
           <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
         </svg>
       </button>
+    ` : '';
+
+    const actionsContainer = document.createElement('div');
+    actionsContainer.className = 'calendar-header__actions';
+    actionsContainer.innerHTML = `
+      ${astraButtonHTML}
       <button class="calendar-header__settings" title="Calendar settings">
         <i class="fa fa-cog"></i>
       </button>

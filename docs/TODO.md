@@ -62,6 +62,11 @@ il numero di episodio
 
 mi sembra che l hover sull immagine dentro astra funzioni bene solo nella dashboard, nel quickedit è sfocata
 
+
+il hournal funzioan correttamente per gli anime, ma per i manga e le novel? non credo
+
+doppio tootlip nel quick edit
+
 ---
 
 ## 🧹 P9 - STABILITY & REFACTORING
