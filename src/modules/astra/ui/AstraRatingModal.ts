@@ -351,7 +351,11 @@ export class AstraRatingModal {
 
     this.attachEvents();
     this.updateLivePreview();
-    this.overlay.classList.add('astra-modal-overlay--open');
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      this.overlay?.classList.add('astra-modal-overlay--open');
+    });
   }
 
   private renderScoreInput(section: AstraSection, seasonScores: Record<string, number | null>, totalSections: number, isSeriesFinale?: boolean): string {
@@ -431,7 +435,9 @@ export class AstraRatingModal {
       log.error('[AstraRatingModal] Auto-save on close failed', err);
     }
 
+    this.overlay.classList.add('astra-modal-overlay--closing');
     this.overlay.classList.remove('astra-modal-overlay--open');
+
     setTimeout(() => {
       this.overlay?.remove();
       this.overlay = null;
@@ -440,7 +446,7 @@ export class AstraRatingModal {
       if (!document.querySelector('.astra-modal-overlay')) {
         document.body.style.overflow = '';
       }
-    }, 300);
+    }, 350);
   }
 
   /**
