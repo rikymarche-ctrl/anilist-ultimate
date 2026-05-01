@@ -124,27 +124,20 @@ export class ProfileActivityModule extends BaseModule {
 
     const bar = this.filterBar.create();
     bar.classList.add('au-profile-activity-bar');
-    
+
     // Custom styling for profile page placement
-    bar.style.marginBottom = '15px';
-    bar.style.padding = '12px 16px';
-    bar.style.background = 'var(--color-foreground)';
-    bar.style.borderRadius = '4px';
+    bar.style.marginBottom = '20px';
+    bar.style.padding = '8px 16px';
+    // Removed background from JS to let CSS !important handle it (Astra style)
 
     // Find the best insertion point
-    // Usually there is an "Activity" header h2
-    const header = Array.from(document.querySelectorAll('h2')).find(h => h.textContent?.trim() === 'Activity');
-    
-    if (header && header.parentElement) {
-      // If we found the header, place it right after
-      header.insertAdjacentElement('afterend', bar);
-    } else {
-      // Fallback: prepend to feed
-      feed.prepend(bar);
+    // On profile pages, the activity feed is the target
+    if (feed) {
+      feed.parentElement?.insertBefore(bar, feed);
     }
 
     this.applyFilters();
-    this.logger.success('[ProfileActivity] Filter bar injected');
+    this.logger.success('[ProfileActivity] Filter bar injected correctly');
   }
 
   /**
