@@ -1,68 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Anilist Ultimate</title>
-    <link rel="stylesheet" href="src/popup/popup.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  </head>
-  <body>
-    <div class="header">
-      <h1>Anilist Ultimate</h1>
-      <div class="version">2.0.0</div>
-    </div>
 
-    <div class="content">
-      <div class="logo-container">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anilist Ultimate</title>
+  <link rel="stylesheet" href="src/popup/popup.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="popup-container">
+    <header class="main-header">
+      <div class="logo-wrapper">
         <div class="logo-glow"></div>
-        <div class="logo">
-          <i class="fa-solid fa-calendar-days"></i>
-        </div>
+        <img src="icons/icon128.png" alt="Anilist Ultimate" class="main-logo" />
       </div>
+      <h1 class="main-title">Anilist Ultimate</h1>
+      <div class="main-version">Version 1.0.0</div>
+    </header>
 
-      <!-- Auth Section -->
-        <div class="auth-status not-authenticated" id="auth-status">
-          <span class="status-indicator not-authenticated" id="status-indicator"></span>
-          <span id="auth-status-text">Not authenticated</span>
+    <main class="main-content">
+      <!-- Auth Card -->
+      <section class="auth-card" id="auth-card">
+        <div class="auth-header">
+          <span class="status-indicator" id="status-indicator"></span>
+          <span class="status-text" id="auth-status-text">Checking Status...</span>
         </div>
-        <div class="user-name hidden" id="user-name"></div>
 
-        <!-- Login Button (shown when not authenticated) -->
-        <button class="button" id="login-btn">
-          <i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i>
-          Login with AniList
-        </button>
+        <div class="user-info hidden" id="user-info">
+          <div class="user-name" id="user-name">ExAstra</div>
+          <button class="btn btn-danger" id="logout-btn">
+            <i class="fa-solid fa-power-off"></i>
+            <span>Logout</span>
+          </button>
+        </div>
 
-        <!-- Logout Button (shown when authenticated) -->
-        <button class="button danger hidden" id="logout-btn">
-          <i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i>
-          Logout
+        <div class="auth-actions" id="login-container">
+          <button class="btn btn-primary" id="login-btn">
+            <i class="fa-solid fa-right-to-bracket"></i>
+            <span>Login with AniList</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Quick Actions -->
+      <nav class="action-grid">
+        <a href="https://anilist.co" class="btn btn-secondary" target="_blank">
+          <i class="fa-solid fa-rocket"></i>
+          <span>Open AniList</span>
+        </a>
+        <button class="btn btn-secondary" id="settings-btn">
+          <i class="fa-solid fa-gear"></i>
+          <span>Settings</span>
         </button>
+      </nav>
+    </main>
+
+    <footer class="main-footer">
+      <p class="app-description">Modern anime calendar and tracking for AniList.</p>
+      <div class="community-tag">
+        Built with <i class="fa-solid fa-heart"></i> for the community
       </div>
+    </footer>
+  </div>
 
-      <p class="description">
-        Modern anime calendar and tracking extension for Anilist.
-      </p>
+  <script type="module" src="src/popup/popup.ts"></script>
+</body>
 
-      <a
-        href="https://anilist.co"
-        class="button secondary"
-        id="open-anilist-btn"
-        target="_blank"
-      >
-        <i class="fa-solid fa-globe" style="margin-right: 8px;"></i>
-        Open Anilist
-      </a>
-
-      <button class="button secondary" id="settings-btn">
-        <i class="fa-solid fa-sliders" style="margin-right: 8px;"></i>
-        Settings
-      </button>
-    </div>
-
-    <div class="footer">Built with <i class="fa-solid fa-heart"></i> for the Anilist community</div>
-
-    <script type="module" src="src/popup/popup.ts"></script>
-  </body>
 </html>

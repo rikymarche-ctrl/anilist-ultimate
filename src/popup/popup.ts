@@ -18,11 +18,11 @@ import {
 // Elementi DOM
 const loginBtn = document.getElementById('login-btn') as HTMLButtonElement;
 const logoutBtn = document.getElementById('logout-btn') as HTMLButtonElement;
-const authStatus = document.getElementById('auth-status') as HTMLDivElement;
-const statusIndicator = document.getElementById(
-  'status-indicator'
-) as HTMLSpanElement;
-const userNameEl = document.getElementById('user-name') as HTMLDivElement;
+const authCard = document.getElementById('auth-card') as HTMLElement;
+const userInfo = document.getElementById('user-info') as HTMLDivElement;
+const loginContainer = document.getElementById('login-container') as HTMLDivElement;
+const statusIndicator = document.getElementById('status-indicator') as HTMLSpanElement;
+const userNameText = document.getElementById('user-name') as HTMLDivElement;
 const authStatusText = document.getElementById('auth-status-text') as HTMLSpanElement;
 
 /**
@@ -48,8 +48,7 @@ async function handleLogin(): Promise<void> {
   try {
     // Disabilita bottone e mostra spinner
     loginBtn.disabled = true;
-    loginBtn.innerHTML =
-      '<span class="spinner"></span> Logging in...';
+    loginBtn.innerHTML = '<span class="spinner"></span> Logging in...';
 
     const response = (await chrome.runtime.sendMessage({
       type: MSG.AUTH_LOGIN,
@@ -62,13 +61,13 @@ async function handleLogin(): Promise<void> {
       console.error('[Popup] Login failed:', response.error);
       alert(`Login failed: ${response.error || 'Unknown error'}`);
       loginBtn.disabled = false;
-      loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login with AniList';
+      loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> <span>Login with AniList</span>';
     }
   } catch (error) {
     console.error('[Popup] Login error:', error);
     alert('Login failed. Please try again.');
     loginBtn.disabled = false;
-    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login with AniList';
+    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> <span>Login with AniList</span>';
   }
 }
 
@@ -96,14 +95,13 @@ async function handleLogout(): Promise<void> {
       console.error('[Popup] Logout failed');
       alert('Logout failed. Please try again.');
       logoutBtn.disabled = false;
-      logoutBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i> Logout';
+      logoutBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>Logout</span>';
     }
   } catch (error) {
     console.error('[Popup] Logout error:', error);
     alert('Logout failed. Please try again.');
-    // Ripristina bottone
     logoutBtn.disabled = false;
-    logoutBtn.textContent = 'Logout';
+    logoutBtn.innerHTML = '<i class="fa-solid fa-power-off"></i> <span>Logout</span>';
   }
 }
 
@@ -113,35 +111,29 @@ async function handleLogout(): Promise<void> {
 function updateUI(status: AuthStatusResponse): void {
   if (status.authenticated && status.userName) {
     // Utente autenticato
-    authStatus.classList.remove('not-authenticated');
-    authStatus.classList.add('authenticated');
+    authCard.classList.add('authenticated');
     authStatusText.textContent = 'Authenticated';
 
     statusIndicator.classList.remove('not-authenticated');
     statusIndicator.classList.add('authenticated');
 
-    userNameEl.textContent = status.userName;
-    userNameEl.classList.remove('hidden');
-
-    loginBtn.classList.add('hidden');
-    logoutBtn.classList.remove('hidden');
+    userNameText.textContent = status.userName;
+    userInfo.classList.remove('hidden');
+    loginContainer.classList.add('hidden');
   } else {
     // Utente non autenticato
-    authStatus.classList.remove('authenticated');
-    authStatus.classList.add('not-authenticated');
+    authCard.classList.remove('authenticated');
     authStatusText.textContent = 'Not authenticated';
 
     statusIndicator.classList.remove('authenticated');
     statusIndicator.classList.add('not-authenticated');
 
-    userNameEl.classList.add('hidden');
-
-    loginBtn.classList.remove('hidden');
-    logoutBtn.classList.add('hidden');
+    userInfo.classList.add('hidden');
+    loginContainer.classList.remove('hidden');
 
     // Ripristina bottone login
     loginBtn.disabled = false;
-    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login with AniList';
+    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> <span>Login with AniList</span>';
   }
 }
 
