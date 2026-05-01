@@ -51,7 +51,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
             ${this.renderDisplayTab(prefs)}
             ${this.renderWeekTab(prefs)}
             ${this.renderSocialTab(prefs)}
-            ${this.renderAccountTab()}
           </div>
           ${this.renderFooter()}
         </div>
@@ -70,13 +69,11 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     `;
   }
 
-  private renderTabsNav(): HTMLElement {
     const tabs = [
       { id: 'layout', label: 'Layout' },
       { id: 'display', label: 'Display' },
       { id: 'week', label: 'Week' },
-      { id: 'social', label: 'Social' },
-      { id: 'account', label: 'Account' }
+      { id: 'social', label: 'Social' }
     ];
 
     return html`
@@ -228,33 +225,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     `;
   }
 
-  private renderAccountTab(): HTMLElement {
-    return html`
-      <div 
-        class="settings-tab-content ${this.activeTab === 'account' ? 'settings-tab-content--active' : ''}" 
-        data-tab-content="account"
-      >
-        <div class="settings-field">
-          <label class="settings-field__label">Authentication Status</label>
-          <div class="auth-status" id="auth-status">
-            <span class="auth-status-text">Checking...</span>
-          </div>
-        </div>
-        <div class="settings-field">
-          <button class="settings-field__button settings-field__button--primary" id="auth-button">
-            <i class="fa fa-sign-in"></i>
-            <span>Authenticate with AniList</span>
-          </button>
-        </div>
-        <div class="settings-field">
-          <button class="settings-field__button settings-field__button--danger" id="logout-button">
-            <i class="fa fa-sign-out"></i>
-            <span>Logout</span>
-          </button>
-        </div>
-      </div>
-    `;
-  }
 
   private renderFooter(): HTMLElement {
     return html`
@@ -332,32 +302,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     this.addEventListener(saveBtn as HTMLElement, 'click', () => this.handleSave());
   }
 
-  private setupAccountEvents(): void {
-    const authBtn = this.element.querySelector('#auth-button');
-    if (authBtn) {
-      this.addEventListener(authBtn as HTMLElement, 'click', async () => {
-        try {
-          const response = await chrome.runtime.sendMessage({
-            type: MSG.AUTH_LOGIN,
-          }) as AuthLoginResponse;
-
-          if (response.success) {
-            log.success('Logged in successfully');
-            this.updateAuthStatus();
-          } else {
-            log.error('Login failed:', response.error);
-          }
-        } catch (error) {
-          log.error('Login error:', error);
-        }
-      });
-    }
-
-    const logoutBtn = this.element.querySelector('#logout-button');
-    if (logoutBtn) {
-      this.addEventListener(logoutBtn as HTMLElement, 'click', () => this.handleLogout());
-    }
-  }
 
   private switchTab(tabName: string): void {
     this.activeTab = tabName;
@@ -372,9 +316,9 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
       content.classList.toggle('settings-tab-content--active', content.getAttribute('data-tab-content') === tabName);
     });
 
-    // Toggle footer visibility for account tab
+    // Toggle footer visibility (not needed anymore without Account tab, but kept for future tabs)
     const footer = this.element.querySelector('.settings-panel__footer');
-    if (footer) footer.classList.toggle('settings-panel__footer--hidden', tabName === 'account');
+    if (footer) footer.classList.remove('settings-panel__footer--hidden');
   }
 
   private handleSettingChange(element: HTMLInputElement | HTMLSelectElement): void {
@@ -433,18 +377,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     this.close();
   }
 
-  private async handleLogout(): Promise<void> {
-    if (confirm('Are you sure you want to logout?')) {
-      try {
-        await chrome.runtime.sendMessage({ type: MSG.AUTH_LOGOUT });
-        log.success('Logged out');
-        // chrome.storage.onChanged listener in AuthTokenService aggiornera' automaticamente
-        this.updateAuthStatus();
-      } catch (error) {
-        log.error('Logout error:', error);
-      }
-    }
-  }
 
   private toggleTimeFormatVisibility(showTime: boolean): void {
     const el = this.element.querySelector('#time-format-field') as HTMLElement;
@@ -479,37 +411,8 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
       const percentage = ((parseInt(slider.value) - parseInt(slider.min)) / (parseInt(slider.max) - parseInt(slider.min))) * 100;
       slider.style.setProperty('--slider-progress', `${percentage}%`);
     });
-
-    this.updateAuthStatus();
   }
 
-  private updateAuthStatus(): void {
-    const statusEl = this.element.querySelector('#auth-status');
-    const authBtn = this.element.querySelector('#auth-button');
-    const logoutBtn = this.element.querySelector('#logout-button');
-
-    if (!statusEl) return;
-
-    const isAuthenticated = this.apiClient.isAuthenticated();
-
-    if (isAuthenticated) {
-      statusEl.innerHTML = `
-        <span class="auth-status-text auth-status-text--authenticated">
-          <i class="fa fa-check-circle"></i> Authenticated
-        </span>
-      `;
-      if (authBtn) (authBtn as HTMLElement).style.display = 'none';
-      if (logoutBtn) (logoutBtn as HTMLElement).style.display = 'flex';
-    } else {
-      statusEl.innerHTML = `
-        <span class="auth-status-text auth-status-text--not-authenticated">
-          <i class="fa fa-times-circle"></i> Not Authenticated
-        </span>
-      `;
-      if (authBtn) (authBtn as HTMLElement).style.display = 'flex';
-      if (logoutBtn) (logoutBtn as HTMLElement).style.display = 'none';
-    }
-  }
 
   protected onUnmount(): void {
     document.body.style.overflow = '';

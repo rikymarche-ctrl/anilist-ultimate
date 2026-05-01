@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Anilist Ultimate</title>
     <link rel="stylesheet" href="src/popup/popup.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   </head>
   <body>
     <div class="header">
@@ -13,21 +14,31 @@
     </div>
 
     <div class="content">
-      <div class="logo">📅</div>
+      <div class="logo-container">
+        <div class="logo-glow"></div>
+        <div class="logo">
+          <i class="fa-solid fa-calendar-days"></i>
+        </div>
+      </div>
 
       <!-- Auth Section -->
-      <div class="auth-section">
         <div class="auth-status not-authenticated" id="auth-status">
           <span class="status-indicator not-authenticated" id="status-indicator"></span>
-          Not authenticated
+          <span id="auth-status-text">Not authenticated</span>
         </div>
         <div class="user-name hidden" id="user-name"></div>
 
         <!-- Login Button (shown when not authenticated) -->
-        <button class="button" id="login-btn">Login with AniList</button>
+        <button class="button" id="login-btn">
+          <i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i>
+          Login with AniList
+        </button>
 
         <!-- Logout Button (shown when authenticated) -->
-        <button class="button danger hidden" id="logout-btn">Logout</button>
+        <button class="button danger hidden" id="logout-btn">
+          <i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i>
+          Logout
+        </button>
       </div>
 
       <p class="description">
@@ -40,15 +51,17 @@
         id="open-anilist-btn"
         target="_blank"
       >
+        <i class="fa-solid fa-globe" style="margin-right: 8px;"></i>
         Open Anilist
       </a>
 
       <button class="button secondary" id="settings-btn">
+        <i class="fa-solid fa-sliders" style="margin-right: 8px;"></i>
         Settings
       </button>
     </div>
 
-    <div class="footer">Built with ❤️ for the Anilist community</div>
+    <div class="footer">Built with <i class="fa-solid fa-heart"></i> for the Anilist community</div>
 
     <script type="module" src="src/popup/popup.ts"></script>
   </body>

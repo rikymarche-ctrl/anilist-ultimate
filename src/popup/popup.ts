@@ -23,6 +23,7 @@ const statusIndicator = document.getElementById(
   'status-indicator'
 ) as HTMLSpanElement;
 const userNameEl = document.getElementById('user-name') as HTMLDivElement;
+const authStatusText = document.getElementById('auth-status-text') as HTMLSpanElement;
 
 /**
  * Controlla lo status di autenticazione corrente e aggiorna la UI
@@ -60,16 +61,14 @@ async function handleLogin(): Promise<void> {
     } else {
       console.error('[Popup] Login failed:', response.error);
       alert(`Login failed: ${response.error || 'Unknown error'}`);
-      // Ripristina bottone
       loginBtn.disabled = false;
-      loginBtn.textContent = 'Login with AniList';
+      loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login with AniList';
     }
   } catch (error) {
     console.error('[Popup] Login error:', error);
     alert('Login failed. Please try again.');
-    // Ripristina bottone
     loginBtn.disabled = false;
-    loginBtn.textContent = 'Login with AniList';
+    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login with AniList';
   }
 }
 
@@ -83,9 +82,8 @@ async function handleLogout(): Promise<void> {
       return;
     }
 
-    // Disabilita bottone
     logoutBtn.disabled = true;
-    logoutBtn.textContent = 'Logging out...';
+    logoutBtn.innerHTML = '<span class="spinner"></span> Logging out...';
 
     const response = (await chrome.runtime.sendMessage({
       type: MSG.AUTH_LOGOUT,
@@ -97,9 +95,8 @@ async function handleLogout(): Promise<void> {
     } else {
       console.error('[Popup] Logout failed');
       alert('Logout failed. Please try again.');
-      // Ripristina bottone
       logoutBtn.disabled = false;
-      logoutBtn.textContent = 'Logout';
+      logoutBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket" style="margin-right: 8px;"></i> Logout';
     }
   } catch (error) {
     console.error('[Popup] Logout error:', error);
@@ -118,7 +115,7 @@ function updateUI(status: AuthStatusResponse): void {
     // Utente autenticato
     authStatus.classList.remove('not-authenticated');
     authStatus.classList.add('authenticated');
-    authStatus.textContent = 'Authenticated';
+    authStatusText.textContent = 'Authenticated';
 
     statusIndicator.classList.remove('not-authenticated');
     statusIndicator.classList.add('authenticated');
@@ -132,7 +129,7 @@ function updateUI(status: AuthStatusResponse): void {
     // Utente non autenticato
     authStatus.classList.remove('authenticated');
     authStatus.classList.add('not-authenticated');
-    authStatus.textContent = 'Not authenticated';
+    authStatusText.textContent = 'Not authenticated';
 
     statusIndicator.classList.remove('authenticated');
     statusIndicator.classList.add('not-authenticated');
@@ -144,7 +141,7 @@ function updateUI(status: AuthStatusResponse): void {
 
     // Ripristina bottone login
     loginBtn.disabled = false;
-    loginBtn.textContent = 'Login with AniList';
+    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login with AniList';
   }
 }
 
