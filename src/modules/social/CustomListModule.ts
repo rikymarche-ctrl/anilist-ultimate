@@ -136,6 +136,10 @@ export class CustomListModule extends BaseModule {
     // 3. Render Manager
     if (!this.managerInstance) {
       this.managerInstance = container.resolve(CustomListManager);
+    }
+    
+    // Always ensure the element is appended to the container (it might have been cleared by AniList navigation)
+    if (auContainer && !auContainer.contains(this.managerInstance.getElement())) {
       auContainer.appendChild(this.managerInstance.getElement());
     }
   }
