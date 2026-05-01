@@ -95,15 +95,15 @@ export function getActivityType(text: string): ActivityFilterType {
 
   // 1. List status changes (most specific)
   if (/completed/.test(lower)) return MediaListStatus.COMPLETED;
-  if (/plans to|planning|plans to watch/.test(lower)) return MediaListStatus.PLANNING;
+  if (/plans to|planning|plans to watch|plan to watch/.test(lower)) return MediaListStatus.PLANNING;
   if (/dropped/.test(lower)) return MediaListStatus.DROPPED;
   if (/paused/.test(lower)) return MediaListStatus.PAUSED;
 
-  // 2. Anime/Manga watching/reading progress (robust regex to catch "Watched episode", "Watched ep", etc.)
-  if (/watched|watching|watch| ep/.test(lower)) {
+  // 2. Anime/Manga watching/reading progress (even more robust regex)
+  if (/watched|watching|watch| ep |episode/.test(lower)) {
     return MediaListStatus.WATCHING;
   }
-  if (/read|reading| ch/.test(lower)) {
+  if (/read|reading| ch |chapter/.test(lower)) {
     return MediaListStatus.READING;
   }
 

@@ -99,9 +99,15 @@ export class ProfileActivityModule extends BaseModule {
     this.suspendObserver(this.OBSERVER_NAME);
 
     try {
-      this.injectFilterBar(feed as HTMLElement);
+      // Inject bar if missing
+      if (!existingBar) {
+        this.injectFilterBar(feed as HTMLElement);
+      } else {
+        // Bar exists, but we might have new activities from infinite scroll
+        this.applyFilters();
+      }
     } catch (error) {
-      this.logger.error('[ProfileActivity] Injection failed', error);
+      this.logger.error('[ProfileActivity] Processing failed', error);
     } finally {
       this.isProcessing = false;
       this.resumeObserver(this.OBSERVER_NAME);
@@ -124,21 +130,23 @@ export class ProfileActivityModule extends BaseModule {
 
     const bar = this.filterBar.create();
     bar.classList.add('au-profile-activity-bar');
+    
+    // Force specific styling for profile to avoid overlap and ensure spacing
+    bar.style.setProperty('margin-top', '35px', 'important'); // Increased spacing further
+    bar.style.setProperty('margin-bottom', '20px', 'important');
+    bar.style.setProperty('padding', '10px 16px', 'important');
+    bar.style.setProperty('display', 'flex', 'important');
+    bar.style.setProperty('width', '100%', 'important');
+    bar.style.setProperty('box-sizing', 'border-box', 'important');
+    bar.style.setProperty('clear', 'both', 'important');
 
-    // Custom styling for profile page placement
-    bar.style.marginTop = '15px'; // BUG FIX: Add spacing from "Write a message"
-    bar.style.marginBottom = '20px';
-    bar.style.padding = '8px 16px';
-    // Removed background from JS to let CSS !important handle it (Astra style)
-
-    // Find the best insertion point
     // On profile pages, the activity feed is the target
     if (feed) {
       feed.parentElement?.insertBefore(bar, feed);
     }
 
     this.applyFilters();
-    this.logger.success('[ProfileActivity] Filter bar injected correctly');
+    this.logger.success('[ProfileActivity] Filter bar injected and filters applied');
   }
 
   /**

@@ -15,7 +15,7 @@
   background: var(--au-bg) !important;
   flex: 0 0 100% !important;
   flex-basis: 100% !important;
-  margin: 4px 0 10px 0 !important;
+  margin: 4px 0 10px 0;
   clear: both !important;
   width: 100% !important;
 }
