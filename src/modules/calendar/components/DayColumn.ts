@@ -14,6 +14,7 @@ import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { container } from '@core/di/container';
 import { AnimeCard } from './AnimeCard';
+import { calendarStore } from '../CalendarStore';
 import { ABBREVIATED_DAYS, DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, CardOptions } from '@core/types';
 
