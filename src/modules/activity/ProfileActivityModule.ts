@@ -126,6 +126,7 @@ export class ProfileActivityModule extends BaseModule {
     bar.classList.add('au-profile-activity-bar');
 
     // Custom styling for profile page placement
+    bar.style.marginTop = '15px'; // BUG FIX: Add spacing from "Write a message"
     bar.style.marginBottom = '20px';
     bar.style.padding = '8px 16px';
     // Removed background from JS to let CSS !important handle it (Astra style)

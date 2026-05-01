@@ -94,16 +94,16 @@ export function getActivityType(text: string): ActivityFilterType {
   const lower = text.toLowerCase();
 
   // 1. List status changes (most specific)
-  if (lower.includes('completed')) return MediaListStatus.COMPLETED;
-  if (lower.includes('plans to') || lower.includes('planning') || lower.includes('plans to watch')) return MediaListStatus.PLANNING;
-  if (lower.includes('dropped')) return MediaListStatus.DROPPED;
-  if (lower.includes('paused')) return MediaListStatus.PAUSED;
+  if (/completed/.test(lower)) return MediaListStatus.COMPLETED;
+  if (/plans to|planning|plans to watch/.test(lower)) return MediaListStatus.PLANNING;
+  if (/dropped/.test(lower)) return MediaListStatus.DROPPED;
+  if (/paused/.test(lower)) return MediaListStatus.PAUSED;
 
-  // 2. Anime/Manga watching/reading progress
-  if (lower.includes('watched') || lower.includes('watch') || lower.includes(' ep')) {
+  // 2. Anime/Manga watching/reading progress (robust regex to catch "Watched episode", "Watched ep", etc.)
+  if (/watched|watching|watch| ep/.test(lower)) {
     return MediaListStatus.WATCHING;
   }
-  if (lower.includes('read') || lower.includes('reading') || lower.includes(' ch')) {
+  if (/read|reading| ch/.test(lower)) {
     return MediaListStatus.READING;
   }
 
