@@ -14,11 +14,8 @@ import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { calendarStore } from '../CalendarStore';
 import { log } from '@core/logger';
-import { TOKENS } from '@core/di/tokens';
 import { html, map, when } from '@core/utils/Template';
 import type { CalendarPreferences } from '@core/types';
-import type { IApiClient } from '@core/interfaces/IApiClient';
-import { MSG, type AuthLoginResponse } from '@shared/messages';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -31,8 +28,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   private activeTab: string = 'layout';
 
   constructor(
-    @inject('SettingsPanelProps') props: SettingsPanelProps,
-    @inject(TOKENS.ApiClient) private apiClient: IApiClient
+    @inject('SettingsPanelProps') props: SettingsPanelProps
   ) {
     super(props);
   }
