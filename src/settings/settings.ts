@@ -178,7 +178,7 @@ class SettingsPage {
           <section id="section-about" class="settings-section">
             <h3 class="section-title"><i class="fas fa-heart"></i> About</h3>
             <div class="module-card" style="width: 100%; max-width: 600px;">
-              <p><strong>AniList Ultimate v2.0.0</strong></p>
+              <p><strong>AniList Ultimate v1.0.0</strong></p>
               <p>An all-in-one enhancement suite for AniList users. Built with modern web technologies for maximum performance and security.</p>
               <div style="margin-top: 20px; display: flex; gap: 20px;">
                 <a href="#" style="color: var(--astra-text); text-decoration: none; display: flex; align-items: center; gap: 8px;">

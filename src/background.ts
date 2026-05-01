@@ -1,7 +1,7 @@
 /**
  * @file Service worker MV3 per gestione OAuth tramite chrome.identity
  * @author ExAstra
- * @version 2.0.0
+ * @version 1.0.0
  *
  * Gestisce il flusso OAuth con AniList in modo nativo Chrome, salvando
  * il token in chrome.storage.local (accessibile da tutti i contesti).

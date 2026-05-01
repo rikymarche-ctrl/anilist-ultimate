@@ -1,7 +1,7 @@
 /**
  * @file Protocollo messaggi per comunicazione cross-context (popup ↔ background ↔ content script)
  * @author ExAstra
- * @version 2.0.0
+ * @version 1.0.0
  */
 
 /**

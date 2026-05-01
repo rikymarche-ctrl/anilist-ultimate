@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Version** | 2.0.0 |
+| **Version** | 1.0.0 |
 | **License** | GPL-3.0 |
 | **Platform** | Chrome / Edge / Brave (Manifest V3) |
 | **Language** | TypeScript 5.4+ |

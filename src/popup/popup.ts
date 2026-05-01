@@ -2,7 +2,7 @@
  * @file popup.ts
  * @description Controller UI per il popup dell'estensione (login/logout)
  * @author ExAstra
- * @version 2.0.0
+ * @version 1.0.0
  *
  * Comunica con il background service worker tramite chrome.runtime.sendMessage
  * per gestire login/logout OAuth e visualizzare lo stato di autenticazione.

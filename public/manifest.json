@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuY5ytUpwpZ8V10d8Yh407gOueLrutdRVJG3ElImmGUtDmg/65c6lOmfAoo7k2WCI+vn74xxY8Fe11duHdJbpCjnr37VrTjaO7xMCRYhFvB/dX9WQIqN3Zg27m8KFksBoIqmIeufVXi+dfEBSfyTo45wtNnv9Fw6pyUrJSJPTBrW8uPNl8AyKpj43eiVw9jzTcd4iYDcQg4XfLm0esCr6pXMpKHGjV4ACQki3kFuo1aEIQNzbmeNSoeMgVJAncFM7fFVpj8E7k1fkeu55OQzqsXVkFQlSz2vVSrTklmjUBly6xYN3XnyRIV9oeLo3x624U9s89tfOjIxWiR+p6qO5lwIDAQAB",
   "name": "Anilist Ultimate",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "The ultimate Anilist extension suite. Modern calendar, hover comments, and more.",
   "author": "ExAstra",
   "homepage_url": "https://github.com/rikymarche-ctrl/anilist-ultimate",
