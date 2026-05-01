@@ -69,6 +69,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     `;
   }
 
+  private renderTabsNav(): HTMLElement {
     const tabs = [
       { id: 'layout', label: 'Layout' },
       { id: 'display', label: 'Display' },
@@ -247,9 +248,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
     // Footer actions
     this.setupFooterEvents();
-
-    // Account actions
-    this.setupAccountEvents();
   }
 
   private setupModalEvents(): void {
