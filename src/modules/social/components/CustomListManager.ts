@@ -45,8 +45,8 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
       </div>
     `;
 
-    // Initialize lists and render
-    this.initializeAndRender(container);
+    // Initialize lists and render - Defer to ensure constructor properties are available
+    setTimeout(() => this.initializeAndRender(container), 0);
 
     return container;
   }
