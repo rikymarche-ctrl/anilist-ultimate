@@ -56,5 +56,6 @@
       "resources": ["icons/*", "assets/*", "src/styles/*.css"],
       "matches": ["https://anilist.co/*"]
     }
-  ]
+  ],
+  "options_page": "settings.html"
 }

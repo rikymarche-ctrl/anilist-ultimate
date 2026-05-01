@@ -10,10 +10,11 @@
   --astra-text-dim: oklch(0.78 0.008 250);
   --astra-muted: oklch(0.58 0.010 250);
 
-  --astra-accent: oklch(0.72 0.14 195);
-  --astra-accent-a10: oklch(0.72 0.14 195 / 0.12);
-  --astra-accent-a20: oklch(0.72 0.14 195 / 0.22);
-  --astra-accent-a50: oklch(0.72 0.14 195 / 0.55);
+  --astra-accent: #8b5cf6;
+  --astra-accent-rgb: 139, 92, 246;
+  --astra-accent-a10: rgba(var(--astra-accent-rgb), 0.1);
+  --astra-accent-a20: rgba(var(--astra-accent-rgb), 0.2);
+  --astra-accent-a50: rgba(var(--astra-accent-rgb), 0.5);
 
   --astra-score-great: oklch(0.80 0.15 145);
   --astra-score-good: oklch(0.78 0.12 110);
@@ -713,6 +714,28 @@
   flex-shrink: 0;
 }
 
+.astra-btn--secondary {
+  width: auto;
+  padding: 8px 20px !important;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 8px;
+  background: var(--astra-bg-elev-2);
+  border: 1px solid var(--astra-border);
+  color: var(--astra-text-dim);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.astra-btn--secondary:hover {
+  background: var(--astra-bg-elev);
+  color: var(--astra-text);
+  border-color: var(--astra-muted);
+}
+
 .astra-btn--full:hover {
   background: var(--astra-accent);
   color: var(--astra-bg);
@@ -993,21 +1016,29 @@
   min-height: 60px;
 }
 
-/* Scrollbar Custom */
-::-webkit-scrollbar {
+/* Scrollbar Custom - Scoped to avoid AniList conflict */
+.astra-modal ::-webkit-scrollbar,
+.astra-modal-main ::-webkit-scrollbar,
+.astra-table-wrap::-webkit-scrollbar {
   width: 6px;
 }
 
-::-webkit-scrollbar-track {
+.astra-modal ::-webkit-scrollbar-track,
+.astra-modal-main ::-webkit-scrollbar-track,
+.astra-table-wrap::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.03);
 }
 
-::-webkit-scrollbar-thumb {
+.astra-modal ::-webkit-scrollbar-thumb,
+.astra-modal-main ::-webkit-scrollbar-thumb,
+.astra-table-wrap::-webkit-scrollbar-thumb {
   background: var(--astra-accent-a50);
   border-radius: 10px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+.astra-modal ::-webkit-scrollbar-thumb:hover,
+.astra-modal-main ::-webkit-scrollbar-thumb:hover,
+.astra-table-wrap::-webkit-scrollbar-thumb:hover {
   background: var(--astra-accent);
 }
 
@@ -1035,19 +1066,12 @@
 
 .astra-btn--primary {
   background: var(--astra-accent);
-  color: white;
-  border: none;
+  box-shadow: 0 4px 15px rgba(var(--astra-accent-rgb), 0.1);
 }
 
-.astra-btn--secondary {
-  background: transparent;
-  color: var(--astra-muted);
-  border: 1px solid var(--astra-border);
-}
-
-.astra-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.astra-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(var(--astra-accent-rgb), 0.2);
 }
 
 /* Dropdown Component */
@@ -1346,12 +1370,10 @@
 }
 
 .astra-genre-item .count {
-  font-family: var(--astra-font-mono);
-  color: var(--astra-accent);
+  font-size: 11px;
   font-weight: 800;
-  background: rgba(var(--astra-accent-rgb), 0.1);
-  padding: 1px 6px;
-  border-radius: 4px;
+  color: var(--astra-muted);
+  font-family: var(--astra-font-mono);
 }
 
 .astra-top-series {
@@ -1841,10 +1863,10 @@
 /* THE PROGRESS ENGINE - BACKGROUND INJECTION */
 .astra-show-progress .astra-grid-row:not(.astra-row-no-progress) {
   background-image: linear-gradient(90deg,
-      rgba(59, 130, 246, 0.4) 0%,
-      rgba(59, 130, 246, 0.2) 100%);
+      rgba(var(--astra-accent-rgb), 0.2) 0%,
+      rgba(var(--astra-accent-rgb), 0.1) 100%);
   background-size: calc(var(--progress-val, 0) * 1%) 100%;
-  box-shadow: inset 3px 0 0 #3b82f6;
+  box-shadow: inset 3px 0 0 var(--astra-accent);
 }
 
 /* Group Headers */
@@ -2090,8 +2112,9 @@
 }
 
 .astra-badge--country {
-  color: var(--astra-accent);
-  border-color: rgba(var(--astra-accent-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--astra-muted);
+  border: 1px solid var(--astra-border-soft);
 }
 
 .astra-badge--progress {
@@ -2252,9 +2275,9 @@
 }
 
 .astra-mini-tag--progress {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-  border-color: rgba(59, 130, 246, 0.3);
+  background: var(--astra-accent-a10);
+  color: var(--astra-accent);
+  border-color: var(--astra-accent-a20);
 }
 
 .astra-btn--ghost.active {
@@ -2284,10 +2307,10 @@
 
 .astra-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--astra-accent), #00f2fe);
+  background: linear-gradient(90deg, var(--astra-accent), var(--astra-accent-a50));
   border-radius: 10px;
   transition: width 0.3s ease;
-  box-shadow: 0 0 8px var(--astra-accent-glow);
+  box-shadow: 0 0 8px var(--astra-accent-a20);
 }
 
 /* Settings & Sub-sections */
@@ -2421,13 +2444,13 @@
 }
 
 .astra-weight-input {
-  width: 40px;
   background: transparent;
   border: none;
-  color: var(--astra-accent);
+  width: 45px;
+  color: var(--astra-text-dim);
   font-family: var(--astra-font-mono);
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 800;
+  font-size: 14px;
   text-align: center;
   outline: none;
 }
@@ -2530,13 +2553,15 @@
   margin-top: 24px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
-  color: var(--astra-accent);
+  color: var(--astra-text-dim);
   transition: all 0.2s;
+  border: 1px dashed var(--astra-border);
 }
 
 #astra-add-section:hover {
-  background: var(--astra-accent-a10);
+  background: rgba(255, 255, 255, 0.05);
   border-style: solid;
+  color: var(--astra-text);
   transform: translateY(-2px);
 }
 
@@ -2696,15 +2721,15 @@
 }
 
 .astra-add-sub {
-  color: var(--astra-accent) !important;
+  color: var(--astra-muted) !important;
   font-size: 16px;
   transition: all 0.2s;
 }
 
 .astra-add-sub:hover {
   transform: scale(1.2);
-  color: #60a5fa !important;
-  background: rgba(59, 130, 246, 0.1) !important;
+  color: var(--astra-accent) !important;
+  background: rgba(var(--astra-accent-rgb), 0.1) !important;
 }
 
 @keyframes astra-fade-in {
@@ -3054,9 +3079,8 @@
 }
 
 .pill-section:hover {
-  background-color: #3db4f2;
-  /* AniList Official Blue */
-  color: white;
+  background-color: var(--astra-accent);
+  color: var(--astra-bg);
 }
 
 .pill-section i {
@@ -3079,10 +3103,12 @@
   position: relative;
 }
 
-/* Hide native AniList progress overlays */
+/* Hide native AniList progress overlays - More aggressive selectors */
 .media-preview-card .image-overlay .plus-progress,
-.media-preview-card .image-overlay>div:has(.plus-progress),
-.media-preview-card .image-overlay [data-v-2fd80e52] {
+.media-preview-card .image-overlay .progress-bar,
+.media-preview-card .image-overlay > div:has(.plus-progress),
+.media-preview-card .image-overlay [data-v-2fd80e52],
+.media-preview-card .image-overlay [data-v-0a6a0e5c] {
   display: none !important;
 }
 
@@ -3152,8 +3178,8 @@
   justify-content: center;
   padding: 80px 20px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  background: rgba(var(--astra-accent-rgb), 0.05);
+  border: 1px dashed rgba(var(--astra-accent-rgb), 0.2);
   border-radius: 12px;
   margin: 40px 0;
 }
@@ -3162,7 +3188,7 @@
   width: 80px;
   height: 80px;
   margin-bottom: 24px;
-  color: #3db4f2;
+  color: var(--astra-accent);
   opacity: 0.6;
 }
 

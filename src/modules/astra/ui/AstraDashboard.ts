@@ -949,7 +949,7 @@ export class AstraDashboard extends BaseComponent {
     const noProgressClass = (work.progress || 0) === 0 ? 'astra-row-no-progress' : '';
 
     const rowStyle = this.state.showProgress && (work.progress || 0) > 0
-      ? `background-image: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%); background-size: ${percent}% 100%; box-shadow: inset 1px 0 0 #3b82f6;`
+      ? `background-image: linear-gradient(90deg, rgba(var(--astra-accent-rgb), 0.15) 0%, rgba(var(--astra-accent-rgb), 0.05) 100%); background-size: ${percent}% 100%; box-shadow: inset 1px 0 0 var(--astra-accent);`
       : '';
 
     return `
@@ -1497,7 +1497,7 @@ export class AstraDashboard extends BaseComponent {
 
     // Multiple liquid blobs
     const blobs = [
-      { x: 300, y: 250, r: 700, color: 'rgba(59, 130, 246, 0.2)' },
+      { x: 300, y: 250, r: 700, color: 'rgba(var(--astra-accent-rgb), 0.1)' }, // Background glow
       { x: 1600, y: 150, r: 600, color: 'rgba(139, 92, 246, 0.15)' },
       { x: 1000, y: 800, r: 650, color: 'rgba(6, 182, 212, 0.12)' },
       { x: 100, y: 900, r: 500, color: 'rgba(236, 72, 153, 0.1)' },
@@ -1535,7 +1535,7 @@ export class AstraDashboard extends BaseComponent {
     // Title with glow
     ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 30;
-    ctx.shadowColor = 'rgba(59, 130, 246, 0.6)';
+    ctx.shadowColor = 'rgba(var(--astra-accent-rgb), 0.5)';
     ctx.font = 'bold 80px Arial, sans-serif';
     ctx.fillText('YOUR 2024 WRAPPED', 70, 95);
     ctx.shadowBlur = 0;
@@ -1633,7 +1633,7 @@ export class AstraDashboard extends BaseComponent {
     const cw = 270;
     const gap = 20;
     drawCompactCard(70, y2, cw, 120, MediaListStatus.COMPLETED, stats.completed.toString(), '#10b981');
-    drawCompactCard(70 + cw + gap, y2, cw, 120, MediaListStatus.WATCHING, stats.watching.toString(), '#3db4f2');
+    drawCompactCard(70 + cw + gap, y2, cw, 120, MediaListStatus.WATCHING, stats.watching.toString(), 'var(--astra-accent)');
     drawCompactCard(70 + (cw + gap) * 2, y2, cw, 120, MediaListStatus.PLANNING, stats.planning.toString(), '#f59e0b');
     drawCompactCard(70 + (cw + gap) * 3, y2, cw, 120, MediaListStatus.DROPPED, stats.dropped.toString(), '#ef4444');
 
@@ -1706,7 +1706,7 @@ export class AstraDashboard extends BaseComponent {
       ctx.closePath();
       const radarGrad = ctx.createLinearGradient(radarCenterX - radarRadius, radarCenterY - radarRadius,
         radarCenterX + radarRadius, radarCenterY + radarRadius);
-      radarGrad.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+      radarGrad.addColorStop(0, 'rgba(var(--astra-accent-rgb), 0.2)');
       radarGrad.addColorStop(1, 'rgba(236, 72, 153, 0.3)');
       ctx.fillStyle = radarGrad;
       ctx.fill();

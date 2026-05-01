@@ -79,7 +79,7 @@ async function init(): Promise<void> {
     console.log('[DEBUG] Services resolved');
 
     // Initialize theme manager
-    ThemeManager.getInstance();
+    container.resolve(ThemeManager);
 
     // Font Awesome now loaded via import at top of file (BUG-010 fix)
     // loadFontAwesome(); // REMOVED - CDN dependency

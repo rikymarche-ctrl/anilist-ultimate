@@ -17,7 +17,7 @@ import type { AppConfig } from './types';
  * These values are used when no stored configuration exists
  */
 export const DEFAULT_CONFIG: AppConfig = {
-  version: '2.0.0',
+  version: '1.0.0',
 
   features: {
     calendar: true,
@@ -25,13 +25,14 @@ export const DEFAULT_CONFIG: AppConfig = {
     notificationCleaner: true,
     reviewEnhancer: true,
     friendActivity: true,
-    listEditor: false,
+    listEditor: true,
     socialActivity: true,
     forumEnhancer: true,
     activityScore: true,
     webComponents: true,
-    virtualScroll: false,
+    virtualScroll: true,
     mediaMetadata: true,
+    astra: true,
   },
 
   debug: {
@@ -77,5 +78,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   cache: {
     scheduleDuration: 30 * 60 * 1000, // 30 minutes
     progressDuration: 5 * 60 * 1000, // 5 minutes
+  },
+  theme: {
+    accentColor: '#8b5cf6',
   },
 };

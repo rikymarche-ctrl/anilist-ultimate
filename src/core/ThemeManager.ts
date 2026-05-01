@@ -19,9 +19,13 @@
  * @see docs/MODULES.md#theme-detection
  */
 
-import { singleton } from 'tsyringe';
 import { log } from './logger';
 import { CSS_CLASSES } from './constants';
+import { inject, singleton } from 'tsyringe';
+import { TOKENS } from './di/tokens';
+import type { IConfigManager } from './interfaces/IConfigManager';
+import type { ThemeConfig } from './config/types';
+import { container } from './di/container';
 
 /**
  * ThemeManager - Automatic theme detection and application
@@ -29,33 +33,38 @@ import { CSS_CLASSES } from './constants';
  */
 @singleton()
 export class ThemeManager {
-  private static instance: ThemeManager;
   private observer: MutationObserver | null = null;
   private lastTheme: string | null = null;
 
   /**
-   * Constructor is now public for DI compatibility
+   * Constructor with DI support
    * tsyringe @singleton() decorator will manage singleton lifecycle
    */
-  constructor() {
+  constructor(
+    @inject(TOKENS.Config) private config: IConfigManager
+  ) {
     this.init();
   }
 
   /**
+   * Static resolver (for backward compatibility)
    * @deprecated Use DI container to resolve ThemeManager instead
    */
   public static getInstance(): ThemeManager {
-    if (!ThemeManager.instance) {
-      ThemeManager.instance = new ThemeManager();
-    }
-    return ThemeManager.instance;
+    return container.resolve(ThemeManager);
   }
 
   private init(): void {
     log.info('Initializing Theme Manager');
-    
-    // Initial detection
+
+    // Initial detection and application
     this.detectAndApply();
+    this.applyAccentColor();
+
+    // Listen for config changes to accent color
+    this.config.onChange('theme', (theme: ThemeConfig) => {
+      this.applyAccentColor(theme.accentColor);
+    });
 
     // Observe changes to the body style/class (where Anilist usually sets theme)
     this.observer = new MutationObserver(() => {
@@ -82,11 +91,11 @@ export class ThemeManager {
    */
   public detectAndApply(): void {
     const theme = this.detectTheme();
-    
+
     if (theme !== this.lastTheme) {
       this.applyTheme(theme);
       this.lastTheme = theme;
-      log.debug('Theme changed detected', { theme });
+      log.debug('Theme change detected', { theme });
     }
   }
 
@@ -95,7 +104,7 @@ export class ThemeManager {
    */
   private detectTheme(): string {
     const bgColor = window.getComputedStyle(document.body).backgroundColor;
-    
+
     // Parse RGB(A)
     const match = bgColor.match(/\d+/g);
     if (!match || match.length < 3) return CSS_CLASSES.THEME_DARK;
@@ -108,7 +117,7 @@ export class ThemeManager {
     // Dark: rgb(11, 22, 34) (sum ~67)
     // Light: rgb(251, 251, 251) (sum ~753)
     // Contrast: rgb(0, 0, 0) (sum 0)
-    
+
     const sum = r + g + b;
 
     if (sum > 600) {
@@ -129,14 +138,41 @@ export class ThemeManager {
         CSS_CLASSES.THEME_DARK,
         CSS_CLASSES.THEME_CONTRAST
       );
-      
+
       // Add detected theme
       container.classList.add(themeClass);
     }
-    
+
     // Also apply to body to affect modals/popups
     document.body.classList.remove('au-theme-light', 'au-theme-dark', 'au-theme-contrast');
     document.body.classList.add(`au-${themeClass}`);
+  }
+
+  /**
+   * Apply custom accent color to document root
+   */
+  private applyAccentColor(color?: string): void {
+    let accentColor = color || this.config.get('theme').accentColor;
+    if (!accentColor) return;
+
+    // Ensure it's a valid hex for appending
+    if (accentColor.startsWith('#') && accentColor.length === 4) {
+      // Convert #RGB to #RRGGBB
+      accentColor = '#' + accentColor[1] + accentColor[1] + accentColor[2] + accentColor[2] + accentColor[3] + accentColor[3];
+    }
+
+    log.debug('Applying custom accent color', { accentColor });
+
+    const root = document.documentElement;
+    root.style.setProperty('--astra-accent', accentColor);
+
+    if (accentColor.startsWith('#') && accentColor.length === 7) {
+      // Update RGB variable - this is the "source of truth" for all transparent variants in CSS
+      const r = parseInt(accentColor.slice(1, 3), 16);
+      const g = parseInt(accentColor.slice(3, 5), 16);
+      const b = parseInt(accentColor.slice(5, 7), 16);
+      root.style.setProperty('--astra-accent-rgb', `${r}, ${g}, ${b}`);
+    }
   }
 
   public destroy(): void {

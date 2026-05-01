@@ -152,5 +152,12 @@ function updateUI(status: AuthStatusResponse): void {
 loginBtn.addEventListener('click', handleLogin);
 logoutBtn.addEventListener('click', handleLogout);
 
+const settingsBtn = document.getElementById('settings-btn') as HTMLButtonElement;
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
+}
+
 // Controlla status al caricamento
 checkAuthStatus();

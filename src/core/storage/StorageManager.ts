@@ -53,7 +53,7 @@ export class StorageManager implements IStorageService {
 
       return null;
     } catch (error) {
-      console.error(`[StorageManager] Error getting key "${key}":`, error);
+      this.handleStorageError(error, `getting key "${key}"`);
       return null;
     }
   }
@@ -75,7 +75,7 @@ export class StorageManager implements IStorageService {
 
       return unprefixed;
     } catch (error) {
-      console.error('[StorageManager] Error getting multiple keys:', error);
+      this.handleStorageError(error, 'getting multiple keys');
       return {};
     }
   }
@@ -89,7 +89,7 @@ export class StorageManager implements IStorageService {
       await chrome.storage[this.area].set({ [prefixedKey]: value });
       return true;
     } catch (error) {
-      console.error(`[StorageManager] Error setting key "${key}":`, error);
+      this.handleStorageError(error, `setting key "${key}"`);
       return false;
     }
   }
@@ -108,7 +108,7 @@ export class StorageManager implements IStorageService {
       await chrome.storage[this.area].set(prefixedItems);
       return true;
     } catch (error) {
-      console.error('[StorageManager] Error setting multiple keys:', error);
+      this.handleStorageError(error, 'setting multiple keys');
       return false;
     }
   }
@@ -122,7 +122,7 @@ export class StorageManager implements IStorageService {
       await chrome.storage[this.area].remove(prefixedKey);
       return true;
     } catch (error) {
-      console.error(`[StorageManager] Error removing key "${key}":`, error);
+      this.handleStorageError(error, `removing key "${key}"`);
       return false;
     }
   }
@@ -141,7 +141,7 @@ export class StorageManager implements IStorageService {
 
       return true;
     } catch (error) {
-      console.error('[StorageManager] Error clearing storage:', error);
+      this.handleStorageError(error, 'clearing storage');
       return false;
     }
   }
@@ -163,7 +163,7 @@ export class StorageManager implements IStorageService {
 
       return filtered as T;
     } catch (error) {
-      console.error('[StorageManager] Error getting all items:', error);
+      this.handleStorageError(error, 'getting all items');
       return {} as T;
     }
   }
@@ -195,8 +195,23 @@ export class StorageManager implements IStorageService {
         };
       }
     } catch (error) {
-      console.error('[StorageManager] Error getting usage:', error);
+      this.handleStorageError(error, 'getting usage');
       return { bytesInUse: 0 };
+    }
+  }
+
+  /**
+   * Handle storage errors gracefully
+   */
+  private handleStorageError(error: any, context: string): void {
+    const message = error instanceof Error ? error.message : String(error);
+    
+    if (message.includes('Extension context invalidated')) {
+      console.warn(
+        `[StorageManager] Extension updated/reloaded. Please refresh the page to continue. (Context: ${context})`
+      );
+    } else {
+      console.error(`[StorageManager] Error ${context}:`, error);
     }
   }
 

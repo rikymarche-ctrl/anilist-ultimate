@@ -30,6 +30,7 @@ export interface FeatureFlags {
   webComponents: boolean;
   virtualScroll: boolean;
   mediaMetadata: boolean;
+  astra: boolean;
 }
 
 /**
@@ -93,6 +94,13 @@ export interface CacheConfig {
 }
 
 /**
+ * Theme Configuration
+ */
+export interface ThemeConfig {
+  accentColor: string;
+}
+
+/**
  * Complete Application Configuration
  */
 export interface AppConfig {
@@ -103,6 +111,7 @@ export interface AppConfig {
   oauth: OAuthConfig;
   calendar: CalendarPreferences;
   cache: CacheConfig;
+  theme: ThemeConfig;
 }
 
 /**

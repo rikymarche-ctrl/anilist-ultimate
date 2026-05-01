@@ -80,15 +80,12 @@ export interface AstraSection {
 }
 
 export const DEFAULT_SECTIONS: AstraSection[] = [
-  { id: 'story', name: 'Story', weight: 3, subSections: [] },
-  { id: 'characters', name: 'Characters', weight: 3, subSections: [] },
+  { id: 'story', name: 'Story', weight: 4, subSections: [] },
+  { id: 'characters', name: 'Characters', weight: 4, subSections: [] },
   { id: 'visuals', name: 'Visuals', weight: 2, subSections: [] },
-  { id: 'audio', name: 'Audio', weight: 1, subSections: [] },
+  { id: 'sound', name: 'Sound', weight: 1, subSections: [] },
   { id: 'enjoyment', name: 'Enjoyment', weight: 3, subSections: [] },
-  { id: 'finale', name: 'Finale', weight: 2, subSections: [] },
-  { id: 'bullshit', name: 'Bullshit', weight: 1, subSections: [] },
-  { id: 'originality', name: 'Originality', weight: 2, subSections: [] },
-  { id: 'consistency', name: 'Consistency', weight: 2, subSections: [] },
+  { id: 'execution', name: 'Execution', weight: 2, subSections: [] },
 ];
 
 export interface AstraSettings {
