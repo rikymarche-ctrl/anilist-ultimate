@@ -132,9 +132,9 @@ export class ProfileActivityModule extends BaseModule {
     bar.classList.add('au-profile-activity-bar');
     
     // Force specific styling for profile to avoid overlap and ensure spacing
-    bar.style.setProperty('margin-top', '35px', 'important'); // Increased spacing further
-    bar.style.setProperty('margin-bottom', '20px', 'important');
-    bar.style.setProperty('padding', '10px 16px', 'important');
+    bar.style.setProperty('margin-top', '40px', 'important'); // Increased spacing even further
+    bar.style.setProperty('margin-bottom', '25px', 'important');
+    bar.style.setProperty('padding', '12px 16px', 'important');
     bar.style.setProperty('display', 'flex', 'important');
     bar.style.setProperty('width', '100%', 'important');
     bar.style.setProperty('box-sizing', 'border-box', 'important');

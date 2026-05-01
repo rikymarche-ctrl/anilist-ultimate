@@ -38,7 +38,8 @@ export interface RendererOptions {
 @injectable()
 export class ActivityRenderer {
   private options: RendererOptions = {
-    activitySelector: '.activity-entry, .activity-anime, .activity-manga, .activity-text',
+    // BUG FIX: Use a more specific selector to avoid nested matches (especially on profile pages)
+    activitySelector: '.activity-feed > .activity-entry, .activities > .activity-entry, .activity-entry, .activity-anime, .activity-manga, .activity-text',
     showScores: false,
   };
 
@@ -60,11 +61,17 @@ export class ActivityRenderer {
     activeFilters: Set<ActivityFilterType>,
     searchQuery: string = ''
   ): { shown: number; hidden: number } {
-    const activities = Array.from(
-      document.querySelectorAll(this.options.activitySelector!)
-    ) as HTMLElement[];
+    const allActivities = document.querySelectorAll(this.options.activitySelector!);
+    
+    // BUG FIX: Filter out nested elements to avoid double-processing or conflicts
+    // Keep only elements that don't have a parent which is also an activity
+    const activities = Array.from(allActivities).filter(el => {
+      return !Array.from(allActivities).some(potentialParent => 
+        potentialParent !== el && potentialParent.contains(el)
+      );
+    }) as HTMLElement[];
 
-    this.logger.debug(`[ActivityRenderer] Applying filters to ${activities.length} activities`);
+    this.logger.debug(`[ActivityRenderer] Applying filters to ${activities.length} top-level activities`);
 
     let hiddenCount = 0;
     let shownCount = 0;
