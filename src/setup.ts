@@ -63,6 +63,7 @@ import { HoverCommentsModule } from '@/modules/social/HoverCommentsModule';
 import { NotificationCleanerModule } from '@/modules/notifications/NotificationCleanerModule';
 import { ReviewEnhancerModule } from '@/modules/reviews/ReviewEnhancerModule';
 import { ActivityEnhancerModule } from '@/modules/activity/ActivityEnhancerModule';
+import { ProfileActivityModule } from '@/modules/activity/ProfileActivityModule';
 import { ForumEnhancerModule } from '@/modules/forum/ForumEnhancerModule';
 import { ActivityScoreModule } from '@/modules/activity/ActivityScoreModule';
 import { SocialActivityModule } from '@/modules/social/SocialActivityModule';
@@ -302,6 +303,13 @@ export async function setupDI(): Promise<void> {
       enabled: config.isFeatureEnabled('mediaMetadata'),
       factory: () => container.resolve(MediaMetadataModule),
       pageMatch: (path) => /^\/(anime|manga)\/\d+/.test(path),
+    },
+    {
+      name: 'profileActivity',
+      description: 'Activity filtering on user profile',
+      enabled: config.isFeatureEnabled('socialActivity'),
+      factory: () => container.resolve(ProfileActivityModule),
+      pageMatch: (path) => path.startsWith('/user/') && !path.includes('/animelist') && !path.includes('/mangalist'),
     },
   ];
 

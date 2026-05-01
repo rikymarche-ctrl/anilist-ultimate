@@ -93,7 +93,13 @@ export function getTimeAgo(timestamp: number): string {
 export function getActivityType(text: string): ActivityFilterType {
   const lower = text.toLowerCase();
 
-  // Anime/Manga watching/reading progress
+  // 1. List status changes (most specific)
+  if (lower.includes('completed')) return MediaListStatus.COMPLETED;
+  if (lower.includes('plans to') || lower.includes('planning') || lower.includes('plans to watch')) return MediaListStatus.PLANNING;
+  if (lower.includes('dropped')) return MediaListStatus.DROPPED;
+  if (lower.includes('paused')) return MediaListStatus.PAUSED;
+
+  // 2. Anime/Manga watching/reading progress
   if (lower.includes('watched') || lower.includes('watch') || lower.includes(' ep')) {
     return MediaListStatus.WATCHING;
   }
@@ -101,12 +107,6 @@ export function getActivityType(text: string): ActivityFilterType {
     return MediaListStatus.READING;
   }
 
-  // List status changes
-  if (lower.includes('completed')) return MediaListStatus.COMPLETED;
-  if (lower.includes('plans') || lower.includes('planning')) return MediaListStatus.PLANNING;
-  if (lower.includes('dropped')) return MediaListStatus.DROPPED;
-  if (lower.includes('paused')) return MediaListStatus.PAUSED;
-
-  // Default to text activity
+  // 3. Default to text activity
   return 'TEXT';
 }

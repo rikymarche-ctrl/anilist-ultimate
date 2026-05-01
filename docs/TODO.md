@@ -14,7 +14,7 @@
 - [X] **BUG-020: Resize Handler** - Ensure extension elements (Astra, Tooltips) don't break when resizing the window.
 - [X] **Astra Navigation** - Implement macro-categories (Reading, Completed, All, etc.) as dropdowns or tabs instead of just tags.
 - [X] **Sticky Search** - Make the search bar in Astra sticky so it stays visible during scroll.
-- [ ] **Closing Animation** - Add a smooth "outro" animation when closing the Astra dashboard.
+- [X] **Closing Animation** - Add a smooth "outro" animation when closing the Astra dashboard.
 - [X] **Alignment Fix** - Correct decentered items above the votes/scores section.
 - [X] **Icon Loading** - Switched to Font Awesome SVG/JS to fix CSP font-blocking issues.
 
@@ -82,7 +82,7 @@ ci sono tutte le cose fuori da astra da applicare, tipo che i filtri nelle activ
 
 da reinserire il bottone capusle in anime e manga in progress, controllare se manca qualche direttiva @inject ad esempio. In home
 
-i cidimaine di commenti si sono spostati ancora leggermente sulla destra dentro le loro righe
+i icone di commenti si sono spostati ancora leggermente sulla destra dentro le loro righe
 
 I fgiltri non funzionano bene, se ne fregano di read, completed ecc, specialmente dentro le poagine delle opere, e quindi forse se implementato anche in quello nella home nelle pagine degli utenti. Questa funzionalità ad esempio deve essere disponibile anche senza anilist API. Come tutte le cose già cachetate, inutile perderle
 
@@ -104,7 +104,7 @@ funzionalità
 - [ ] Togliere quel pallino fastidioso che fa da stanghetta alla A nel logo Astra
 - [ ] Astra settings: Lo slider va oltre la rating sections, che scrolla sopra oltre il massimo previsto
 - [ ] astra settings: I 6 pallini ceh sembrano quelli con cui si attiva il drag and drop sulle sezioni dei voti Non funzionano
-- [ ] Astra settings: Rework al bottone save changes per matahcare quello del quick edit?
+- [ ] Astra settings: Rework al bottone save changes per matchare quello del quick edit?
 - [ ] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera
 - [ ] astra dashboard, stessa cosa col sync e toggle progress, da reworkare?
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
