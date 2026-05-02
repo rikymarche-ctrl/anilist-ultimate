@@ -224,10 +224,27 @@ export class GraphQLBatcher {
 
   /**
    * Format a value for inline GraphQL query
+   *
+   * SECURITY: Properly escapes all GraphQL string special characters
+   * to prevent injection attacks via crafted usernames or values.
    */
   private formatValue(value: any): string {
     if (value === null || value === undefined) return 'null';
-    if (typeof value === 'string') return `"${value.replace(/"/g, '\\"')}"`;
+
+    if (typeof value === 'string') {
+      // GraphQL string escape: must escape \, ", and control characters
+      // to prevent injection attacks like: test\"; mutation { ... }
+      const escaped = value
+        .replace(/\\/g, '\\\\')   // Backslash FIRST (before other escapes)
+        .replace(/"/g, '\\"')     // Double quote
+        .replace(/\n/g, '\\n')    // Newline
+        .replace(/\r/g, '\\r')    // Carriage return
+        .replace(/\t/g, '\\t')    // Tab
+        .replace(/\b/g, '\\b')    // Backspace
+        .replace(/\f/g, '\\f');   // Form feed
+      return `"${escaped}"`;
+    }
+
     if (typeof value === 'number' || typeof value === 'boolean') return String(value);
     if (Array.isArray(value)) {
       return `[${value.map(v => this.formatValue(v)).join(', ')}]`;
