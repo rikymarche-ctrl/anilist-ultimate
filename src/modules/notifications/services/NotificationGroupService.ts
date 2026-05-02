@@ -135,7 +135,9 @@ export class NotificationGroupService {
 
       for (const pattern of patterns) {
         if (pattern.test(originalHTML)) {
-          const mediaLink = `<a href="/anime/${activityData.mediaId}" class="title au-title">${activityData.mediaTitle}</a>`;
+          // XSS PROTECTION: Escape mediaTitle from API data
+          const mediaTitleSafe = escapeHtml(activityData.mediaTitle || '');
+          const mediaLink = `<a href="/anime/${activityData.mediaId}" class="title au-title">${mediaTitleSafe}</a>`;
           const action = activityData.status?.replace(/_/g, ' ').toLowerCase() || 'watched';
           newContentHTML = `liked: ${action} ${mediaLink}`;
           break;

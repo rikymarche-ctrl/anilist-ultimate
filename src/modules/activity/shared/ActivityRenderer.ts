@@ -283,32 +283,40 @@ export class ActivityRenderer {
       const mediaTitle = activity.media.title?.romaji || 'Unknown';
       const mediaUrl = `/${activity.media.type?.toLowerCase() || 'anime'}/${activity.media.id}`;
 
+      // XSS PROTECTION: Escape all user-provided and API data
+      const userNameSafe = escapeHtml(userName);
+      const mediaTitleSafe = escapeHtml(mediaTitle);
+
       return `
         <a href="${mediaUrl}" class="cover" style="background-image: url(${mediaCover})"></a>
         <div class="content">
           <div class="header">
             <div class="user">
               <a href="${userUrl}" class="avatar" style="background-image: url(${userAvatar})"></a>
-              <a href="${userUrl}" class="name">${userName}</a>
+              <a href="${userUrl}" class="name">${userNameSafe}</a>
             </div>
             <div class="status">
               ${status} ${progress ? `<strong>${progress}</strong>` : ''} of
-              <a href="${mediaUrl}" class="title">${mediaTitle}</a>
+              <a href="${mediaUrl}" class="title">${mediaTitleSafe}</a>
             </div>
           </div>
           <div class="time">${timeAgo}</div>
         </div>
       `;
     } else if (isTextActivity) {
+      // XSS PROTECTION: Escape all user-provided and API data
+      const userNameSafe = escapeHtml(userName);
+      const activityTextSafe = escapeHtml(activity.text || '');
+
       return `
         <div class="content">
           <div class="header">
             <div class="user">
               <a href="${userUrl}" class="avatar" style="background-image: url(${userAvatar})"></a>
-              <a href="${userUrl}" class="name">${userName}</a>
+              <a href="${userUrl}" class="name">${userNameSafe}</a>
             </div>
           </div>
-          <div class="text">${activity.text || ''}</div>
+          <div class="text">${activityTextSafe}</div>
           <div class="time">${timeAgo}</div>
         </div>
       `;
