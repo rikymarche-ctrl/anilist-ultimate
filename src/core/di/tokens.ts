@@ -34,6 +34,7 @@ export const TOKENS = {
 
   // API Layer
   ApiClient: Symbol.for('IApiClient'),
+  GraphQLBatcher: Symbol.for('GraphQLBatcher'),
 
   // Auth
   AuthTokenService: Symbol.for('AuthTokenService'),

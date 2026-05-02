@@ -39,6 +39,7 @@ import type { IConfigManager } from '@core/interfaces/IConfigManager';
 
 // Core Services
 import { AnilistClient } from '@/api/AnilistClient';
+import { GraphQLBatcher } from '@core/api/GraphQLBatcher';
 import { syncStorage } from '@core/storage/StorageManager';
 import { logger } from '@core/logger';
 import { ThemeManager } from '@core/ThemeManager';
@@ -132,6 +133,9 @@ export async function setupDI(): Promise<void> {
 
   // AnilistClient (singleton via @injectable())
   container.registerSingleton(TOKENS.ApiClient, AnilistClient);
+
+  // GraphQLBatcher (singleton - batches multiple queries into one HTTP request)
+  container.registerSingleton(TOKENS.GraphQLBatcher, GraphQLBatcher);
 
   // ============================================================================
   // Auth
