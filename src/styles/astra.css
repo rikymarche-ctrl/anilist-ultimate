@@ -3103,12 +3103,54 @@
   position: relative;
 }
 
-/* Hide native AniList progress overlays - More aggressive selectors */
-.media-preview-card .image-overlay .plus-progress,
-.media-preview-card .image-overlay .progress-bar,
-.media-preview-card .image-overlay > div:has(.plus-progress),
-.media-preview-card .image-overlay [data-v-2fd80e52],
-.media-preview-card .image-overlay [data-v-0a6a0e5c] {
+/* Hide native AniList progress overlays ONLY on cards managed by Astra */
+.media-preview-card.au-astra-card .image-overlay .plus-progress,
+.media-preview-card.au-astra-card .image-overlay .progress-bar,
+.media-preview-card.au-astra-card .image-overlay > div:has(.plus-progress),
+.media-preview-card.au-astra-card .image-overlay [data-v-2fd80e52],
+.media-preview-card.au-astra-card .image-overlay [data-v-0a6a0e5c] {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Native Social Bubble Suppression (Static Fallback)
+
+   The primary bubble killer is injected via JS (AstraModule.injectBubbleKillerCSS)
+   for maximum reliability. These rules serve as a fallback before JS initializes.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+body.au-astra-enabled [class*="friend-activity"]:not(.au-pill-section):not(.au-pill-wrapper),
+body.au-astra-enabled [class*="activity-bubble"]:not(.au-pill-section):not(.au-pill-wrapper),
+.au-calendar-header-managed .friend-activity-button,
+.au-calendar-header-managed .friend-activity {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+
+body.au-social-avatars-hidden .friend-activity-container,
+body.au-social-avatars-hidden .friend-avatars,
+body.au-social-avatars-hidden [class*="friend-avatars"],
+body.au-social-avatars-hidden [class*="avatar-stack"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+
+body.au-astra-enabled .section-header .friend-activity,
+body.au-astra-enabled .section-header .friend-activity-button {
   display: none !important;
 }
 

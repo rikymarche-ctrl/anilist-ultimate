@@ -30,9 +30,9 @@
   padding-bottom: 0 !important;
 }
 
-/* Definition of Anilist header actions to hide */
-.section-header:has(+ #anilist-calendar) .actions,
-.section-header:has(+ #anilist-calendar) .size-toggle {
+/* Definition of header actions - hidden only if managed by Astra */
+.au-calendar-header-managed .actions,
+.au-calendar-header-managed .size-toggle {
   display: none !important;
 }
 

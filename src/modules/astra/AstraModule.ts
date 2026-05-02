@@ -257,7 +257,10 @@ export class AstraModule extends BaseModule {
   }
 
   private initProgressEnhancer(): void {
-    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
+    // Apply body classes for CSS rules (same as CalendarDomService)
+    this.updateBodyClasses();
+
+    // BUG-007 fix: Use SharedGlobalObserver for card enhancement
     this.sharedObserver.register('astra-progress-enhancer', () => {
       this.enhanceNativeCards();
     });
@@ -269,6 +272,7 @@ export class AstraModule extends BaseModule {
         socialShowAvatars: state.preferences.socialShowAvatars,
       }),
       (curr: any) => {
+        this.updateBodyClasses(); // Update body classes first
         this.refreshNativeCardSocialPills(curr.socialEnabled, curr.socialShowAvatars);
       }
     );
@@ -300,10 +304,29 @@ export class AstraModule extends BaseModule {
       section.classList.add('au-pill-pressed');
       setTimeout(() => section.classList.remove('au-pill-pressed'), 300);
 
+      // Icon spinner feedback (unifying animation across all buttons as requested)
+      const icon = section.querySelector<HTMLElement>('i');
+      const originalClass = icon?.className || '';
+      if (icon) icon.className = 'fa fa-spinner fa-spin';
+      section.style.pointerEvents = 'none';
+
+      const resetState = () => {
+        if (icon) icon.className = originalClass;
+        section.style.pointerEvents = 'auto';
+      };
+
       if (action === 'mark-watched') {
+        // handleMarkWatched already has internal async handling, but we unified the entry point
+        // We'll let handleMarkWatched handle its own icons for now, or simplify it
         this.handleMarkWatched(section, wrapper, mediaId);
       } else if (action === 'edit-entry') {
-        this.ratingModal.open(mediaId);
+        (async () => {
+          try {
+            await this.ratingModal.open(mediaId);
+          } finally {
+            resetState();
+          }
+        })();
       } else if (action === 'social-activity') {
         const card = wrapper.closest<HTMLElement>('.media-preview-card, .media-card');
         const titleEl = card?.querySelector('.title');
@@ -317,6 +340,8 @@ export class AstraModule extends BaseModule {
         window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
           detail: { mediaId, title, element: card, type }
         }));
+        // Social sidebar is instant, but keep spinner for a micro-beat for feedback
+        setTimeout(resetState, 200);
       }
     }, { capture: true });
     // ────────────────────────────────────────────────────────────────────────────
@@ -324,6 +349,33 @@ export class AstraModule extends BaseModule {
     // Initial run
     this.enhanceNativeCards();
   }
+
+  /**
+   * Updates body classes to control CSS rules for social bubbles.
+   * This is CRITICAL for the CSS in astra.css to work properly.
+   *
+   * EXACTLY like CalendarDomService.ts:171-181
+   */
+  private updateBodyClasses(): void {
+    const { socialShowAvatars } = calendarStore.getState().preferences;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RULE 1: If avatars are hidden, add class to hide native bubbles via CSS
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (!socialShowAvatars) {
+      document.body.classList.add('au-social-avatars-hidden');
+    } else {
+      document.body.classList.remove('au-social-avatars-hidden');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RULE 2: Always mark Astra as enabled (our pills are active)
+    // ═══════════════════════════════════════════════════════════════════════════
+    document.body.classList.add('au-astra-enabled');
+
+    log.debug(`[Astra] Body classes updated: avatars=${socialShowAvatars ? 'visible' : 'hidden'}`);
+  }
+
 
   /**
    * Enhances media cards with Astra action pills (quick rate, increment progress, etc.)
@@ -346,39 +398,34 @@ export class AstraModule extends BaseModule {
     // ══════════════════════════════════════════════════════════════════════════
     if (isHome) {
       const calendarPresent = !!document.querySelector('#anilist-calendar');
+      const headers = Array.from(document.querySelectorAll('h2, .section-header'));
 
       if (calendarPresent) {
-        log.debug('[Astra] Calendar present, adding pills to "In Progress" cards');
-
-        // Find "In Progress" sections (Calendar target)
-        const headers = Array.from(document.querySelectorAll('h2, .section-header'));
-
+        // Calendar ON: Add pills to "In Progress" only (Calendar manages Airing)
         headers.forEach(header => {
           const headerText = header.textContent?.toLowerCase() || '';
-
-          // Skip Airing/Schedule sections (Calendar manages those)
-          if (headerText.includes('airing') || headerText.includes('schedule')) {
-            return;
-          }
+          if (headerText.includes('airing') || headerText.includes('schedule')) return;
 
           if (headerText.includes('in progress')) {
-            const sectionContainer = header.closest('.list-preview-wrap, .list-preview, .section, [data-v-4f9e87dc]');
-            if (sectionContainer) {
-              const cards = sectionContainer.querySelectorAll('.media-preview-card, .media-card');
-              log.info(`[Astra] Enhancing ${cards.length} cards in "In Progress" section`);
-              cards.forEach(card => {
-                this.processCard(card as HTMLElement, true);
-              });
-            }
+            const section = header.closest('.list-preview-wrap, .list-preview, .section, [data-v-4f9e87dc]');
+            if (!section) return;
+            section.querySelectorAll('.media-preview-card, .media-card').forEach(card => {
+              this.processCard(card as HTMLElement, true);
+            });
           }
         });
       } else {
-        // Calendar not present - remove any pills that might have been left
-        log.debug('[Astra] Calendar not present, removing pills from home page');
-        document.querySelectorAll('.au-pill-wrapper').forEach(p => {
-          // Only remove pills on home page, not on user lists or media pages
-          if (p.closest('.list-preview-wrap, .list-preview')) {
-            p.remove();
+        // Calendar OFF: Add pills to ALL home sections (In Progress + Airing)
+        headers.forEach(header => {
+          const headerText = header.textContent?.toLowerCase() || '';
+          if (headerText.includes('in progress') || headerText.includes('airing') || headerText.includes('schedule')) {
+            // Try multiple container selectors (AniList sections vary in structure)
+            const section = header.closest('.list-preview-wrap, .list-preview, .section, [data-v-4f9e87dc]')
+              || header.parentElement;
+            if (!section) return;
+            section.querySelectorAll('.media-preview-card, .media-card').forEach(card => {
+              this.processCard(card as HTMLElement, true);
+            });
           }
         });
       }
@@ -416,6 +463,7 @@ export class AstraModule extends BaseModule {
 
     const mediaId = parseInt(match[2]);
     card.setAttribute('data-astra-processed', 'true');
+    card.classList.add('au-astra-card'); // Marker for CSS to hide native overlays
     this.injectCardPill(card, mediaId, isUserListCard);
   }
 
@@ -460,8 +508,12 @@ export class AstraModule extends BaseModule {
    * Helper to render the common action pill HTML
    */
   private renderPillHTML(showMarkWatched: boolean, isSidebar: boolean = false): string {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
-    const showSocial = socialEnabled && !socialShowAvatars;
+    const { socialEnabled } = calendarStore.getState().preferences;
+
+    // Social button inside the pill: show if Social Features is enabled.
+    // The separate bubble/portal (with friend avatars) has its own check
+    // for socialShowAvatars in SocialRenderer.attachPortal().
+    const showSocial = socialEnabled;
 
     const socialHTML = showSocial ? `
       <div class="pill-separator"></div>
@@ -498,8 +550,10 @@ export class AstraModule extends BaseModule {
    * @param isUserListCard - If false (trending/newly added), skip the mark-watched button.
    */
   private injectCardPill(card: HTMLElement, mediaId: number, isUserListCard: boolean): void {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
-    const showPillSocial = socialEnabled && !socialShowAvatars;
+    const { socialEnabled } = calendarStore.getState().preferences;
+
+    // Social button inside pill: show when Social Features is enabled
+    const showPillSocial = socialEnabled;
 
     const socialSectionHTML = showPillSocial ? `
       <div class="pill-separator"></div>
@@ -559,14 +613,14 @@ export class AstraModule extends BaseModule {
           MediaList: {
             id: number;
             progress: number;
-            media: { title: { romaji: string } };
+            media: { id: number; title: { romaji: string } };
           } | null;
         }>(`
           query ($mediaId: Int, $userId: Int) {
             MediaList(mediaId: $mediaId, userId: $userId) {
               id
               progress
-              media { title { romaji } }
+              media { id title { romaji } }
             }
           }
         `, { mediaId, userId });
@@ -590,7 +644,10 @@ export class AstraModule extends BaseModule {
           }
         `, { id: entry.id, progress: newProgress });
 
-        this.toast.success(`✓ ${entry.media.title.romaji} → Ep ${newProgress}`);
+        this.toast.success(`✓ ${entry.media.title.romaji} → Ep ${newProgress}`, {
+          mediaId: entry.media.id,
+          progress: newProgress
+        });
 
         // Update native UI text (best-effort)
         if (card) {
@@ -618,9 +675,12 @@ export class AstraModule extends BaseModule {
   /**
    * Surgically patches the social pill section in all processed native cards.
    * Called when social preferences change — no page refresh needed.
+   *
+   * REGOLA: Mostra social SOLO se calendario presente, social abilitato, avatars MOSTRATI
    */
-  private refreshNativeCardSocialPills(socialEnabled: boolean, socialShowAvatars: boolean): void {
-    const showPillSocial = socialEnabled && !socialShowAvatars;
+  private refreshNativeCardSocialPills(socialEnabled: boolean, _socialShowAvatars: boolean): void {
+    // Social button inside pill: show when Social Features is enabled
+    const showPillSocial = socialEnabled;
 
     document.querySelectorAll<HTMLElement>('.au-pill-wrapper .action-pill').forEach(pill => {
       // Remove existing social section
@@ -645,13 +705,13 @@ export class AstraModule extends BaseModule {
         pill.appendChild(socialBtn);
       }
     });
+
   }
 
   /**
    * Cleanup on module destroy
    */
   public override async destroy(): Promise<void> {
-    // BUG-007 fix: Unregister from SharedGlobalObserver
     this.sharedObserver.unregister('astra-progress-enhancer');
     this.sharedObserver.unregister('astra-global-nav');
     await super.destroy();

@@ -15,6 +15,7 @@ import { injectable } from 'tsyringe';
 import { log } from '@core/logger';
 import { CSS_CLASSES } from '@core/constants';
 import { container } from '@core/di/container';
+import { calendarStore } from '@/modules/calendar/CalendarStore';
 import { CalendarGrid } from '../components/CalendarGrid';
 
 @injectable()
@@ -78,7 +79,7 @@ export class CalendarDomService {
     // Add settings buttons to the header
     const parentHeader = (headerElement.closest('.section-header') || headerElement.parentElement) as HTMLElement;
     if (parentHeader) {
-      this.injectSettingsButton(parentHeader, onSettingsClick);
+      this.injectSettingsButton(parentHeader, onSettingsClick, astraEnabled);
     }
 
     // Clear native content from the container
@@ -126,7 +127,7 @@ export class CalendarDomService {
   /**
    * Inject settings and dashboard buttons into the header
    */
-  private injectSettingsButton(parentHeader: HTMLElement, onSettingsClick: () => void): void {
+  private injectSettingsButton(parentHeader: HTMLElement, onSettingsClick: () => void, astraEnabled: boolean): void {
     if (parentHeader.querySelector('.calendar-header__actions')) return;
 
     const actionsContainer = document.createElement('div');
@@ -142,11 +143,42 @@ export class CalendarDomService {
     parentHeader.querySelectorAll('.view-selector, .grid-icon, .list-icon, [class*="view-selector"]')
       .forEach(el => (el as HTMLElement).style.display = 'none');
 
+    // The CSS rule for .au-calendar-header-managed and global body classes take care of this
+    this.syncSocialVisibilityClasses(astraEnabled);
+
+    // Also hide header actions if Astra is enabled
+    if (astraEnabled) {
+      parentHeader.classList.add('au-calendar-header-managed');
+    }
+
     actionsContainer.querySelector('.calendar-header__settings')?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       onSettingsClick();
     });
+  }
+
+  /**
+   * Synchronizes global body classes for social visibility based on the 4-point rule
+   */
+  public syncSocialVisibilityClasses(astraEnabled: boolean): void {
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    
+    // 4-Point Rule for hiding ALL social bubbles/avatars (including native ones on cards)
+    // We hide them if social is disabled OR if friend avatars are disabled
+    const hideSocialBubbles = !socialEnabled || !socialShowAvatars;
+    
+    if (hideSocialBubbles) {
+      document.body.classList.add('au-social-avatars-hidden');
+    } else {
+      document.body.classList.remove('au-social-avatars-hidden');
+    }
+
+    if (astraEnabled) {
+      document.body.classList.add('au-astra-enabled');
+    } else {
+      document.body.classList.remove('au-astra-enabled');
+    }
   }
 
   /**

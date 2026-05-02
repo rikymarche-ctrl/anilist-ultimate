@@ -146,6 +146,22 @@ export class CalendarModule extends BaseModule {
         }
       });
 
+      // 4. Initialize global social visibility classes
+      const syncClasses = () => this.domService.syncSocialVisibilityClasses(this.config.isFeatureEnabled('astra'));
+      syncClasses();
+
+      // 5. Subscribe to preference changes to update body classes in real-time
+      calendarStore.subscribeToSelector(
+        (state: any) => ({
+          socialEnabled: state.preferences.socialEnabled,
+          socialShowAvatars: state.preferences.socialShowAvatars,
+        }),
+        () => syncClasses()
+      );
+
+      // 6. PERSISTENCE: Use shared observer to ensure classes stay applied even after React re-renders body
+      this.sharedObserver.register('social-visibility-persistence', () => syncClasses(), 2000);
+
       log.success('[Calendar] Module initialized successfully');
     } catch (error) {
       log.error('[Calendar] Initialization failed', error);

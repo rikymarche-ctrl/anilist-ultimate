@@ -171,8 +171,8 @@ export class SocialRenderer {
     };
 
     card.addEventListener('mouseenter', () => {
-      const { socialEnabled } = calendarStore.getState().preferences;
-      if (!socialEnabled) return;
+      const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+      if (!socialEnabled || !socialShowAvatars) return;
 
       createBubble();
       positionAndShow();
