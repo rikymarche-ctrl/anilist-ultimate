@@ -31,6 +31,7 @@ import { TOKENS } from '@core/di/tokens';
 import { ToastService } from '@core/services/ToastService';
 import { AstraRatingModal } from './AstraRatingModal';
 import { AuthService } from '@core/auth/AuthService';
+import { escapeHtml } from '@core/utils/Template';
 
 @injectable()
 @singleton()
@@ -422,7 +423,7 @@ export class AstraDashboard extends BaseComponent {
              <div class="astra-genre-list">
                ${topGenres.length > 0 ? topGenres.map(([g, count]) => `
                  <div class="astra-genre-item">
-                   <span class="name">${g}</span>
+                   <span class="name">${escapeHtml(g)}</span>
                    <span class="count">${count}</span>
                  </div>
                `).join('') : `
@@ -440,7 +441,7 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-top-series">
              ${topSeries.map((w, i) => `
                <div class="astra-top-thumb-container" style="z-index: ${5 - i}">
-                 <img src="${w.cover}" class="astra-top-thumb" title="${w.title}">
+                 <img src="${w.cover}" class="astra-top-thumb" title="${escapeHtml(w.title)}">
                  <div class="astra-top-score">${(this.service!.calcSeriesOverall(w) || 0).toFixed(1)}</div>
                </div>
              `).join('')}
