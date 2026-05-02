@@ -41,8 +41,8 @@ export interface AniListCoverImage {
 export interface AniListUser {
   id: number;
   name: string;
-  avatar?: {
-    medium?: string;
+  avatar: {
+    medium: string;
     large?: string;
   };
 }
@@ -54,6 +54,8 @@ export interface AniListUser {
 export type MediaType = 'ANIME' | 'MANGA';
 export type MediaFormat = 'TV' | 'TV_SHORT' | 'MOVIE' | 'SPECIAL' | 'OVA' | 'ONA' | 'MUSIC' | 'MANGA' | 'NOVEL' | 'ONE_SHOT';
 export type MediaStatus = 'FINISHED' | 'RELEASING' | 'NOT_YET_RELEASED' | 'CANCELLED' | 'HIATUS';
+export type ScoreFormat = 'POINT_100' | 'POINT_10_DECIMAL' | 'POINT_10' | 'POINT_5' | 'POINT_3';
+
 export enum MediaListStatus {
   CURRENT = 'CURRENT',
   PLANNING = 'PLANNING',
@@ -198,12 +200,95 @@ export interface SaveMediaListEntryResponse {
  * Used in: SocialService.getFriendActivityBatch
  */
 export interface MediaListResponse {
-  mediaList: Array<{
-    user: AniListUser;
-    status: MediaListStatus;
-    progress: number;
-    score: number;
-  }> | null;
+  Page: {
+    mediaList: Array<{
+      user: AniListUser;
+      status: MediaListStatus;
+      progress: number;
+      score: number;
+    }>;
+  };
+}
+
+/**
+ * Response for fetching viewer ID
+ * Used in: AnilistClient.getCurrentUserId
+ */
+export interface ViewerResponse {
+  Viewer: {
+    id: number;
+    name: string;
+  };
+}
+
+/**
+ * Response for fetching user by name
+ * Used in: SocialService.getUserByName
+ */
+export interface UserByNameResponse {
+  User: {
+    id: number;
+    name: string;
+    avatar: {
+      medium: string;
+    };
+  } | null;
+}
+
+/**
+ * Response for detailed activity (Social Sidebar)
+ */
+export interface DetailedActivityResponse {
+  Page: {
+    pageInfo: {
+      hasNextPage: boolean;
+    };
+    mediaList: Array<{
+      id: number;
+      status: MediaListStatus;
+      progress: number;
+      score: number;
+      notes: string | null;
+      updatedAt: number;
+      user: AniListUser & {
+        mediaListOptions: {
+          scoreFormat: ScoreFormat;
+        };
+      };
+    }>;
+  };
+}
+
+/**
+ * Response for friend activity batch query
+ */
+export interface FriendActivityResponse {
+  Page: {
+    mediaList: Array<{
+      user: AniListUser;
+      status: MediaListStatus;
+      progress: number;
+      score: number;
+    }>;
+  };
+}
+
+/**
+ * Response for followings list
+ */
+export interface FollowingsResponse {
+  Page: {
+    pageInfo: {
+      hasNextPage: boolean;
+    };
+    following: Array<{
+      id: number;
+      name: string;
+      avatar: {
+        medium: string;
+      };
+    }>;
+  };
 }
 
 // ============================================================================

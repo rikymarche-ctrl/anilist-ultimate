@@ -33,13 +33,25 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
 import { FriendActivity, MediaListStatus, SocialActivityDetailed, SocialFilter } from '@core/types';
 import { GraphQLBatcher } from '@core/api/GraphQLBatcher';
+import type { IStorageService } from '@core/interfaces/IStorageService';
+import type { 
+  FriendActivityResponse, 
+  DetailedActivityResponse, 
+  FollowingsResponse,
+  UserByNameResponse 
+} from '@/api/AnilistTypes';
+
+import { LRUCacheWithTTL } from '@core/cache/LRUCacheWithTTL';
 
 @injectable()
 @singleton()
 export class SocialService {
-  private friendCache: Map<number, FriendActivity[]> = new Map();
+  private friendCache = new LRUCacheWithTTL<number, FriendActivity[]>({
+    maxSize: 100,
+    ttlMs: 24 * 60 * 60 * 1000 // 24 hours
+  });
+
   private viewerId: number | null = null;
-  private cacheDate: string = '';
 
   // PERF-001 fix: Persistent cache for followings
   private readonly FOLLOWINGS_CACHE_KEY = 'au_followings_cache';
@@ -48,18 +60,9 @@ export class SocialService {
 
   constructor(
     @inject(TOKENS.ApiClient) private api: IApiClient,
-    @inject(TOKENS.GraphQLBatcher) private batcher: GraphQLBatcher
-  ) {
-    this.refreshCacheIfNeeded();
-  }
-
-  private refreshCacheIfNeeded(): void {
-    const today = new Date().toISOString().split('T')[0];
-    if (this.cacheDate !== today) {
-      this.friendCache.clear();
-      this.cacheDate = today;
-    }
-  }
+    @inject(TOKENS.GraphQLBatcher) private batcher: GraphQLBatcher,
+    @inject(TOKENS.LocalStorage) private storage: IStorageService
+  ) {}
 
   /**
    * Fetches friend activity for a list of media IDs using GraphQL batching
@@ -68,14 +71,14 @@ export class SocialService {
    * Individual queries are accumulated in 50ms window and combined into single request.
    */
   public async getFriendActivityBatch(mediaIds: number[]): Promise<Map<number, FriendActivity[]>> {
-    this.refreshCacheIfNeeded();
     const results = new Map<number, FriendActivity[]>();
     const pendingIds: number[] = [];
 
     // Check cache first
     mediaIds.forEach(id => {
-      if (this.friendCache.has(id)) {
-        results.set(id, this.friendCache.get(id)!);
+      const cached = this.friendCache.get(id);
+      if (cached !== undefined) {
+        results.set(id, cached);
       } else {
         pendingIds.push(id);
       }
@@ -109,10 +112,10 @@ export class SocialService {
     // Create individual query promises - GraphQLBatcher accumulates and batches
     const queryPromises = pendingIds.map(async (mediaId) => {
       try {
-        const response = await this.batcher.query<any>(FRIEND_ACTIVITY_QUERY, { mediaId });
+        const response = await this.batcher.query<FriendActivityResponse>(FRIEND_ACTIVITY_QUERY, { mediaId });
         const rawList = response?.Page?.mediaList || [];
 
-        let activities: FriendActivity[] = rawList.map((item: any) => ({
+        let activities: FriendActivity[] = rawList.map((item) => ({
           id: item.user.id,
           status: item.status,
           progress: item.progress,
@@ -197,7 +200,7 @@ export class SocialService {
     }
 
     try {
-      const response = await this.api.query<any>(query, variables);
+      const response = await this.api.query<DetailedActivityResponse>(query, variables);
       return {
         nodes: response.Page.mediaList,
         hasNextPage: response.Page.pageInfo.hasNextPage
@@ -211,12 +214,12 @@ export class SocialService {
   /**
    * Fetches all users the current viewer is following
    */
-  public async getAllFollowings(): Promise<any[]> {
+  public async getAllFollowings(): Promise<Array<{ id: number; name: string; avatar: { medium: string } }>> {
     // PERF-001 fix: Check persistent cache first
     try {
-      const cached = await chrome.storage.local.get(this.FOLLOWINGS_CACHE_KEY);
-      if (cached[this.FOLLOWINGS_CACHE_KEY]) {
-        const { data, timestamp } = cached[this.FOLLOWINGS_CACHE_KEY];
+      const cached = await this.storage.get<{ data: any[]; timestamp: number }>(this.FOLLOWINGS_CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = cached;
         const age = Date.now() - timestamp;
 
         if (age < this.FOLLOWINGS_TTL_MS) {
@@ -267,7 +270,7 @@ export class SocialService {
 
     while (hasNextPage && page <= maxPages) {
       try {
-        const response = await this.api.query<any>(query, { userId: this.viewerId, page });
+        const response = await this.api.query<FollowingsResponse>(query, { userId: this.viewerId, page });
         const pageData = response.Page;
         allFollowing = [...allFollowing, ...pageData.following];
         hasNextPage = pageData.pageInfo.hasNextPage;
@@ -282,11 +285,9 @@ export class SocialService {
 
     // PERF-001 fix: Save to persistent cache
     try {
-      await chrome.storage.local.set({
-        [this.FOLLOWINGS_CACHE_KEY]: {
-          data: allFollowing,
-          timestamp: Date.now()
-        }
+      await this.storage.set(this.FOLLOWINGS_CACHE_KEY, {
+        data: allFollowing,
+        timestamp: Date.now()
       });
       log.info(`[SocialService] Cached ${allFollowing.length} followings`);
     } catch (e) {
@@ -304,7 +305,7 @@ export class SocialService {
    */
   public async invalidateFollowingsCache(): Promise<void> {
     try {
-      await chrome.storage.local.remove(this.FOLLOWINGS_CACHE_KEY);
+      await this.storage.remove(this.FOLLOWINGS_CACHE_KEY);
       log.info('[SocialService] Followings cache invalidated');
     } catch (e) {
       log.error('[SocialService] Failed to invalidate followings cache', e);
@@ -338,7 +339,7 @@ export class SocialService {
     `;
 
     try {
-      const response = await this.api.query<any>(query, { name });
+      const response = await this.api.query<UserByNameResponse>(query, { name });
       return response.User;
     } catch (e) {
       log.error(`[SocialService] Failed to fetch user by name: ${name}`, e);
@@ -353,7 +354,6 @@ export class SocialService {
   public clearAllCaches(): void {
     this.friendCache.clear();
     this.viewerId = null;
-    this.cacheDate = '';
     log.info('[SocialService] All in-memory caches cleared');
   }
 }

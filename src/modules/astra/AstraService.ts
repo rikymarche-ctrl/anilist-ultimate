@@ -23,14 +23,14 @@
  *
  * @see docs/MODULES.md#5-astra-module-advanced-scoring
  */
-import { injectable, singleton } from 'tsyringe';
+import { injectable, singleton, inject } from 'tsyringe';
 import { log } from '@core/logger';
-import { inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
-
-import { MediaListStatus } from '@/api/AnilistTypes';
+import type { IStorageService } from '@core/interfaces/IStorageService';
+import type { IApiClient } from '@core/interfaces/IApiClient';
+import { MediaListStatus, type MediaListCollectionResponse } from '@/api/AnilistTypes';
 
 export interface AstraWork {
   id: string;
@@ -98,21 +98,25 @@ export const DEFAULT_SETTINGS: AstraSettings = {
 
 /**
  * Generate a cryptographically random UUID v4
- * Replaces Math.random() for collision-resistant IDs
- * @see BUG-032 in docs/BUGS.md
  */
 function generateUUID(): string {
-  // Use crypto.randomUUID if available (modern browsers + extensions)
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
 
-  // Fallback: Manual UUID v4 implementation
+  // Fallback: Manual UUID v4 implementation using crypto.getRandomValues for better entropy
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (crypto.getRandomValues(new Uint8Array(1))[0] & 0x0f) >> (c === 'x' ? 0 : 2);
-    const v = c === 'x' ? r : (r | 0x8);
+    const r = crypto.getRandomValues(new Uint8Array(1))[0] % 16;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+interface AstraDataStore {
+  works: AstraWork[];
+  sections: AstraSection[];
+  settings: AstraSettings;
+  lastUpdated: number;
 }
 
 @singleton()
@@ -127,7 +131,8 @@ export class AstraService {
   private readonly STORAGE_KEY = 'au_astra_data';
 
   constructor(
-    @inject(TOKENS.EventBus) private eventBus: IEventBus
+    @inject(TOKENS.EventBus) private eventBus: IEventBus,
+    @inject(TOKENS.LocalStorage) private storage: IStorageService
   ) { }
 
   /**
@@ -137,7 +142,7 @@ export class AstraService {
     if (this.isLoaded) return;
 
     try {
-      const data = await this.getFromStorage();
+      const data = await this.storage.get<AstraDataStore>(this.STORAGE_KEY);
       if (data) {
         this.works = data.works || [];
         // Build the Map index for fast lookup
@@ -209,12 +214,13 @@ export class AstraService {
   /**
    * Sync all user works from AniList
    */
-  async syncWithAniList(apiClient: any): Promise<{ added: number, updated: number }> {
+  async syncWithAniList(apiClient: IApiClient): Promise<{ added: number; updated: number }> {
     await this.init();
-    
+
     try {
-      const userId = await apiClient.getCurrentUserId();
-      
+      const viewer = await apiClient.getCurrentUser();
+      const userId = viewer.id;
+
       const query = `
         query ($userId: Int, $type: MediaType) {
           MediaListCollection(userId: $userId, type: $type) {
@@ -246,8 +252,8 @@ export class AstraService {
       `;
 
       const [animeRes, mangaRes] = await Promise.all([
-        apiClient.query(query, { userId, type: 'ANIME' }),
-        apiClient.query(query, { userId, type: 'MANGA' })
+        apiClient.query<MediaListCollectionResponse>(query, { userId, type: 'ANIME' }),
+        apiClient.query<MediaListCollectionResponse>(query, { userId, type: 'MANGA' })
       ]);
 
       let added = 0;
@@ -256,7 +262,7 @@ export class AstraService {
       // Reset custom lists for all existing works before sync to ensure accuracy
       this.works.forEach(w => w.customLists = []);
 
-      const processResult = (result: any) => {
+      const processResult = (result: MediaListCollectionResponse) => {
         const collection = result?.MediaListCollection;
         if (!collection?.lists) return;
 
@@ -265,24 +271,22 @@ export class AstraService {
             const existing = this.getWorkByMediaId(entry.mediaId);
 
             if (existing) {
-              const newTitle = entry.media.title.english || entry.media.title.romaji || entry.media.title.native;
+              const newTitle = entry.media.title.english || entry.media.title.romaji || entry.media.title.native || 'Unknown Title';
               if (existing.status !== entry.status || existing.title !== newTitle) {
                 if (existing.title !== newTitle) existing.title = newTitle;
                 existing.status = entry.status;
                 updated++;
               }
 
-              // Extract custom lists from entry (same as modal)
+              // Extract custom lists from entry
               existing.customLists = [];
               if (entry.customLists) {
-                const customListsRaw = entry.customLists;
-                const customListsArray = typeof customListsRaw === 'object'
-                  ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
-                  : [];
+                const customListsRaw = entry.customLists as Record<string, boolean>;
+                const customListsArray = Object.keys(customListsRaw).filter(key => customListsRaw[key]);
                 existing.customLists = customListsArray;
               }
 
-              // Add Private and Hide from status lists flags (same as modal)
+              // Add Private and Hide from status lists flags
               if (entry.private === true) {
                 existing.customLists.push('Private');
               }
@@ -291,24 +295,22 @@ export class AstraService {
               }
 
               existing.genres = entry.media.genres || [];
-              existing.episodes = entry.media.episodes;
-              existing.chapters = entry.media.chapters;
+              existing.episodes = entry.media.episodes ?? undefined;
+              existing.chapters = entry.media.chapters ?? undefined;
               existing.progress = entry.progress;
-              existing.duration = entry.media.duration;
+              existing.duration = entry.media.duration ?? undefined;
             } else {
               const media = entry.media;
               const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
 
-              // Extract custom lists from entry (same as modal)
+              // Extract custom lists from entry
               let customListsArray: string[] = [];
               if (entry.customLists) {
-                const customListsRaw = entry.customLists;
-                customListsArray = typeof customListsRaw === 'object'
-                  ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
-                  : [];
+                const customListsRaw = entry.customLists as Record<string, boolean>;
+                customListsArray = Object.keys(customListsRaw).filter(key => customListsRaw[key]);
               }
 
-              // Add Private and Hide from status lists flags (same as modal)
+              // Add Private and Hide from status lists flags
               if (entry.private === true && !customListsArray.includes('Private')) {
                 customListsArray.push('Private');
               }
@@ -319,10 +321,10 @@ export class AstraService {
               const newWork: AstraWork = {
                 id: `w_${generateUUID()}`,
                 mediaId: entry.mediaId,
-                title: media.title.english || media.title.romaji || media.title.native,
+                title: media.title.english || media.title.romaji || media.title.native || 'Unknown Title',
                 type: type as any,
                 country: media.countryOfOrigin,
-                cover: media.coverImage.large || media.coverImage.medium,
+                cover: media.coverImage.large || media.coverImage.medium || undefined,
                 anilistUrl: media.siteUrl,
                 status: entry.status,
                 customLists: customListsArray,
@@ -331,10 +333,10 @@ export class AstraService {
                 notes: '',
                 updatedAt: Date.now(),
                 genres: media.genres || [],
-                episodes: media.episodes,
-                chapters: media.chapters,
+                episodes: media.episodes ?? undefined,
+                chapters: media.chapters ?? undefined,
                 progress: entry.progress,
-                duration: media.duration
+                duration: media.duration ?? undefined
               };
               
               // Seed enjoyment if AniList score exists
@@ -354,8 +356,7 @@ export class AstraService {
       processResult(animeRes);
       processResult(mangaRes);
 
-      // Always persist after sync: customLists/private/hidden flags may have
-      // changed even when status/title didn't (which is what 'updated' tracks)
+      // Always persist after sync
       this.works.sort((a, b) => b.updatedAt - a.updatedAt);
       this.rebuildWorkIndex();
       await this.persist();
@@ -559,13 +560,11 @@ export class AstraService {
    */
   private async persist(): Promise<void> {
     try {
-      await chrome.storage.local.set({
-        [this.STORAGE_KEY]: {
-          works: this.works,
-          sections: this.sections,
-          settings: this.settings,
-          lastUpdated: Date.now()
-        }
+      await this.storage.set(this.STORAGE_KEY, {
+        works: this.works,
+        sections: this.sections,
+        settings: this.settings,
+        lastUpdated: Date.now()
       });
       
       this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {
@@ -574,14 +573,6 @@ export class AstraService {
     } catch (error) {
       log.error('[AstraService] Persist failed', error);
     }
-  }
-
-  private async getFromStorage(): Promise<any> {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(this.STORAGE_KEY, (result) => {
-        resolve(result[this.STORAGE_KEY]);
-      });
-    });
   }
 
   /**

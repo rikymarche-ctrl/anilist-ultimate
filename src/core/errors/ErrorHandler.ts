@@ -25,6 +25,8 @@ import { injectable, inject } from 'tsyringe';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+
+import type { ILogger } from '@core/logger';
 import {
   ApiError,
   ModuleError,
@@ -62,6 +64,11 @@ export interface IErrorHandler {
    * Setup global error listeners
    */
   setupGlobalHandlers(): void;
+
+  /**
+   * Get formatted logs for diagnostics
+   */
+  getExportableLogs(): string;
 }
 
 /**
@@ -70,11 +77,11 @@ export interface IErrorHandler {
 @injectable()
 export class ErrorHandler implements IErrorHandler {
   private errorCount = 0;
-  private errorHistory: Array<{ error: Error; context?: string; timestamp: Date }> = [];
+  private errorHistory: Array<{ error: Error; context?: string; timestamp: Date; severity: ErrorSeverity }> = [];
   private readonly MAX_ERROR_HISTORY = 100;
 
   constructor(
-    @inject(TOKENS.Logger) private logger: any,
+    @inject(TOKENS.Logger) private logger: ILogger,
     @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
     // Logger and EventBus will be injected via DI
@@ -91,6 +98,7 @@ export class ErrorHandler implements IErrorHandler {
       error,
       context,
       timestamp: new Date(),
+      severity,
     });
 
     // Keep history size limited
@@ -195,6 +203,31 @@ export class ErrorHandler implements IErrorHandler {
       recentErrors,
       errorHistory: [...this.errorHistory],
     };
+  }
+
+  /**
+   * Get formatted logs for diagnostics
+   */
+  public getExportableLogs(): string {
+    const lines = [
+      `Astra Ultimate - Error Diagnostics Report`,
+      `Generated: ${new Date().toISOString()}`,
+      `Total Errors since start: ${this.errorCount}`,
+      `-------------------------------------------`,
+      '',
+    ];
+
+    [...this.errorHistory].reverse().forEach((entry, i) => {
+      lines.push(`[${i + 1}] ${entry.timestamp.toISOString()} | ${entry.severity.toUpperCase()}`);
+      lines.push(`Context: ${entry.context || 'N/A'}`);
+      lines.push(`Message: ${entry.error.message}`);
+      if (entry.error.stack) {
+        lines.push(`Stack: ${entry.error.stack.split('\n').slice(0, 3).join('\n')}`);
+      }
+      lines.push('---');
+    });
+
+    return lines.join('\n');
   }
 
   /**

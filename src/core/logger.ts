@@ -21,6 +21,7 @@ import { injectable } from 'tsyringe';
 import { DEBUG } from './constants';
 import type { LogLevel } from './types';
 import type { ILogger } from './interfaces/ILogger';
+export type { ILogger };
 
 /**
  * Logger - Styled console logging with levels

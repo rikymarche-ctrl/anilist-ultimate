@@ -40,7 +40,7 @@ import type { IConfigManager } from '@core/interfaces/IConfigManager';
 // Core Services
 import { AnilistClient } from '@/api/AnilistClient';
 import { GraphQLBatcher } from '@core/api/GraphQLBatcher';
-import { syncStorage } from '@core/storage/StorageManager';
+import { StorageManager } from '@core/storage/StorageManager';
 import { logger } from '@core/logger';
 import { ThemeManager } from '@core/ThemeManager';
 import { AuthTokenService } from '@core/auth/AuthTokenService';
@@ -96,8 +96,23 @@ export async function setupDI(): Promise<void> {
   // Logger (singleton instance)
   container.registerInstance(TOKENS.Logger, logger);
 
-  // Storage (use existing sync storage instance)
-  container.registerInstance(TOKENS.Storage, syncStorage);
+  // Storage (Sync: config, preferences)
+  container.register(TOKENS.Storage, {
+    useFactory: (c) => new StorageManager(
+      'sync',
+      c.resolve(TOKENS.Logger),
+      c.resolve(TOKENS.ErrorHandler)
+    )
+  });
+
+  // Storage (Local: heavy data, Astra)
+  container.register(TOKENS.LocalStorage, {
+    useFactory: (c) => new StorageManager(
+      'local',
+      c.resolve(TOKENS.Logger),
+      c.resolve(TOKENS.ErrorHandler)
+    )
+  });
 
   // Event Bus (new instance, singleton via @injectable())
   container.registerSingleton(TOKENS.EventBus, EventBus);
@@ -112,13 +127,7 @@ export async function setupDI(): Promise<void> {
   container.registerSingleton(TOKENS.Config, ConfigManager);
 
   // Error Handler (needs logger and event bus)
-  container.register(TOKENS.ErrorHandler, {
-    useFactory: (c) => {
-      const loggerInstance = c.resolve(TOKENS.Logger) as any;
-      const eventBus = c.resolve(TOKENS.EventBus) as any;
-      return new ErrorHandler(loggerInstance, eventBus);
-    },
-  });
+  container.registerSingleton(TOKENS.ErrorHandler, ErrorHandler);
 
   // Toast Service (needs event bus)
   container.registerSingleton(TOKENS.ReviewService, ReviewService);

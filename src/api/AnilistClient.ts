@@ -33,12 +33,13 @@ import type { IErrorHandler } from '@core/errors/ErrorHandler';
 import type { AuthTokenService } from '@core/auth/AuthTokenService';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
+import type { AniListUser } from '@/api/AnilistTypes';
 
-interface RequestQueueItem {
+interface RequestQueueItem<T = unknown> {
   query: string;
-  variables: Record<string, any>;
-  resolve: (value: any) => void;
-  reject: (error: any) => void;
+  variables: Record<string, unknown>;
+  resolve: (value: T) => void;
+  reject: (error: Error) => void;
   retries: number;
   silent?: boolean;
 }
@@ -66,7 +67,7 @@ function isApiError(error: unknown): error is { message?: string; response?: Api
 @injectable()
 export class AnilistClient implements IApiClient {
   private client: GraphQLClient;
-  private queue: RequestQueueItem[] = [];
+  private queue: RequestQueueItem<any>[] = [];
   private activeRequests = 0;
   private isRateLimited = false;
 
@@ -129,7 +130,7 @@ export class AnilistClient implements IApiClient {
   /**
    * Execute a GraphQL query with rate limiting
    */
-  public async query<T>(query: string, variables: Record<string, any> = {}, silent: boolean = false): Promise<T> {
+  public async query<T>(query: string, variables: Record<string, unknown> = {}, silent: boolean = false): Promise<T> {
     return new Promise((resolve, reject) => {
       this.queue.push({
         query,
@@ -138,7 +139,7 @@ export class AnilistClient implements IApiClient {
         reject,
         retries: 0,
         silent,
-      });
+      } as RequestQueueItem<T>);
 
       this.processQueue();
     });
@@ -148,7 +149,7 @@ export class AnilistClient implements IApiClient {
    * Execute a GraphQL mutation with rate limiting
    * (Mutations use same queue as queries for rate limiting)
    */
-  public async mutate<T>(mutation: string, variables: Record<string, any> = {}): Promise<T> {
+  public async mutate<T>(mutation: string, variables: Record<string, unknown> = {}): Promise<T> {
     // Mutations are treated the same as queries for rate limiting purposes
     return this.query<T>(mutation, variables);
   }
@@ -230,14 +231,17 @@ export class AnilistClient implements IApiClient {
   /**
    * Execute a single request
    */
-  private async executeRequest(item: RequestQueueItem): Promise<any> {
+  private async executeRequest<T>(item: RequestQueueItem<T>): Promise<T> {
     log.debug('Executing GraphQL request', { variables: item.variables });
+
+    // Ensure AuthTokenService is initialized before accessing token
+    await this.authTokenService.ensureInitialized();
 
     // Ensure headers are fresh before each request (BUG-FIX: stale token on init)
     this.updateHeaders();
 
     try {
-      const data = await this.client.request(item.query, item.variables);
+      const data = await this.client.request<T>(item.query, item.variables);
       return data;
     } catch (error: unknown) {
       // Check for authentication errors
@@ -305,31 +309,46 @@ export class AnilistClient implements IApiClient {
    * Get current user ID
    */
   public async getCurrentUserId(): Promise<number> {
+    const user = await this.getCurrentUser();
+    return user.id;
+  }
+
+  /**
+   * Get current user details
+   */
+  public async getCurrentUser(): Promise<AniListUser> {
     const query = `
       query {
         Viewer {
           id
           name
+          avatar { medium }
+          options { 
+            displayNameOrder
+            titleLanguage
+          }
+          mediaListOptions {
+            scoreFormat
+            rowOrder
+          }
         }
       }
     `;
 
     try {
-      const data = await this.query<{ Viewer: { id: number; name: string } }>(query);
-      log.info('Current user fetched via GraphQL', { userId: data.Viewer.id });
-      return data.Viewer.id;
+      const data = await this.query<{ Viewer: AniListUser }>(query);
+      return data.Viewer;
     } catch (error: unknown) {
-      log.error('Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.', error);
+      log.error('Failed to fetch user details', error);
       const statusCode = isApiError(error) ? error.response?.status : undefined;
       throw new ApiError(
-        'Failed to fetch user data. Please ensure you are logged in to Anilist Ultimate.',
+        'Failed to fetch user details',
         statusCode,
-        'Viewer Query',
+        'Viewer Detail Query',
         0,
         error instanceof Error ? error : undefined
       );
     }
-
   }
 
   /**

@@ -257,7 +257,8 @@ export interface LoggerConfig {
   level: LogLevel;
   prefix: string;
 }
-export type ScoreFormat = 'POINT_100' | 'POINT_10_DECIMAL' | 'POINT_10' | 'POINT_5' | 'POINT_3';
+import { ScoreFormat } from '@/api/AnilistTypes';
+export type { ScoreFormat };
 
 export interface SocialActivityDetailed {
   id: number;

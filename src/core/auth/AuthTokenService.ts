@@ -66,9 +66,14 @@ export class AuthTokenService {
   private cachedUserCache: UserCache | null = null;
 
   /**
-   * Flag per indicare se initialize() è stato chiamato
+   * Flag per indicare se initialize() è stato completato
    */
   private initialized = false;
+
+  /**
+   * Promise di inizializzazione per gestire chiamate concorrenti (idempotency)
+   */
+  private initPromise: Promise<void> | null = null;
 
   constructor(
     @inject(TOKENS.Logger) private logger: ILogger,
@@ -80,48 +85,65 @@ export class AuthTokenService {
 
   /**
    * Inizializza il servizio caricando il token da chrome.storage.local
-   * Deve essere chiamato UNA VOLTA in setup.ts PRIMA che i moduli vengano risolti
+   * Pattern: Promise-caching per garantire una sola esecuzione
    *
    * @returns Promise che si risolve quando il token è caricato
    */
   async initialize(): Promise<void> {
-    if (this.initialized) {
-      this.logger.warn('[AuthTokenService] Already initialized');
-      return;
+    if (this.initPromise) {
+      return this.initPromise;
     }
 
-    this.logger.info('[AuthTokenService] Initializing...');
+    this.initPromise = (async () => {
+      this.logger.info('[AuthTokenService] Initializing...');
 
-    // Migra da localStorage (one-time)
-    await this.migrateFromLegacyStorage();
+      try {
+        // Migra da localStorage (one-time)
+        await this.migrateFromLegacyStorage();
 
-    // Carica token e user cache da chrome.storage.local
-    const result = await chrome.storage.local.get([
-      AUTH_STORAGE_KEY,
-      AUTH_USER_CACHE_KEY,
-    ]);
+        // Carica token e user cache da chrome.storage.local
+        const result = await chrome.storage.local.get([
+          AUTH_STORAGE_KEY,
+          AUTH_USER_CACHE_KEY,
+        ]);
 
-    this.cachedToken = (result[AUTH_STORAGE_KEY] as string | undefined) || null;
-    this.cachedUserCache = (result[AUTH_USER_CACHE_KEY] as UserCache | undefined) || null;
+        this.cachedToken = (result[AUTH_STORAGE_KEY] as string | undefined) || null;
+        this.cachedUserCache = (result[AUTH_USER_CACHE_KEY] as UserCache | undefined) || null;
 
-    this.initialized = true;
+        this.initialized = true;
 
-    if (this.cachedToken) {
-      this.logger.info('[AuthTokenService] Token loaded from chrome.storage');
-    } else {
-      this.logger.info('[AuthTokenService] No token found');
-    }
+        if (this.cachedToken) {
+          this.logger.info('[AuthTokenService] Token loaded from chrome.storage');
+        } else {
+          this.logger.info('[AuthTokenService] No token found');
+        }
+      } catch (error) {
+        this.logger.error('[AuthTokenService] Initialization failed', error);
+        this.initPromise = null; // Permetti ri-tentativo in caso di errore critico
+        throw error;
+      }
+    })();
+
+    return this.initPromise;
+  }
+
+  /**
+   * Assicura che il servizio sia inizializzato prima di procedere
+   */
+  async ensureInitialized(): Promise<void> {
+    if (this.initialized) return;
+    return this.initialize();
   }
 
   /**
    * Get OAuth access token (SINCRONO - legge dalla cache)
-   * Deve essere chiamato DOPO initialize()
+   * Deve essere chiamato DOPO initialize() o attendendo ensureInitialized()
    *
    * @returns Token o null se non autenticato
    */
   getToken(): string | null {
     if (!this.initialized) {
-      this.logger.warn('[AuthTokenService] getToken() called before initialize()');
+      this.logger.warn('[AuthTokenService] getToken() called before initialization complete. This may return stale/null data.');
     }
     return this.cachedToken;
   }

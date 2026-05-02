@@ -26,6 +26,7 @@ import { AstraService, AstraWork } from '../AstraService';
 import { log } from '@core/logger';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { IStorageService } from '@core/interfaces/IStorageService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { TOKENS } from '@core/di/tokens';
 import { ToastService } from '@core/services/ToastService';
@@ -59,15 +60,13 @@ export class AstraDashboard extends BaseComponent {
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal,
-    @inject(TOKENS.AuthService) private authService: AuthService
+    @inject(TOKENS.AuthService) private authService: AuthService,
+    @inject(TOKENS.Storage) private storage: IStorageService
   ) {
     super({});
 
     // Load persisted progress state
-    const savedProgress = localStorage.getItem('astra_show_progress');
-    if (savedProgress !== null) {
-      this.state.showProgress = savedProgress === 'true';
-    }
+    this.initSettings();
 
     // BUG-009 Fix: Listen for global open event directly in the dashboard component
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, () => {
@@ -1098,7 +1097,7 @@ export class AstraDashboard extends BaseComponent {
     // Toggle Progress
     overlay.querySelector('#astra-toggle-progress')?.addEventListener('click', (e) => {
       this.state.showProgress = !this.state.showProgress;
-      localStorage.setItem('astra_show_progress', String(this.state.showProgress));
+      this.storage.set('astra_show_progress', this.state.showProgress);
       const btn = e.currentTarget as HTMLElement;
       const container = overlay.querySelector('#astra-dashboard-container');
 
@@ -1450,6 +1449,13 @@ export class AstraDashboard extends BaseComponent {
         (btn.closest('.astra-sub-edit-row') as HTMLElement).remove();
       });
     });
+  }
+
+  private async initSettings(): Promise<void> {
+    const savedProgress = await this.storage.get<boolean>('astra_show_progress');
+    if (savedProgress !== null) {
+      this.state.showProgress = savedProgress;
+    }
   }
 
   // Row events are now handled via delegation in attachDashboardEvents

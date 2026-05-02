@@ -26,6 +26,8 @@ import { log } from '@core/logger';
 import { ScoreFormat } from '@core/types';
 import { PERFORMANCE } from '@core/constants';
 
+import { LRUCacheWithTTL } from '@core/cache/LRUCacheWithTTL';
+
 export interface ActivityScoreData {
   score: number;
   format: ScoreFormat;
@@ -34,15 +36,10 @@ export interface ActivityScoreData {
 @injectable()
 @singleton()
 export class ActivityService {
-  private scoreCache: Map<string, ActivityScoreData | null> = new Map(); // key: "userName-mediaId"
-
-  /** Intelligent Caching: LRU eviction to prevent unbounded growth */
-  private readonly MAX_CACHE_SIZE = 100;
-  private cacheOrder: string[] = []; // LRU tracking
-
-  /** Intelligent Caching: TTL for stale data invalidation */
-  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-  private cacheTimestamps: Map<string, number> = new Map();
+  private scoreCache = new LRUCacheWithTTL<string, ActivityScoreData | null>({
+    maxSize: 100,
+    ttlMs: 5 * 60 * 1000 // 5 minutes
+  });
 
   constructor(
     @inject(TOKENS.ApiClient) private api: IApiClient
@@ -57,9 +54,9 @@ export class ActivityService {
 
     pairs.forEach(p => {
       const key = `${p.userName}-${p.mediaId}`;
-      const cached = this.getCachedScore(key);
-      if (cached !== undefined) {
-        results.set(key, cached);
+      const cached = this.scoreCache.get(key);
+      if (cached !== undefined || this.scoreCache.has(key)) {
+        results.set(key, cached !== undefined ? cached : null);
       } else {
         pendingPairs.push({ ...p, key });
       }
@@ -86,7 +83,18 @@ export class ActivityService {
       chunk.forEach((p, i) => { variables[`u${i}`] = p.userName; variables[`m${i}`] = p.mediaId; });
 
       try {
-        const response = await this.api.query<Record<string, { score: number; user: { mediaListOptions: { scoreFormat: ScoreFormat } } } | null>>(query, variables, true);
+        interface ActivityBatchResponse {
+          [key: string]: {
+            score: number;
+            user: {
+              mediaListOptions: {
+                scoreFormat: ScoreFormat;
+              };
+            };
+          } | null;
+        }
+
+        const response = await this.api.query<ActivityBatchResponse>(query, variables, true);
         
         chunk.forEach((p, idx) => {
           const data = response[`s${idx}`];
@@ -95,14 +103,14 @@ export class ActivityService {
             format: data.user.mediaListOptions.scoreFormat
           } : null;
 
-          this.setCachedScore(p.key, scoreData);
+          this.scoreCache.set(p.key, scoreData);
           results.set(p.key, scoreData);
         });
       } catch (e) {
         log.error('[ActivityService] Batch fetch failed', e);
         // Mark as null to avoid spamming failed requests
         chunk.forEach(p => {
-          this.setCachedScore(p.key, null);
+          this.scoreCache.set(p.key, null);
           results.set(p.key, null);
         });
       }
@@ -116,55 +124,6 @@ export class ActivityService {
     return results;
   }
 
-  // ─── LRU Cache Helpers with TTL ────────────────────────────────────────────
-
-  /**
-   * Get from cache with LRU tracking and TTL validation
-   * @returns cached data or undefined if not found or expired
-   */
-  private getCachedScore(key: string): ActivityScoreData | null | undefined {
-    if (!this.scoreCache.has(key)) return undefined;
-
-    // Check if entry is still fresh
-    const timestamp = this.cacheTimestamps.get(key);
-    if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
-      // Expired - evict and return undefined
-      this.scoreCache.delete(key);
-      this.cacheTimestamps.delete(key);
-      this.cacheOrder = this.cacheOrder.filter(k => k !== key);
-      log.debug(`[ActivityService] Cache expired for ${key}`);
-      return undefined;
-    }
-
-    // Move to end (most recently used)
-    this.cacheOrder = this.cacheOrder.filter(k => k !== key);
-    this.cacheOrder.push(key);
-
-    return this.scoreCache.get(key)!;
-  }
-
-  /**
-   * Set cache with LRU eviction and TTL tracking
-   */
-  private setCachedScore(key: string, data: ActivityScoreData | null): void {
-    // Evict oldest if at capacity
-    if (this.scoreCache.size >= this.MAX_CACHE_SIZE && !this.scoreCache.has(key)) {
-      const oldest = this.cacheOrder.shift();
-      if (oldest !== undefined) {
-        this.scoreCache.delete(oldest);
-        this.cacheTimestamps.delete(oldest);
-        log.debug(`[ActivityService] LRU evicted ${oldest} (cache size: ${this.scoreCache.size})`);
-      }
-    }
-
-    this.scoreCache.set(key, data);
-    this.cacheTimestamps.set(key, Date.now());
-
-    // Update LRU order
-    this.cacheOrder = this.cacheOrder.filter(k => k !== key);
-    this.cacheOrder.push(key);
-  }
-
   /**
    * Manually clear the score cache
    * Useful when user manually refreshes data or changes following list
@@ -173,8 +132,6 @@ export class ActivityService {
     const size = this.scoreCache.size;
     if (size > 0) {
       this.scoreCache.clear();
-      this.cacheTimestamps.clear();
-      this.cacheOrder = [];
       log.info(`[ActivityService] Cache manually cleared (${size} entries)`);
     }
   }

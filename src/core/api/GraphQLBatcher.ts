@@ -33,9 +33,9 @@ import { log } from '@core/logger';
 
 const ANILIST_API = 'https://graphql.anilist.co';
 
-interface PendingRequest<T = any> {
+interface PendingRequest<T = unknown> {
   query: string;
-  variables: Record<string, any>;
+  variables: Record<string, unknown>;
   resolve: (value: T) => void;
   reject: (error: Error) => void;
   timestamp: number;
@@ -50,7 +50,7 @@ interface BatchMetrics {
 
 @singleton()
 export class GraphQLBatcher {
-  private pendingRequests: Map<string, PendingRequest> = new Map();
+  private pendingRequests: Map<string, PendingRequest<any>> = new Map();
   private batchTimeout: ReturnType<typeof setTimeout> | null = null;
   private readonly BATCH_WINDOW_MS = 50; // Accumulation window in milliseconds
   private readonly MAX_BATCH_SIZE = 30; // Safety limit per AniList API constraints
@@ -71,9 +71,9 @@ export class GraphQLBatcher {
    * @param token - Optional auth token (defaults to current auth token)
    * @returns Promise that resolves with query result
    */
-  async query<T = any>(
+  async query<T = unknown>(
     query: string,
-    variables: Record<string, any> = {},
+    variables: Record<string, unknown> = {},
     token?: string
   ): Promise<T> {
     this.metrics.totalRequests++;
@@ -183,7 +183,7 @@ export class GraphQLBatcher {
    * Combine multiple GraphQL queries into a single batched query using aliases
    */
   private combineQueries(
-    requests: [string, PendingRequest][]
+    requests: [string, PendingRequest<any>][]
   ): { batchedQuery: string; aliasMap: Map<string, string> } {
     const aliasMap = new Map<string, string>();
     const queryParts: string[] = [];
@@ -228,7 +228,7 @@ export class GraphQLBatcher {
    * SECURITY: Properly escapes all GraphQL string special characters
    * to prevent injection attacks via crafted usernames or values.
    */
-  private formatValue(value: any): string {
+  private formatValue(value: unknown): string {
     if (value === null || value === undefined) return 'null';
 
     if (typeof value === 'string') {
@@ -262,8 +262,8 @@ export class GraphQLBatcher {
    * Distribute batched results back to individual callers
    */
   private distributeResults(
-    requests: [string, PendingRequest][],
-    data: any,
+    requests: [string, PendingRequest<any>][],
+    data: Record<string, unknown> | null,
     aliasMap: Map<string, string>
   ): void {
     requests.forEach(([requestId, req]) => {

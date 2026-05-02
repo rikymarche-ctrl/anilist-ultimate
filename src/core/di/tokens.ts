@@ -24,6 +24,7 @@ export const TOKENS = {
   // Core Infrastructure
   Logger: Symbol.for('ILogger'),
   Storage: Symbol.for('IStorageService'),
+  LocalStorage: Symbol.for('ILocalStorageService'),
   EventBus: Symbol.for('IEventBus'),
   Config: Symbol.for('IConfigManager'),
   ErrorHandler: Symbol.for('IErrorHandler'),

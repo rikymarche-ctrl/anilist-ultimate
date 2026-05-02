@@ -22,10 +22,13 @@
  * @see docs/ARCHITECTURE.md#45-storage-manager
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import type { StorageArea } from '@core/types';
 import { STORAGE_PREFIX } from '@core/constants';
 import type { IStorageService } from '@core/interfaces/IStorageService';
+import { TOKENS } from '@core/di/tokens';
+import type { ILogger } from '@core/logger';
+import type { IErrorHandler } from '@core/errors/ErrorHandler';
 
 /**
  * StorageManager - Chrome storage wrapper with type safety
@@ -33,11 +36,11 @@ import type { IStorageService } from '@core/interfaces/IStorageService';
  */
 @injectable()
 export class StorageManager implements IStorageService {
-  private area: StorageArea;
-
-  constructor(area: StorageArea = 'sync') {
-    this.area = area;
-  }
+  constructor(
+    private area: StorageArea = 'sync',
+    @inject(TOKENS.Logger) private logger?: ILogger,
+    @inject(TOKENS.ErrorHandler) private errorHandler?: IErrorHandler
+  ) {}
 
   /**
    * Get a value from storage
@@ -53,7 +56,7 @@ export class StorageManager implements IStorageService {
 
       return null;
     } catch (error) {
-      this.handleStorageError(error, `getting key "${key}"`);
+      this.handleStorageError(error as Error, `getting key "${key}"`);
       return null;
     }
   }
@@ -61,7 +64,7 @@ export class StorageManager implements IStorageService {
   /**
    * Get multiple values from storage
    */
-  async getMultiple<T extends Record<string, any>>(keys: string[]): Promise<Partial<T>> {
+  async getMultiple<T extends Record<string, unknown>>(keys: string[]): Promise<Partial<T>> {
     try {
       const prefixedKeys = keys.map(k => this.getPrefixedKey(k));
       const result = await chrome.storage[this.area].get(prefixedKeys);
@@ -75,7 +78,7 @@ export class StorageManager implements IStorageService {
 
       return unprefixed;
     } catch (error) {
-      this.handleStorageError(error, 'getting multiple keys');
+      this.handleStorageError(error as Error, 'getting multiple keys');
       return {};
     }
   }
@@ -89,7 +92,7 @@ export class StorageManager implements IStorageService {
       await chrome.storage[this.area].set({ [prefixedKey]: value });
       return true;
     } catch (error) {
-      this.handleStorageError(error, `setting key "${key}"`);
+      this.handleStorageError(error as Error, `setting key "${key}"`);
       return false;
     }
   }
@@ -97,9 +100,9 @@ export class StorageManager implements IStorageService {
   /**
    * Set multiple values in storage
    */
-  async setMultiple<T extends Record<string, any>>(items: T): Promise<boolean> {
+  async setMultiple<T extends Record<string, unknown>>(items: T): Promise<boolean> {
     try {
-      const prefixedItems: Record<string, any> = {};
+      const prefixedItems: Record<string, unknown> = {};
       for (const key in items) {
         const prefixedKey = this.getPrefixedKey(key);
         prefixedItems[prefixedKey] = items[key];
@@ -108,7 +111,7 @@ export class StorageManager implements IStorageService {
       await chrome.storage[this.area].set(prefixedItems);
       return true;
     } catch (error) {
-      this.handleStorageError(error, 'setting multiple keys');
+      this.handleStorageError(error as Error, 'setting multiple keys');
       return false;
     }
   }
@@ -122,7 +125,7 @@ export class StorageManager implements IStorageService {
       await chrome.storage[this.area].remove(prefixedKey);
       return true;
     } catch (error) {
-      this.handleStorageError(error, `removing key "${key}"`);
+      this.handleStorageError(error as Error, `removing key "${key}"`);
       return false;
     }
   }
@@ -141,7 +144,7 @@ export class StorageManager implements IStorageService {
 
       return true;
     } catch (error) {
-      this.handleStorageError(error, 'clearing storage');
+      this.handleStorageError(error as Error, 'clearing storage');
       return false;
     }
   }
@@ -149,10 +152,10 @@ export class StorageManager implements IStorageService {
   /**
    * Get all storage items with our prefix
    */
-  async getAll<T extends Record<string, any>>(): Promise<T> {
+  async getAll<T extends Record<string, unknown>>(): Promise<T> {
     try {
       const all = await chrome.storage[this.area].get(null);
-      const filtered: Record<string, any> = {};
+      const filtered: Record<string, unknown> = {};
 
       for (const key in all) {
         if (key.startsWith(STORAGE_PREFIX)) {
@@ -163,7 +166,7 @@ export class StorageManager implements IStorageService {
 
       return filtered as T;
     } catch (error) {
-      this.handleStorageError(error, 'getting all items');
+      this.handleStorageError(error as Error, 'getting all items');
       return {} as T;
     }
   }
@@ -195,7 +198,7 @@ export class StorageManager implements IStorageService {
         };
       }
     } catch (error) {
-      this.handleStorageError(error, 'getting usage');
+      this.handleStorageError(error as Error, 'getting usage');
       return { bytesInUse: 0 };
     }
   }
@@ -203,15 +206,19 @@ export class StorageManager implements IStorageService {
   /**
    * Handle storage errors gracefully
    */
-  private handleStorageError(error: any, context: string): void {
-    const message = error instanceof Error ? error.message : String(error);
+  private handleStorageError(error: Error, context: string): void {
+    const message = error.message;
     
     if (message.includes('Extension context invalidated')) {
-      console.warn(
-        `[StorageManager] Extension updated/reloaded. Please refresh the page to continue. (Context: ${context})`
-      );
+      if (this.logger) {
+        this.logger.warn(`[StorageManager] Extension updated/reloaded. Please refresh the page. (Context: ${context})`);
+      }
     } else {
-      console.error(`[StorageManager] Error ${context}:`, error);
+      if (this.errorHandler) {
+        this.errorHandler.handle(error, `StorageManager (${this.area}) - ${context}`);
+      } else {
+        console.error(`[StorageManager] [Fallback] Error ${context}:`, error);
+      }
     }
   }
 
@@ -248,7 +255,6 @@ export class StorageManager implements IStorageService {
    * Add prefix to key
    */
   private getPrefixedKey(key: string): string {
-    // Don't double-prefix
     if (key.startsWith(STORAGE_PREFIX)) {
       return key;
     }

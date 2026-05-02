@@ -9,6 +9,8 @@
  * @see docs/ARCHITECTURE.md#api-layer
  */
 
+import type { AniListUser } from '@/api/AnilistTypes';
+
 export interface IApiClient {
   /**
    * Check if user is authenticated
@@ -26,14 +28,19 @@ export interface IApiClient {
   getCurrentUserId(): Promise<number>;
 
   /**
+   * Get current viewer details
+   */
+  getCurrentUser(): Promise<AniListUser>;
+
+  /**
    * Execute a GraphQL query
    */
-  query<T>(query: string, variables?: Record<string, any>, silent?: boolean): Promise<T>;
+  query<T>(query: string, variables?: Record<string, unknown>, silent?: boolean): Promise<T>;
 
   /**
    * Execute a GraphQL mutation
    */
-  mutate<T>(mutation: string, variables?: Record<string, any>): Promise<T>;
+  mutate<T>(mutation: string, variables?: Record<string, unknown>): Promise<T>;
 
   /**
    * Clear request queue

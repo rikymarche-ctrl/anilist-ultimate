@@ -20,8 +20,10 @@ import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
-import { storage } from '@core/storage/StorageManager';
+import type { IStorageService } from '@core/interfaces/IStorageService';
 import { STORAGE_KEYS, TIME } from '@core/constants';
+
+import { LRUCacheWithTTL, type CacheEntry } from '@core/cache/LRUCacheWithTTL';
 
 export interface CachedActivity {
   details: ActivityDetails;
@@ -51,19 +53,17 @@ export interface ActivityDetails {
 
 @injectable()
 export class NotificationFetchService {
-  private activityCache: Map<number, ActivityDetails> = new Map();
+  private activityCache = new LRUCacheWithTTL<number, ActivityDetails>({
+    maxSize: 1000,
+    ttlMs: 30 * TIME.DAY_MS,
+    onPersistenceNeeded: () => this.savePersistentCache()
+  });
 
-  /** Intelligent Caching: LRU eviction to prevent unbounded growth */
-  private readonly MAX_CACHE_SIZE = 1000;
-  private cacheOrder: number[] = []; // LRU tracking
-
-  /** Intelligent Caching: TTL for stale data invalidation (30 days for static notification data) */
-  private readonly CACHE_TTL_MS = 30 * TIME.DAY_MS;
-  private cacheTimestamps: Map<number, number> = new Map();
   private persistentCacheLoaded = false;
 
   constructor(
-    @inject(TOKENS.ApiClient) private apiClient: IApiClient
+    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
+    @inject(TOKENS.LocalStorage) private storage: IStorageService
   ) {}
 
   /**
@@ -114,7 +114,7 @@ export class NotificationFetchService {
     const pendingIds: number[] = [];
 
     validIds.forEach(id => {
-      const cached = this.getCachedActivity(id);
+      const cached = this.activityCache.get(id);
       if (cached !== undefined) {
         results.set(id, cached);
       } else {
@@ -175,20 +175,16 @@ export class NotificationFetchService {
         }
 
         const details: ActivityDetails = { text, mediaId, mediaTitle, status };
-        this.setCachedActivity(id, details);
+        this.activityCache.set(id, details);
         results.set(id, details);
       });
 
-      if (Object.keys(response).length > 0) {
-        // Save back to persistent storage if we added new items
-        this.savePersistentCache();
-      }
-
       return results;
-    } catch (error: any) {
+    } catch (error) {
       // Gracefully handle 404 errors (deleted/unavailable activities)
       // These are expected and shouldn't spam the console
-      if (error?.response?.status === 404) {
+      const err = error as any;
+      if (err?.response?.status === 404) {
         log.debug(`[NotificationFetch] Activities not found (likely deleted): ${validIds.join(', ')}`);
         return new Map();
       }
@@ -197,55 +193,6 @@ export class NotificationFetchService {
       log.debug(`[NotificationFetch] Failed activity IDs: ${pendingIds.join(', ')}`);
       return new Map();
     }
-  }
-
-  // ─── LRU Cache Helpers with TTL ────────────────────────────────────────────
-
-  /**
-   * Get from cache with LRU tracking and TTL validation
-   * @returns cached activity details or undefined if not found or expired
-   */
-  private getCachedActivity(id: number): ActivityDetails | undefined {
-    if (!this.activityCache.has(id)) return undefined;
-
-    // Check if entry is still fresh
-    const timestamp = this.cacheTimestamps.get(id);
-    if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
-      // Expired - evict and return undefined
-      this.activityCache.delete(id);
-      this.cacheTimestamps.delete(id);
-      this.cacheOrder = this.cacheOrder.filter(k => k !== id);
-      log.debug(`[NotificationFetch] Cache expired for activity ${id}`);
-      return undefined;
-    }
-
-    // Move to end (most recently used)
-    this.cacheOrder = this.cacheOrder.filter(k => k !== id);
-    this.cacheOrder.push(id);
-
-    return this.activityCache.get(id)!;
-  }
-
-  /**
-   * Set cache with LRU eviction and TTL tracking
-   */
-  private setCachedActivity(id: number, data: ActivityDetails): void {
-    // Evict oldest if at capacity
-    if (this.activityCache.size >= this.MAX_CACHE_SIZE && !this.activityCache.has(id)) {
-      const oldest = this.cacheOrder.shift();
-      if (oldest !== undefined) {
-        this.activityCache.delete(oldest);
-        this.cacheTimestamps.delete(oldest);
-        log.debug(`[NotificationFetch] LRU evicted activity ${oldest} (cache size: ${this.activityCache.size})`);
-      }
-    }
-
-    this.activityCache.set(id, data);
-    this.cacheTimestamps.set(id, Date.now());
-
-    // Update LRU order
-    this.cacheOrder = this.cacheOrder.filter(k => k !== id);
-    this.cacheOrder.push(id);
   }
 
   // ─── Persistent Cache Management ──────────────────────────────────────────
@@ -257,28 +204,9 @@ export class NotificationFetchService {
     if (this.persistentCacheLoaded) return;
 
     try {
-      const data = await storage.getLocal<Record<number, CachedActivity>>(STORAGE_KEYS.CACHE_NOTIFICATIONS);
+      const data = await this.storage.get<Record<number, CacheEntry<ActivityDetails>>>(STORAGE_KEYS.CACHE_NOTIFICATIONS);
       if (data) {
-        Object.entries(data).forEach(([idStr, cached]) => {
-          const id = parseInt(idStr, 10);
-
-          // Only load if not expired
-          if (Date.now() - cached.timestamp <= this.CACHE_TTL_MS) {
-            this.activityCache.set(id, cached.details);
-            this.cacheTimestamps.set(id, cached.timestamp);
-            this.cacheOrder.push(id);
-          }
-        });
-
-        // Enforce max size on load (in case data got corrupted/too big)
-        while (this.cacheOrder.length > this.MAX_CACHE_SIZE) {
-          const oldest = this.cacheOrder.shift();
-          if (oldest !== undefined) {
-            this.activityCache.delete(oldest);
-            this.cacheTimestamps.delete(oldest);
-          }
-        }
-
+        this.activityCache.import(data);
         log.debug(`[NotificationFetch] Loaded ${this.activityCache.size} activities from persistent cache`);
       }
     } catch (error) {
@@ -292,15 +220,15 @@ export class NotificationFetchService {
    * Save the in-memory cache to persistent storage
    */
   private async savePersistentCache(): Promise<void> {
+    if (!this.persistentCacheLoaded) return; // Don't overwrite if not loaded yet
+
     try {
-      const data: Record<number, CachedActivity> = {};
-      this.activityCache.forEach((details, id) => {
-        const timestamp = this.cacheTimestamps.get(id);
-        if (timestamp) {
-          data[id] = { details, timestamp };
-        }
+      const exported = this.activityCache.export();
+      const data: Record<number, CacheEntry<ActivityDetails>> = {};
+      exported.forEach((entry, id) => {
+        data[id] = entry;
       });
-      await storage.setLocal(STORAGE_KEYS.CACHE_NOTIFICATIONS, data);
+      await this.storage.set(STORAGE_KEYS.CACHE_NOTIFICATIONS, data);
     } catch (error) {
       log.error('[NotificationFetch] Failed to save persistent cache', error);
     }
@@ -314,9 +242,7 @@ export class NotificationFetchService {
     const size = this.activityCache.size;
     if (size > 0) {
       this.activityCache.clear();
-      this.cacheTimestamps.clear();
-      this.cacheOrder = [];
-      await storage.remove(STORAGE_KEYS.CACHE_NOTIFICATIONS);
+      await this.storage.remove(STORAGE_KEYS.CACHE_NOTIFICATIONS);
       log.info(`[NotificationFetch] Persistent cache cleared (${size} entries)`);
     }
   }
