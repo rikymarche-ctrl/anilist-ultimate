@@ -147,7 +147,8 @@ export class CalendarService implements ICalendarService {
    */
   async updateNotes(mediaId: number, episode: number, notes: string): Promise<boolean> {
     try {
-      console.log(`[CalendarService] Attempting to save note for media ${mediaId}, episode ${episode}: "${notes}"`);
+      // PRIVACY: Never log user-generated content (notes are private)
+      log.debug(`[CalendarService] Saving note for media ${mediaId}, episode ${episode} (${notes.length} chars)`);
 
       // 1. Update AniList global notes (Append style)
       // For now we just prefix it, in a real scenario we'd fetch current notes first.
@@ -156,17 +157,16 @@ export class CalendarService implements ICalendarService {
         mediaId,
         notes: noteToSave,
       });
-      console.log(`[CalendarService] AniList mutation successful for media ${mediaId}`);
+      log.debug('[CalendarService] AniList mutation successful');
 
       // 2. Update Astra Episode Journal (Per-episode notes)
       await this.astraService.saveEpisodeNote(mediaId, episode, notes);
-      console.log(`[CalendarService] Astra Journal save successful for media ${mediaId}`);
+      log.debug('[CalendarService] Astra Journal save successful');
 
       log.success('Notes updated successfully in AniList and Astra Journal');
       return true;
     } catch (error) {
-      console.error(`[CalendarService] Failed to save notes:`, error);
-      log.error('Failed to update notes', error);
+      log.error('[CalendarService] Failed to save notes:', error);
       throw error;
     }
   }
