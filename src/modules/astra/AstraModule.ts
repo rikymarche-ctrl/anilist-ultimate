@@ -55,10 +55,10 @@ export class AstraModule extends BaseModule {
 
     // Auth guard: skip service init se non autenticato (ma il modulo puo' comunque iniettare UI)
     if (this.apiClient.isAuthenticated()) {
-      // Do not await service init to avoid blocking other modules (like Calendar)
-      this.service.init().then(() => {
-        log.success('[Astra] Service data loaded');
-      });
+      // CRITICAL: AWAIT service init to ensure data loaded BEFORE UI injection
+      // Pills/dashboard need scores data immediately available
+      await this.service.init();
+      log.success('[Astra] Service data loaded');
     } else {
       log.warn('[Astra] Not authenticated, skipping service initialization (UI will still work)');
     }
@@ -614,6 +614,7 @@ export class AstraModule extends BaseModule {
           MediaList: {
             id: number;
             progress: number;
+            status: string;
             media: { id: number; title: { romaji: string } };
           } | null;
         }>(`
@@ -621,6 +622,7 @@ export class AstraModule extends BaseModule {
             MediaList(mediaId: $mediaId, userId: $userId) {
               id
               progress
+              status
               media { id title { romaji } }
             }
           }
@@ -648,6 +650,15 @@ export class AstraModule extends BaseModule {
         this.toast.success(`✓ ${entry.media.title.romaji} → Ep ${newProgress}`, {
           mediaId: entry.media.id,
           progress: newProgress
+        });
+
+        // Emit PROGRESS_UPDATED event for Calendar/Store sync
+        this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
+          mediaId: entry.media.id,
+          progress: newProgress,
+          previousProgress: entry.progress,
+          userId,
+          status: entry.status
         });
 
         // Update native UI text (best-effort)

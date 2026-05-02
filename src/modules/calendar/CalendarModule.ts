@@ -132,8 +132,13 @@ export class CalendarModule extends BaseModule {
           if (payload.status && payload.status !== MediaListStatus.CURRENT) {
             log.info('[Calendar] Media status is no longer CURRENT, removing from calendar', payload.status);
             calendarStore.removeEntry(payload.mediaId);
+            // Re-render to remove the card from UI
+            const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+            if (isHomePage) await this.runInjectionFlow(true);
           } else {
             calendarStore.updateEntry(payload.mediaId, { progress: payload.progress });
+            // Optimistic UI update: directly update visible card DOM
+            this.updateCardProgressUI(payload.mediaId, payload.progress);
           }
         }
       });
@@ -278,6 +283,32 @@ export class CalendarModule extends BaseModule {
     } catch (error) {
       log.error('[Calendar] Mark watched failed', error);
       alert('Failed to update progress. Please try again.');
+    }
+  }
+
+  /**
+   * Optimistically update card progress UI without full re-render
+   */
+  private updateCardProgressUI(mediaId: number, newProgress: number): void {
+    const card = document.querySelector(`[data-media-id="${mediaId}"]`);
+    if (!card) {
+      log.warn(`[Calendar] Card not found for mediaId ${mediaId}, skipping UI update`);
+      return;
+    }
+
+    // Update episode number
+    const episodeEl = card.querySelector('.anime-card__episode');
+    if (episodeEl) {
+      // Get entry data to calculate behind status
+      const entry = calendarStore.getState().entries.find(e => e.mediaId === mediaId);
+      if (entry) {
+        const isBehind = newProgress < (entry.episode - 1);
+        const behindDot = isBehind ? '<span class="behind-indicator"></span>' : '';
+        const total = entry.totalEpisodes;
+        const episodeStr = total && total > 0 ? `${newProgress}/${total}` : `${newProgress}`;
+        episodeEl.innerHTML = `${behindDot}Ep ${episodeStr}`;
+        log.debug(`[Calendar] Updated card UI for mediaId ${mediaId}: progress ${newProgress}`);
+      }
     }
   }
 

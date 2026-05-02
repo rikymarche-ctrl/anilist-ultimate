@@ -39,6 +39,7 @@ export class AstraRatingModal {
   private activeTab: string = 'rating';
   private isSaving: boolean = false;
   private media: any = null;
+  private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
 
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
@@ -94,6 +95,7 @@ export class AstraRatingModal {
 
     this.currentSeasonIdx = 0;
     this.media = media;
+    this.initialProgress = media.mediaListEntry?.progress || 0; // Save initial progress
     this.render(media, allCustomLists);
   }
 
@@ -747,17 +749,21 @@ export class AstraRatingModal {
       // Emit events for sync
       this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId: this.currentWork.mediaId, timestamp: new Date() });
 
+      const userId = await this.api.getCurrentUserId() || 0;
+
       log.info('[AstraRatingModal] Emitting PROGRESS_UPDATED', {
         mediaId: this.currentWork.mediaId,
         progress,
+        previousProgress: this.initialProgress,
+        userId,
         status: (this.overlay?.querySelector('#astra-status') as HTMLSelectElement)?.value as MediaListStatus || this.currentWork.status
       });
 
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
         mediaId: this.currentWork.mediaId,
         progress,
-        previousProgress: 0,
-        userId: 0,
+        previousProgress: this.initialProgress,
+        userId,
         status: (this.overlay?.querySelector('#astra-status') as HTMLSelectElement)?.value as MediaListStatus || this.currentWork.status
       });
     } catch (err) {
