@@ -508,12 +508,12 @@ export class AstraModule extends BaseModule {
    * Helper to render the common action pill HTML
    */
   private renderPillHTML(showMarkWatched: boolean, isSidebar: boolean = false): string {
-    const { socialEnabled } = calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
 
-    // Social button inside the pill: show if Social Features is enabled.
-    // The separate bubble/portal (with friend avatars) has its own check
-    // for socialShowAvatars in SocialRenderer.attachPortal().
-    const showSocial = socialEnabled;
+    // Social button inside the pill: show ONLY when Social Features is enabled
+    // BUT avatars are hidden. When avatars are visible, the bubble portal handles
+    // social interaction, making the pill button redundant.
+    const showSocial = socialEnabled && !socialShowAvatars;
 
     const socialHTML = showSocial ? `
       <div class="pill-separator"></div>
@@ -550,10 +550,11 @@ export class AstraModule extends BaseModule {
    * @param isUserListCard - If false (trending/newly added), skip the mark-watched button.
    */
   private injectCardPill(card: HTMLElement, mediaId: number, isUserListCard: boolean): void {
-    const { socialEnabled } = calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
 
-    // Social button inside pill: show when Social Features is enabled
-    const showPillSocial = socialEnabled;
+    // Social button inside pill: show ONLY when Social Features is enabled
+    // BUT avatars are hidden. When avatars are visible, the bubble portal handles it.
+    const showPillSocial = socialEnabled && !socialShowAvatars;
 
     const socialSectionHTML = showPillSocial ? `
       <div class="pill-separator"></div>
@@ -676,11 +677,12 @@ export class AstraModule extends BaseModule {
    * Surgically patches the social pill section in all processed native cards.
    * Called when social preferences change — no page refresh needed.
    *
-   * REGOLA: Mostra social SOLO se calendario presente, social abilitato, avatars MOSTRATI
+   * LOGIC: Show social pill button ONLY when social is enabled BUT avatars are hidden.
+   * When avatars are visible, the bubble portal handles social interaction (no redundancy).
    */
-  private refreshNativeCardSocialPills(socialEnabled: boolean, _socialShowAvatars: boolean): void {
-    // Social button inside pill: show when Social Features is enabled
-    const showPillSocial = socialEnabled;
+  private refreshNativeCardSocialPills(socialEnabled: boolean, socialShowAvatars: boolean): void {
+    // Social button inside pill: show ONLY when enabled AND avatars hidden
+    const showPillSocial = socialEnabled && !socialShowAvatars;
 
     document.querySelectorAll<HTMLElement>('.au-pill-wrapper .action-pill').forEach(pill => {
       // Remove existing social section

@@ -182,14 +182,42 @@ export class MediaSocialEnhancer extends BaseModule {
 
     // Create and inject
     const bar = this.filterBar.create();
+
+    // Force reset to 'ALL' on every page navigation
+    this.filterBar.reset();
+
     bar.classList.add('au-media-social-bar');
-    bar.style.setProperty('margin-top', '20px', 'important');
-    bar.style.setProperty('margin-bottom', '15px', 'important');
+
+    // Media Social page needs special layout handling (header flex container)
+    bar.style.setProperty('margin-top', '12px', 'important'); // Space from Self/Following/Global tabs
+    bar.style.setProperty('margin-bottom', '8px', 'important'); // Space before first entry
     bar.style.width = '100%';
     bar.style.flexBasis = '100%';
     bar.style.order = '10'; // Ensure it stays at the bottom
-    
-    // Inject into the header but force it to a new line
+
+    // Fix button spacing - AGGRESSIVE approach with !important
+    const applySpacing = () => {
+      const buttons = bar.querySelectorAll('.au-filter-btn');
+      buttons.forEach((btn, index) => {
+        if (index > 0) {
+          (btn as HTMLElement).style.setProperty('margin-left', '8px', 'important');
+        }
+      });
+      // Also force the container to have gap
+      const container = bar.querySelector('.au-activity-bar__left') as HTMLElement;
+      if (container) {
+        container.style.setProperty('gap', '8px', 'important');
+        container.style.setProperty('display', 'flex', 'important');
+      }
+    };
+
+    // Apply immediately
+    applySpacing();
+
+    // Apply again after a small delay in case of re-render
+    setTimeout(applySpacing, 100);
+
+    // Header needs flex layout for proper bar positioning
     (header as HTMLElement).style.display = 'flex';
     (header as HTMLElement).style.flexWrap = 'wrap';
     (header as HTMLElement).style.alignItems = 'center';

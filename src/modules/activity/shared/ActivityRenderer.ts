@@ -72,15 +72,28 @@ export class ActivityRenderer {
     }) as HTMLElement[];
 
     this.logger.debug(`[ActivityRenderer] Applying filters to ${activities.length} top-level activities`);
+    this.logger.debug(`[ActivityRenderer] Active filters:`, Array.from(activeFilters));
+    this.logger.debug(`[ActivityRenderer] Search query:`, searchQuery);
 
     let hiddenCount = 0;
     let shownCount = 0;
 
-    activities.forEach((el) => {
+    activities.forEach((el, index) => {
       const text = el.textContent?.toLowerCase() || '';
       const type = getActivityType(text);
       const typeMatch = activeFilters.has('ALL') || activeFilters.has(type);
       const searchMatch = !searchQuery || text.includes(searchQuery);
+
+      // Detailed logging for first 3 entries
+      if (index < 3) {
+        this.logger.debug(`[ActivityRenderer] Entry ${index}:`, {
+          preview: text.substring(0, 100),
+          detectedType: type,
+          typeMatch,
+          searchMatch,
+          willShow: typeMatch && searchMatch
+        });
+      }
 
       if (typeMatch && searchMatch) {
         el.style.display = '';

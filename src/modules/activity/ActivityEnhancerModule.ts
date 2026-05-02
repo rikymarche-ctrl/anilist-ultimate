@@ -12,7 +12,6 @@
  * to avoid code duplication with MediaSocialEnhancer.
  *
  * Known Issues:
- *   - Filter state lost on page navigation (BUG-004 in docs/BUGS.md)
  *   - Custom list auto-resets on AniList refresh (BUG-005 in docs/BUGS.md)
  *
  * @see docs/MODULES.md#3-activity-enhancer-module
@@ -25,7 +24,7 @@ import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { CustomListService } from '../social/CustomListService';
-import type { AniListActivity, ActivityFilterType } from './ActivityUtils';
+import type { AniListActivity } from './ActivityUtils';
 import {
   ActivityFilterBar,
   ActivityRenderer,
@@ -42,7 +41,6 @@ export class ActivityEnhancerModule extends BaseModule {
   private readonly OBSERVER_NAME = 'activity-continuous';
   private customActivitiesContainer: HTMLElement | null = null;
   private isProcessing = false;
-  private savedFilterState: { activeFilters: ActivityFilterType[]; searchQuery: string } | null = null; // BUG-004 fix
   private activeListName: string | null = null; // BUG-005 fix
 
   constructor(
@@ -97,9 +95,6 @@ export class ActivityEnhancerModule extends BaseModule {
   private fullCleanup(): void {
     this.suspendObserver(this.OBSERVER_NAME);
     this.cleanup();
-
-    // BUG-004 fix: Save filter state before cleanup
-    this.savedFilterState = this.filterBar.getState();
 
     // Cleanup shared components
     this.filterBar.destroy();
@@ -207,11 +202,8 @@ export class ActivityEnhancerModule extends BaseModule {
     // Create and inject
     const bar = this.filterBar.create();
 
-    // BUG-004 fix: Restore saved filter state after re-injection
-    if (this.savedFilterState) {
-      this.filterBar.setState(this.savedFilterState);
-      this.logger.info('[ActivityEnhancer] Restored filter state:', this.savedFilterState);
-    }
+    // Force reset to 'ALL' on every page navigation
+    this.filterBar.reset();
 
     if (editContainer) {
       editContainer.insertAdjacentElement('afterend', bar);
