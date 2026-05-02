@@ -21,7 +21,7 @@ import { storage } from '@core/storage/StorageManager';
 import { log } from '@core/logger';
 import { TIME } from '@core/constants';
 import { TOKENS } from '@core/di/tokens';
-import type { IApiClient } from '@core/interfaces/IApiClient';
+import { GraphQLBatcher } from '@core/api/GraphQLBatcher';
 
 export interface UserComment {
   username: string;
@@ -37,7 +37,9 @@ export class CommentService {
   private readonly CACHE_MAX_AGE = 2 * TIME.DAY_MS; // 48 hours for valid comments
   private readonly NEGATIVE_CACHE_AGE = TIME.HOUR_MS; // 1 hour for empty/not found lists
 
-  constructor(@inject(TOKENS.ApiClient) private apiClient: IApiClient) {}
+  constructor(
+    @inject(TOKENS.GraphQLBatcher) private batcher: GraphQLBatcher
+  ) {}
 
   /**
    * Load cache from storage
@@ -75,7 +77,11 @@ export class CommentService {
   }
 
   /**
-   * Fetch comment from Anilist API
+   * Fetch comment from Anilist API using GraphQLBatcher
+   *
+   * When multiple comments are requested in rapid succession (e.g., hovering
+   * over several avatars), GraphQLBatcher accumulates the queries and combines
+   * them into a single HTTP request, reducing API load.
    */
   private async fetchComment(username: string, mediaId: number): Promise<UserComment | null> {
     const query = `
@@ -87,7 +93,7 @@ export class CommentService {
     `;
 
     try {
-      const data = await this.apiClient.query<{ MediaList: { notes: string } | null }>(query, {
+      const data = await this.batcher.query<{ MediaList: { notes: string } | null }>(query, {
         userName: username,
         mediaId: mediaId,
       });
@@ -105,7 +111,7 @@ export class CommentService {
     } catch (error) {
       // If 404/not found, it means the user doesn't have the anime on their list
       log.debug(`Could not fetch comment for ${username} on media ${mediaId}`, error);
-      
+
       // Negative cache to avoid spamming 404s
       const negativeComment: UserComment = {
         username,
@@ -114,7 +120,7 @@ export class CommentService {
         timestamp: Date.now(),
       };
       this.saveToCache(negativeComment);
-      
+
       return null;
     }
   }
