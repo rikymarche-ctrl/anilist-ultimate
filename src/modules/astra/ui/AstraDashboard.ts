@@ -178,6 +178,7 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-nav-spacer"></div>
           <button class="astra-modal-close">
             <i class="fa fa-times"></i>
+            <span>Close Dashboard</span>
           </button>
         </nav>
 

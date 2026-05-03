@@ -155,7 +155,7 @@ export class AstraRatingModal {
     this.overlay.innerHTML = `
       <div class="astra-modal astra-modal--rating">
         <nav class="astra-modal-nav">
-          <div class="astra-nav-back" id="astra-dashboard-link" title="Go to Astra Dashboard">
+          <div class="astra-nav-back" id="astra-dashboard-link">
             <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; transform: rotate(-90deg);">
               <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
               <rect x="11" y="14" width="2" height="3" rx="1" opacity="0.6"/>
@@ -171,8 +171,9 @@ export class AstraRatingModal {
             <span>Journal</span>
           </button>
           <div class="astra-nav-spacer"></div>
-          <button class="astra-modal-close" title="Close modal" id="astra-modal-close-btn">
+          <button class="astra-modal-close" id="astra-modal-close-btn">
             <i class="fa fa-times"></i>
+            <span>Close Modal</span>
           </button>
         </nav>
 

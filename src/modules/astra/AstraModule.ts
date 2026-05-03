@@ -75,6 +75,9 @@ export class AstraModule extends BaseModule {
       if (path.includes('/astra')) {
         this.renderDashboard();
       }
+
+      // Re-trigger enhancement on page change (for SPA navigation)
+      this.enhanceNativeCards();
     });
 
     log.success('[Astra] Module initialized');
@@ -88,6 +91,20 @@ export class AstraModule extends BaseModule {
 
     // 1. Global Navbar Button: ALWAYS present, works everywhere
     this.injectGlobalDashboardButton();
+
+    // 2. Media Page Hijack Observer (Persistent)
+    this.sharedObserver.register('astra-media-hijack', () => {
+      if (window.location.pathname.match(/\/(anime|manga)\/\d+/)) {
+        this.hijackMediaPageStatusButton();
+      }
+    });
+
+    // 3. Polling Fallback for Media Page (React/Vue re-renders often reset the button)
+    setInterval(() => {
+      if (window.location.pathname.match(/\/(anime|manga)\/\d+/)) {
+        this.hijackMediaPageStatusButton();
+      }
+    }, 1000);
 
     log.groupEnd();
   }
@@ -442,10 +459,10 @@ export class AstraModule extends BaseModule {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // MEDIA PAGE: Pills in sidebar (independent from Calendar)
+    // MEDIA PAGE: Hijack native status button
     // ══════════════════════════════════════════════════════════════════════════
     if (isMediaPage) {
-      this.enhanceMediaPageSidebar();
+      this.hijackMediaPageStatusButton();
     }
   }
 
@@ -468,80 +485,42 @@ export class AstraModule extends BaseModule {
   }
 
   /**
-   * Enhances the media page sidebar with action pills
+   * Hijacks the native AniList status button (Add to List / Watching / etc.)
+   * to open Astra Quick Edit instead of the native list editor.
    */
-  private enhanceMediaPageSidebar(): void {
-    const path = window.location.pathname;
-    const mediaIdMatch = path.match(/\/(anime|manga)\/(\d+)/);
-    if (!mediaIdMatch) return;
-    const mediaId = parseInt(mediaIdMatch[2]);
-
-    // Target the sidebar status section
-    const sidebar = document.querySelector('.sidebar');
-    if (!sidebar || sidebar.querySelector('.au-pill-wrapper')) return;
-
-    // Look for the "Status" or "Progress" label in the sidebar
-    const labels = Array.from(sidebar.querySelectorAll('.label, .type'));
-    const statusLabel = labels.find(l => {
-      const text = l.textContent?.toLowerCase() || '';
-      return text.includes('status') || text.includes('progress');
-    });
-
-    if (statusLabel) {
-      const container = statusLabel.parentElement;
-      if (container && !container.querySelector('.au-pill-wrapper')) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'au-pill-wrapper au-pill-wrapper--sidebar';
-        wrapper.style.marginTop = '10px';
-        wrapper.style.display = 'flex';
-        wrapper.style.justifyContent = 'center';
-        wrapper.setAttribute('data-au-media-id', String(mediaId));
-
-        // Reuse the same pill HTML generator
-        wrapper.innerHTML = this.renderPillHTML(true, true);
-        container.appendChild(wrapper);
-      }
+  private hijackMediaPageStatusButton(): void {
+    // Select the main status button under the cover image
+    // Priorities: header-specific actions, then general actions
+    const btn = (document.querySelector('.header .actions .list') || 
+                 document.querySelector('.actions .list')) as HTMLElement;
+    
+    if (!btn) {
+      // log.debug('[Astra] Target button NOT found on media page'); // Silent for polling
+      return;
     }
+
+    if (btn.hasAttribute('data-astra-hijacked')) return;
+
+    btn.setAttribute('data-astra-hijacked', 'true');
+    btn.classList.add('au-astra-hijacked-btn');
+    
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      
+      const path = window.location.pathname;
+      const match = path.match(/\/(anime|manga)\/(\d+)/);
+      if (match) {
+        this.ratingModal.open(parseInt(match[2]));
+      }
+    }, { capture: true });
+
+    log.info('[Astra] Native status button hijacked successfully');
   }
 
   /**
    * Helper to render the common action pill HTML
    */
-  private renderPillHTML(showMarkWatched: boolean, isSidebar: boolean = false): string {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
-
-    // Social button inside the pill: show ONLY when Social Features is enabled
-    // BUT avatars are hidden. When avatars are visible, the bubble portal handles
-    // social interaction, making the pill button redundant.
-    const showSocial = socialEnabled && !socialShowAvatars;
-
-    const socialHTML = showSocial ? `
-      <div class="pill-separator"></div>
-      <div class="pill-section" data-action="social-activity" title="Social Activity">
-        <i class="fa fa-users"></i>
-      </div>
-    ` : '';
-
-    const markWatchedHTML = showMarkWatched ? `
-      <div class="pill-section" data-action="mark-watched" title="Increment Progress">
-        <i class="fa fa-plus"></i>
-      </div>
-      <div class="pill-separator"></div>
-    ` : '';
-
-    const sidebarStyle = isSidebar ? 'style="position: static; opacity: 1; pointer-events: auto; transform: none; background: var(--astra-bg-elev); border: 1px solid var(--astra-border-soft); box-shadow: var(--au-shadow); width: auto; padding: 4px 8px; border-radius: 10px;"' : '';
-    const socialWidth = showSocial ? '130px' : '90px';
-
-    return `
-      <div class="action-pill" ${sidebarStyle} role="toolbar" style="${!isSidebar ? `width: ${socialWidth};` : ''}">
-        ${markWatchedHTML}
-        <div class="pill-section" data-action="edit-entry" title="Quick Rate (Astra)">
-          <i class="fa fa-pencil"></i>
-        </div>
-        ${socialHTML}
-      </div>
-    `;
-  }
 
 
   /**

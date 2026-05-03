@@ -312,7 +312,7 @@ export async function setupDI(): Promise<void> {
       description: 'Advanced scoring system (Astra)',
       enabled: config.isFeatureEnabled('astra'),
       factory: () => container.resolve(AstraModule),
-      pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra'),
+      pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra') || /^\/(anime|manga)\/\d+/.test(path),
     },
     {
       name: 'mediaMetadata',

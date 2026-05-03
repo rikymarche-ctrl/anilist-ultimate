@@ -150,16 +150,39 @@
   gap: 4px;
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
 }
 
 .astra-nav-item i {
   font-size: 18px;
 }
 
-.astra-nav-item span {
-  font-size: 8px;
-  font-weight: 700;
+.astra-nav-item span,
+.astra-modal-nav .astra-modal-close span {
+  position: absolute;
+  left: 65px;
+  background: var(--astra-bg-elev-2);
+  color: var(--astra-accent);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-12px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--astra-border-soft);
+  z-index: 100;
+}
+
+.astra-nav-item:hover span,
+.astra-modal-nav .astra-modal-close:hover span {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .astra-nav-item:hover {
@@ -170,6 +193,13 @@
 .astra-nav-item.active {
   background: var(--astra-accent-a20);
   color: var(--astra-accent);
+}
+
+.astra-nav-item:focus,
+.astra-nav-item:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 /* Main Content - non scrolla, fa da shell flex */
@@ -242,7 +272,8 @@
   flex: 1;
   min-height: 0;
   align-items: start;
-  height: calc(100% - 130px); /* Adjust for header */
+  height: calc(100% - 130px);
+  /* Adjust for header */
   overflow: hidden;
 }
 
@@ -495,8 +526,15 @@
 }
 
 @keyframes astraPop {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .astra-modal--rating .astra-media-header {
@@ -553,7 +591,8 @@
   flex-direction: column;
   gap: 4px;
   flex: 1;
-  min-width: 0; /* Prevent overflow */
+  min-width: 0;
+  /* Prevent overflow */
 }
 
 .astra-input-split {
@@ -669,7 +708,7 @@
   width: 100% !important;
 }
 
-.astra-input-split > .astra-input-box {
+.astra-input-split>.astra-input-box {
   flex: 1 !important;
   width: 100% !important;
 }
@@ -817,7 +856,13 @@
   font-size: 13px;
   resize: none;
   height: 60px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.astra-textarea:focus {
+  outline: none !important;
+  border-color: var(--astra-accent) !important;
+  box-shadow: none !important;
 }
 
 .astra-overall-area {
@@ -1291,6 +1336,9 @@
   background: var(--astra-bg-elev-2);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
+
+
+/* Residue Cleaned */
 
 .astra-stat-header {
   font-size: 10px;
@@ -2788,21 +2836,23 @@
 
 .astra-nav-back-text {
   position: absolute;
-  left: 55px;
-  font-size: 9px;
+  left: 65px;
+  background: var(--astra-bg-elev-2);
+  color: var(--astra-accent);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--astra-accent);
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: all 0.3s;
-  pointer-events: none;
-  background: var(--astra-bg-elev-2);
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--astra-border-soft);
+  letter-spacing: 0.1em;
   white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-12px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--astra-border-soft);
+  z-index: 100;
 }
 
 .astra-nav-back:hover .astra-nav-back-text {
@@ -2815,49 +2865,6 @@
   width: 32px;
   height: 32px;
   margin-bottom: 40px;
-}
-
-.astra-nav-item {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  color: var(--astra-muted);
-  cursor: pointer;
-  margin-bottom: 16px;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.astra-nav-item i {
-  font-size: 18px;
-}
-
-.astra-nav-item span {
-  font-size: 8px;
-  text-transform: uppercase;
-  font-weight: 700;
-  margin-top: 4px;
-  display: none;
-}
-
-.astra-nav-item:hover,
-.astra-nav-item.active {
-  color: var(--astra-accent);
-  background: var(--astra-accent-a10);
-}
-
-.astra-nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  width: 4px;
-  height: 20px;
-  background: var(--astra-accent);
-  border-radius: 0 4px 4px 0;
 }
 
 .astra-nav-spacer {
@@ -3106,7 +3113,7 @@
 /* Hide native AniList progress overlays ONLY on cards managed by Astra */
 .media-preview-card.au-astra-card .image-overlay .plus-progress,
 .media-preview-card.au-astra-card .image-overlay .progress-bar,
-.media-preview-card.au-astra-card .image-overlay > div:has(.plus-progress),
+.media-preview-card.au-astra-card .image-overlay>div:has(.plus-progress),
 .media-preview-card.au-astra-card .image-overlay [data-v-2fd80e52],
 .media-preview-card.au-astra-card .image-overlay [data-v-0a6a0e5c] {
   display: none !important;
@@ -3212,6 +3219,30 @@ body.au-astra-enabled .section-header .friend-activity-button {
   animation: au-pill-click 0.28s ease-out forwards;
 }
 
+/* Hijacked Media Page Button */
+.au-astra-hijacked-btn {
+  background: var(--astra-accent) !important;
+  color: #000 !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 6px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 4px 15px rgba(var(--astra-accent-rgb), 0.3) !important;
+  border: none !important;
+}
+
+.au-astra-hijacked-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(var(--astra-accent-rgb), 0.4) !important;
+  filter: brightness(1.1);
+}
+
+.au-astra-hijacked-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.9);
+}
+
 /* Empty State */
 .astra-empty-state {
   display: flex;
@@ -3249,7 +3280,64 @@ body.au-astra-enabled .section-header .friend-activity-button {
 
 .astra-empty-actions {
   display: flex;
-  gap: 16px;
+  gap: 12px;
+}
+
+/* Hijacked Native Button Styling */
+.au-astra-hijacked-btn {
+  background: var(--astra-accent) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 4px !important;
+  /* Square-ish */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: none !important;
+  /* Removed halo shadow */
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 20px !important;
+  height: 35px !important;
+  cursor: pointer !important;
+  z-index: 100 !important;
+}
+
+.au-astra-hijacked-btn .add {
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  color: inherit !important;
+}
+
+/* Star/Dot removed as requested */
+.au-astra-hijacked-btn .add::before {
+  display: none !important;
+}
+
+/* Hide the native dropdown arrow to avoid clutter */
+.au-astra-hijacked-btn .dropdown {
+  display: none !important;
+}
+
+.au-astra-hijacked-btn:hover,
+.au-astra-hijacked-btn:focus,
+.au-astra-hijacked-btn:active {
+  box-shadow: none !important;
+  outline: none !important;
+  filter: none !important;
+  transform: translateY(-3px) !important;
+}
+
+.au-astra-hijacked-btn::after,
+.au-astra-hijacked-btn::before {
+  display: none !important;
+  /* Kill any native AniList glows */
 }
 
 .astra-btn--lg {
