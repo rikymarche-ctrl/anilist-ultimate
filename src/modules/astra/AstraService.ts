@@ -69,6 +69,7 @@ export interface AstraSeason {
   notes?: string;
   isSeriesFinale?: boolean;
   episodeNotes?: Record<number, AstraEpisodeNote>;
+  legacyScore?: number; // Score from AniList if Astra sections are empty
 }
 
 export interface AstraSubSection {
@@ -353,9 +354,13 @@ export class AstraService {
                 duration: media.duration ?? undefined
               };
               
-              // Seed enjoyment if AniList score exists
+              // Store AniList score as legacy fallback
               if (entry.score > 0) {
-                newWork.seasons[0].scores['enjoyment'] = entry.score;
+                // AniList scores are typically 0-10 or 0-100 depending on format, 
+                // but entry.score in GQL collections is usually the formatted one.
+                // We normalize to 0-10 if it's > 10.
+                const normalizedScore = entry.score > 10 ? entry.score / 10 : entry.score;
+                newWork.seasons[0].legacyScore = normalizedScore;
               }
 
               this.works.push(newWork);
@@ -519,13 +524,13 @@ export class AstraService {
    * Calculate overall score for a season object
    */
   calcSeasonScore(season: AstraSeason): number | null {
-    return this.calcSeasonOverall(season.scores, season.skip, season.isSeriesFinale);
+    return this.calcSeasonOverall(season.scores, season.skip, season.isSeriesFinale, season.legacyScore);
   }
 
   /**
    * Calculate overall score for raw data
    */
-  calcSeasonOverall(scores: Record<string, number | null>, skip?: string[], isSeriesFinale?: boolean): number | null {
+  calcSeasonOverall(scores: Record<string, number | null>, skip?: string[], isSeriesFinale?: boolean, legacyScore?: number): number | null {
     const skipSet = new Set(skip || []);
     let num = 0, den = 0;
 
@@ -544,7 +549,7 @@ export class AstraService {
       den += weight;
     }
 
-    if (den === 0) return null;
+    if (den === 0) return (legacyScore && legacyScore > 0) ? legacyScore : null;
     return Math.round((num / den) * 10) / 10;
   }
 

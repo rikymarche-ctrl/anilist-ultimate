@@ -104,6 +104,7 @@ export class AstraRatingModal {
           label: 'Season 1',
           scores: {},
           notes: media.mediaListEntry?.notes || '',
+          legacyScore: (media.mediaListEntry?.score || 0) > 10 ? (media.mediaListEntry?.score || 0) / 10 : (media.mediaListEntry?.score || 0),
         }]
       };
     }
@@ -770,7 +771,7 @@ export class AstraRatingModal {
     if (this.state) this.state.resetDirty();
 
     // Sync to AniList
-    const overall = this.astraService.calcSeasonOverall(currentSeason.scores, currentSeason.skip, currentSeason.isSeriesFinale) || 0;
+    const overall = this.astraService.calcSeasonOverall(currentSeason.scores, currentSeason.skip, currentSeason.isSeriesFinale, currentSeason.legacyScore) || 0;
     const progress = progressInput ? parseInt(progressInput.value) : (currentWork.progress || 0);
 
     const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$repeat:Int,$private:Boolean,$hidden:Boolean,$start:FuzzyDateInput,$end:FuzzyDateInput,$lists:[String]) {
@@ -897,7 +898,7 @@ export class AstraRatingModal {
     const work = this.state.data;
     const season = work.seasons[this.currentSeasonIdx];
     const sections = this.astraService.getSections();
-    const overall = this.astraService.calcSeasonOverall(season.scores, season.skip, season.isSeriesFinale);
+    const overall = this.astraService.calcSeasonOverall(season.scores, season.skip, season.isSeriesFinale, season.legacyScore);
 
     const overallVal = this.overlay!.querySelector('.astra-overall-val') as HTMLElement;
     if (overallVal) {
