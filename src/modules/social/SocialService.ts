@@ -37,8 +37,7 @@ import type { IStorageService } from '@core/interfaces/IStorageService';
 import type { 
   FriendActivityResponse, 
   DetailedActivityResponse, 
-  FollowingsResponse,
-  UserByNameResponse 
+  FollowingsResponse
 } from '@/api/AnilistTypes';
 
 import { LRUCacheWithTTL } from '@core/cache/LRUCacheWithTTL';
@@ -88,11 +87,7 @@ export class SocialService {
 
     // Fetch Viewer ID if not already known
     if (this.viewerId === null && this.api.isAuthenticated()) {
-      try {
-        this.viewerId = await this.api.getCurrentUserId();
-      } catch (e) {
-        log.warn('[SocialService] Failed to fetch Viewer ID');
-      }
+      this.viewerId = await this.getViewerId();
     }
 
     // Single-media query template (GraphQLBatcher will batch these)
@@ -144,6 +139,22 @@ export class SocialService {
     log.info(`[SocialService] Fetched friend activity for ${pendingIds.length} media (batched via GraphQLBatcher)`);
 
     return results;
+  }
+
+  /**
+   * Returns the current viewer's ID (cached for session)
+   */
+  public async getViewerId(): Promise<number | null> {
+    if (this.viewerId !== null) return this.viewerId;
+    if (!this.api.isAuthenticated()) return null;
+
+    try {
+      this.viewerId = await this.api.getCurrentUserId();
+      return this.viewerId;
+    } catch (e) {
+      log.error('[SocialService] Failed to fetch viewer ID', e);
+      return null;
+    }
   }
 
   /**
@@ -322,38 +333,96 @@ export class SocialService {
     return this.getAllFollowings();
   }
 
+  private readonly USER_CACHE_KEY_PREFIX = 'au_user_cache_';
+  private readonly USER_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
   /**
-   * Fetches a user's details by their username
+   * Unified method to fetch full user data (info + social counts)
+   * Uses persistent cache to prevent API rate limiting.
    */
-  public async getUserByName(name: string): Promise<{ id: number, name: string, avatar: { medium: string } } | null> {
-    const query = `
+  public async getFullUser(name: string): Promise<{
+    id: number;
+    name: string;
+    avatar: { medium: string };
+    following: number;
+    followers: number;
+  } | null> {
+    const cacheKey = `${this.USER_CACHE_KEY_PREFIX}${name.toLowerCase()}`;
+
+    // 1. Check persistent cache
+    try {
+      const cached = await this.storage.get<{ data: any; timestamp: number }>(cacheKey);
+      if (cached && (Date.now() - cached.timestamp < this.USER_TTL_MS)) {
+        return cached.data;
+      }
+    } catch (e) {
+      log.warn(`[SocialService] Cache read error for ${name}`, e);
+    }
+
+    // 2. Fetch User ID and basic info first
+    const userQuery = `
       query ($name: String) {
-        User (name: $name) {
+        User(name: $name) {
           id
           name
-          avatar {
-            medium
-          }
+          avatar { medium }
         }
       }
     `;
 
     try {
-      const response = await this.api.query<UserByNameResponse>(query, { name });
-      return response.User;
+      const userResponse = await this.api.query<any>(userQuery, { name });
+      if (!userResponse.User) return null;
+
+      const user = userResponse.User;
+      
+      // 3. Fetch counts using userId (only valid argument in AniList schema)
+      const countsQuery = `
+        query ($userId: Int!) {
+          following: Page(perPage: 1) {
+            pageInfo { total }
+            following(userId: $userId) { id }
+          }
+          followers: Page(perPage: 1) {
+            pageInfo { total }
+            followers(userId: $userId) { id }
+          }
+        }
+      `;
+
+      const countsResponse = await this.api.query<any>(countsQuery, { userId: user.id });
+
+      const userData = {
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar,
+        following: countsResponse.following.pageInfo.total || 0,
+        followers: countsResponse.followers.pageInfo.total || 0
+      };
+
+      // 4. Save to cache
+      await this.storage.set(cacheKey, {
+        data: userData,
+        timestamp: Date.now()
+      });
+
+      return userData;
     } catch (e) {
-      log.error(`[SocialService] Failed to fetch user by name: ${name}`, e);
+      log.error(`[SocialService] Failed to fetch full user ${name}`, e);
       return null;
     }
   }
 
   /**
-   * Clear all in-memory caches (friend activity + viewer ID)
-   * Useful for testing or when user logs out
+   * Clear all caches
    */
-  public clearAllCaches(): void {
+  public async clearAllCaches(): Promise<void> {
     this.friendCache.clear();
     this.viewerId = null;
-    log.info('[SocialService] All in-memory caches cleared');
+    
+    // Clear persistent following cache
+    await this.storage.remove(this.FOLLOWINGS_CACHE_KEY);
+    
+    log.info('[SocialService] All caches cleared (in-memory + followings)');
   }
 }

@@ -71,6 +71,7 @@ import { SocialActivityModule } from '@/modules/social/SocialActivityModule';
 import { SocialEnhancerModule } from '@/modules/social/SocialEnhancerModule';
 import { CustomListModule } from '@/modules/social/CustomListModule';
 import { MediaSocialEnhancer } from '@/modules/social/MediaSocialEnhancer';
+import { UserSocialStatsModule } from '@/modules/social/UserSocialStatsModule';
 import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
 import { UserBannerModule } from '@/modules/social/UserBannerModule';
 import { AstraModule } from '@/modules/astra/AstraModule';
@@ -320,6 +321,13 @@ export async function setupDI(): Promise<void> {
       enabled: config.isFeatureEnabled('mediaMetadata'),
       factory: () => container.resolve(MediaMetadataModule),
       pageMatch: (path) => /^\/(anime|manga)\/\d+/.test(path),
+    },
+    {
+      name: 'userSocialStats',
+      description: 'Follower and following counts on profiles',
+      enabled: config.isFeatureEnabled('friendActivity'),
+      factory: () => container.resolve(UserSocialStatsModule),
+      pageMatch: (path) => path.startsWith('/user/'),
     },
     {
       name: 'profileActivity',

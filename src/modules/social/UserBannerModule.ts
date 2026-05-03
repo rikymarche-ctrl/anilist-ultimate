@@ -66,6 +66,18 @@ export class UserBannerModule extends BaseModule {
   }
 
   private async injectButton(): Promise<void> {
+    const username = window.location.pathname.split('/')[2];
+    if (!username) return;
+
+    // Prevention: don't inject on own profile
+    const targetUser = await this.socialService.getFullUser(username);
+    const viewerId = await this.socialService.getViewerId();
+
+    if (!targetUser || (viewerId && targetUser.id === viewerId)) {
+      log.info('[UserBannerModule] Skipping injection for self or invalid profile');
+      return;
+    }
+
     // Target the actions container in the user banner content
     const actions = document.querySelector('.banner-content .actions');
     if (!actions || actions.querySelector('.au-banner-list-btn')) return;
@@ -98,7 +110,7 @@ export class UserBannerModule extends BaseModule {
     if (!btnSpan) return;
 
     if (!this.currentUser || this.currentUser.name !== username) {
-      const rawUser = await this.socialService.getUserByName(username);
+      const rawUser = await this.socialService.getFullUser(username);
       if (rawUser) {
         this.currentUser = {
           id: rawUser.id,
@@ -136,7 +148,7 @@ export class UserBannerModule extends BaseModule {
   private async renderPopover(anchor: HTMLElement): Promise<void> {
     const username = window.location.pathname.split('/')[2];
     if (!this.currentUser || this.currentUser.name !== username) {
-      const rawUser = await this.socialService.getUserByName(username);
+      const rawUser = await this.socialService.getFullUser(username);
       if (rawUser) {
         this.currentUser = {
           id: rawUser.id,

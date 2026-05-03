@@ -1,4 +1,4 @@
-# davvero sono pessime per ora, o quantomeno danno l idea di esserlo🚀 AniList Ultimate - Roadmap & TODO
+# AniList Ultimate - Roadmap & TODO
 
 **Last Updated:** 2026-05-03
 **Current Status:** Phase 6 (UI/UX Refinement) 🟢
@@ -11,28 +11,28 @@
 
 ### Astra Dashboard & Core UI
 
+- [X] **Symmetry & Header Refactor** - Fixed closing "X" position, unified Pill buttons (Override/Finale), and removed redundant title badges.
 - [X] **BUG-020: Resize Handler** - Ensure extension elements (Astra, Tooltips) don't break when resizing the window.
 - [X] **Astra Navigation** - Implement macro-categories (Reading, Completed, All, etc.) as dropdowns or tabs instead of just tags.
 - [X] **Sticky Search** - Make the search bar in Astra sticky so it stays visible during scroll.
 - [X] **Closing Animation** - Add a smooth "outro" animation when closing the Astra dashboard.
-- [X] **Alignment Fix** - Correct decentered items above the votes/scores section.
-- [X] **Icon Loading** - Switched to Font Awesome SVG/JS to fix CSP font-blocking issues.
-- [X] **Seasonal Link** - Added "Seasonal" link to Browse dropdown with correct AniList URL parameters and layout stabilization.
-- [X] **Browse Dropdown Layout** - Expanded the navigation dropdown panel to fit the new Seasonal link on one line.
+- [X] **Icon Standardization** - Fixed inverted Import/Export icons (using vertical arrows) and switched to FA SVG/JS for CSP safety.
+- [X] **Seasonal Link** - Added "Seasonal" link to Browse dropdown with layout stabilization.
 
-### Page Enhancements (Media & User)
+### Social & Activity Feed
 
-- [X] **Media Page Stability** - Fix social activity bubbles, comments, and filters on individual anime/manga pages (currently broken).
-- [ ] **User Activity Enhancements** - Add votes and filters to the single user activity feed.
-- [X] **Banner Action** - Add a "+" button near the "Follow" button in user banners to quickly add/remove from custom lists.
-- [ ] **Follower Stats** - Add follower/following counters to relevant profile sections.
-- [X] **Missing UI Elements** - Restored the "pill" buttons in the media page sidebar "In Progress" section.
+- [X] **Pixel-Perfect Activity Feed** - Fully restored alignment, background colors, and interaction icons to match native AniList aesthetic.
+- [X] **Gap Fix** - Eliminated the large empty space when resetting from custom list to default feed.
+- [X] **Interaction Cleanup** - Hidden zero-count replies/likes and updated icon colors to native "azzurrino".
+- [X] **Custom List Checkbox** - Replaced font-based "tofu" checkmark with pure CSS version for 100% reliability.
+- [X] **Banner Action** - Add a "+" button near the "Follow" button in user banners for custom lists management.
+- [ ] **Activity Score Restoration** - Ensure Astra scores appear in manually rendered custom activity entries (Line 124).
 
 ### Visual & Assets
 
-- [X] **BUG-021: Comment Icon** - Replace low-res SVG with high-quality version and fix hover trigger area.
+- [X] **BUG-021: Comment Icon** - Replace low-res SVG and fix hover trigger area.
 - [X] **BUG-025: Weight Position** - Move the Global Weight indicator to the left in Astra rows.
-- [X] **COS-002: Calendar Redesign** - Rework the graphics for social activity within the calendar cards.
+- [X] **COS-002: Calendar Redesign** - Reworked social activity graphics within calendar cards.
 
 ---
 
@@ -40,101 +40,39 @@
 
 - [ ] **Runtime Fix** - `TypeError: Cannot read properties of undefined (reading 'init')` at `settings#au-custom-lists`.
 - [ ] **BUG-034: Logging System** - Fix `src/core/logger.ts` so logs actually appear in the console.
-- [X] **API Resilience** - Ensure cached data (Reviews, Calendar) is shown if API is down. [DONE]
-- [ ] **Astra Bug Hunt** - Systematic testing of internal Astra logic to catch edge-case crashes.
+- [X] **API Resilience** - Ensure cached data (Reviews, Calendar) is shown if API is down.
+- [ ] **Astra Bug Hunt** - Systematic testing of internal Astra logic.
+- [ ] **Astra Settings Fixes** - Fix slider overflow (Line 110) and drag-and-drop handles (Line 111).
 
 ---
 
 ## ✨ P8 - NEW FEATURES & INTEGRATIONS
 
-- [X] **Media Metadata** - Add MAL score, MAL link, and Subreddit link to media pages (with caching and native styling). [DONE]
-
-![1777529009783](image/TODO/1777529009783.png)
-
+- [X] **Media Metadata** - Add MAL score/link and Subreddit link to media pages.
 - [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
-- [X] **Progress Notes & Auto-Save** - Show/edit notes immediately when incrementing episode/chapter progress. Implemented full auto-save on close/tab-switch for Astra Rating & Journal.
-- [X] **Cross-Module Sync** - Ensure Astra actions (progress, status) update the Calendar and Dashboard in real-time without page refreshes.
-- [ ] **Offline Astra** - Research keeping Astra functional (read-only) even without an active API connection.
-
-commented in un activity in cui sei iscritto
-
-mention
-
-il numero di episodio
-
-mi sembra che l hover sull immagine dentro astra funzioni bene solo nella dashboard, nel quickedit è sfocata
-
-il hournal funzioan correttamente per gli anime, ma per i manga e le novel? non credo
-
-doppio tootlip nel quick edit
+- [X] **Progress Notes & Auto-Save** - Full auto-save on close/tab-switch for Astra Rating & Journal.
+- [X] **Cross-Module Sync** - Astra actions update Calendar and Dashboard in real-time.
+- [ ] **Bulk Editor** - Create a tool for bulk editing items within custom lists in Astra Dashboard.
+- [ ] l hover sull immagine dentro astra funzioni bene solo nella dashboard, nel quickedit è sfocata
+- [ ] il journal funziona correttamente per gli anime, ma per i manga e le novel? non credo
+- [ ] C è da finire i testi nei messaggi delle notifihce "mentioned you", "activity reply" ecc
+- [ ] abilitare la ricerca dei voti nelle activity dentro la home dei profili utente, e se non c è anche nelle pagine social delle singole opere
 
 ---
 
 ## 🧹 P9 - STABILITY & REFACTORING
-![1777795480373](image/TODO/1777795480373.png)![1777795484386](image/TODO/1777795484386.png)
-- [X] **Social Activity Stabilization** - Restricted social bubbles to home page and ensured cleanup on navigation. [DONE]
-- [X] **Home Page Social Bubbles** - Implemented calendar-style floating portals for all home page native cards. [DONE]
 
-  - [!] *Known Bug*: Sometimes bubbles persist on screen (will address later).
-- [X] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
-- [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
-- [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
-- [X] **Calendar Sync Fix** - Resolved issue where the calendar would duplicate or fail to find its container or content during SPA navigation.
-- [X] **Optimistic Updates** - Implemented real-time UI synchronization between Astra and Calendar. [DONE]
+- [X] **Social Activity Stabilization** - Restricted social bubbles to home page and ensured cleanup.
+- [X] **Home Page Social Bubbles** - Implemented calendar-style floating portals.
+- [X] **Brand Cleanup** - Removed legacy "v2" CSS classes and updated logs.
+- [X] **Status Enums** - Centralized TypeScript Enum for status management.
+- [ ] **Review Caching** - Verify if the main `/reviews` page needs caching logic.
 
-FATTO ci sono tutte le cose fuori da astra da applicare, tipo che i filtri nelle activity devono tornare su All a ogni cambio di pagina
-
-FATTO da reinserire il bottone capusle in anime e manga in progress, controllare se manca qualche direttiva @inject ad esempio. In home
-
-i icone di commenti si sono spostati ancora leggermente sulla destra dentro le loro righe
-
-FATTO (almeno i filtri, la cache non ancora guardata) I fgiltri non funzionano bene, se ne fregano di read, completed ecc, specialmente dentro le poagine delle opere, e quindi forse se implementato anche in quello nella home nelle pagine degli utenti. Questa funzionalità ad esempio deve essere disponibile anche senza anilist API. Come tutte le cose già cachetate, inutile perderle
-
-FATTO Cancellare il + nella sezione anime e amnga in progress solo se le API sono disponibili, altrimenti non possiamo creare il bottone pillola, o sì?
-
-funzionalità
-
-- [ ] Un modo per mettere le Lodi? (+1 voto massimo?))
-
-  [ ]  Astra dashboard: implementare una ricerca multipla, con più liste ad esempio? non so, ci penserò
-
-  **[ ]  Astra dashboard: Bulk Editor** - Create a tool for bulk editing items within custom lists.
-
-  Ovviametne quando si clicca il + su anilist, deve aggiornarsi anche l entry su astra dashoboard, stessa cosa vale per ogni volta che su anilist la entry subisce modifiche
-  override voto, rendere mdoficabile direttamente l overall senza le sezioni
-
-  una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
-
-  Grafica
-- [X] Togliere quel pallino fastidioso che fa da stanghetta alla A nel logo Astra
-- [ ] Astra settings: Lo slider va oltre la rating sections, che scrolla sopra oltre il massimo previsto
-- [ ] astra settings: I 6 pallini ceh sembrano quelli con cui si attiva il drag and drop sulle sezioni dei voti Non funzionano
-- [X] Astra dashboard: Rework al bottone save changes per matchare quello del quick edit?
-- [X] Astra dashboard: Reset dello stato dirty (Save Changes) alla chiusura o cambio sezione.
-- [X] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera![1777795492171](image/TODO/1777795492171.png)
-- [X] astra dashboard, stessa cosa col sync e toggle progress, da reworkare? Invertite icone Import/Export per chiarezza.
+- [ ] una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
 - [ ] astra dashbard: majopr rework da fare alle stats, pensre come
-- [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono perchè non servono. è corretto così?
-- [X] astra quick edit: se clicchi dentro rating notes si illumina in maniera strana, edit veloce da fare
-- [X] astra quick edit: episode journal, serve un leggero padding alla fine, l ultimo episodio si scontra con il bordo
-
-Quando si deve syncare la roba?
-
-i voti sono scomparsi dagli activity feed
-
-tra l altro il coso per togglare il serie/season finale nell astra quick rate è sparito
-
-come detto da qualche parte, si scrivere il commento con tutte le nostre note, voti di sezioni e sotto sezioni, ma anche il retrieving!
-
----
-
-## 📋 CURRENT WORK & PLANS
-
-- [Plan: Social Activity Module Refinement](file:///C:/Users/ricca/.gemini/antigravity/brain/dd7e044c-453b-4dcf-a6ab-189b6a43b3c4/implementation_plan.md)
-
-- [X] **Comment Caching** - Persistent storage for user notes/comments. [DONE]
-
+- [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono 
+- [ ] **Follower Stats** - Add follower/following counters to relevant profile sections.
 ---
 
 ## ✅ ARCHIVE (COMPLETED)
@@ -143,51 +81,17 @@ come detto da qualche parte, si scrivere il commento con tutte le nostre note, v
 <summary><b>Click to view completed Milestones (P1 - P5)</b></summary>
 
 ### P5 - Data Consistency & Astra Stability
-
 - ✅ **BUG-008**: Calendar social avatars always show.
 - ✅ **BUG-009**: Astra dashboard initialization race condition fix.
 - ✅ **BUG-031**: Works index map sync.
-- ✅ **ARCH-003**: Vue.js Router interference prevention (`stopPropagation`).
-- ✅ **UI-001**: Layout shift fix (inset box-shadow + scrollbar-gutter).
+- ✅ **ARCH-003**: Vue.js Router interference prevention.
 
 ### P4 - Type Safety
-
-- ✅ **BUG-014/16/17**: Removed `any` from EventBus, Config, and AstraModule.
-- ✅ **API Transparency**: Detailed GQL error extraction and 429 Toast warnings.
+- ✅ **BUG-014/16/17**: Removed `any` from core modules.
+- ✅ **API Transparency**: Detailed GQL error extraction.
 
 ### P3 - Performance
-
 - ✅ **BUG-007**: SharedGlobalObserver implementation.
 - ✅ **BUG-010**: Local Font Awesome bundle.
-- ✅ **BUG-011**: Manifest CSS bundling.
-
-### P2 - High Impact
-
-- ✅ **BUG-003/006**: Notification merge/unmerge logic.
-- ✅ **BUG-028**: API spam reduction in SocialService.
-- ✅ **BUG-033**: Comment cache corruption fix.
-
-### P1 & Caching
-
-- ✅ **Security**: GraphQL injection prevention in SocialService.
-- ✅ **Smart Caching**: Implemented fingerprint-based invalidation for Activities, Reviews, Calendar, and Notifications.
 
 </details>
-
-<details>
-<summary><b>Recently Finished UI Tasks (P6)</b></summary>
-
-- ✅ **BUG-018**: Dropdown arrow repetition fix.
-- ✅ **BUG-026**: Progress bar color darkened.
-- ✅ **BUG-027**: Row width set to 100%.
-- ✅ **COS-001**: Title Case for "All Statuses".
-- ✅ **COS-003**: Bouncy pop-up animation for Astra.
-- ✅ **COS-005**: Default filters set to "All".
-- ✅ **Astra Search**: Fixed sticky positioning.
-- ✅ **BUG-020**: Resize Handler (Tooltips & Dashboard).
-- ✅ **Astra Layout**: Scrollbar-gutter stability.
-- ✅ **Astra Navigation**: Macro-categories & Grouped view.
-
-</details>
-
----
