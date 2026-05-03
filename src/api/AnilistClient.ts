@@ -168,6 +168,13 @@ export class AnilistClient implements IApiClient {
       return;
     }
 
+    // Safety check for invalidated context
+    if (!chrome.runtime?.id) {
+      log.warn('[AnilistClient] Context invalidated, clearing queue');
+      this.clearQueue();
+      return;
+    }
+
     const item = this.queue.shift();
     if (!item) return;
 
@@ -267,6 +274,10 @@ export class AnilistClient implements IApiClient {
 
     // Ensure headers are fresh before each request (BUG-FIX: stale token on init)
     this.updateHeaders();
+
+    if (!chrome.runtime?.id) {
+      throw new Error('Extension context invalidated.');
+    }
 
     try {
       // Use raw fetch to get access to both data and errors if needed

@@ -290,6 +290,8 @@ export class AstraDashboard extends BaseComponent {
 
   private renderSettingsTab(): string {
     const sections = this.service!.getSections();
+    const hasFinale = this.service!.hasFinaleSection();
+
     return `
       <div class="astra-dashboard astra-settings">
         <header class="astra-dashboard-header">
@@ -305,6 +307,34 @@ export class AstraDashboard extends BaseComponent {
         </header>
 
         <div class="astra-settings-grid">
+          ${hasFinale ? `
+          <div class="astra-settings-card" style="margin-bottom: 24px;">
+            <div class="astra-card-header">
+              <h3>General Settings</h3>
+              <p class="astra-muted">Global configuration for the Astra rating module.</p>
+            </div>
+            <div class="astra-settings-options" style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <label class="astra-list-option" style="justify-content: space-between; padding: 12px; background: var(--astra-bg-elev); border-radius: 8px; border: 1px solid var(--astra-border-soft); display: flex; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-weight: 700; color: var(--astra-text);">Enable Series Finale Weighting</span>
+                  <span style="font-size: 12px; color: var(--astra-muted);">Mark seasons as finales to amplify the weight of the finale section.</span>
+                </div>
+                <input type="checkbox" id="astra-setting-finale" ${this.service!.getSettings().enableSeriesFinale ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer;">
+              </label>
+
+              <div class="astra-list-option" style="justify-content: space-between; padding: 12px; background: var(--astra-bg-elev); border-radius: 8px; border: 1px solid var(--astra-border-soft); display: flex; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-weight: 700; color: var(--astra-text);">Finale Weight Multiplier</span>
+                  <span style="font-size: 12px; color: var(--astra-muted);">How much to multiply the weight by (e.g., 2.0 = double).</span>
+                </div>
+                <div class="astra-weight-pill">
+                  <input type="number" id="astra-setting-finale-mult" value="${this.service!.getSettings().finaleWeightMultiplier || 2}" step="0.1" min="1" max="10" style="width: 50px; background: transparent; border: none; color: var(--astra-accent); font-weight: 800; text-align: center;">
+                </div>
+              </div>
+            </div>
+          </div>
+          ` : ''}
+
           <div class="astra-settings-card">
             <div class="astra-card-header">
               <h3>Rating Sections</h3>
@@ -1302,6 +1332,13 @@ export class AstraDashboard extends BaseComponent {
 
   private attachSettingsEvents(): void {
     if (!this.overlay) return;
+    
+    // Global Settings
+    const finaleCb = this.overlay.querySelector('#astra-setting-finale');
+    const finaleMult = this.overlay.querySelector('#astra-setting-finale-mult');
+    
+    finaleCb?.addEventListener('change', () => this.markDirty());
+    finaleMult?.addEventListener('input', () => this.markDirty());
 
     // Add Section
     this.overlay.querySelector('#astra-add-section')?.addEventListener('click', () => {
@@ -1374,6 +1411,14 @@ export class AstraDashboard extends BaseComponent {
         });
 
         sections.push({ id, name, weight, subSections });
+      });
+
+      // Also save global settings
+      const enableFinale = (this.overlay!.querySelector('#astra-setting-finale') as HTMLInputElement)?.checked ?? true;
+      const finaleMult = parseFloat((this.overlay!.querySelector('#astra-setting-finale-mult') as HTMLInputElement)?.value || '2');
+      await this.service!.updateSettings({ 
+        enableSeriesFinale: enableFinale,
+        finaleWeightMultiplier: finaleMult
       });
 
       await this.service!.updateSections(sections);

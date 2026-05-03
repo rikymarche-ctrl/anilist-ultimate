@@ -87,20 +87,32 @@ export interface AstraSection {
 }
 
 export const DEFAULT_SECTIONS: AstraSection[] = [
-  { id: 'story', name: 'Story', weight: 4, subSections: [] },
-  { id: 'characters', name: 'Characters', weight: 4, subSections: [] },
-  { id: 'visuals', name: 'Visuals', weight: 2, subSections: [] },
-  { id: 'sound', name: 'Sound', weight: 1, subSections: [] },
-  { id: 'enjoyment', name: 'Enjoyment', weight: 3, subSections: [] },
-  { id: 'execution', name: 'Execution', weight: 2, subSections: [] },
+  { id: 'story', name: 'Story', weight: 3, subSections: [] },
+  { id: 'characters', name: 'Characters', weight: 2.5, subSections: [] },
+  { id: 'visuals', name: 'Visuals', weight: 1.5, subSections: [] },
+  { id: 'enjoyment', name: 'Enjoyment', weight: 1.75, subSections: [] },
+  { id: 'consistency', name: 'Consistency', weight: 0.75, subSections: [] },
+  { id: 'finale', name: 'Finale', weight: 0.5, subSections: [] },
+  { 
+    id: 'sound', 
+    name: 'Sound', 
+    weight: 1, 
+    subSections: [
+      { id: 'intro', name: 'Intro', weight: 1 },
+      { id: 'outro', name: 'Outro', weight: 1 },
+      { id: 'all', name: 'All', weight: 10 }
+    ] 
+  },
 ];
 
 export interface AstraSettings {
   enableSeriesFinale: boolean;
+  finaleWeightMultiplier: number;
 }
 
 export const DEFAULT_SETTINGS: AstraSettings = {
   enableSeriesFinale: true,
+  finaleWeightMultiplier: 3,
 };
 
 /**
@@ -209,6 +221,13 @@ export class AstraService {
     for (const work of this.works) {
       this.worksByMediaId.set(work.mediaId, work);
     }
+  }
+
+  /**
+   * Check if a "Finale" section exists (by ID or name)
+   */
+  public hasFinaleSection(): boolean {
+    return this.sections.some(s => s.id === 'finale' || s.name.toLowerCase().trim() === 'finale');
   }
 
   /**
@@ -546,8 +565,9 @@ export class AstraService {
       if (v === null || v === undefined || v === 0) continue;
 
       let weight = s.weight;
-      if (s.id === 'finale' && isSeriesFinale) {
-        weight *= 2;
+      const isFinale = s.id === 'finale' || s.name.toLowerCase().trim() === 'finale';
+      if (isFinale && isSeriesFinale && this.settings.enableSeriesFinale) {
+        weight *= (this.settings.finaleWeightMultiplier || 2);
       }
 
       num += v * weight;

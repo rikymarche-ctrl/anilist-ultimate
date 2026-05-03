@@ -564,60 +564,252 @@
   }
 }
 
-.astra-header-controls {
+.astra-rating-header {
+  padding: 16px 20px;
+  background: var(--astra-bg-elev-1);
+  border-bottom: 1px solid var(--astra-border);
+  border-radius: 12px 12px 0 0;
+}
+
+.astra-header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.astra-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 24px;
+  flex: 1;
+  min-width: 0;
 }
 
-.astra-override-toggle, .astra-finale-toggle {
-  display: inline-flex;
-  align-items: center;
+.astra-header-title-box {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  cursor: pointer;
-  padding: 4px 10px;
-  background: var(--astra-bg-elev-1);
-  border-radius: 4px;
-  border: 1px solid var(--astra-border);
-  color: var(--astra-text-soft);
-  transition: all 0.2s ease;
-  font-family: inherit;
-  font-size: 10px;
+  min-width: 0;
+}
+
+.astra-header-title {
+  margin: 0;
+  font-size: 20px;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: -0.02em;
   white-space: nowrap;
-  flex-shrink: 0;
-  height: 26px;
-  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.astra-override-toggle:hover, .astra-finale-toggle:hover {
-  background: var(--astra-bg-elev-2);
-  border-color: var(--astra-accent);
+.astra-title-link {
   color: var(--astra-text);
+  text-decoration: none;
+  transition: color 0.2s ease;
 }
 
-.astra-finale-toggle.active {
-  background: rgba(var(--astra-accent-rgb), 0.15);
-  border-color: var(--astra-accent);
+.astra-title-link:hover {
   color: var(--astra-accent);
 }
 
-.astra-override-toggle input {
-  margin: 0;
-  cursor: pointer;
-  width: 14px;
-  height: 14px;
-  accent-color: var(--astra-accent);
+.astra-header-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.astra-modal-title {
+.astra-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--astra-text-soft);
+}
+
+.astra-meta-badge i {
+  font-size: 10px;
+}
+
+.astra-meta-badge--warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+
+.astra-meta-badge--success {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.astra-meta-badge--disabled {
+  opacity: 0.4;
+  filter: grayscale(0.8);
+  border-color: var(--astra-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--astra-text-soft);
+}
+
+.astra-weight-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--astra-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+}
+
+.astra-weight-pill {
+  background: var(--astra-bg-elev-1);
+  border: 1px solid var(--astra-border);
+  border-radius: 6px;
+  padding: 2px 4px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.astra-weight-pill:focus-within {
+  border-color: var(--astra-accent);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.astra-weight-pill input {
+  outline: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.astra-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.astra-control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Premium Toggle Pill */
+.astra-toggle-pill {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  user-select: none;
+}
+
+.astra-toggle-pill input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.astra-toggle-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--astra-bg-elev-2);
+  border: 1px solid var(--astra-border);
+  border-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 32px;
+}
+
+.astra-toggle-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--astra-text-soft);
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.astra-toggle-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--astra-text-soft);
+  transition: all 0.3s ease;
+}
+
+.astra-toggle-pill input:checked + .astra-toggle-track {
+  background: rgba(var(--astra-accent-rgb), 0.1);
+  border-color: var(--astra-accent);
+}
+
+.astra-toggle-pill input:checked + .astra-toggle-track .astra-toggle-thumb {
+  background: var(--astra-accent);
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(var(--astra-accent-rgb), 0.4);
+}
+
+.astra-toggle-pill input:checked + .astra-toggle-track .astra-toggle-label {
+  color: var(--astra-accent);
+}
+
+/* Finale Pill */
+.astra-finale-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--astra-bg-elev-2);
+  border: 1px solid var(--astra-border);
+  border-radius: 20px;
+  color: var(--astra-text-soft);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  height: 32px;
+}
+
+.astra-finale-pill:hover {
+  background: var(--astra-bg-elev-3);
+  border-color: var(--astra-text-soft);
+}
+
+.astra-finale-pill.active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.astra-header-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--astra-text-soft);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.astra-header-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  transform: rotate(90deg);
 }
 
 .astra-disabled {

@@ -20,7 +20,7 @@
 
 import { injectable, singleton, inject, container } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
-import { AstraSection, AstraService, AstraSubSection, AstraWork } from '../AstraService';
+import { AstraSection, AstraService, AstraSubSection, AstraWork, AstraSeason } from '../AstraService';
 import { AstraRadarChart } from './AstraRadarChart';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
@@ -31,11 +31,13 @@ import * as EventBusTypes from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 
 import { AstraRatingState } from './AstraRatingState';
+import { AstraRatingHeader } from './components/AstraRatingHeader';
 
 @injectable()
 @singleton()
 export class AstraRatingModal {
   private overlay: HTMLElement | null = null;
+  private header: AstraRatingHeader;
   private state: AstraRatingState | null = null;
   private currentSeasonIdx: number = 0;
   private activeTab: string = 'rating';
@@ -49,6 +51,7 @@ export class AstraRatingModal {
     @inject(TOKENS.ApiClient) private api: IApiClient,
     @inject(TOKENS.EventBus) private eventBus: EventBusTypes.IEventBus
   ) {
+    this.header = new AstraRatingHeader({});
     // BUG-020: Ensure UI stays consistent on resize
     window.addEventListener('resize', () => {
       if (this.overlay) {
@@ -191,182 +194,43 @@ export class AstraRatingModal {
             <span>Journal</span>
           </button>
           <div class="astra-nav-spacer"></div>
-          <button class="astra-modal-close" id="astra-modal-close-btn">
-            <i class="fa fa-times"></i>
-            <span>Close Modal</span>
-          </button>
         </nav>
 
         <div class="astra-modal-main">
-          <header class="astra-modal-header">
-            <div class="astra-modal-title">
-              <a href="https://anilist.co/anime/${media.id}" target="_blank">${media.title.userPreferred}</a>
-              <div class="astra-header-controls">
-                <label class="astra-override-toggle" title="Manual Score Override">
-                  <input type="checkbox" id="astra-manual-override" ${season.manualOverride ? 'checked' : ''}>
-                  <span class="astra-label-xs">OVERRIDE</span>
-                </label>
-                <button class="astra-finale-toggle ${season.isSeriesFinale ? 'active' : ''}" id="astra-finale-btn" title="Toggle Season/Series Finale">
-                  <i class="fa fa-flag-checkered"></i>
-                  <span class="astra-label-xs">FINALE</span>
-                </button>
-              </div>
-            </div>
-            <button class="astra-modal-close"><i class="fa fa-times"></i></button>
-          </header>
+          <div id="astra-header-container"></div>
 
           <div class="astra-modal-body">
             <!-- RATING TAB -->
-            <div id="astra-tab-rating" class="astra-tab-content ${this.activeTab === 'rating' ? 'astra-tab-content--active' : ''}">
-            <div class="astra-header-section">
-              <img src="${work.cover}" class="astra-header-cover" id="astra-cover">
-              <div class="astra-media-header">
-                <div class="astra-quick-grid-2x2">
-                  <!-- Row 1 Left: Status (Full Width of Cell) -->
-                  <div class="astra-grid-cell">
-                    <div class="astra-input-box">
-                      <span class="astra-label-xs">STATUS</span>
-                      <select class="astra-select" id="astra-status">
-                        <option value="${MediaListStatus.CURRENT}" ${work.status === MediaListStatus.CURRENT ? 'selected' : ''}>${getStatusLabel(MediaListStatus.CURRENT, work.type)}</option>
-                        <option value="${MediaListStatus.COMPLETED}" ${work.status === MediaListStatus.COMPLETED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.COMPLETED, work.type)}</option>
-                        <option value="${MediaListStatus.PAUSED}" ${work.status === MediaListStatus.PAUSED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PAUSED, work.type)}</option>
-                        <option value="${MediaListStatus.DROPPED}" ${work.status === MediaListStatus.DROPPED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.DROPPED, work.type)}</option>
-                        <option value="${MediaListStatus.PLANNING}" ${work.status === MediaListStatus.PLANNING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PLANNING, work.type)}</option>
-                        <option value="${MediaListStatus.REPEATING}" ${work.status === MediaListStatus.REPEATING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.REPEATING, work.type)}</option>
-                      </select>
-                    </div>
-                  </div>
+            ${this.renderRatingTab(work, season, entry, sections, allCustomLists, meta, entryCustomLists)}
 
-                  <!-- Row 1 Right: Dates (Split 50/50) -->
-                  <div class="astra-grid-cell">
-                    <div class="astra-input-split">
-                      <div class="astra-input-box">
-                        <span class="astra-label-xs">START DATE</span>
-                        <input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}">
-                      </div>
-                      <div class="astra-input-box">
-                        <span class="astra-label-xs">FINISH DATE</span>
-                        <input type="date" class="astra-date-input" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}">
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Row 2 Left: Progress (Split 50/50 with Stats) -->
-                  <div class="astra-grid-cell">
-                    <div class="astra-input-split">
-                      <div class="astra-input-box">
-                        <span class="astra-label-xs">PROGRESS</span>
-                        <div class="astra-stepper">
-                          <button class="astra-step-btn" data-step-field="progress" data-step="-1">-</button>
-                          <div class="astra-stepper-center">
-                            <input type="number" class="astra-number-input" id="astra-progress" value="${meta.progress}">
-                            <span class="astra-muted-inline">/ ${meta.totalEpisodes || '?'}</span>
-                          </div>
-                          <button class="astra-step-btn" data-step-field="progress" data-step="1">+</button>
-                        </div>
-                      </div>
-                      <div class="astra-input-box">
-                        <span class="astra-label-xs">REWATCHES</span>
-                        <div class="astra-stepper">
-                          <button class="astra-step-btn" data-step-field="repeat" data-step="-1">-</button>
-                          <div class="astra-stepper-center">
-                            <input type="number" class="astra-number-input" id="astra-repeat" value="${entry?.repeat || 0}">
-                          </div>
-                          <button class="astra-step-btn" data-step-field="repeat" data-step="1">+</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Row 2 Right: Custom Lists (Full Width of Cell) -->
-                  <div class="astra-grid-cell">
-                    <div class="astra-input-box">
-                      <span class="astra-label-xs">CUSTOM LISTS</span>
-                      <div class="astra-dropdown" id="astra-lists-dropdown">
-                        <button class="astra-dropdown-trigger">
-                          <i class="fa fa-list-ul"></i>
-                          <span class="astra-dropdown-label">Manage Lists</span>
-                          <i class="fa fa-chevron-down"></i>
-                        </button>
-                        <div class="astra-dropdown-menu">
-                          <div class="astra-dropdown-scroll">
-                            ${allCustomLists.map((listName: string) => `
-                              <label class="astra-dropdown-item">
-                                <input type="checkbox" class="astra-custom-list-cb" data-name="${listName}" ${entryCustomLists[listName] ? 'checked' : ''}>
-                                <span>${listName}</span>
-                              </label>
-                            `).join('')}
-                          </div>
-                          <div class="astra-dropdown-divider"></div>
-                          <label class="astra-dropdown-item astra-dropdown-item--special">
-                            <input type="checkbox" id="astra-hide-cb" ${entry?.hiddenFromStatusLists ? 'checked' : ''}>
-                            <span>Hide from status lists</span>
-                          </label>
-                          <label class="astra-dropdown-item astra-dropdown-item--special">
-                            <input type="checkbox" id="astra-private-cb" ${entry?.private ? 'checked' : ''}>
-                            <span>Private Entry</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-              <div class="astra-form-layout">
-                <div class="astra-form">
-                  <div class="astra-form-scroll">
-                    <div class="astra-field-group ${season.manualOverride ? 'astra-disabled' : ''}">
-                      ${sections.map(s => this.renderScoreInput(s, season.scores, sections.length)).join('')}
-                    </div>
-
-                  </div>
-
-                  <div class="astra-form-footer">
-                    <div class="astra-notes-area">
-                      <span class="astra-label-sm">Rating Notes</span>
-                      <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes || ''}</textarea>
-                    </div>
-                    <div class="astra-overall-area">
-                      <span class="astra-label-sm">Weighted Score</span>
-                      <div class="astra-overall-box">
-                        <span class="astra-overall-val" style="display: ${season.manualOverride ? 'none' : 'block'}">—</span>
-                        <input type="number" class="astra-overall-input" id="astra-manual-score" 
-                          min="0" max="10" step="0.1" value="${(season.legacyScore || 0).toFixed(1)}"
-                          style="display: ${season.manualOverride ? 'block' : 'none'}">
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="astra-sidebar">
-                  <div class="astra-radar-container">
-                    ${AstraRadarChart.getHTML(season.scores, sections, season.skip, 300)}
-                  </div>
-                  <button class="astra-btn astra-btn--full" id="astra-save">Save Entry</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- JOURNAL TAB -->
-            <div id="astra-tab-journal" class="astra-tab-content ${this.activeTab === 'journal' ? 'astra-tab-content--active' : ''}">
-              <div class="astra-ep-log-header">
-                <div class="astra-journal-title-box">
-                  <h3>Episode Journal</h3>
-                  <p class="astra-muted">Track your thoughts for every single episode.</p>
-                </div>
-              </div>
-              <div class="astra-ep-list">
-                ${this.renderEpisodeList(meta.progress, meta.totalEpisodes, season.episodeNotes || {}, meta.airedEpisodes)}
-              </div>
-            </div>
+            ${this.renderJournalTab(meta, season)}
           </div>
 
           </div>
         </div>
       </div>
     `;
+
+    const headerContainer = this.overlay.querySelector('#astra-header-container') as HTMLElement;
+    if (headerContainer) {
+      this.header.mount(headerContainer, {
+        mediaId: media.id,
+        title: media.title.userPreferred,
+        manualOverride: season.manualOverride,
+        isSeriesFinale: season.isSeriesFinale,
+        showFinale: this.astraService.getSettings().enableSeriesFinale && this.astraService.hasFinaleSection(),
+        onOverrideToggle: (active: boolean) => {
+          this.state?.setManualOverride(this.currentSeasonIdx, active);
+          this.render(media, allCustomLists);
+        },
+        onFinaleToggle: () => {
+          const newState = !season.isSeriesFinale;
+          this.state?.updateSeasonField(this.currentSeasonIdx, 'isSeriesFinale', newState);
+          this.render(media, allCustomLists);
+        },
+        onClose: () => this.close()
+      });
+    }
 
     const cover = this.overlay.querySelector('#astra-cover');
     if (cover) {
@@ -394,11 +258,167 @@ export class AstraRatingModal {
     });
   }
 
+  private renderRatingTab(work: AstraWork, season: AstraSeason, entry: any, sections: AstraSection[], allCustomLists: string[], meta: any, entryCustomLists: Record<string, boolean>): string {
+    return `
+      <div id="astra-tab-rating" class="astra-tab-content ${this.activeTab === 'rating' ? 'astra-tab-content--active' : ''}">
+        <div class="astra-header-section">
+          <img src="${work.cover}" class="astra-header-cover" id="astra-cover">
+          <div class="astra-media-header">
+            <div class="astra-quick-grid-2x2">
+              <div class="astra-grid-cell">
+                <div class="astra-input-box">
+                  <span class="astra-label-xs">STATUS</span>
+                  <select class="astra-select" id="astra-status">
+                    <option value="${MediaListStatus.CURRENT}" ${work.status === MediaListStatus.CURRENT ? 'selected' : ''}>${getStatusLabel(MediaListStatus.CURRENT, work.type)}</option>
+                    <option value="${MediaListStatus.COMPLETED}" ${work.status === MediaListStatus.COMPLETED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.COMPLETED, work.type)}</option>
+                    <option value="${MediaListStatus.PAUSED}" ${work.status === MediaListStatus.PAUSED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PAUSED, work.type)}</option>
+                    <option value="${MediaListStatus.DROPPED}" ${work.status === MediaListStatus.DROPPED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.DROPPED, work.type)}</option>
+                    <option value="${MediaListStatus.PLANNING}" ${work.status === MediaListStatus.PLANNING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PLANNING, work.type)}</option>
+                    <option value="${MediaListStatus.REPEATING}" ${work.status === MediaListStatus.REPEATING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.REPEATING, work.type)}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="astra-grid-cell">
+                <div class="astra-input-split">
+                  <div class="astra-input-box">
+                    <span class="astra-label-xs">START DATE</span>
+                    <input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}">
+                  </div>
+                  <div class="astra-input-box">
+                    <span class="astra-label-xs">FINISH DATE</span>
+                    <input type="date" class="astra-date-input" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}">
+                  </div>
+                </div>
+              </div>
+
+              <div class="astra-grid-cell">
+                <div class="astra-input-split">
+                  <div class="astra-input-box">
+                    <span class="astra-label-xs">PROGRESS</span>
+                    <div class="astra-stepper">
+                      <button class="astra-step-btn" data-step-field="progress" data-step="-1">-</button>
+                      <div class="astra-stepper-center">
+                        <input type="number" class="astra-number-input" id="astra-progress" value="${meta.progress}">
+                        <span class="astra-muted-inline">/ ${meta.totalEpisodes || '?'}</span>
+                      </div>
+                      <button class="astra-step-btn" data-step-field="progress" data-step="1">+</button>
+                    </div>
+                  </div>
+                  <div class="astra-input-box">
+                    <span class="astra-label-xs">REWATCHES</span>
+                    <div class="astra-stepper">
+                      <button class="astra-step-btn" data-step-field="repeat" data-step="-1">-</button>
+                      <div class="astra-stepper-center">
+                        <input type="number" class="astra-number-input" id="astra-repeat" value="${entry?.repeat || 0}">
+                      </div>
+                      <button class="astra-step-btn" data-step-field="repeat" data-step="1">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="astra-grid-cell">
+                <div class="astra-input-box">
+                  <span class="astra-label-xs">CUSTOM LISTS</span>
+                  <div class="astra-dropdown" id="astra-lists-dropdown">
+                    <button class="astra-dropdown-trigger">
+                      <i class="fa fa-list-ul"></i>
+                      <span class="astra-dropdown-label">Manage Lists</span>
+                      <i class="fa fa-chevron-down"></i>
+                    </button>
+                    <div class="astra-dropdown-menu">
+                      <div class="astra-dropdown-scroll">
+                        ${allCustomLists.map((listName: string) => `
+                          <label class="astra-dropdown-item">
+                            <input type="checkbox" class="astra-custom-list-cb" data-name="${listName}" ${entryCustomLists[listName] ? 'checked' : ''}>
+                            <span>${listName}</span>
+                          </label>
+                        `).join('')}
+                      </div>
+                      <div class="astra-dropdown-divider"></div>
+                      <label class="astra-dropdown-item astra-dropdown-item--special">
+                        <input type="checkbox" id="astra-hide-cb" ${entry?.hiddenFromStatusLists ? 'checked' : ''}>
+                        <span>Hide from status lists</span>
+                      </label>
+                      <label class="astra-dropdown-item astra-dropdown-item--special">
+                        <input type="checkbox" id="astra-private-cb" ${entry?.private ? 'checked' : ''}>
+                        <span>Private Entry</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="astra-form-layout">
+          <div class="astra-form">
+            <div class="astra-form-scroll">
+              <div class="astra-field-group ${season.manualOverride ? 'astra-disabled' : ''}">
+                ${sections.map(s => this.renderScoreInput(s, season.scores, sections.length)).join('')}
+              </div>
+            </div>
+
+            <div class="astra-form-footer">
+              <div class="astra-notes-area">
+                <span class="astra-label-sm">Rating Notes</span>
+                <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes || ''}</textarea>
+              </div>
+              <div class="astra-overall-area">
+                <span class="astra-label-sm">Weighted Score</span>
+                <div class="astra-overall-box">
+                  <span class="astra-overall-val" style="display: ${season.manualOverride ? 'none' : 'block'}">—</span>
+                  <input type="number" class="astra-overall-input" id="astra-manual-score" 
+                    min="0" max="10" step="0.1" value="${(season.legacyScore || 0).toFixed(1)}"
+                    style="display: ${season.manualOverride ? 'block' : 'none'}">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="astra-sidebar">
+            <div class="astra-radar-container">
+              ${AstraRadarChart.getHTML(season.scores, sections, season.skip, 300)}
+            </div>
+            <button class="astra-btn astra-btn--full" id="astra-save">Save Entry</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderJournalTab(meta: any, season: AstraSeason): string {
+    return `
+      <div id="astra-tab-journal" class="astra-tab-content ${this.activeTab === 'journal' ? 'astra-tab-content--active' : ''}">
+        <div class="astra-ep-log-header">
+          <div class="astra-journal-title-box">
+            <h3>Episode Journal</h3>
+            <p class="astra-muted">Track your thoughts for every single episode.</p>
+          </div>
+        </div>
+        <div class="astra-ep-list">
+          ${this.renderEpisodeList(meta.progress, meta.totalEpisodes, season.episodeNotes || {}, meta.airedEpisodes)}
+        </div>
+      </div>
+    `;
+  }
+
   private renderScoreInput(section: AstraSection, seasonScores: Record<string, number | null>, totalSections: number): string {
     const season = this.state!.data.seasons[this.currentSeasonIdx];
+    const settings = this.astraService.getSettings();
+    let effectiveWeight = section.weight;
+    
     const hasSubSections = section.subSections && section.subSections.length > 0;
     const isFullWidth = hasSubSections || totalSections === 1;
     const groupClass = isFullWidth ? 'astra-score-group--full' : '';
+
+    // Dynamic Finale Weighting
+    const isFinale = section.id === 'finale' || section.name.toLowerCase().trim() === 'finale';
+    if (isFinale && season.isSeriesFinale && settings.enableSeriesFinale) {
+      effectiveWeight *= (settings.finaleWeightMultiplier || 2);
+    }
 
     if (hasSubSections) {
       return `
@@ -406,7 +426,7 @@ export class AstraRatingModal {
           <div class="astra-score-group-header astra-accordion-toggle">
             <div class="astra-label-left">
               <i class="fa fa-chevron-down astra-accordion-icon"></i>
-              <span class="astra-score-group-title">${section.name}</span>
+              <span class="astra-score-group-title">${section.name} ${this.renderWeightTag(effectiveWeight)}</span>
             </div>
             <span class="astra-group-avg" id="avg-${section.id}">—</span>
           </div>
@@ -423,7 +443,7 @@ export class AstraRatingModal {
       <div class="astra-score-group ${groupClass}" data-id="${section.id}">
         <div class="astra-score-group-header">
           <div class="astra-label-left">
-            <span class="astra-score-group-title">${section.name}</span>
+            <span class="astra-score-group-title">${section.name} ${this.renderWeightTag(effectiveWeight)}</span>
           </div>
           <span class="astra-group-avg" id="avg-${section.id}">—</span>
         </div>
@@ -432,6 +452,10 @@ export class AstraRatingModal {
         </div>
       </div>
     `;
+  }
+
+  private renderWeightTag(weight: number): string {
+    return `<small class="astra-weight-tag">w${weight.toFixed(weight % 1 === 0 ? 0 : 1)}</small>`;
   }
 
   private renderSubSectionInput(parentId: string, sub: AstraSubSection, value: number | null): string {
@@ -443,7 +467,7 @@ export class AstraRatingModal {
       <div class="astra-score-input astra-score-input--sub ${isDisabled ? 'astra-disabled' : ''}" data-id="${fullId}">
         <div class="astra-score-label">
           <div class="astra-label-left">
-            <span class="astra-sub-label">${sub.name} <small>w${sub.weight}</small></span>
+            <span class="astra-sub-label">${sub.name} ${this.renderWeightTag(sub.weight)}</span>
           </div>
           <input type="number" class="astra-score-num-input" 
             min="0" max="10" step="0.1" 
@@ -617,19 +641,8 @@ export class AstraRatingModal {
       e.stopPropagation();
     });
 
-    // Manual Override
-    const overrideCb = this.overlay!.querySelector('#astra-manual-override') as HTMLInputElement;
+    // Header events are now handled by AstraRatingHeader component
     const manualScoreInput = this.overlay!.querySelector('#astra-manual-score') as HTMLInputElement;
-
-    overrideCb?.addEventListener('change', () => {
-      if (!this.state) return;
-      this.state.setManualOverride(this.currentSeasonIdx, overrideCb.checked);
-      
-      // Re-render to update disabled states
-      const media = this.media;
-      const allCustomLists = Array.from(this.overlay!.querySelectorAll('.astra-custom-list-cb')).map(cb => (cb as HTMLElement).dataset.name!);
-      this.render(media, allCustomLists);
-    });
 
     manualScoreInput?.addEventListener('input', () => {
       if (!this.state) return;
@@ -747,6 +760,12 @@ export class AstraRatingModal {
   private async save(): Promise<void> {
     if (this.isSaving || !this.state || !this.overlay) return;
     
+    // Safety check for invalidated context
+    if (!chrome.runtime?.id) {
+      log.warn('[AstraRatingModal] Extension context invalidated. Save aborted.');
+      return;
+    }
+
     // Only save if there are actual changes
     if (!this.state.isDirty) {
       log.debug('[AstraRatingModal] Skipping save: no changes detected (isDirty=false)');
