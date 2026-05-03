@@ -16,8 +16,8 @@ export const MSG = {
 /**
  * Chiavi storage per token e cache utente
  */
-export const AUTH_STORAGE_KEY = 'anilist_auth_token';
-export const AUTH_USER_CACHE_KEY = 'anilist_user_cache';
+export const AUTH_STORAGE_KEY = 'anilist_ultimate_auth_token';
+export const AUTH_USER_CACHE_KEY = 'anilist_ultimate_user_cache';
 
 /**
  * Messaggio di richiesta login

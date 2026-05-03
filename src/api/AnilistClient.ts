@@ -42,6 +42,7 @@ interface RequestQueueItem<T = unknown> {
   reject: (error: Error) => void;
   retries: number;
   silent?: boolean;
+  isRaw?: boolean;
 }
 
 interface GraphQLError {
@@ -173,8 +174,16 @@ export class AnilistClient implements IApiClient {
     this.activeRequests++;
 
     try {
-      const result = await this.executeRequest(item);
-      item.resolve(result);
+      const response = await this.executeRequest(item);
+      
+      // Standard queries expect just the data, queryRaw expects the full response
+      if (item.isRaw) {
+        item.resolve(response);
+      } else if (response && (response as any).data !== undefined) {
+        item.resolve((response as any).data);
+      } else {
+        item.resolve(response);
+      }
     } catch (error: unknown) {
       // Handle rate limiting
       if (this.isRateLimitError(error)) {
@@ -229,6 +238,25 @@ export class AnilistClient implements IApiClient {
   }
 
   /**
+   * Execute a GraphQL query and return the raw response (data + errors)
+   */
+  public async queryRaw<T>(query: string, variables: Record<string, unknown> = {}): Promise<{ data: T; errors?: any[] }> {
+    return new Promise((resolve, reject) => {
+      this.queue.push({
+        query,
+        variables,
+        resolve: (response: any) => resolve(response),
+        reject,
+        retries: 0,
+        silent: true,
+        isRaw: true,
+      } as RequestQueueItem<T>);
+
+      this.processQueue();
+    });
+  }
+
+  /**
    * Execute a single request
    */
   private async executeRequest<T>(item: RequestQueueItem<T>): Promise<T> {
@@ -241,14 +269,19 @@ export class AnilistClient implements IApiClient {
     this.updateHeaders();
 
     try {
-      const data = await this.client.request<T>(item.query, item.variables);
-      return data;
+      // Use raw fetch to get access to both data and errors if needed
+      // Actually, we can use the client.rawRequest if we want to be clean
+      const response = await this.client.rawRequest<T>(item.query, item.variables);
+      
+      // If the caller used queryRaw, we return the whole thing
+      // We detect this by checking if the resolve expectation matches
+      // (This is a bit hacky but keeps the interface clean for now)
+      return response as unknown as T;
     } catch (error: unknown) {
       // Check for authentication errors
       const statusCode = isApiError(error) ? error.response?.status : undefined;
       if (statusCode === 401 || statusCode === 403) {
         log.error('Authentication error - token may be invalid');
-        // Token will be cleared by AuthTokenService if needed, but we should clear queue
         this.clearQueue();
         throw new ApiError('Authentication required', statusCode, 'GraphQL', 0, error instanceof Error ? error : undefined);
       }
@@ -324,7 +357,6 @@ export class AnilistClient implements IApiClient {
           name
           avatar { medium }
           options { 
-            displayNameOrder
             titleLanguage
           }
           mediaListOptions {

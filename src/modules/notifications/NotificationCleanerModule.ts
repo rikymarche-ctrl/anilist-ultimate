@@ -332,7 +332,8 @@ export class NotificationCleanerModule extends BaseModule {
         const prevVisible = idx > 0 ? visibleNotifs[idx - 1] : null;
         const prevUser = prevVisible ? this.extractUsernameFromNotif(prevVisible) : null;
 
-        // Merging logic
+        // Merging logic: user must match. 
+        // We now allow different types to be grouped if they are consecutive from the same user.
         if (prevVisible && prevUser === username) {
           if (prevVisible.classList.contains('au-virtual-notification')) {
             this.addToExistingGroup(prevVisible, notification, username, pendingEnhancements);
@@ -342,9 +343,11 @@ export class NotificationCleanerModule extends BaseModule {
             currentGroup.count++;
             currentGroup.elements.push(notification);
             currentGroup.latestTime = time;
-            currentGroup.types.set(notifType || 'unknown', (currentGroup.types.get(notifType || 'unknown') || 0) + 1);
+            const tCount = currentGroup.types.get(notifType || 'unknown') || 0;
+            currentGroup.types.set(notifType || 'unknown', tCount + 1);
             continue;
           } else {
+            // Type and user match, but we need to transition into a new group structure
             // Check if prevVisible is a single notification (not yet in a group)
             if (currentGroup) {
                if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
@@ -552,7 +555,16 @@ export class NotificationCleanerModule extends BaseModule {
   private extractUsernameFromNotif(notif: HTMLElement): string {
     const attr = notif.getAttribute('data-au-user');
     if (attr) return attr;
-    const link = notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
+    
+    // Strategy 1: Look for user link in the text (Standard)
+    let link = notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]:not(.avatar)');
+    
+    // Strategy 2: Look for user link in the avatar (Compact)
+    if (!link) {
+      link = notif.querySelector<HTMLAnchorElement>('a.avatar[href*="/user/"]') || 
+             notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
+    }
+
     const user = link?.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
     if (user) notif.setAttribute('data-au-user', user);
     return user;

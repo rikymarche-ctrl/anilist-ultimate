@@ -234,11 +234,18 @@ export class CalendarDomService {
 
       // If AniList didn't render an Airing section (e.g., user has no airing anime), create one
       if (!airing) {
+        // Prevent creating multiple artificial sections
+        if (document.querySelector('[data-au-artificial="true"]')) {
+           resolve(document.querySelector('[data-au-artificial="true"] h2') as HTMLElement || null);
+           return;
+        }
+
         log.info('[CalendarDomService] Native Airing section not found, creating a new container');
         const homeContainer = document.querySelector('.home');
         if (homeContainer) {
           const newSection = document.createElement('div');
           newSection.className = 'list-preview-wrap';
+          newSection.setAttribute('data-au-artificial', 'true');
           newSection.style.marginBottom = '40px';
           newSection.innerHTML = `<div class="section-header"><h2>Airing</h2></div>`;
           homeContainer.insertBefore(newSection, homeContainer.firstChild);

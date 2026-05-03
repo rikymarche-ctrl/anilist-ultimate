@@ -76,8 +76,11 @@ export const TOKENS = {
 
   // Astra Module Services
   AstraService: Symbol.for('AstraService'),
+  AstraStore: Symbol.for('AstraStore'),
+  AstraJournalService: Symbol.for('AstraJournalService'),
   AstraRatingModal: Symbol.for('AstraRatingModal'),
   AstraDashboard: Symbol.for('AstraDashboard'),
+  AstraDashboardV2: Symbol.for('AstraDashboardV2'),
 } as const;
 
 /**

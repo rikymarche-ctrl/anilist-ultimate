@@ -167,6 +167,34 @@ export class CalendarModule extends BaseModule {
       // 6. PERSISTENCE: Use shared observer to ensure classes stay applied even after React re-renders body
       this.sharedObserver.register('social-visibility-persistence', () => syncClasses(), 2000);
 
+      // 7. ANTI-DOUBLE: Aggressively hide native airing section if calendar is active
+      this.sharedObserver.register('calendar-native-hider', () => {
+        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+        if (!isHomePage) return;
+        
+        const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+        if (!calendarExists) return;
+
+        const headers = Array.from(document.querySelectorAll('h2, h3, .section-header'));
+        headers.forEach(h => {
+          const text = h.textContent?.trim().toLowerCase() || '';
+          if (text === 'airing' && !h.classList.contains('au-calendar-title') && !h.hasAttribute('data-au-artificial')) {
+            const section = h.closest('section') || h.closest('.list-preview-wrap') || h.closest('.list-preview') || h.parentElement;
+            if (section && !(section as HTMLElement).classList.contains('au-native-airing-hidden')) {
+              const el = section as HTMLElement;
+              el.style.display = 'none';
+              el.style.opacity = '0';
+              el.style.visibility = 'hidden';
+              el.style.pointerEvents = 'none';
+              el.style.height = '0';
+              el.style.overflow = 'hidden';
+              el.classList.add('au-native-airing-hidden');
+              log.debug('[Calendar] Aggressively suppressed native Airing section');
+            }
+          }
+        });
+      }, 800); // Faster check (800ms) to beat React re-renders
+
       log.success('[Calendar] Module initialized successfully');
     } catch (error) {
       log.error('[Calendar] Initialization failed', error);

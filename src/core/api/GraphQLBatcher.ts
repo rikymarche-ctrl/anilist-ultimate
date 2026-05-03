@@ -1,321 +1,154 @@
 /**
  * @file GraphQLBatcher.ts
- * @description Batches multiple GraphQL queries into a single HTTP request
- *
- * PERFORMANCE OPTIMIZATION:
- * - Accumulates queries within a time window (default 50ms)
- * - Combines them using GraphQL aliases
- * - Executes 1 HTTP request instead of N
- * - Distributes results back to individual callers
- *
- * BENEFITS:
- * - 70-90% reduction in HTTP overhead
- * - Respects AniList rate limits
- * - Backward compatible (transparent to callers)
- *
- * USAGE:
- * ```typescript
- * // Before: 50 separate HTTP requests
- * for (const id of ids) {
- *   await apiClient.query(GET_MEDIA, { id });
- * }
- *
- * // After: 1 batched HTTP request (if within 50ms window)
- * const promises = ids.map(id => batcher.query(GET_MEDIA, { id }));
- * await Promise.all(promises);
- * ```
- *
- * @author ExAstra / rikymarche-ctrl
+ * @description Advanced batched GraphQL execution engine
+ * 
+ * PERFORMANCE: Combines multiple queries/mutations into single requests via aliases.
+ * ARCHITECTURE: Delegates execution to IApiClient to respect rate limits and auth.
  */
 
-import { singleton } from 'tsyringe';
+import { singleton, inject } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
+import type { IApiClient } from '@core/interfaces/IApiClient';
 import { log } from '@core/logger';
-
-const ANILIST_API = 'https://graphql.anilist.co';
 
 interface PendingRequest<T = unknown> {
   query: string;
   variables: Record<string, unknown>;
   resolve: (value: T) => void;
   reject: (error: Error) => void;
-  timestamp: number;
-}
-
-interface BatchMetrics {
-  totalRequests: number;
-  batchedRequests: number;
-  savedRequests: number;
-  avgBatchSize: number;
+  type: 'query' | 'mutation';
 }
 
 @singleton()
 export class GraphQLBatcher {
-  private pendingRequests: Map<string, PendingRequest<any>> = new Map();
+  private queryQueue: Map<string, PendingRequest<any>> = new Map();
+  private mutationQueue: Map<string, PendingRequest<any>> = new Map();
   private batchTimeout: ReturnType<typeof setTimeout> | null = null;
-  private readonly BATCH_WINDOW_MS = 50; // Accumulation window in milliseconds
-  private readonly MAX_BATCH_SIZE = 30; // Safety limit per AniList API constraints
+  
+  private readonly BATCH_WINDOW_MS = 50;
+  private readonly MAX_BATCH_SIZE = 25;
 
-  // Metrics
-  private metrics: BatchMetrics = {
-    totalRequests: 0,
-    batchedRequests: 0,
-    savedRequests: 0,
-    avgBatchSize: 0,
-  };
+  constructor(
+    @inject(TOKENS.ApiClient) private api: IApiClient
+  ) {}
 
   /**
-   * Queue a GraphQL query for batched execution
-   *
-   * @param query - GraphQL query string
-   * @param variables - Query variables
-   * @param token - Optional auth token (defaults to current auth token)
-   * @returns Promise that resolves with query result
+   * Queue a query for batching
    */
-  async query<T = unknown>(
-    query: string,
-    variables: Record<string, unknown> = {},
-    token?: string
-  ): Promise<T> {
-    this.metrics.totalRequests++;
+  public async query<T = unknown>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+    return this.enqueue(query, variables, 'query');
+  }
 
+  /**
+   * Queue a mutation for batching
+   */
+  public async mutate<T = unknown>(mutation: string, variables: Record<string, unknown> = {}): Promise<T> {
+    return this.enqueue(mutation, variables, 'mutation');
+  }
+
+  private enqueue<T>(query: string, variables: Record<string, unknown>, type: 'query' | 'mutation'): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      const requestId = this.generateRequestId();
+      const id = `req_${Math.random().toString(36).substring(2, 11)}`;
+      const queue = type === 'query' ? this.queryQueue : this.mutationQueue;
+      
+      queue.set(id, { query, variables, resolve, reject, type });
 
-      this.pendingRequests.set(requestId, {
-        query,
-        variables,
-        resolve,
-        reject,
-        timestamp: Date.now(),
-      });
-
-      // If batch is full, execute immediately
-      if (this.pendingRequests.size >= this.MAX_BATCH_SIZE) {
-        log.debug(`[GraphQLBatcher] Batch size limit reached (${this.MAX_BATCH_SIZE}), executing immediately`);
-        this.executeBatch(token);
+      if (queue.size >= this.MAX_BATCH_SIZE) {
+        this.flush(type);
       } else {
-        this.scheduleBatch(token);
+        this.scheduleFlush();
       }
     });
   }
 
-  /**
-   * Schedule batch execution after accumulation window
-   */
-  private scheduleBatch(token?: string): void {
-    if (this.batchTimeout) return; // Already scheduled
-
+  private scheduleFlush(): void {
+    if (this.batchTimeout) return;
     this.batchTimeout = setTimeout(() => {
-      this.executeBatch(token);
+      this.flush('query');
+      this.flush('mutation');
+      this.batchTimeout = null;
     }, this.BATCH_WINDOW_MS);
   }
 
-  /**
-   * Execute all pending requests as a single batched query
-   */
-  private async executeBatch(token?: string): Promise<void> {
-    // Clear timeout
-    if (this.batchTimeout) {
-      clearTimeout(this.batchTimeout);
-      this.batchTimeout = null;
-    }
+  private async flush(type: 'query' | 'mutation'): Promise<void> {
+    const queue = type === 'query' ? this.queryQueue : this.mutationQueue;
+    if (queue.size === 0) return;
 
-    // Snapshot pending requests and clear queue
-    const requests = Array.from(this.pendingRequests.entries());
-    this.pendingRequests.clear();
+    const requests = Array.from(queue.entries());
+    queue.clear();
 
-    if (requests.length === 0) return;
-
-    const batchSize = requests.length;
-    this.metrics.batchedRequests++;
-    this.metrics.savedRequests += batchSize - 1; // We saved (N-1) HTTP requests
-    this.metrics.avgBatchSize =
-      (this.metrics.avgBatchSize * (this.metrics.batchedRequests - 1) + batchSize) /
-      this.metrics.batchedRequests;
-
-    log.info(`[GraphQLBatcher] Executing batch of ${batchSize} queries (saved ${batchSize - 1} HTTP requests)`);
+    log.debug(`[GraphQLBatcher] Flushing ${requests.length} ${type}s`);
 
     try {
-      // Combine queries using aliases
-      const { batchedQuery, aliasMap } = this.combineQueries(requests);
+      const { combinedQuery, aliasMap } = this.combine(requests, type);
+      
+      // Delegate to ApiClient for rate limiting and auth
+      // Use queryRaw to handle partial errors (e.g. some activities not found)
+      const response = await this.api.queryRaw<Record<string, any>>(combinedQuery);
+      const { data, errors } = response;
 
-      // Execute single HTTP request
-      const response = await fetch(ANILIST_API, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ query: batchedQuery }),
+      // Distribute results
+      requests.forEach(([id, req]) => {
+        const alias = aliasMap.get(id);
+        const result = data ? data[alias!] : undefined;
+
+        // Check if this specific alias had an error
+        const aliasError = errors?.find(err => err.path?.includes(alias));
+
+        if (result !== undefined && result !== null) {
+          req.resolve(result);
+        } else if (aliasError) {
+          log.warn(`[GraphQLBatcher] Partial error for alias ${alias}`, aliasError);
+          req.reject(new Error(aliasError.message || `Error for alias ${alias}`));
+        } else {
+          // If no data and no specific error, it might be a general failure or null result
+          req.resolve(null as any);
+        }
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.errors) {
-        log.error('[GraphQLBatcher] GraphQL errors in batch response:', result.errors);
-        // Try to distribute partial results if available
-        this.distributeResults(requests, result.data, aliasMap);
-        // Reject requests that failed
-        requests.forEach(([id, req]) => {
-          if (!result.data || !result.data[aliasMap.get(id)!]) {
-            req.reject(new Error(`GraphQL Error: ${JSON.stringify(result.errors)}`));
-          }
-        });
-      } else {
-        // Distribute results to individual callers
-        this.distributeResults(requests, result.data, aliasMap);
-      }
     } catch (error) {
-      log.error('[GraphQLBatcher] Batch execution failed:', error);
-      // Reject all pending requests with the error
-      requests.forEach(([_, req]) => {
-        req.reject(error instanceof Error ? error : new Error(String(error)));
-      });
+      log.error(`[GraphQLBatcher] Batch ${type} failed completely`, error);
+      requests.forEach(([_, req]) => req.reject(error as Error));
     }
   }
 
-  /**
-   * Combine multiple GraphQL queries into a single batched query using aliases
-   */
-  private combineQueries(
-    requests: [string, PendingRequest<any>][]
-  ): { batchedQuery: string; aliasMap: Map<string, string> } {
+  private combine(requests: [string, PendingRequest][], type: 'query' | 'mutation') {
     const aliasMap = new Map<string, string>();
-    const queryParts: string[] = [];
+    const parts: string[] = [];
 
-    requests.forEach(([requestId, req], index) => {
-      const alias = `q${index}`;
-      aliasMap.set(requestId, alias);
+    requests.forEach(([id, req], index) => {
+      const alias = `a${index}`;
+      aliasMap.set(id, alias);
 
-      // Extract operation type and fields from query
-      const operationMatch = req.query.match(/(query|mutation)\s*(\([^)]*\))?\s*\{([\s\S]*)\}/);
+      // Robust extraction of fields between outer braces
+      let fields = req.query.trim();
+      
+      // Remove operation header if present (e.g., "query { ... }" -> "{ ... }")
+      fields = fields.replace(/^(query|mutation)\s*(\([^)]*\))?\s*\{/, '{');
+      
+      // Strip outer braces to get selection set
+      const selection = fields.substring(fields.indexOf('{') + 1, fields.lastIndexOf('}')).trim();
 
-      if (!operationMatch) {
-        log.warn('[GraphQLBatcher] Failed to parse query, skipping:', req.query);
-        return;
-      }
-
-      const [, , , fields] = operationMatch; // operationType and params not used currently
-
-      // Build aliased query
-      const aliasedQuery = `${alias}: ${fields.trim().replace(/^\{/, '').replace(/\}$/, '')}`;
-
-      // Replace variable references with inline values
-      let processedQuery = aliasedQuery;
-      Object.entries(req.variables).forEach(([key, value]) => {
+      // Inline variables (AniList aliases don't support separate variable blocks per alias)
+      let inlinedSelection = selection;
+      Object.entries(req.variables).forEach(([key, val]) => {
         const regex = new RegExp(`\\$${key}\\b`, 'g');
-        processedQuery = processedQuery.replace(regex, this.formatValue(value));
+        inlinedSelection = inlinedSelection.replace(regex, this.format(val));
       });
 
-      queryParts.push(processedQuery);
+      parts.push(`${alias}: ${inlinedSelection}`);
     });
 
-    const batchedQuery = `{\n${queryParts.join('\n')}\n}`;
-
-    log.debug('[GraphQLBatcher] Batched query:', batchedQuery);
-
-    return { batchedQuery, aliasMap };
+    const combinedQuery = `${type} {\n${parts.join('\n')}\n}`;
+    return { combinedQuery, aliasMap };
   }
 
-  /**
-   * Format a value for inline GraphQL query
-   *
-   * SECURITY: Properly escapes all GraphQL string special characters
-   * to prevent injection attacks via crafted usernames or values.
-   */
-  private formatValue(value: unknown): string {
-    if (value === null || value === undefined) return 'null';
-
-    if (typeof value === 'string') {
-      // GraphQL string escape: must escape \, ", and control characters
-      // to prevent injection attacks like: test\"; mutation { ... }
-      const escaped = value
-        .replace(/\\/g, '\\\\')   // Backslash FIRST (before other escapes)
-        .replace(/"/g, '\\"')     // Double quote
-        .replace(/\n/g, '\\n')    // Newline
-        .replace(/\r/g, '\\r')    // Carriage return
-        .replace(/\t/g, '\\t')    // Tab
-        .replace(/\b/g, '\\b')    // Backspace
-        .replace(/\f/g, '\\f');   // Form feed
-      return `"${escaped}"`;
+  private format(val: any): string {
+    if (val === null) return 'null';
+    if (typeof val === 'string') return `"${val.replace(/"/g, '\\"')}"`;
+    if (Array.isArray(val)) return `[${val.map(v => this.format(v)).join(', ')}]`;
+    if (typeof val === 'object') {
+      return `{ ${Object.entries(val).map(([k, v]) => `${k}: ${this.format(v)}`).join(', ')} }`;
     }
-
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-    if (Array.isArray(value)) {
-      return `[${value.map(v => this.formatValue(v)).join(', ')}]`;
-    }
-    if (typeof value === 'object') {
-      const entries = Object.entries(value).map(
-        ([k, v]) => `${k}: ${this.formatValue(v)}`
-      );
-      return `{${entries.join(', ')}}`;
-    }
-    return String(value);
-  }
-
-  /**
-   * Distribute batched results back to individual callers
-   */
-  private distributeResults(
-    requests: [string, PendingRequest<any>][],
-    data: Record<string, unknown> | null,
-    aliasMap: Map<string, string>
-  ): void {
-    requests.forEach(([requestId, req]) => {
-      const alias = aliasMap.get(requestId);
-
-      if (!alias) {
-        req.reject(new Error('[GraphQLBatcher] Alias mapping not found'));
-        return;
-      }
-
-      const result = data?.[alias];
-
-      if (result !== undefined) {
-        req.resolve(result);
-      } else {
-        req.reject(new Error(`[GraphQLBatcher] No data returned for alias: ${alias}`));
-      }
-    });
-  }
-
-  /**
-   * Generate unique request ID
-   */
-  private generateRequestId(): string {
-    return `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-  }
-
-  /**
-   * Get batching metrics
-   */
-  getMetrics(): BatchMetrics {
-    return { ...this.metrics };
-  }
-
-  /**
-   * Reset metrics
-   */
-  resetMetrics(): void {
-    this.metrics = {
-      totalRequests: 0,
-      batchedRequests: 0,
-      savedRequests: 0,
-      avgBatchSize: 0,
-    };
-  }
-
-  /**
-   * Flush all pending requests immediately
-   */
-  async flush(token?: string): Promise<void> {
-    if (this.pendingRequests.size > 0) {
-      await this.executeBatch(token);
-    }
+    return String(val);
   }
 }

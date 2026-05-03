@@ -45,6 +45,13 @@ export interface AniListUser {
     medium: string;
     large?: string;
   };
+  options?: {
+    titleLanguage: string;
+  };
+  mediaListOptions?: {
+    scoreFormat: ScoreFormat;
+    rowOrder: string;
+  };
 }
 
 // ============================================================================

@@ -38,6 +38,11 @@ export interface IApiClient {
   query<T>(query: string, variables?: Record<string, unknown>, silent?: boolean): Promise<T>;
 
   /**
+   * Execute a GraphQL query and return raw response (data + errors)
+   */
+  queryRaw<T>(query: string, variables?: Record<string, unknown>): Promise<{ data: T; errors?: any[] }>;
+
+  /**
    * Execute a GraphQL mutation
    */
   mutate<T>(mutation: string, variables?: Record<string, unknown>): Promise<T>;

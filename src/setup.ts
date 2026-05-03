@@ -75,6 +75,8 @@ import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
 import { UserBannerModule } from '@/modules/social/UserBannerModule';
 import { AstraModule } from '@/modules/astra/AstraModule';
 import { AstraService } from '@/modules/astra/AstraService';
+import { AstraStore } from '@/modules/astra/store/AstraStore';
+import { AstraJournalService } from '@/modules/astra/services/AstraJournalService';
 import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
 import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
@@ -188,6 +190,8 @@ export async function setupDI(): Promise<void> {
 
   // Astra Services
   container.registerSingleton(TOKENS.AstraService, AstraService);
+  container.registerSingleton(TOKENS.AstraStore, AstraStore);
+  container.registerSingleton(TOKENS.AstraJournalService, AstraJournalService);
   container.registerSingleton(TOKENS.AstraRatingModal, AstraRatingModal);
   container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
 

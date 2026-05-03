@@ -25,6 +25,7 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { CustomListService } from './CustomListService';
+import { ActivityService } from '../activity/ActivityService';
 import type { AniListActivity } from '../activity/ActivityUtils';
 import {
   ActivityFilterBar,
@@ -49,6 +50,7 @@ export class MediaSocialEnhancer extends BaseModule {
     @inject(TOKENS.ActivityRenderer) private renderer: ActivityRenderer,
     @inject(TOKENS.ActivityTabManager) private tabManager: CustomListTabManager,
     @inject(TOKENS.CustomListService) private customListService: CustomListService,
+    @inject(TOKENS.ActivityService) private activityService: ActivityService,
     @inject(TOKENS.ApiClient) private api: IApiClient,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
@@ -144,6 +146,8 @@ export class MediaSocialEnhancer extends BaseModule {
       this.injectCustomListsTab(isSocialPage);
     }
 
+    const header = this.findSocialHeader(isSocialPage);
+
     // Apply filters
     const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
     const feed = document.querySelector(feedSelector);
@@ -151,7 +155,102 @@ export class MediaSocialEnhancer extends BaseModule {
     if (feed) {
       this.suspendObserver(this.OBSERVER_NAME);
       this.applyFilters();
+      this.hijackFollowingTab(header);
       this.resumeObserver(this.OBSERVER_NAME);
+    }
+  }
+
+  /**
+   * Helper to find the social section header
+   */
+  private findSocialHeader(isSocialPage: boolean): Element | null {
+    if (isSocialPage) {
+      return document.querySelector('.section-header');
+    } else {
+      const headers = Array.from(document.querySelectorAll('.section-header'));
+      return headers.find(h => h.textContent?.includes('Recent Activity')) || null;
+    }
+  }
+
+  /**
+   * Hijack the native "Following" tab to provide a reliable Astra feed
+   */
+  private hijackFollowingTab(header: Element | null): void {
+    if (!header) return;
+    
+    const tabs = header.querySelectorAll('.feed-type-toggle .button');
+    tabs.forEach(tab => {
+      const text = tab.textContent?.trim();
+      if (text === 'Following' && !tab.hasAttribute('data-au-hijacked')) {
+        tab.setAttribute('data-au-hijacked', 'true');
+        
+        // Listener for click
+        tab.addEventListener('click', () => {
+          this.logger.info('[MediaSocialEnhancer] "Following" tab clicked, monitoring for stall');
+          this.monitorFollowingStall();
+        }, true);
+      }
+    });
+
+    // Handle initial state if page loads with Following active
+    const activeTab = header.querySelector('.feed-type-toggle .button.active');
+    if (activeTab?.textContent?.trim() === 'Following' && !this.isAstraActive()) {
+       this.monitorFollowingStall();
+    }
+  }
+
+  private isAstraActive(): boolean {
+    return this.tabManager.isActive() || !!document.querySelector('.au-astra-following-active');
+  }
+
+  /**
+   * Monitor if the native following feed stalls, then take over
+   */
+  private monitorFollowingStall(): void {
+    const checkDelay = 1500;
+    setTimeout(async () => {
+      const isSocialPage = window.location.pathname.endsWith('/social');
+      const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
+      const container = document.querySelector(feedSelector) as HTMLElement;
+      
+      if (!container) return;
+
+      // Check if Following is still active
+      const activeTab = document.querySelector('.feed-type-toggle .button.active');
+      if (activeTab?.textContent?.trim() !== 'Following') return;
+
+      // Check for stall/empty
+      const isEmpty = container.children.length === 0 || 
+                      (container.children.length === 1 && container.querySelector('.loading-spinner'));
+      
+      if (isEmpty) {
+        this.logger.warn('[MediaSocialEnhancer] Native Following feed stalled. Taking over...');
+        container.classList.add('au-astra-following-active');
+        await this.loadAstraFollowingFeed(container);
+      }
+    }, checkDelay);
+  }
+
+  /**
+   * Load the following feed via Astra API
+   */
+  private async loadAstraFollowingFeed(container: HTMLElement): Promise<void> {
+    if (!this.mediaId) return;
+
+    this.renderer.showLoader(container);
+
+    try {
+      const { activities } = await this.activityService.getMediaActivity(this.mediaId);
+      
+      if (activities.length === 0) {
+        this.renderer.showEmptyMessage(container);
+      } else {
+        this.renderer.renderCustomActivities(activities as any, container);
+        this.logger.success(`[MediaSocialEnhancer] Rendered ${activities.length} activities via Astra`);
+      }
+    } catch (error) {
+      this.logger.error('[MediaSocialEnhancer] Astra takeover failed', error);
+      this.renderer.showEmptyMessage(container);
     }
   }
 

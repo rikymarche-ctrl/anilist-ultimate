@@ -246,8 +246,8 @@ export class AstraModule extends BaseModule {
 
     // BUG-009 Fix: Lazy sync on tab open
     if (this.service) {
-      this.service.syncWithAniList((this as any).apiClient).then(({ updated }) => {
-        if (updated > 0) this.dashboard.refresh();
+      this.service.syncWithAniList((this as any).apiClient).then(() => {
+        // V2 Dashboard updates automatically via AstraStore/EventBus
       }).catch((e: any) => log.error('[Astra] Lazy sync failed', e));
     }
   }

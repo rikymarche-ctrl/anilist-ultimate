@@ -54,6 +54,11 @@ export interface AstraWork {
   duration?: number;
 }
 
+export interface AstraEpisodeNote {
+  text: string;
+  score?: number;
+}
+
 export interface AstraSeason {
   id: string;
   label: string;
@@ -63,7 +68,7 @@ export interface AstraSeason {
   endDate?: string;
   notes?: string;
   isSeriesFinale?: boolean;
-  episodeNotes?: Record<number, { text: string; score?: number }>;
+  episodeNotes?: Record<number, AstraEpisodeNote>;
 }
 
 export interface AstraSubSection {
@@ -156,7 +161,8 @@ export class AstraService {
         }
       }
       this.isLoaded = true;
-      log.info(`[AstraService] Loaded ${this.works.length} works`);
+      log.success(`[AstraService] Initialization complete. Loaded ${this.works.length} works and ${this.sections.length} sections.`);
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED);
     } catch (error) {
       log.error('[AstraService] Failed to load data', error);
       this.works = [];
@@ -502,7 +508,14 @@ export class AstraService {
   }
 
   /**
-   * Calculate overall score for a season
+   * Calculate overall score for a season object
+   */
+  calcSeasonScore(season: AstraSeason): number | null {
+    return this.calcSeasonOverall(season.scores, season.skip, season.isSeriesFinale);
+  }
+
+  /**
+   * Calculate overall score for raw data
    */
   calcSeasonOverall(scores: Record<string, number | null>, skip?: string[], isSeriesFinale?: boolean): number | null {
     const skipSet = new Set(skip || []);

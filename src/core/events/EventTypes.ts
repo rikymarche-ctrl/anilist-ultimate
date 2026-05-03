@@ -123,6 +123,7 @@ export const EVENT_TYPES = {
   // Astra Events
   // ============================================================================
   ASTRA_OPEN: 'astra:open',
+  ASTRA_OPEN_MODAL: 'astra:open-modal',
   ASTRA_DATA_UPDATED: 'astra:data-updated',
 } as const;
 
@@ -347,5 +348,6 @@ export interface AppEventMap {
   [EVENT_TYPES.AUTH_STATE_CHANGED]: { isAuthenticated: boolean; userId?: number; timestamp: Date };
 
   [EVENT_TYPES.ASTRA_OPEN]: undefined;
+  [EVENT_TYPES.ASTRA_OPEN_MODAL]: { mediaId: number };
   [EVENT_TYPES.ASTRA_DATA_UPDATED]: { mediaId?: number; timestamp: Date };
 }

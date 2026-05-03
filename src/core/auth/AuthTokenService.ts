@@ -30,6 +30,7 @@ import type { ILogger } from '@core/interfaces/ILogger';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
+import type { IStorageService } from '@core/interfaces/IStorageService';
 import { AUTH_STORAGE_KEY, AUTH_USER_CACHE_KEY, type UserCache } from '@shared/messages';
 
 /**
@@ -77,7 +78,8 @@ export class AuthTokenService {
 
   constructor(
     @inject(TOKENS.Logger) private logger: ILogger,
-    @inject(TOKENS.EventBus) private eventBus: IEventBus
+    @inject(TOKENS.EventBus) private eventBus: IEventBus,
+    @inject(TOKENS.LocalStorage) private storage: IStorageService
   ) {
     // Listener per sincronizzare la cache quando storage cambia (es. da popup/background)
     this.setupStorageListener();
@@ -101,19 +103,24 @@ export class AuthTokenService {
         // Migra da localStorage (one-time)
         await this.migrateFromLegacyStorage();
 
-        // Carica token e user cache da chrome.storage.local
-        const result = await chrome.storage.local.get([
-          AUTH_STORAGE_KEY,
-          AUTH_USER_CACHE_KEY,
-        ]);
+        // Carica token e user cache da chrome.storage.local (tramite IStorageService)
+        const token = await this.storage.get<string>(AUTH_STORAGE_KEY);
+        const userCache = await this.storage.get<UserCache>(AUTH_USER_CACHE_KEY);
 
-        this.cachedToken = (result[AUTH_STORAGE_KEY] as string | undefined) || null;
-        this.cachedUserCache = (result[AUTH_USER_CACHE_KEY] as UserCache | undefined) || null;
+        this.cachedToken = token || null;
+        this.cachedUserCache = userCache || null;
 
         this.initialized = true;
 
         if (this.cachedToken) {
           this.logger.info('[AuthTokenService] Token loaded from chrome.storage');
+          
+          // Emit event to notify listeners (like AnilistClient) that token is ready
+          this.eventBus.emit(EVENT_TYPES.AUTH_STATE_CHANGED, {
+            isAuthenticated: true,
+            userId: this.cachedUserCache?.userId,
+            timestamp: new Date()
+          });
         } else {
           this.logger.info('[AuthTokenService] No token found');
         }
@@ -170,16 +177,12 @@ export class AuthTokenService {
    */
   async setToken(token: string, userCache?: UserCache): Promise<void> {
     // Salva in chrome.storage.local
-    const data: Record<string, unknown> = {
-      [AUTH_STORAGE_KEY]: token,
-    };
+    await this.storage.set(AUTH_STORAGE_KEY, token);
 
     if (userCache) {
-      data[AUTH_USER_CACHE_KEY] = userCache;
+      await this.storage.set(AUTH_USER_CACHE_KEY, userCache);
       this.cachedUserCache = userCache;
     }
-
-    await chrome.storage.local.set(data);
 
     // Aggiorna cache in-memory
     this.cachedToken = token;
@@ -199,7 +202,8 @@ export class AuthTokenService {
    */
   async clearToken(): Promise<void> {
     // Rimuovi da chrome.storage.local
-    await chrome.storage.local.remove([AUTH_STORAGE_KEY, AUTH_USER_CACHE_KEY]);
+    await this.storage.remove(AUTH_STORAGE_KEY);
+    await this.storage.remove(AUTH_USER_CACHE_KEY);
 
     // Aggiorna cache in-memory
     this.cachedToken = null;
@@ -254,8 +258,8 @@ export class AuthTokenService {
    */
   private async migrateFromLegacyStorage(): Promise<void> {
     // Controlla se la migrazione è già stata eseguita
-    const result = await chrome.storage.local.get(this.MIGRATION_FLAG_KEY);
-    if (result[this.MIGRATION_FLAG_KEY]) {
+    const isMigrated = await this.storage.get<boolean>(this.MIGRATION_FLAG_KEY);
+    if (isMigrated) {
       return; // Migrazione già completata
     }
 
@@ -297,18 +301,14 @@ export class AuthTokenService {
     // Se trovato, migra a chrome.storage.local
     if (legacyToken) {
       this.logger.info('[AuthTokenService] Migrating legacy token to chrome.storage.local');
-      await chrome.storage.local.set({
-        [AUTH_STORAGE_KEY]: legacyToken,
-      });
+      await this.storage.set(AUTH_STORAGE_KEY, legacyToken);
 
       // Cleanup legacy keys
       this.cleanupLegacyKeys();
     }
 
     // Marca migrazione come completata
-    await chrome.storage.local.set({
-      [this.MIGRATION_FLAG_KEY]: true,
-    });
+    await this.storage.set(this.MIGRATION_FLAG_KEY, true);
 
     this.logger.info('[AuthTokenService] Legacy migration completed');
   }

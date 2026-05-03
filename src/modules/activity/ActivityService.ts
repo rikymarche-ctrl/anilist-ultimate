@@ -125,6 +125,37 @@ export class ActivityService {
   }
 
   /**
+   * Fetch activities for a specific media from people the user follows
+   */
+  public async getMediaActivity(mediaId: number, page: number = 1): Promise<{ activities: any[]; hasNextPage: boolean }> {
+    const query = `
+      query ($mediaId: Int, $page: Int) {
+        Page(page: $page, perPage: 25) {
+          pageInfo { total hasMorePages }
+          activities(mediaId: $mediaId, isFollowing: true, sort: ID_DESC) {
+            ... on ListActivity {
+              id type status progress createdAt replyCount likeCount
+              user { id name avatar { medium } }
+              media { id title { romaji english } type coverImage { medium } }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const response = await this.api.query<{ Page: { activities: any[]; pageInfo: { hasMorePages: boolean } } }>(query, { mediaId, page });
+      return {
+        activities: response.Page.activities,
+        hasNextPage: response.Page.pageInfo.hasMorePages
+      };
+    } catch (e) {
+      log.error('[ActivityService] Media activity fetch failed', e);
+      return { activities: [], hasNextPage: false };
+    }
+  }
+
+  /**
    * Manually clear the score cache
    * Useful when user manually refreshes data or changes following list
    */

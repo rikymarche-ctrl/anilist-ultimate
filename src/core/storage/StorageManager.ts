@@ -209,7 +209,8 @@ export class StorageManager implements IStorageService {
   private handleStorageError(error: Error, context: string): void {
     const message = error.message;
     
-    if (message.includes('Extension context invalidated')) {
+    if (message.includes('Extension context invalidated') || message.includes('context_invalidated')) {
+      StorageManager.contextDead = true;
       if (this.logger) {
         this.logger.warn(`[StorageManager] Extension updated/reloaded. Please refresh the page. (Context: ${context})`);
       }
@@ -219,6 +220,21 @@ export class StorageManager implements IStorageService {
       } else {
         console.error(`[StorageManager] [Fallback] Error ${context}:`, error);
       }
+    }
+  }
+
+  private static contextDead = false;
+
+  /**
+   * Check if the extension context is dead
+   */
+  public static isContextDead(): boolean {
+    if (StorageManager.contextDead) return true;
+    try {
+      return !chrome.runtime?.id;
+    } catch (e) {
+      StorageManager.contextDead = true;
+      return true;
     }
   }
 
