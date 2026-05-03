@@ -422,8 +422,12 @@
   align-items: center !important;
   gap: 5px !important;
   font-size: 1.2rem !important;
-  color: var(--color-text-lighter) !important;
-  opacity: 0.8;
+  color: rgb(139, 160, 178) !important;
+}
+
+.au-custom-activity .action .count {
+  color: rgb(139, 160, 178) !important;
+  font-weight: 600;
 }
 
 .au-custom-activity .action .fa {

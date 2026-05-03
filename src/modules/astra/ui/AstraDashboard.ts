@@ -227,10 +227,10 @@ export class AstraDashboard extends BaseComponent {
               </button>
               <div class="astra-action-divider"></div>
               <button class="astra-btn astra-btn--secondary" id="astra-export">
-                <i class="fa fa-file-export"></i> Export
+                <i class="fa fa-upload"></i> Export
               </button>
               <button class="astra-btn astra-btn--secondary" id="astra-import">
-                <i class="fa fa-file-import"></i> Import
+                <i class="fa fa-download"></i> Import
               </button>
               <input type="file" id="astra-import-file" style="display: none" accept=".json">
             </div>
@@ -281,7 +281,7 @@ export class AstraDashboard extends BaseComponent {
             ${this.state.isAuthenticated ? 'Import from AniList' : 'Login to Sync'}
           </button>
           <button class="astra-btn astra-btn--secondary astra-btn--lg" id="astra-import-manual">
-            <i class="fa fa-file-import"></i> Import JSON
+            <i class="fa fa-download"></i> Import JSON
           </button>
         </div>
       </div>

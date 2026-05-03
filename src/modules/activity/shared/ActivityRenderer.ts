@@ -304,11 +304,11 @@ export class ActivityRenderer {
           <div class="time">${timeAgo}</div>
           <div class="actions">
             <div class="action replies">
-              <span class="count">${activity.replyCount || 0}</span>
+              ${activity.replyCount && activity.replyCount > 0 ? `<span class="count">${activity.replyCount}</span>` : ''}
               <i class="fa fa-comments"></i>
             </div>
             <div class="action likes">
-              <span class="count">${activity.likeCount || 0}</span>
+              ${activity.likeCount && activity.likeCount > 0 ? `<span class="count">${activity.likeCount}</span>` : ''}
               <i class="fa fa-heart"></i>
             </div>
           </div>
@@ -329,11 +329,11 @@ export class ActivityRenderer {
           <div class="time">${timeAgo}</div>
           <div class="actions">
             <div class="action replies">
-              <span class="count">${activity.replyCount || 0}</span>
+              ${activity.replyCount && activity.replyCount > 0 ? `<span class="count">${activity.replyCount}</span>` : ''}
               <i class="fa fa-comments"></i>
             </div>
             <div class="action likes">
-              <span class="count">${activity.likeCount || 0}</span>
+              ${activity.likeCount && activity.likeCount > 0 ? `<span class="count">${activity.likeCount}</span>` : ''}
               <i class="fa fa-heart"></i>
             </div>
           </div>
