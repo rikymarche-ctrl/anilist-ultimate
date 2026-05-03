@@ -66,11 +66,6 @@ export class AstraModule extends BaseModule {
     this.onPageChange(async (event) => {
       const path = event?.path || window.location.pathname;
 
-      // Handle Profile Injection
-      if (path.match(/\/user\/[^/]+\/$/) || path.match(/\/user\/[^/]+\/animelist/) || path.match(/\/user\/[^/]+\/astra/)) {
-        this.injectAstraTab();
-      }
-
       // Handle Astra Dashboard Rendering
       if (path.includes('/astra')) {
         this.renderDashboard();
@@ -117,27 +112,6 @@ export class AstraModule extends BaseModule {
     }, 1000);
 
     log.groupEnd();
-  }
-
-  private injectAstraTab(): void {
-    const nav = document.querySelector('.user .nav');
-    if (!nav || nav.querySelector('.astra-tab')) return;
-
-    const username = window.location.pathname.split('/')[2];
-    const astraLink = document.createElement('a');
-    astraLink.className = 'link astra-tab';
-    astraLink.href = `/user/${username}/astra`;
-    astraLink.innerText = 'Astra';
-
-    // Add active class if we are on the astra page
-    if (window.location.pathname.includes('/astra')) {
-      astraLink.classList.add('router-link-exact-active', 'router-link-active');
-      // Hide standard content
-      const content = document.querySelector('.user .content');
-      if (content) (content as HTMLElement).style.display = 'none';
-    }
-
-    nav.appendChild(astraLink);
   }
 
   /**
@@ -501,9 +475,9 @@ export class AstraModule extends BaseModule {
   private hijackMediaPageStatusButton(): void {
     // Select the main status button under the cover image
     // Priorities: header-specific actions, then general actions
-    const btn = (document.querySelector('.header .actions .list') || 
-                 document.querySelector('.actions .list')) as HTMLElement;
-    
+    const btn = (document.querySelector('.header .actions .list') ||
+      document.querySelector('.actions .list')) as HTMLElement;
+
     if (!btn) {
       // log.debug('[Astra] Target button NOT found on media page'); // Silent for polling
       return;
@@ -513,11 +487,11 @@ export class AstraModule extends BaseModule {
 
     btn.setAttribute('data-astra-hijacked', 'true');
     btn.classList.add('au-astra-hijacked-btn');
-    
+
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopImmediatePropagation();
-      
+
       const path = window.location.pathname;
       const match = path.match(/\/(anime|manga)\/(\d+)/);
       if (match) {
@@ -763,18 +737,18 @@ export class AstraModule extends BaseModule {
     seasonalLink.className = 'link au-seasonal-link';
     seasonalLink.href = seasonalUrl;
     seasonalLink.innerText = 'Seasonal';
-    
+
     seasonalLink.style.marginLeft = '4px';
     seasonalLink.style.display = 'inline-block';
-    
+
     (container as HTMLElement).style.whiteSpace = 'nowrap';
     (container as HTMLElement).style.width = 'max-content';
     (container as HTMLElement).style.display = 'flex';
     (container as HTMLElement).style.flexWrap = 'nowrap';
     (container as HTMLElement).style.alignItems = 'center';
-    
+
     topMoviesLink.insertAdjacentElement('afterend', seasonalLink);
-    
+
     // Expand the whole dropdown panel to fit the new content
     let dropdown = container.closest('.dropdown, .menu, .nav-dropdown, .dropdown-wrap') as HTMLElement;
     if (!dropdown) {
@@ -786,7 +760,7 @@ export class AstraModule extends BaseModule {
       dropdown.style.setProperty('min-width', 'max-content', 'important');
       dropdown.style.setProperty('max-width', 'none', 'important');
     }
-    
+
     log.debug(`[Astra] Injected Seasonal link and expanded dropdown panel`);
   }
 }

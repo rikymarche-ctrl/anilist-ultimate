@@ -152,7 +152,8 @@ export class AstraService {
 
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(TOKENS.LocalStorage) private storage: IStorageService
+    @inject(TOKENS.LocalStorage) private storage: IStorageService,
+    @inject(TOKENS.ApiClient) private api: IApiClient
   ) { }
 
   /**
@@ -443,6 +444,10 @@ export class AstraService {
     }
 
     await this.persist();
+    
+    // Auto-sync with AniList notes
+    this.syncToAnilistNotes(updatedWork.mediaId, updatedWork);
+
     return updatedWork;
   }
 
@@ -487,6 +492,10 @@ export class AstraService {
 
     work.updatedAt = Date.now();
     await this.persist();
+
+    // Auto-sync journal with AniList notes
+    this.syncToAnilistNotes(mediaId, work);
+
     log.info(`[AstraService] Saved note for ${work.title} Ep ${episode}`);
   }
 
@@ -604,6 +613,110 @@ export class AstraService {
       skip: [],
       episodeNotes: {}
     };
+  }
+
+  /**
+   * Generates a comprehensive Markdown report of the Astra review
+   */
+  public generateMarkdownReport(work: AstraWork): string {
+    const overall = this.calcSeriesOverall(work);
+    const season = work.seasons[work.seasons.length - 1]; // Use latest season for breakdown
+    
+    let report = `\n[ASTRA_START]\n`;
+    report += `### 🌟 Astra Review\n`;
+    report += `**Overall Score:** ${overall ? overall.toFixed(1) : 'N/A'}/10\n\n`;
+
+    // 1. Sub-categories Breakdown
+    report += `📊 **Breakdown:**\n`;
+    this.sections.forEach(s => {
+      if (season.skip?.includes(s.id)) return;
+      const score = this.calcSectionScore(s, season.scores);
+      if (score && score > 0) {
+        report += `- ${s.name}: ${score.toFixed(1)}/10\n`;
+      }
+    });
+
+    // 2. General Astra Notes
+    if (work.notes && work.notes.trim()) {
+      report += `\n📝 **Notes:**\n${work.notes.trim()}\n`;
+    }
+
+    // 3. Chronological Journal
+    if (season.episodeNotes && Object.keys(season.episodeNotes).length > 0) {
+      report += `\n📓 **Journal:**\n`;
+      const sortedEps = Object.keys(season.episodeNotes)
+        .map(Number)
+        .sort((a, b) => b - a); // Newest first
+
+      sortedEps.slice(0, 20).forEach(ep => { // Limit to last 20 eps to save space
+        const note = season.episodeNotes![ep];
+        if (note.text?.trim()) {
+          report += `- Ep ${ep}: ${note.text.trim()}\n`;
+        }
+      });
+    }
+
+    report += `\n[ASTRA_END]`;
+    return report;
+  }
+
+  /**
+   * Syncs the Astra report to the native AniList notes field
+   */
+  public async syncToAnilistNotes(mediaId: number, work: AstraWork): Promise<void> {
+    if (!this.api.isAuthenticated()) return;
+
+    try {
+      // 1. Fetch existing notes from AniList first
+      const query = `
+        query ($mediaId: Int) {
+          MediaList(mediaId: $mediaId) {
+            notes
+          }
+        }
+      `;
+      const res = await this.api.query<any>(query, { mediaId });
+      let nativeNotes = res?.MediaList?.notes || '';
+
+      // 2. Generate our report
+      const astraReport = this.generateMarkdownReport(work);
+
+      // 3. Merge: replace or append
+      const startTag = '[ASTRA_START]';
+      const endTag = '[ASTRA_END]';
+      
+      let finalNotes = '';
+      if (nativeNotes.includes(startTag) && nativeNotes.includes(endTag)) {
+        // Replace existing Astra section
+        const before = nativeNotes.split(startTag)[0];
+        const after = nativeNotes.split(endTag)[1] || '';
+        finalNotes = (before.trim() + '\n' + astraReport + '\n' + after.trim()).trim();
+      } else {
+        // Append new Astra section
+        finalNotes = (nativeNotes.trim() + '\n' + astraReport).trim();
+      }
+
+      // 4. Save back to AniList
+      const mutation = `
+        mutation ($mediaId: Int, $notes: String, $score: Float) {
+          SaveMediaListEntry(mediaId: $mediaId, notes: $notes, score: $score) {
+            id
+            notes
+          }
+        }
+      `;
+      
+      const overall = this.calcSeriesOverall(work);
+      await this.api.mutate(mutation, { 
+        mediaId, 
+        notes: finalNotes,
+        score: overall || 0
+      });
+
+      log.success(`[AstraService] Synced notes for ${work.title} to AniList.`);
+    } catch (error) {
+      log.error(`[AstraService] Failed to sync notes for ${work.title}`, error);
+    }
   }
 
   /**

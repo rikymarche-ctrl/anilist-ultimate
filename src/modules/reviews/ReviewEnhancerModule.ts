@@ -98,7 +98,26 @@ export class ReviewEnhancerModule extends BaseModule {
     }, 2000);
   }
 
+  private shouldRun(): boolean {
+    const path = window.location.pathname;
+    
+    // Explicitly blacklist heavy pages or irrelevant ones
+    if (path.includes('/character/') || path.includes('/staff/') || path.includes('/studio/')) {
+      return false;
+    }
+
+    // Whitelist allowed contexts strictly following user requirements
+    const isHome = path === '/' || path === '/home' || path === '/home/';
+    const isMedia = !!path.match(/\/(anime|manga)\/\d+/);
+    const isGlobalReviews = path === '/reviews';
+    const isUserReviews = path.includes('/user/') && path.endsWith('/reviews');
+
+    return isHome || isMedia || isGlobalReviews || isUserReviews;
+  }
+
   private scanAndQueue(): void {
+    if (!this.shouldRun()) return;
+
     const selectors = [
       '.review-card',
       '.media-review-card',
