@@ -50,7 +50,8 @@ export class AstraDashboard extends BaseComponent {
     activeTab: 'dashboard' as 'dashboard' | 'settings',
     isGrouped: true,
     collapsedGroups: new Set<string>(),
-    isAuthenticated: true
+    isAuthenticated: true,
+    isDirty: false
   };
   private renderProcessId = 0;
 
@@ -104,6 +105,7 @@ export class AstraDashboard extends BaseComponent {
     this.state.anilistStatus = 'all';
     this.state.search = '';
     this.state.activeTab = 'dashboard';
+    this.state.isDirty = false;
 
     // Optimize: Collapse all groups by default except WATCHING and READING
     this.state.collapsedGroups = new Set([
@@ -175,7 +177,7 @@ export class AstraDashboard extends BaseComponent {
             <span>Settings</span>
           </div>
           <div class="astra-nav-spacer"></div>
-          <button class="astra-modal-close">
+          <button class="astra-modal-close astra-nav-item">
             <i class="fa fa-times"></i>
             <span>Close Dashboard</span>
           </button>
@@ -224,10 +226,10 @@ export class AstraDashboard extends BaseComponent {
               </button>
               <div class="astra-action-divider"></div>
               <button class="astra-btn astra-btn--secondary" id="astra-export">
-                <i class="fa fa-download"></i> Export
+                <i class="fa fa-upload"></i> Export
               </button>
               <button class="astra-btn astra-btn--secondary" id="astra-import">
-                <i class="fa fa-upload"></i> Import
+                <i class="fa fa-download"></i> Import
               </button>
               <input type="file" id="astra-import-file" style="display: none" accept=".json">
             </div>
@@ -295,7 +297,7 @@ export class AstraDashboard extends BaseComponent {
             <p class="astra-dashboard-subtitle">Configure your rating criteria and weighted components.</p>
           </div>
           <div class="astra-dashboard-actions">
-            <button class="astra-btn astra-btn--primary" id="astra-save-sections">
+            <button class="astra-btn astra-btn--save-pill ${this.state.isDirty ? 'is-dirty' : ''}" id="astra-save-sections">
               <i class="fa fa-save"></i> Save Changes
             </button>
           </div>
@@ -721,24 +723,24 @@ export class AstraDashboard extends BaseComponent {
             this.state.anilistStatus = 'all';
             this.state.status = 'all';
             this.state.type = 'all';
+            this.state.country = 'all';
           } else if (cycleId) {
             const options = JSON.parse(cycleId);
-            const currentIdx = options.findIndex((opt: any) =>
-              this.state.anilistStatus === opt.status &&
-              this.state.type === opt.type
-            );
-
-            const nextIdx = (currentIdx + 1) % options.length;
-            const nextOpt = options[nextIdx];
-
-            this.state.anilistStatus = nextOpt.status;
-            this.state.type = nextOpt.type;
-            this.state.status = 'all';
+            
+            // For cumulative filtering, we cycle through the macro statuses (CURRENT, COMPLETED, etc.)
+            // but we try to keep the current 'type' filter if it's already set to something specific.
+            const uniqueStatuses = [...new Set(options.map((opt: any) => opt.status))] as string[];
+            const currentStatusBase = this.state.anilistStatus;
+            
+            // Find which macro status we are in (e.g., WATCHING/READING/CURRENT all map to 'In Progress' macro)
+            const currentStatusIdx = uniqueStatuses.findIndex(s => s === currentStatusBase);
+            const nextStatus = uniqueStatuses[(currentStatusIdx + 1) % uniqueStatuses.length];
+            
+            this.state.anilistStatus = nextStatus;
           } else {
             // Static statuses
             const status = el.getAttribute('data-status')!;
             this.state.anilistStatus = status;
-            this.state.status = 'all';
           }
           this.updateDashboardDynamic();
         });
@@ -768,27 +770,6 @@ export class AstraDashboard extends BaseComponent {
             if (filter === 'type') {
               if (this.state.type !== val) {
                 this.state.type = val;
-
-                // Bidirectional sync: if current anilistStatus belongs to a cycle, 
-                // update it to match the new type
-                const cycleBaseMap: Record<string, Record<string, string>> = {
-                  [MediaListStatus.CURRENT]: { anime: MediaListStatus.WATCHING, manga: MediaListStatus.READING, all: MediaListStatus.CURRENT },
-                  [MediaListStatus.WATCHING]: { anime: MediaListStatus.WATCHING, manga: MediaListStatus.READING, all: MediaListStatus.CURRENT },
-                  [MediaListStatus.READING]: { anime: MediaListStatus.WATCHING, manga: MediaListStatus.READING, all: MediaListStatus.CURRENT },
-                  [MediaListStatus.REPEATING]: { anime: MediaListStatus.REWATCHING, manga: MediaListStatus.REREADING, all: MediaListStatus.REPEATING },
-                  [MediaListStatus.REWATCHING]: { anime: MediaListStatus.REWATCHING, manga: MediaListStatus.REREADING, all: MediaListStatus.REPEATING },
-                  [MediaListStatus.REREADING]: { anime: MediaListStatus.REWATCHING, manga: MediaListStatus.REREADING, all: MediaListStatus.REPEATING },
-                  [MediaListStatus.PLANNING]: { anime: MediaListStatus.PLAN_TO_WATCH, manga: MediaListStatus.PLAN_TO_READ, all: MediaListStatus.PLANNING },
-                  [MediaListStatus.PLAN_TO_WATCH]: { anime: MediaListStatus.PLAN_TO_WATCH, manga: MediaListStatus.PLAN_TO_READ, all: MediaListStatus.PLANNING },
-                  [MediaListStatus.PLAN_TO_READ]: { anime: MediaListStatus.PLAN_TO_WATCH, manga: MediaListStatus.PLAN_TO_READ, all: MediaListStatus.PLANNING }
-                };
-
-                const currentStatus = this.state.anilistStatus;
-                if (cycleBaseMap[currentStatus]) {
-                  const typeKey = (val === 'anime' || val === 'manga') ? val : 'all';
-                  this.state.anilistStatus = cycleBaseMap[currentStatus][typeKey] || currentStatus;
-                }
-
                 needsUpdate = true;
               }
             } else if (filter === 'country') {
@@ -800,7 +781,6 @@ export class AstraDashboard extends BaseComponent {
               // Custom list filter
               if (this.state.status !== val) {
                 this.state.status = val;
-                this.state.anilistStatus = 'all'; // Clear status filter when using custom list
                 needsUpdate = true;
               }
             }
@@ -1051,6 +1031,7 @@ export class AstraDashboard extends BaseComponent {
         const tab = (item as HTMLElement).dataset.tab as any;
         if (tab && tab !== this.state.activeTab) {
           this.state.activeTab = tab;
+          this.state.isDirty = false;
           this.renderDashboard();
         }
       });
@@ -1357,6 +1338,7 @@ export class AstraDashboard extends BaseComponent {
       `;
       editor.appendChild(div);
       this.attachSettingsItemEvents(div);
+      this.markDirty();
 
       const input = div.querySelector('.astra-section-name-input') as HTMLInputElement;
       if (input) {
@@ -1394,10 +1376,19 @@ export class AstraDashboard extends BaseComponent {
       });
 
       await this.service!.updateSections(sections);
+      
+      this.state.isDirty = false; // Reset dirty state
+      
       setTimeout(() => {
         btn.disabled = false;
+        btn.classList.add('success');
         btn.innerHTML = '<i class="fa fa-check"></i> Saved!';
-        setTimeout(() => { btn.innerHTML = '<i class="fa fa-save"></i> Save Changes'; }, 2000);
+        
+        setTimeout(() => { 
+          btn.classList.remove('success');
+          btn.classList.remove('is-dirty');
+          btn.innerHTML = '<i class="fa fa-save"></i> Save Changes'; 
+        }, 2000);
       }, 500);
     });
   }
@@ -1407,6 +1398,7 @@ export class AstraDashboard extends BaseComponent {
     group.querySelector('.astra-delete-section')?.addEventListener('click', () => {
       if (confirm('Delete this entire category and all its components?')) {
         group.remove();
+        this.markDirty();
       }
     });
 
@@ -1433,6 +1425,7 @@ export class AstraDashboard extends BaseComponent {
         </div>
       `;
       editor.appendChild(subDiv);
+      this.markDirty();
 
       const input = subDiv.querySelector('.astra-sub-name-input') as HTMLInputElement;
       if (input) {
@@ -1440,15 +1433,37 @@ export class AstraDashboard extends BaseComponent {
         input.select();
       }
 
-      subDiv.querySelector('.astra-delete-sub')?.addEventListener('click', () => subDiv.remove());
+      subDiv.querySelector('.astra-delete-sub')?.addEventListener('click', () => {
+        subDiv.remove();
+        this.markDirty();
+      });
+
+      subDiv.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => this.markDirty());
+      });
     });
 
     // Delete Sub
     group.querySelectorAll('.astra-delete-sub').forEach(btn => {
       btn.addEventListener('click', () => {
         (btn.closest('.astra-sub-edit-row') as HTMLElement).remove();
+        this.markDirty();
       });
     });
+
+    // Input changes
+    group.querySelectorAll('input').forEach(input => {
+      input.addEventListener('input', () => this.markDirty());
+    });
+  }
+
+  private markDirty(): void {
+    if (this.state.isDirty) return;
+    this.state.isDirty = true;
+    const saveBtn = this.overlay?.querySelector('#astra-save-sections');
+    if (saveBtn) {
+      saveBtn.classList.add('is-dirty');
+    }
   }
 
   private async initSettings(): Promise<void> {

@@ -151,6 +151,24 @@ export class CalendarModule extends BaseModule {
         }
       });
 
+      // Persistent Polling for SPA navigation robustness
+      // Sometimes MutationObserver misses the window when React replaces the entire container
+      setInterval(() => {
+        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
+        if (isHomePage) {
+          const calendarContainer = document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+          const hasContent = !!calendarContainer?.querySelector('.calendar-grid, .calendar-grid__empty, .calendar-skeleton');
+          
+          if ((!calendarContainer || !hasContent) && !this.isProcessing) {
+            log.info('[Calendar] Polling check: Calendar missing or empty, re-injecting...', {
+              hasContainer: !!calendarContainer,
+              hasContent
+            });
+            this.runInjectionFlow();
+          }
+        }
+      }, 2000);
+
       // 4. Initialize global social visibility classes
       const syncClasses = () => this.domService.syncSocialVisibilityClasses(this.config.isFeatureEnabled('astra'));
       syncClasses();
@@ -182,6 +200,13 @@ export class CalendarModule extends BaseModule {
             const section = h.closest('section') || h.closest('.list-preview-wrap') || h.closest('.list-preview') || h.parentElement;
             if (section && !(section as HTMLElement).classList.contains('au-native-airing-hidden')) {
               const el = section as HTMLElement;
+              
+              // CRITICAL BUG-FIX: Don't hide the section if it's currently hosting our calendar!
+              if (el.contains(document.getElementById(CSS_CLASSES.CALENDAR))) {
+                log.debug('[Calendar] Skipping hider for container hosting our calendar');
+                return;
+              }
+
               el.style.display = 'none';
               el.style.opacity = '0';
               el.style.visibility = 'hidden';
@@ -223,7 +248,7 @@ export class CalendarModule extends BaseModule {
         log.info('[Calendar] Airing section detected via shared observer, triggering injection');
         this.runInjectionFlow();
       }
-    }, 1000); // 1s throttle is enough
+    }, 500); // Faster check (500ms) for better SPA response
   }
 
   /**
@@ -232,12 +257,18 @@ export class CalendarModule extends BaseModule {
   private async runInjectionFlow(forceRefresh: boolean = false): Promise<void> {
     if (this.isProcessing) return;
     
-    const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
-    if (calendarExists && !forceRefresh) return;
+    const existingContainer = document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+    const hasContent = !!existingContainer?.querySelector('.calendar-grid, .calendar-grid__empty, .calendar-skeleton');
+    
+    // If it exists AND has content AND we aren't forcing a refresh, skip
+    if (existingContainer && hasContent && !forceRefresh) return;
 
     try {
       this.isProcessing = true;
-      log.info('[Calendar] Running injection flow...');
+      // Safety timeout: if injection hangs, allow retry after 10s
+      setTimeout(() => { this.isProcessing = false; }, 10000);
+      
+      log.info(`[Calendar] Running injection flow (force=${forceRefresh}, exists=${!!existingContainer}, content=${hasContent})...`);
 
       // 1. Inject UI via DOM Service
       const astraEnabled = this.config.isFeatureEnabled('astra');

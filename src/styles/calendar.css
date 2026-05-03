@@ -330,7 +330,7 @@
   transform: scale(1.05);
 }
 
-/* Behind card: permanent thin left border + all-sides pulse (0 → 1px solid + glow → 0) */
+/* Behind card: modifier kept for logic but visual border removed for minimalist look */
 .anime-card--is-behind {
   border-left: 3px solid #ff4f4f !important;
   animation: behind-outer-pulse 4.5s ease-in-out infinite;
@@ -358,11 +358,6 @@
 
 .anime-card--aired {
   opacity: 0.6;
-}
-
-.anime-card--airing-soon {
-  border-color: var(--au-success, #4dff88);
-  background: rgba(77, 255, 136, 0.05);
 }
 
 /* ============================================================================

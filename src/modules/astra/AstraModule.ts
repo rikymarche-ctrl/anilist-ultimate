@@ -106,6 +106,16 @@ export class AstraModule extends BaseModule {
       }
     }, 1000);
 
+    // 4. Enhance Browse Dropdown with Seasonal link
+    this.sharedObserver.register('astra-browse-seasonal', () => {
+      this.enhanceBrowseDropdown();
+    });
+
+    // 5. Persistent Polling for ephemeral Browse dropdown
+    setInterval(() => {
+      this.enhanceBrowseDropdown();
+    }, 1000);
+
     log.groupEnd();
   }
 
@@ -706,6 +716,77 @@ export class AstraModule extends BaseModule {
   public override async destroy(): Promise<void> {
     this.sharedObserver.unregister('astra-progress-enhancer');
     this.sharedObserver.unregister('astra-global-nav');
+    this.sharedObserver.unregister('astra-browse-seasonal');
     await super.destroy();
+  }
+
+  /**
+   * Calculates the current season and year for the Seasonal link.
+   */
+  private getCurrentSeason(): { season: string; year: number } {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+
+    let season = 'WINTER';
+    if (month >= 3 && month <= 5) season = 'SPRING';
+    else if (month >= 6 && month <= 8) season = 'SUMMER';
+    else if (month >= 9 && month <= 11) season = 'FALL';
+
+    return { season, year };
+  }
+
+  /**
+   * Injects the "Seasonal" link into the Browse dropdown menu.
+   * Targets the Anime section and inserts it after "Top Movies".
+   */
+  private enhanceBrowseDropdown(): void {
+    let topMoviesLink = document.querySelector('a[href="/search/anime/top-movies"]')
+      || document.querySelector('a[href*="top-movies"]');
+
+    if (!topMoviesLink) {
+      const allLinks = Array.from(document.querySelectorAll('a'));
+      topMoviesLink = allLinks.find(a => a.innerText.trim() === 'Top Movies') || null;
+    }
+
+    if (!topMoviesLink) return;
+
+    const container = topMoviesLink.parentElement;
+    if (!container || container.querySelector('.au-seasonal-link')) {
+      return;
+    }
+
+    const { season, year } = this.getCurrentSeason();
+    const seasonalUrl = `/search/anime?airing%20status=RELEASING&season=${season}&year=${year}`;
+
+    const seasonalLink = document.createElement('a');
+    seasonalLink.className = 'link au-seasonal-link';
+    seasonalLink.href = seasonalUrl;
+    seasonalLink.innerText = 'Seasonal';
+    
+    seasonalLink.style.marginLeft = '4px';
+    seasonalLink.style.display = 'inline-block';
+    
+    (container as HTMLElement).style.whiteSpace = 'nowrap';
+    (container as HTMLElement).style.width = 'max-content';
+    (container as HTMLElement).style.display = 'flex';
+    (container as HTMLElement).style.flexWrap = 'nowrap';
+    (container as HTMLElement).style.alignItems = 'center';
+    
+    topMoviesLink.insertAdjacentElement('afterend', seasonalLink);
+    
+    // Expand the whole dropdown panel to fit the new content
+    let dropdown = container.closest('.dropdown, .menu, .nav-dropdown, .dropdown-wrap') as HTMLElement;
+    if (!dropdown) {
+      dropdown = (container.parentElement?.parentElement || container.parentElement) as HTMLElement;
+    }
+
+    if (dropdown) {
+      dropdown.style.setProperty('width', 'max-content', 'important');
+      dropdown.style.setProperty('min-width', 'max-content', 'important');
+      dropdown.style.setProperty('max-width', 'none', 'important');
+    }
+    
+    log.debug(`[Astra] Injected Seasonal link and expanded dropdown panel`);
   }
 }

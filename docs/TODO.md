@@ -62,7 +62,6 @@ il numero di episodio
 
 mi sembra che l hover sull immagine dentro astra funzioni bene solo nella dashboard, nel quickedit è sfocata
 
-
 il hournal funzioan correttamente per gli anime, ma per i manga e le novel? non credo
 
 doppio tootlip nel quick edit
@@ -83,15 +82,15 @@ doppio tootlip nel quick edit
 
 - [X] **Optimistic Updates** - Implemented real-time UI synchronization between Astra and Calendar. [DONE]
 
-ci sono tutte le cose fuori da astra da applicare, tipo che i filtri nelle activity devono tornare su All a ogni cambio di pagina
+FATTO ci sono tutte le cose fuori da astra da applicare, tipo che i filtri nelle activity devono tornare su All a ogni cambio di pagina
 
-da reinserire il bottone capusle in anime e manga in progress, controllare se manca qualche direttiva @inject ad esempio. In home
+FATTO da reinserire il bottone capusle in anime e manga in progress, controllare se manca qualche direttiva @inject ad esempio. In home
 
 i icone di commenti si sono spostati ancora leggermente sulla destra dentro le loro righe
 
-I fgiltri non funzionano bene, se ne fregano di read, completed ecc, specialmente dentro le poagine delle opere, e quindi forse se implementato anche in quello nella home nelle pagine degli utenti. Questa funzionalità ad esempio deve essere disponibile anche senza anilist API. Come tutte le cose già cachetate, inutile perderle
+FATTO (almeno i filtri, la cache non ancora guardata) I fgiltri non funzionano bene, se ne fregano di read, completed ecc, specialmente dentro le poagine delle opere, e quindi forse se implementato anche in quello nella home nelle pagine degli utenti. Questa funzionalità ad esempio deve essere disponibile anche senza anilist API. Come tutte le cose già cachetate, inutile perderle
 
-Cancellare il + nella sezione anime e amnga in progress solo se le API sono disponibili, altrimenti non possiamo creare il bottone pillola, o sì?
+FATTO Cancellare il + nella sezione anime e amnga in progress solo se le API sono disponibili, altrimenti non possiamo creare il bottone pillola, o sì?
 
 funzionalità
 
@@ -102,21 +101,26 @@ funzionalità
   **[ ]  Astra dashboard: Bulk Editor** - Create a tool for bulk editing items within custom lists.
 
   Ovviametne quando si clicca il + su anilist, deve aggiornarsi anche l entry su astra dashoboard, stessa cosa vale per ogni volta che su anilist la entry subisce modifiche
+  override voto, rendere mdoficabile direttamente l overall senza le sezioni
 
   una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
 
   Grafica
-- [ ] Togliere quel pallino fastidioso che fa da stanghetta alla A nel logo Astra
+- [X] Togliere quel pallino fastidioso che fa da stanghetta alla A nel logo Astra
 - [ ] Astra settings: Lo slider va oltre la rating sections, che scrolla sopra oltre il massimo previsto
 - [ ] astra settings: I 6 pallini ceh sembrano quelli con cui si attiva il drag and drop sulle sezioni dei voti Non funzionano
-- [ ] Astra settings: Rework al bottone save changes per matchare quello del quick edit?
-- [ ] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera
-- [ ] astra dashboard, stessa cosa col sync e toggle progress, da reworkare?
+- [X] Astra settings: Rework al bottone save changes per matchare quello del quick edit?
+- [X] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera
+- [X] astra dashboard, stessa cosa col sync e toggle progress, da reworkare?
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
 - [ ] astra dashbard: majopr rework da fare alle stats, pensre come
 - [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono perchè non servono. è corretto così?
-- [ ] astra quick edit: se clicchi dentro rating notes si illumina in maniera strana, edit veloce da fare
-- [ ] astra quick edit: episode journal, serve un leggero padding alla fine, l ultimo episodio si scontra con il bordo
+- [X] astra quick edit: se clicchi dentro rating notes si illumina in maniera strana, edit veloce da fare
+- [X] astra quick edit: episode journal, serve un leggero padding alla fine, l ultimo episodio si scontra con il bordo
+
+Quando si deve syncare la roba?
+
+i voti sono scomparsi dagli activity feed
 
 ---
 
