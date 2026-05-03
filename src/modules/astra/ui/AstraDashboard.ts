@@ -145,6 +145,7 @@ export class AstraDashboard extends BaseComponent {
     setTimeout(() => {
       this.overlay?.remove();
       this.overlay = null;
+      this.state.isDirty = false; // Reset dirty state on close
 
       // Only reset overflow if no other Astra modals are open
       if (!document.querySelector('.astra-modal-overlay')) {
@@ -226,10 +227,10 @@ export class AstraDashboard extends BaseComponent {
               </button>
               <div class="astra-action-divider"></div>
               <button class="astra-btn astra-btn--secondary" id="astra-export">
-                <i class="fa fa-upload"></i> Export
+                <i class="fa fa-download"></i> Export
               </button>
               <button class="astra-btn astra-btn--secondary" id="astra-import">
-                <i class="fa fa-download"></i> Import
+                <i class="fa fa-upload"></i> Import
               </button>
               <input type="file" id="astra-import-file" style="display: none" accept=".json">
             </div>

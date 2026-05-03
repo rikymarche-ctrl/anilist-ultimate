@@ -134,6 +134,7 @@ export class AstraService {
   private settings: AstraSettings = DEFAULT_SETTINGS;
   private isLoaded = false;
   private readonly STORAGE_KEY = 'au_astra_data';
+  private initPromise: Promise<void> | null = null;
 
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
@@ -145,29 +146,36 @@ export class AstraService {
    */
   async init(): Promise<void> {
     if (this.isLoaded) return;
+    if (this.initPromise) return this.initPromise;
 
-    try {
-      const data = await this.storage.get<AstraDataStore>(this.STORAGE_KEY);
-      if (data) {
-        this.works = data.works || [];
-        // Build the Map index for fast lookup
-        this.rebuildWorkIndex();
-        this.settings = data.settings || DEFAULT_SETTINGS;
-        // Use stored sections if they exist, otherwise fallback to defaults
-        if (data.sections && data.sections.length > 0) {
-          this.sections = data.sections;
-        } else {
-          this.sections = [...DEFAULT_SECTIONS];
+    this.initPromise = (async () => {
+      try {
+        const data = await this.storage.get<AstraDataStore>(this.STORAGE_KEY);
+        if (data) {
+          this.works = data.works || [];
+          // Build the Map index for fast lookup
+          this.rebuildWorkIndex();
+          this.settings = data.settings || DEFAULT_SETTINGS;
+          // Use stored sections if they exist, otherwise fallback to defaults
+          if (data.sections && data.sections.length > 0) {
+            this.sections = data.sections;
+          } else {
+            this.sections = [...DEFAULT_SECTIONS];
+          }
         }
+        this.isLoaded = true;
+        log.success(`[AstraService] Initialization complete. Loaded ${this.works.length} works and ${this.sections.length} sections.`);
+        this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED);
+      } catch (error) {
+        log.error('[AstraService] Failed to load data', error);
+        this.works = [];
+        this.sections = DEFAULT_SECTIONS;
+      } finally {
+        this.initPromise = null;
       }
-      this.isLoaded = true;
-      log.success(`[AstraService] Initialization complete. Loaded ${this.works.length} works and ${this.sections.length} sections.`);
-      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED);
-    } catch (error) {
-      log.error('[AstraService] Failed to load data', error);
-      this.works = [];
-      this.sections = DEFAULT_SECTIONS;
-    }
+    })();
+
+    return this.initPromise;
   }
 
   /**

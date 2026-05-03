@@ -1,4 +1,4 @@
-# 🚀 AniList Ultimate - Roadmap & TODO
+# davvero sono pessime per ora, o quantomeno danno l idea di esserlo🚀 AniList Ultimate - Roadmap & TODO
 
 **Last Updated:** 2026-05-03
 **Current Status:** Phase 6 (UI/UX Refinement) 🟢
@@ -79,9 +79,7 @@ doppio tootlip nel quick edit
 - [X] **Brand Cleanup** - Removed legacy "v2" CSS classes, updated project descriptions/logs, and cleaned up storage keys. [DONE]
 - [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
-
 - [X] **Calendar Sync Fix** - Resolved issue where the calendar would duplicate or fail to find its container or content during SPA navigation.
-
 - [X] **Optimistic Updates** - Implemented real-time UI synchronization between Astra and Calendar. [DONE]
 
 FATTO ci sono tutte le cose fuori da astra da applicare, tipo che i filtri nelle activity devono tornare su All a ogni cambio di pagina

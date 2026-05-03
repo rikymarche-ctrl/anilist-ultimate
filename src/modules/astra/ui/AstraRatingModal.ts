@@ -38,8 +38,10 @@ export class AstraRatingModal {
   private currentSeasonIdx: number = 0;
   private activeTab: string = 'rating';
   private isSaving: boolean = false;
+  private isDirty: boolean = false; // Prevent auto-save if no changes made
   private media: any = null;
   private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
+  private isNewWork: boolean = false; // Track if we are creating a new entry
 
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
@@ -73,25 +75,38 @@ export class AstraRatingModal {
         ? Object.keys(customListsRaw).filter(key => customListsRaw[key])
         : [];
 
-    this.currentWork = await this.astraService.getWork(mediaId) || {
-      id: `w_${Math.random().toString(36).slice(2, 11)}`,
-      mediaId,
-      title: media.title.userPreferred,
-      type: mediaType,
-      country: media.countryOfOrigin,
-      cover: media.coverImage.extraLarge || media.coverImage.large,
-      status: media.mediaListEntry?.status || MediaListStatus.PLANNING,
-      customLists,
-      tags: [],
-      notes: '',
-      updatedAt: Date.now(),
-      seasons: [{
-        id: 's_1',
-        label: 'Season 1',
-        scores: {},
-        notes: media.mediaListEntry?.notes || '',
-      }]
-    };
+    const existingWork = await this.astraService.getWork(mediaId);
+    const worksCount = this.astraService.getWorks().length;
+    
+    if (existingWork) {
+      log.info(`[AstraRatingModal] Loaded existing work for mediaId ${mediaId}: ${existingWork.title} (Total works in DB: ${worksCount})`);
+      this.currentWork = JSON.parse(JSON.stringify(existingWork)); // Deep clone to avoid direct mutations
+      this.isNewWork = false;
+    } else {
+      log.warn(`[AstraRatingModal] No existing work found for mediaId ${mediaId} in DB of ${worksCount} items. Creating default fallback.`);
+      this.isNewWork = true;
+      this.currentWork = {
+        id: `w_${Math.random().toString(36).slice(2, 11)}`,
+        mediaId,
+        title: media.title.userPreferred,
+        type: mediaType,
+        country: media.countryOfOrigin,
+        cover: media.coverImage.extraLarge || media.coverImage.large,
+        status: media.mediaListEntry?.status || MediaListStatus.PLANNING,
+        customLists,
+        tags: [],
+        notes: '',
+        updatedAt: Date.now(),
+        seasons: [{
+          id: 's_1',
+          label: 'Season 1',
+          scores: {},
+          notes: media.mediaListEntry?.notes || '',
+        }]
+      };
+    }
+
+    this.isDirty = false; // Reset dirty state on open
 
     this.currentSeasonIdx = 0;
     this.media = media;
@@ -430,11 +445,17 @@ export class AstraRatingModal {
   public async close(): Promise<void> {
     if (!this.overlay) return;
 
-    // Auto-save on close
-    try {
-      await this.save();
-    } catch (err) {
-      log.error('[AstraRatingModal] Auto-save on close failed', err);
+    // Auto-save ONLY if dirty (changes made) and NOT a newly created empty work
+    // Or if it's a new work that the user actually modified
+    if (this.isDirty && (this.currentWork && (!this.isNewWork || Object.keys(this.currentWork.seasons[0].scores).length > 0))) {
+      try {
+        log.info('[AstraRatingModal] Auto-saving changes on close...');
+        await this.save();
+      } catch (err) {
+        log.error('[AstraRatingModal] Auto-save on close failed', err);
+      }
+    } else {
+      log.debug('[AstraRatingModal] Closing without save (no changes or new empty work)');
     }
 
     this.overlay.classList.add('astra-modal-overlay--closing');
@@ -591,6 +612,7 @@ export class AstraRatingModal {
 
         if (id) {
           this.currentWork!.seasons[this.currentSeasonIdx].scores[id] = val;
+          this.isDirty = true; // Mark as modified
 
           // Sync number input if it exists (for subsections)
           const parent = target.closest('.astra-score-input');
@@ -616,6 +638,7 @@ export class AstraRatingModal {
         const id = parent?.getAttribute('data-id');
         if (id) {
           this.currentWork!.seasons[this.currentSeasonIdx].scores[id] = val;
+          this.isDirty = true; // Mark as modified
 
           // Sync slider
           const slider = parent?.querySelector('.astra-slider') as HTMLInputElement;
@@ -640,6 +663,7 @@ export class AstraRatingModal {
     finaleToggle?.addEventListener('click', () => {
       const season = this.currentWork!.seasons[this.currentSeasonIdx];
       season.isSeriesFinale = !season.isSeriesFinale;
+      this.isDirty = true;
       this.updateLivePreview();
       finaleToggle.classList.toggle('active', season.isSeriesFinale);
     });
@@ -652,6 +676,7 @@ export class AstraRatingModal {
         const input = field === 'progress' ? progressInput : repeatInput;
         const newVal = Math.max(0, parseInt(input.value) + step);
         input.value = newVal.toString();
+        this.isDirty = true;
         if (field === 'progress') this.renderEpisodeJournal();
       });
     });
@@ -663,6 +688,7 @@ export class AstraRatingModal {
       btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
 
       try {
+        this.isDirty = true; // Force save
         await this.close(); // close() will call save() once
       } catch (err) {
         btn.disabled = false;
@@ -677,6 +703,13 @@ export class AstraRatingModal {
    */
   private async save(): Promise<void> {
     if (this.isSaving || !this.currentWork || !this.overlay) return;
+    
+    // Only save if there are actual changes
+    if (!this.isDirty) {
+      log.debug('[AstraRatingModal] Skipping save: no changes detected (isDirty=false)');
+      return;
+    }
+
     this.isSaving = true;
     
     try {
