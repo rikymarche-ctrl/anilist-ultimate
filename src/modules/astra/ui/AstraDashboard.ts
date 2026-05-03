@@ -227,10 +227,10 @@ export class AstraDashboard extends BaseComponent {
               </button>
               <div class="astra-action-divider"></div>
               <button class="astra-btn astra-btn--secondary" id="astra-export">
-                <i class="fa fa-download"></i> Export
+                <i class="fa fa-file-export"></i> Export
               </button>
               <button class="astra-btn astra-btn--secondary" id="astra-import">
-                <i class="fa fa-upload"></i> Import
+                <i class="fa fa-file-import"></i> Import
               </button>
               <input type="file" id="astra-import-file" style="display: none" accept=".json">
             </div>
@@ -281,7 +281,7 @@ export class AstraDashboard extends BaseComponent {
             ${this.state.isAuthenticated ? 'Import from AniList' : 'Login to Sync'}
           </button>
           <button class="astra-btn astra-btn--secondary astra-btn--lg" id="astra-import-manual">
-            <i class="fa fa-upload"></i> Import JSON
+            <i class="fa fa-file-import"></i> Import JSON
           </button>
         </div>
       </div>
@@ -757,16 +757,16 @@ export class AstraDashboard extends BaseComponent {
             this.state.country = 'all';
           } else if (cycleId) {
             const options = JSON.parse(cycleId);
-            
+
             // For cumulative filtering, we cycle through the macro statuses (CURRENT, COMPLETED, etc.)
             // but we try to keep the current 'type' filter if it's already set to something specific.
             const uniqueStatuses = [...new Set(options.map((opt: any) => opt.status))] as string[];
             const currentStatusBase = this.state.anilistStatus;
-            
+
             // Find which macro status we are in (e.g., WATCHING/READING/CURRENT all map to 'In Progress' macro)
             const currentStatusIdx = uniqueStatuses.findIndex(s => s === currentStatusBase);
             const nextStatus = uniqueStatuses[(currentStatusIdx + 1) % uniqueStatuses.length];
-            
+
             this.state.anilistStatus = nextStatus;
           } else {
             // Static statuses
@@ -1208,7 +1208,7 @@ export class AstraDashboard extends BaseComponent {
     // Table Interaction Delegation (Title, Lightbox, Delete)
     overlay.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      
+
       // 1. Cover Lightbox - High-resolution image preview
       const coverImg = target.closest('.astra-table-cover') as HTMLImageElement;
       if (coverImg) {
@@ -1332,11 +1332,11 @@ export class AstraDashboard extends BaseComponent {
 
   private attachSettingsEvents(): void {
     if (!this.overlay) return;
-    
+
     // Global Settings
     const finaleCb = this.overlay.querySelector('#astra-setting-finale');
     const finaleMult = this.overlay.querySelector('#astra-setting-finale-mult');
-    
+
     finaleCb?.addEventListener('change', () => this.markDirty());
     finaleMult?.addEventListener('input', () => this.markDirty());
 
@@ -1416,24 +1416,24 @@ export class AstraDashboard extends BaseComponent {
       // Also save global settings
       const enableFinale = (this.overlay!.querySelector('#astra-setting-finale') as HTMLInputElement)?.checked ?? true;
       const finaleMult = parseFloat((this.overlay!.querySelector('#astra-setting-finale-mult') as HTMLInputElement)?.value || '2');
-      await this.service!.updateSettings({ 
+      await this.service!.updateSettings({
         enableSeriesFinale: enableFinale,
         finaleWeightMultiplier: finaleMult
       });
 
       await this.service!.updateSections(sections);
-      
+
       this.state.isDirty = false; // Reset dirty state
-      
+
       setTimeout(() => {
         btn.disabled = false;
         btn.classList.add('success');
         btn.innerHTML = '<i class="fa fa-check"></i> Saved!';
-        
-        setTimeout(() => { 
+
+        setTimeout(() => {
           btn.classList.remove('success');
           btn.classList.remove('is-dirty');
-          btn.innerHTML = '<i class="fa fa-save"></i> Save Changes'; 
+          btn.innerHTML = '<i class="fa fa-save"></i> Save Changes';
         }, 2000);
       }, 500);
     });

@@ -275,10 +275,13 @@
 }
 
 .au-cl-user-card.active .au-cl-checkbox::after {
-  content: '\f00c';
-  font-family: 'FontAwesome';
-  font-size: 10px;
-  color: #fff;
+  content: '';
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg);
+  margin-top: -2px;
 }
 
 /* Loading State */

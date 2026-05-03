@@ -302,8 +302,9 @@ export class ActivityEnhancerModule extends BaseModule {
       this.createCustomActivitiesContainer();
     }
 
-    // Show loader
+    // Show container
     if (this.customActivitiesContainer) {
+      this.customActivitiesContainer.style.display = 'block';
       this.renderer.showLoader(this.customActivitiesContainer);
     }
 
@@ -327,12 +328,22 @@ export class ActivityEnhancerModule extends BaseModule {
    * Create container for custom activities
    */
   private createCustomActivitiesContainer(): void {
-    const feedWrap = document.querySelector('.activity-feed-wrap, .activity-feed, .feed-container');
-    if (!feedWrap) return;
-
+    const feed = document.querySelector('.activity-feed, .activities');
+    const feedWrap = document.querySelector('.activity-feed-wrap, .feed-container');
+    
     const container = document.createElement('div');
     container.className = 'au-custom-activities-container';
-    feedWrap.appendChild(container);
+    container.style.display = 'none'; // Hidden by default
+    
+    if (feed) {
+      // Inject inside the actual feed for best CSS inheritance
+      feed.prepend(container);
+    } else if (feedWrap) {
+      feedWrap.appendChild(container);
+    } else {
+      // Last resort
+      document.body.appendChild(container);
+    }
 
     this.customActivitiesContainer = container;
   }
@@ -343,6 +354,7 @@ export class ActivityEnhancerModule extends BaseModule {
   private clearCustomActivities(): void {
     if (this.customActivitiesContainer) {
       this.renderer.clear(this.customActivitiesContainer);
+      this.customActivitiesContainer.style.display = 'none';
     }
   }
 

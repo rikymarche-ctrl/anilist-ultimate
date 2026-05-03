@@ -227,7 +227,8 @@ export class ActivityRenderer {
           // Create one manually to match native structure
           cover = document.createElement('a');
           cover.className = 'cover';
-          clone.insertBefore(cover, clone.firstChild);
+          const list = clone.querySelector('.list') || clone;
+          list.insertBefore(cover, list.firstChild);
         }
 
         cover.style.backgroundImage = `url(${mediaCover})`;
@@ -276,48 +277,66 @@ export class ActivityRenderer {
     const isListActivity = activity.type?.includes('LIST');
     const isTextActivity = activity.type === 'TEXT';
 
+    // XSS PROTECTION: Escape all user-provided and API data
+    const userNameSafe = escapeHtml(userName);
+
     if (isListActivity && activity.media) {
       const status = activity.status?.toLowerCase() || 'watched';
       const progress = activity.progress || '';
       const mediaCover = activity.media.coverImage?.medium || '';
       const mediaTitle = activity.media.title?.romaji || 'Unknown';
       const mediaUrl = `/${activity.media.type?.toLowerCase() || 'anime'}/${activity.media.id}`;
-
-      // XSS PROTECTION: Escape all user-provided and API data
-      const userNameSafe = escapeHtml(userName);
       const mediaTitleSafe = escapeHtml(mediaTitle);
 
       return `
-        <a href="${mediaUrl}" class="cover" style="background-image: url(${mediaCover})"></a>
-        <div class="content">
-          <div class="header">
-            <div class="user">
-              <a href="${userUrl}" class="avatar" style="background-image: url(${userAvatar})"></a>
+        <div class="wrap">
+          <div class="list">
+            <a href="${mediaUrl}" class="cover" style="background-image: url(${mediaCover})"></a>
+            <div class="details">
               <a href="${userUrl}" class="name">${userNameSafe}</a>
-            </div>
-            <div class="status">
-              ${status} ${progress ? `<strong>${progress}</strong>` : ''} of
-              <a href="${mediaUrl}" class="title">${mediaTitleSafe}</a>
+              <div class="status">
+                ${status} ${progress ? `<strong>${progress}</strong>` : ''} of
+                <a href="${mediaUrl}" class="title">${mediaTitleSafe}</a>
+              </div>
+              <a href="${userUrl}" class="avatar" style="background-image: url(${userAvatar})"></a>
             </div>
           </div>
           <div class="time">${timeAgo}</div>
+          <div class="actions">
+            <div class="action replies">
+              <span class="count">${activity.replyCount || 0}</span>
+              <i class="fa fa-comments"></i>
+            </div>
+            <div class="action likes">
+              <span class="count">${activity.likeCount || 0}</span>
+              <i class="fa fa-heart"></i>
+            </div>
+          </div>
         </div>
       `;
     } else if (isTextActivity) {
-      // XSS PROTECTION: Escape all user-provided and API data
-      const userNameSafe = escapeHtml(userName);
       const activityTextSafe = escapeHtml(activity.text || '');
 
       return `
-        <div class="content">
-          <div class="header">
-            <div class="user">
+        <div class="wrap">
+          <div class="text-activity">
+            <div class="details">
               <a href="${userUrl}" class="avatar" style="background-image: url(${userAvatar})"></a>
               <a href="${userUrl}" class="name">${userNameSafe}</a>
+              <div class="text">${activityTextSafe}</div>
             </div>
           </div>
-          <div class="text">${activityTextSafe}</div>
           <div class="time">${timeAgo}</div>
+          <div class="actions">
+            <div class="action replies">
+              <span class="count">${activity.replyCount || 0}</span>
+              <i class="fa fa-comments"></i>
+            </div>
+            <div class="action likes">
+              <span class="count">${activity.likeCount || 0}</span>
+              <i class="fa fa-heart"></i>
+            </div>
+          </div>
         </div>
       `;
     }
