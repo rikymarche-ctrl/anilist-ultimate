@@ -71,7 +71,7 @@ doppio tootlip nel quick edit
 ---
 
 ## 🧹 P9 - STABILITY & REFACTORING
-
+![1777795480373](image/TODO/1777795480373.png)![1777795484386](image/TODO/1777795484386.png)
 - [X] **Social Activity Stabilization** - Restricted social bubbles to home page and ensured cleanup on navigation. [DONE]
 - [X] **Home Page Social Bubbles** - Implemented calendar-style floating portals for all home page native cards. [DONE]
 
@@ -111,7 +111,7 @@ funzionalità
 - [ ] astra settings: I 6 pallini ceh sembrano quelli con cui si attiva il drag and drop sulle sezioni dei voti Non funzionano
 - [X] Astra dashboard: Rework al bottone save changes per matchare quello del quick edit?
 - [X] Astra dashboard: Reset dello stato dirty (Save Changes) alla chiusura o cambio sezione.
-- [X] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera
+- [X] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera![1777795492171](image/TODO/1777795492171.png)
 - [X] astra dashboard, stessa cosa col sync e toggle progress, da reworkare? Invertite icone Import/Export per chiarezza.
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
 - [ ] astra dashbard: majopr rework da fare alle stats, pensre come
@@ -122,6 +122,10 @@ funzionalità
 Quando si deve syncare la roba?
 
 i voti sono scomparsi dagli activity feed
+
+tra l altro il coso per togglare il serie/season finale nell astra quick rate è sparito
+
+come detto da qualche parte, si scrivere il commento con tutte le nostre note, voti di sezioni e sotto sezioni, ma anche il retrieving!
 
 ---
 

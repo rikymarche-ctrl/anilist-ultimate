@@ -69,7 +69,8 @@ export interface AstraSeason {
   notes?: string;
   isSeriesFinale?: boolean;
   episodeNotes?: Record<number, AstraEpisodeNote>;
-  legacyScore?: number; // Score from AniList if Astra sections are empty
+  legacyScore?: number; // Score from AniList or manual override
+  manualOverride?: boolean; // If true, ignore sections and use legacyScore directly
 }
 
 export interface AstraSubSection {
@@ -524,13 +525,17 @@ export class AstraService {
    * Calculate overall score for a season object
    */
   calcSeasonScore(season: AstraSeason): number | null {
-    return this.calcSeasonOverall(season.scores, season.skip, season.isSeriesFinale, season.legacyScore);
+    return this.calcSeasonOverall(season.scores, season.skip, season.isSeriesFinale, season.legacyScore, season.manualOverride);
   }
 
   /**
    * Calculate overall score for raw data
    */
-  calcSeasonOverall(scores: Record<string, number | null>, skip?: string[], isSeriesFinale?: boolean, legacyScore?: number): number | null {
+  calcSeasonOverall(scores: Record<string, number | null>, skip?: string[], isSeriesFinale?: boolean, legacyScore?: number, manualOverride?: boolean): number | null {
+    if (manualOverride && legacyScore !== undefined && legacyScore > 0) {
+      return legacyScore;
+    }
+
     const skipSet = new Set(skip || []);
     let num = 0, den = 0;
 

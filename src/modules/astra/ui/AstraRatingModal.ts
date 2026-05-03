@@ -201,6 +201,16 @@ export class AstraRatingModal {
           <header class="astra-modal-header">
             <div class="astra-modal-title">
               <a href="https://anilist.co/anime/${media.id}" target="_blank">${media.title.userPreferred}</a>
+              <div class="astra-header-controls">
+                <label class="astra-override-toggle" title="Manual Score Override">
+                  <input type="checkbox" id="astra-manual-override" ${season.manualOverride ? 'checked' : ''}>
+                  <span class="astra-label-xs">OVERRIDE</span>
+                </label>
+                <button class="astra-finale-toggle ${season.isSeriesFinale ? 'active' : ''}" id="astra-finale-btn" title="Toggle Season/Series Finale">
+                  <i class="fa fa-flag-checkered"></i>
+                  <span class="astra-label-xs">FINALE</span>
+                </button>
+              </div>
             </div>
             <button class="astra-modal-close"><i class="fa fa-times"></i></button>
           </header>
@@ -307,8 +317,8 @@ export class AstraRatingModal {
               <div class="astra-form-layout">
                 <div class="astra-form">
                   <div class="astra-form-scroll">
-                    <div class="astra-field-group">
-                      ${sections.map(s => this.renderScoreInput(s, season.scores, sections.length, season.isSeriesFinale)).join('')}
+                    <div class="astra-field-group ${season.manualOverride ? 'astra-disabled' : ''}">
+                      ${sections.map(s => this.renderScoreInput(s, season.scores, sections.length)).join('')}
                     </div>
 
                   </div>
@@ -321,7 +331,10 @@ export class AstraRatingModal {
                     <div class="astra-overall-area">
                       <span class="astra-label-sm">Weighted Score</span>
                       <div class="astra-overall-box">
-                        <span class="astra-overall-val">—</span>
+                        <span class="astra-overall-val" style="display: ${season.manualOverride ? 'none' : 'block'}">—</span>
+                        <input type="number" class="astra-overall-input" id="astra-manual-score" 
+                          min="0" max="10" step="0.1" value="${(season.legacyScore || 0).toFixed(1)}"
+                          style="display: ${season.manualOverride ? 'block' : 'none'}">
                       </div>
                     </div>
                   </div>
@@ -381,7 +394,8 @@ export class AstraRatingModal {
     });
   }
 
-  private renderScoreInput(section: AstraSection, seasonScores: Record<string, number | null>, totalSections: number, isSeriesFinale?: boolean): string {
+  private renderScoreInput(section: AstraSection, seasonScores: Record<string, number | null>, totalSections: number): string {
+    const season = this.state!.data.seasons[this.currentSeasonIdx];
     const hasSubSections = section.subSections && section.subSections.length > 0;
     const isFullWidth = hasSubSections || totalSections === 1;
     const groupClass = isFullWidth ? 'astra-score-group--full' : '';
@@ -403,9 +417,6 @@ export class AstraRatingModal {
       `;
     }
 
-    const isFinale = section.id === 'finale';
-    const settings = this.astraService.getSettings();
-    const showToggle = isFinale && settings.enableSeriesFinale;
     const value = seasonScores[section.id];
 
     return `
@@ -413,16 +424,11 @@ export class AstraRatingModal {
         <div class="astra-score-group-header">
           <div class="astra-label-left">
             <span class="astra-score-group-title">${section.name}</span>
-            ${showToggle ? `
-              <button class="astra-finale-toggle ${isSeriesFinale ? 'active' : ''}" title="Toggle Season/Series Finale">
-                <i class="fa fa-flag-checkered"></i>
-              </button>
-            ` : ''}
           </div>
           <span class="astra-group-avg" id="avg-${section.id}">—</span>
         </div>
         <div class="astra-main-section" style="padding: 12px;">
-          <input type="range" class="astra-slider" data-id="${section.id}" min="0" max="10" step="0.1" value="${value || 0}">
+          <input type="range" class="astra-slider" data-id="${section.id}" min="0" max="10" step="0.1" value="${value || 0}" ${season.manualOverride ? 'disabled' : ''}>
         </div>
       </div>
     `;
@@ -430,8 +436,11 @@ export class AstraRatingModal {
 
   private renderSubSectionInput(parentId: string, sub: AstraSubSection, value: number | null): string {
     const fullId = `${parentId}_${sub.id}`;
+    const season = this.state!.data.seasons[this.currentSeasonIdx];
+    const isDisabled = season.manualOverride;
+
     return `
-      <div class="astra-score-input astra-score-input--sub" data-id="${fullId}">
+      <div class="astra-score-input astra-score-input--sub ${isDisabled ? 'astra-disabled' : ''}" data-id="${fullId}">
         <div class="astra-score-label">
           <div class="astra-label-left">
             <span class="astra-sub-label">${sub.name} <small>w${sub.weight}</small></span>
@@ -439,10 +448,11 @@ export class AstraRatingModal {
           <input type="number" class="astra-score-num-input" 
             min="0" max="10" step="0.1" 
             value="${(value === null || value === undefined) ? '0.0' : value.toFixed(1)}"
-            style="color: ${AstraRadarChart.getScoreColor(value)}">
+            style="color: ${AstraRadarChart.getScoreColor(value)}"
+            ${isDisabled ? 'disabled' : ''}>
         </div>
         <div class="astra-slider-row">
-          <input type="range" class="astra-slider" min="0" max="10" step="0.1" value="${value || 0}">
+          <input type="range" class="astra-slider" min="0" max="10" step="0.1" value="${value || 0}" ${isDisabled ? 'disabled' : ''}>
         </div>
       </div>
     `;
@@ -607,6 +617,29 @@ export class AstraRatingModal {
       e.stopPropagation();
     });
 
+    // Manual Override
+    const overrideCb = this.overlay!.querySelector('#astra-manual-override') as HTMLInputElement;
+    const manualScoreInput = this.overlay!.querySelector('#astra-manual-score') as HTMLInputElement;
+
+    overrideCb?.addEventListener('change', () => {
+      if (!this.state) return;
+      this.state.setManualOverride(this.currentSeasonIdx, overrideCb.checked);
+      
+      // Re-render to update disabled states
+      const media = this.media;
+      const allCustomLists = Array.from(this.overlay!.querySelectorAll('.astra-custom-list-cb')).map(cb => (cb as HTMLElement).dataset.name!);
+      this.render(media, allCustomLists);
+    });
+
+    manualScoreInput?.addEventListener('input', () => {
+      if (!this.state) return;
+      let val = parseFloat(manualScoreInput.value);
+      if (isNaN(val)) val = 0;
+      val = Math.max(0, Math.min(10, val));
+      this.state.updateSeasonField(this.currentSeasonIdx, 'legacyScore', val);
+      this.updateLivePreview();
+    });
+
     // Sliders & Number Inputs
     const scoreInputs = this.overlay!.querySelectorAll('.astra-score-num-input');
 
@@ -664,13 +697,13 @@ export class AstraRatingModal {
     });
 
     // Finale Toggle
-    const finaleToggle = this.overlay!.querySelector('.astra-finale-toggle');
-    finaleToggle?.addEventListener('click', () => {
+    const finaleBtn = this.overlay!.querySelector('#astra-finale-btn');
+    finaleBtn?.addEventListener('click', () => {
       if (!this.state) return;
       const season = this.state.data.seasons[this.currentSeasonIdx];
       this.state.updateSeasonField(this.currentSeasonIdx, 'isSeriesFinale', !season.isSeriesFinale);
       this.updateLivePreview();
-      finaleToggle.classList.toggle('active', this.state.data.seasons[this.currentSeasonIdx].isSeriesFinale);
+      finaleBtn.classList.toggle('active', this.state.data.seasons[this.currentSeasonIdx].isSeriesFinale);
     });
 
     // Stepper

@@ -564,6 +564,58 @@
   }
 }
 
+.astra-header-controls { display: flex; align-items: center; gap: 8px; margin-left: 12px; }
+.astra-finale-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; background: var(--astra-bg-elev-1); border-radius: 4px; border: 1px solid var(--astra-border); color: var(--astra-muted); transition: all 0.2s ease; }
+.astra-finale-toggle.active { background: rgba(var(--astra-accent-rgb), 0.1); border-color: var(--astra-accent); color: var(--astra-accent); }
+.astra-finale-toggle:disabled { opacity: 0.3; pointer-events: none; }
+
+/* Manual Override Feature */
+.astra-override-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 8px;
+  background: var(--astra-bg-elev-1);
+  border-radius: 4px;
+  border: 1px solid var(--astra-border);
+  transition: all 0.2s ease;
+  margin-left: 12px;
+}
+
+.astra-override-toggle:hover {
+  background: var(--astra-bg-elev-2);
+  border-color: var(--astra-accent);
+}
+
+.astra-override-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.astra-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(1);
+}
+
+.astra-overall-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--astra-accent);
+  font-size: 32px;
+  font-weight: 800;
+  text-align: center;
+  outline: none;
+}
+
+.astra-overall-input::-webkit-inner-spin-button,
+.astra-overall-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .astra-modal--rating .astra-media-header {
   flex: 1 !important;
   background: var(--astra-bg-elev) !important;
@@ -896,7 +948,13 @@
 .astra-overall-area {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+}
+
+.astra-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(1);
 }
 
 .astra-overall-box {
@@ -909,6 +967,31 @@
   flex: 1;
   height: 60px;
   /* Match textarea */
+  margin-bottom: 24px;
+  color: var(--astra-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  height: 60px;
+}
+
+.astra-overall-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--astra-accent);
+  font-size: 32px;
+  font-weight: 800;
+  text-align: center;
+  outline: none;
+}
+
+.astra-overall-input::-webkit-inner-spin-button,
+.astra-overall-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .astra-overall-val {
@@ -1476,7 +1559,35 @@
 .astra-quick-field {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.astra-override-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 4px 8px;
+  background: var(--astra-bg-elev-1);
+  border-radius: 4px;
+  border: 1px solid var(--astra-border);
+  transition: all 0.2s ease;
+}
+
+.astra-override-toggle:hover {
+  background: var(--astra-bg-elev-2);
+  border-color: var(--astra-accent);
+}
+
+.astra-override-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.astra-modal-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .astra-genre-list {

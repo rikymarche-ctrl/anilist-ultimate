@@ -32,6 +32,19 @@ export class AstraRatingState {
   }
 
   /**
+   * Toggles the manual override mode for a specific season.
+   */
+  public setManualOverride(seasonIdx: number, enabled: boolean): void {
+    const season = this._data.seasons[seasonIdx];
+    if (!season) return;
+
+    if (season.manualOverride !== enabled) {
+      season.manualOverride = enabled;
+      this.isDirty = true;
+    }
+  }
+
+  /**
    * Updates a score for a specific section or sub-section
    */
   public setScore(seasonIdx: number, id: string, value: number): void {
