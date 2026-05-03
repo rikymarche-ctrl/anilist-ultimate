@@ -357,7 +357,7 @@ export class AstraRatingModal {
           <div class="astra-form">
             <div class="astra-form-scroll">
               <div class="astra-field-group ${season.manualOverride ? 'astra-disabled' : ''}">
-                ${sections.map(s => this.renderScoreInput(s, season.scores, sections.length)).join('')}
+                ${this.sortSectionsForSymmetry(sections).map(s => this.renderScoreInput(s, season.scores, sections.length)).join('')}
               </div>
             </div>
 
@@ -403,6 +403,16 @@ export class AstraRatingModal {
         </div>
       </div>
     `;
+  }
+
+  /**
+   * Optimizes the rendering order of sections for visual symmetry in a 2-column grid.
+   * Groups half-width sections together to fill pairs, pushing full-width sections to the bottom.
+   */
+  private sortSectionsForSymmetry(sections: AstraSection[]): AstraSection[] {
+    const half = sections.filter(s => !s.subSections || s.subSections.length === 0);
+    const full = sections.filter(s => s.subSections && s.subSections.length > 0);
+    return [...half, ...full];
   }
 
   private renderScoreInput(section: AstraSection, seasonScores: Record<string, number | null>, totalSections: number): string {

@@ -576,13 +576,14 @@
   justify-content: space-between;
   align-items: center;
   gap: 20px;
+  width: 100%;
 }
 
 .astra-header-left {
   display: flex;
   align-items: center;
   gap: 24px;
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -789,6 +790,12 @@
   background: rgba(16, 185, 129, 0.1);
   border-color: #10b981;
   color: #10b981;
+}
+
+.astra-override-pill.active {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: #f59e0b;
+  color: #f59e0b;
 }
 
 .astra-header-close {

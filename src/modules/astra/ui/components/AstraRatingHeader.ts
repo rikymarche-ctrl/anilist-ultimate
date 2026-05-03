@@ -29,34 +29,31 @@ export class AstraRatingHeader extends AstraView {
               <h2 class="astra-header-title">
                 <a href="https://anilist.co/anime/${state.mediaId}" target="_blank" class="astra-title-link">${state.title}</a>
               </h2>
-              <div class="astra-header-meta">
-                ${state.manualOverride ? '<span class="astra-meta-badge astra-meta-badge--warning"><i class="fa fa-exclamation-triangle"></i> Manual Override</span>' : ''}
-                ${state.isSeriesFinale ? `<span class="astra-meta-badge astra-meta-badge--success ${state.manualOverride ? 'astra-meta-badge--disabled' : ''}"><i class="fa fa-flag-checkered"></i> Series Finale</span>` : ''}
-              </div>
-            </div>
-            
-            <div class="astra-header-actions">
-              <div class="astra-control-group">
-                 <label class="astra-toggle-pill" title="Manual Score Override">
-                   <input type="checkbox" id="header-override-cb" ${state.manualOverride ? 'checked' : ''}>
-                   <div class="astra-toggle-track">
-                     <div class="astra-toggle-thumb"></div>
-                     <span class="astra-toggle-label">OVERRIDE</span>
-                   </div>
-                 </label>
-
-                 ${state.showFinale ? `
-                 <button class="astra-finale-pill ${state.isSeriesFinale ? 'active' : ''} ${state.manualOverride ? 'astra-disabled' : ''}" 
-                   id="header-finale-btn" 
-                   title="${state.manualOverride ? 'Cannot toggle finale during manual override' : 'Toggle Series Finale'}"
-                   ${state.manualOverride ? 'disabled' : ''}>
-                   <i class="fa fa-flag-checkered"></i>
-                   <span>FINALE</span>
-                 </button>
-                 ` : ''}
-              </div>
             </div>
           </div>
+
+          <div class="astra-header-actions">
+            <div class="astra-control-group">
+               <button class="astra-finale-pill astra-override-pill ${state.manualOverride ? 'active' : ''}" 
+                 id="header-override-btn" 
+                 title="Toggle Manual Score Override">
+                 <i class="fa fa-exclamation-triangle"></i>
+                 <span>OVERRIDE</span>
+               </button>
+
+               ${state.showFinale ? `
+               <button class="astra-finale-pill ${state.isSeriesFinale ? 'active' : ''} ${state.manualOverride ? 'astra-disabled' : ''}" 
+                 id="header-finale-btn" 
+                 title="${state.manualOverride ? 'Cannot toggle finale during manual override' : 'Toggle Series Finale'}"
+                 ${state.manualOverride ? 'disabled' : ''}>
+                 <i class="fa fa-flag-checkered"></i>
+                 <span>FINALE</span>
+               </button>
+               ` : ''}
+            </div>
+          </div>
+          
+          <div style="flex: 1;"></div>
           
           <button class="astra-header-close" id="header-close-btn" title="Close">
             <i class="fa fa-times"></i>
@@ -69,9 +66,9 @@ export class AstraRatingHeader extends AstraView {
   protected bindEvents(): void {
     if (!this.state) return;
 
-    this.$('#header-override-cb')?.addEventListener('change', (e) => {
-      const checked = (e.target as HTMLInputElement).checked;
-      this.state?.onOverrideToggle(checked);
+    this.$('#header-override-btn')?.addEventListener('click', () => {
+      const active = !this.state?.manualOverride;
+      this.state?.onOverrideToggle(active);
     });
 
     this.$('#header-finale-btn')?.addEventListener('click', () => {
