@@ -158,7 +158,6 @@ export class AstraRatingModal {
           <div class="astra-nav-back" id="astra-dashboard-link">
             <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; transform: rotate(-90deg);">
               <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
-              <rect x="11" y="14" width="2" height="3" rx="1" opacity="0.6"/>
             </svg>
             <div class="astra-nav-back-text">Back to Dashboard</div>
           </div>
@@ -588,18 +587,19 @@ export class AstraRatingModal {
       el.addEventListener('input', (e) => {
         const target = e.target as HTMLInputElement;
         const val = parseFloat(target.value);
-        const parent = target.closest('.astra-score-input');
-        const id = parent?.getAttribute('data-id');
+        const id = target.dataset.id || target.closest('[data-id]')?.getAttribute('data-id');
+
         if (id) {
           this.currentWork!.seasons[this.currentSeasonIdx].scores[id] = val;
 
-          // Sync number input
+          // Sync number input if it exists (for subsections)
+          const parent = target.closest('.astra-score-input');
           const numInput = parent?.querySelector('.astra-score-num-input') as HTMLInputElement;
           if (numInput) numInput.value = val.toFixed(1);
 
           this.updateLivePreview();
-          this.updateSliderTrack(target);
         }
+        this.updateSliderTrack(target);
       });
       this.updateSliderTrack(el);
     });

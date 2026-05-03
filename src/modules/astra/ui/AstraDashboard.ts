@@ -164,7 +164,6 @@ export class AstraDashboard extends BaseComponent {
           <div class="astra-nav-brand">
             <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
-              <rect x="11" y="14" width="2" height="3" rx="1" opacity="0.6"/>
             </svg>
           </div>
           <div class="astra-nav-item ${this.state.activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">
