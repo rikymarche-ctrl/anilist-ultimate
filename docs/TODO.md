@@ -1,6 +1,6 @@
 # 🚀 AniList Ultimate - Roadmap & TODO
 
-**Last Updated:** 2026-04-29
+**Last Updated:** 2026-05-03
 **Current Status:** Phase 6 (UI/UX Refinement) 🟢
 
 ---
@@ -17,6 +17,8 @@
 - [X] **Closing Animation** - Add a smooth "outro" animation when closing the Astra dashboard.
 - [X] **Alignment Fix** - Correct decentered items above the votes/scores section.
 - [X] **Icon Loading** - Switched to Font Awesome SVG/JS to fix CSP font-blocking issues.
+- [X] **Seasonal Link** - Added "Seasonal" link to Browse dropdown with correct AniList URL parameters and layout stabilization.
+- [X] **Browse Dropdown Layout** - Expanded the navigation dropdown panel to fit the new Seasonal link on one line.
 
 ### Page Enhancements (Media & User)
 
@@ -78,7 +80,7 @@ doppio tootlip nel quick edit
 - [X] **Status Enums** - Replaced hardcoded strings for "Reading", "Watching", "Plan" with a centralized TypeScript Enum for better type safety. [DONE]
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs the same caching logic as the homepage.
 
-- [] **Calendar Sync Fix** - Resolved issue where the calendar would duplicate or fail to find its container.
+- [X] **Calendar Sync Fix** - Resolved issue where the calendar would duplicate or fail to find its container or content during SPA navigation.
 
 - [X] **Optimistic Updates** - Implemented real-time UI synchronization between Astra and Calendar. [DONE]
 
@@ -109,9 +111,10 @@ funzionalità
 - [X] Togliere quel pallino fastidioso che fa da stanghetta alla A nel logo Astra
 - [ ] Astra settings: Lo slider va oltre la rating sections, che scrolla sopra oltre il massimo previsto
 - [ ] astra settings: I 6 pallini ceh sembrano quelli con cui si attiva il drag and drop sulle sezioni dei voti Non funzionano
-- [X] Astra settings: Rework al bottone save changes per matchare quello del quick edit?
+- [X] Astra dashboard: Rework al bottone save changes per matchare quello del quick edit?
+- [X] Astra dashboard: Reset dello stato dirty (Save Changes) alla chiusura o cambio sezione.
 - [X] astra dashboard, aprire sì su all, ma solo con watching come sezione estesa, gli altri dropdown chisui, almeno non carica tanto e stuttera
-- [X] astra dashboard, stessa cosa col sync e toggle progress, da reworkare?
+- [X] astra dashboard, stessa cosa col sync e toggle progress, da reworkare? Invertite icone Import/Export per chiarezza.
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
 - [ ] astra dashbard: majopr rework da fare alle stats, pensre come
 - [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono perchè non servono. è corretto così?
