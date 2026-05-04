@@ -81,6 +81,7 @@ import { AstraStore } from '@/modules/astra/store/AstraStore';
 import { AstraJournalService } from '@/modules/astra/services/AstraJournalService';
 import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
 import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
+import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
 
 // Shared Components
@@ -199,6 +200,7 @@ export async function setupDI(): Promise<void> {
   container.registerSingleton(TOKENS.AstraJournalService, AstraJournalService);
   container.registerSingleton(TOKENS.AstraRatingModal, AstraRatingModal);
   container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
+  container.registerSingleton(TOKENS.MediaMusicModule, MediaMusicModule);
 
   // ============================================================================
   // Initialize Critical Services
@@ -344,6 +346,13 @@ export async function setupDI(): Promise<void> {
       enabled: config.isFeatureEnabled('socialActivity'),
       factory: () => container.resolve(ProfileActivityModule),
       pageMatch: (path) => path.startsWith('/user/') && !path.includes('/animelist') && !path.includes('/mangalist'),
+    },
+    {
+      name: 'mediaMusic',
+      description: 'Inject openings and endings into media pages',
+      enabled: config.isFeatureEnabled('astra'), // Use astra flag for now or add a new one
+      factory: () => container.resolve(MediaMusicModule),
+      pageMatch: (path) => /^\/anime\/\d+/.test(path),
     },
   ];
 

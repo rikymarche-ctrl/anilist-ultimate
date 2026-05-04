@@ -82,6 +82,7 @@ export const TOKENS = {
   AstraRatingModal: Symbol.for('AstraRatingModal'),
   AstraDashboard: Symbol.for('AstraDashboard'),
   AstraDashboardV2: Symbol.for('AstraDashboardV2'),
+  MediaMusicModule: Symbol.for('MediaMusicModule'),
 } as const;
 
 /**

@@ -4,7 +4,6 @@
 
 - [ ] **Activity Score Restoration** - Ensure Astra scores appear in user profiles as well
 - [ ] c è da implementare anche il soritng, tipo per completed date, data di modifica, start ecc
-- [X] Quando nel quick edit modifico il progresso, e non tramite il bottone +_, in anime e manga in progress, il counter originale di anilist non si agigorna, devo refreshare la agina per farlofunzionare. Accorciare!
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
 - [ ] astra dashbard: major rework da fare alle stats, pensare come
 - [ ] astra dashboard: fare in modo che qunado scrolo la parte sopra con sync, toggle progress fill etch sparisca, e che rimangano solo i filtri
@@ -15,7 +14,7 @@
 - [ ] il journal funziona correttamente per gli anime, ma per i manga e le novel? non credo
 - [ ] C è da finire i testi nei messaggi delle notifihce "mentioned you", "activity reply" ecc
 - [ ] abilitare la ricerca dei voti nelle activity dentro la home dei profili utente, e se non c è anche nelle pagine social delle singole opere
-- [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
+- [X] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
 - [ ] **Astra Settings Fixes** - Lo slider spinge leggermetne troppo sotto gli elementi
 - [ ] fare in modo che l append del commento autogenerato sia opzionale
 - [ ] git pubblico da setuppare: https://github.com/rikymarche-ctrl/anilist-ultimate (ci sarebbe da chiudere gli altri 2 vecchi))
