@@ -14,7 +14,7 @@
 - [ ] il journal funziona correttamente per gli anime, ma per i manga e le novel? non credo
 - [ ] C è da finire i testi nei messaggi delle notifihce "mentioned you", "activity reply" ecc
 - [ ] abilitare la ricerca dei voti nelle activity dentro la home dei profili utente, e se non c è anche nelle pagine social delle singole opere
-- [X] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
+- [ ] **Music Integration** - Show Opening/Ending titles with direct YouTube search links.
 - [ ] **Astra Settings Fixes** - Lo slider spinge leggermetne troppo sotto gli elementi
 - [ ] fare in modo che l append del commento autogenerato sia opzionale
 - [ ] git pubblico da setuppare: https://github.com/rikymarche-ctrl/anilist-ultimate (ci sarebbe da chiudere gli altri 2 vecchi))
