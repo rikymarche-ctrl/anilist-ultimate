@@ -22,5 +22,5 @@ export interface IMediaMusicModule {
    * @param mediaId AniList Media ID
    * @param idMal MyAnimeList ID
    */
-  renderMusicThemes(idMal: number): Promise<void>;
+  renderMusicThemes(mediaId: number, idMal: number): Promise<void>;
 }

@@ -15,6 +15,7 @@ import type { IMediaMusicModule, JikanThemeData } from './interfaces/IMediaMusic
 
 @injectable()
 export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
+  private mediaId: number | null = null;
   private isProcessing = false;
   private readonly OBSERVER_NAME = 'media-music-injector';
 
@@ -57,14 +58,16 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
 
   private fullCleanup(): void {
     this.sharedObserver.unregister(this.OBSERVER_NAME);
+    this.mediaId = null;
     this.isProcessing = false;
     document.querySelectorAll('.au-music-section').forEach(el => el.remove());
   }
 
-  public async renderMusicThemes(idMal: number): Promise<void> {
+  public async renderMusicThemes(mediaId: number, idMal: number): Promise<void> {
     const overview = document.querySelector('.overview');
     if (!overview) return;
 
+    this.mediaId = mediaId;
     const themes = await this.fetchJikanThemes(idMal);
     if (themes) {
       this.renderThemes(themes, overview);
@@ -79,12 +82,12 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
 
     const mediaId = parseInt(match[1], 10);
     
-    // Look for the overview container (main body of media page)
     const overview = document.querySelector('.overview');
-    if (!overview) {
-      return;
-    }
+    if (!overview) return;
 
+    if (this.mediaId === mediaId && overview.querySelector('.au-music-section')) return;
+
+    this.mediaId = mediaId;
     this.isProcessing = true;
 
     try {
@@ -125,10 +128,8 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
       const response = await fetch(`https://api.jikan.moe/v4/anime/${idMal}/themes`, { signal: controller.signal });
       clearTimeout(timeoutId);
-      
       if (!response.ok) return null;
       const data = await response.json();
       return data?.data || null;
@@ -138,28 +139,30 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
   }
 
   private renderThemes(themes: JikanThemeData, overview: Element): void {
-    if (!themes.openings.length && !themes.endings.length) {
-      this.logger.info('[MediaMusic] No themes found for this title.');
-      return;
-    }
+    if (!themes.openings.length && !themes.endings.length) return;
 
-    const staff = overview.querySelector('.staff');
-    const characters = overview.querySelector('.characters');
-    const relations = overview.querySelector('.relations');
+    const headers = Array.from(overview.querySelectorAll('h2, .section-header'));
+    const staffHeader = headers.find(h => h.textContent?.trim().toLowerCase() === 'staff');
+    const charactersHeader = headers.find(h => h.textContent?.trim().toLowerCase() === 'characters');
+    const relationsHeader = headers.find(h => h.textContent?.trim().toLowerCase() === 'relations');
+
+    const staffSection = staffHeader?.closest('.section') || staffHeader?.parentElement;
+    const charactersSection = charactersHeader?.closest('.section') || charactersHeader?.parentElement;
+    const relationsSection = relationsHeader?.closest('.section') || relationsHeader?.parentElement;
 
     const existing = document.querySelector('.au-music-section');
     
     let idealAnchor: Element | null = null;
     let position: 'before' | 'after' = 'after';
 
-    if (staff) {
-      idealAnchor = staff;
+    if (staffSection) {
+      idealAnchor = staffSection;
       position = 'before';
-    } else if (characters) {
-      idealAnchor = characters;
+    } else if (charactersSection) {
+      idealAnchor = charactersSection;
       position = 'after';
-    } else if (relations) {
-      idealAnchor = relations;
+    } else if (relationsSection) {
+      idealAnchor = relationsSection;
       position = 'after';
     }
 
@@ -172,15 +175,12 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
 
     if (existing) existing.remove();
 
-    this.logger.info(`[MediaMusic] 🎨 Rendering ${themes.openings.length} OPs and ${themes.endings.length} EDs...`);
-
     const container = document.createElement('div');
     container.className = 'au-music-section';
     container.style.cssText = `
       margin: 30px 0 !important;
       width: 100% !important;
       display: block !important;
-      min-height: 50px !important;
       position: relative !important;
     `;
 
@@ -198,7 +198,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
               const finalUrl = directUrl || searchUrl;
 
               return `
-                <div class="song-item" style="background: var(--color-background-100) !important; padding: 14px 18px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.2s ease !important; cursor: pointer !important;" onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';" onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';" onclick="window.open('${finalUrl}', '_blank')">
+                <div class="song-item" style="background: var(--color-background-100) !important; padding: 14px 18px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.2s ease !important; cursor: pointer !important;" onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)';" onclick="window.open('${finalUrl}', '_blank')">
                   <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important; line-height: 1.4 !important;">
                     ${this.formatSong(cleanSong)}
                   </div>
@@ -226,7 +226,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       overview.appendChild(container);
     }
     
-    this.logger.info('[MediaMusic] ✅ Injection completed');
+    this.logger.info('[MediaMusic] ✅ Successfully Positioned');
   }
 
   private formatSong(song: string): string {
