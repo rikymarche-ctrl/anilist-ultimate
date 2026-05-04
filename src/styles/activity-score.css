@@ -7,17 +7,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 1px 5px;
-  border-radius: var(--au-border-radius);
+  padding: 1px 6px;
+  border-radius: 4px;
   font-weight: 700;
   font-size: 11px;
-  margin-left: 8px;
-  box-shadow: var(--au-shadow);
+  margin: 2px 8px 5px 0;
+  width: fit-content !important;
+  max-width: 100%;
+  align-self: flex-start;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
   min-width: 22px;
-  background: var(--au-bg);
-  border: 1px solid var(--au-border);
   vertical-align: middle;
-  transition: all var(--au-transition);
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .au-format-point-5 {
