@@ -173,9 +173,34 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     const characters = overview.querySelector('.characters');
     const relations = overview.querySelector('.relations');
 
-    // Cleanup ONLY if it's a different media or we explicitly want to refresh
+    // Remove existing ONLY if it's in the wrong place or we are updating
     const existing = document.querySelector('.au-music-section');
-    if (existing) return;
+    
+    // Determine the ideal sibling
+    let idealAnchor: Element | null = null;
+    let position: 'before' | 'after' = 'after';
+
+    if (staff) {
+      idealAnchor = staff;
+      position = 'before';
+    } else if (characters) {
+      idealAnchor = characters;
+      position = 'after';
+    } else if (relations) {
+      idealAnchor = relations;
+      position = 'after';
+    }
+
+    // If it already exists and is already next to the ideal anchor, don't flicker
+    if (existing && idealAnchor) {
+      const isCorrectPosition = position === 'before' ? 
+                                 existing.nextElementSibling === idealAnchor : 
+                                 idealAnchor.nextElementSibling === existing;
+      if (isCorrectPosition) return;
+    }
+
+    // Otherwise, cleanup and (re)inject
+    if (existing) existing.remove();
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
@@ -221,21 +246,21 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       ${createSection('Endings', themes.endings)}
     `;
 
-    // Logic: BEFORE staff if exists, else AFTER characters, else AFTER relations, else APPEND
-    if (staff) {
-      staff.parentNode?.insertBefore(container, staff);
-    } else if (characters) {
-      characters.after(container);
-    } else if (relations) {
-      relations.after(container);
+    if (idealAnchor) {
+      if (position === 'before') {
+        idealAnchor.parentNode?.insertBefore(container, idealAnchor);
+      } else {
+        idealAnchor.after(container);
+      }
     } else {
       overview.appendChild(container);
     }
     
-    this.logger.info('[MediaMusic] ✅ Rendered in premium position');
+    this.logger.info('[MediaMusic] ✅ Positioned correctly');
   }
 
   private formatSong(song: string): string {
+    // Wrap title in span, handle potential links
     return song.replace(/"([^"]+)"/, '<span style="font-weight: 600; color: var(--color-blue);">$1</span>');
   }
 }
