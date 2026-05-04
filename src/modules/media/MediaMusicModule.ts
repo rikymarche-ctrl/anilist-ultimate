@@ -15,7 +15,6 @@ import type { IMediaMusicModule, JikanThemeData } from './interfaces/IMediaMusic
 
 @injectable()
 export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
-  private mediaId: number | null = null;
   private isProcessing = false;
   private readonly OBSERVER_NAME = 'media-music-injector';
 
@@ -58,16 +57,14 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
 
   private fullCleanup(): void {
     this.sharedObserver.unregister(this.OBSERVER_NAME);
-    this.mediaId = null;
     this.isProcessing = false;
     document.querySelectorAll('.au-music-section').forEach(el => el.remove());
   }
 
-  public async renderMusicThemes(mediaId: number, idMal: number): Promise<void> {
+  public async renderMusicThemes(idMal: number): Promise<void> {
     const overview = document.querySelector('.overview');
     if (!overview) return;
 
-    this.mediaId = mediaId;
     const themes = await this.fetchJikanThemes(idMal);
     if (themes) {
       this.renderThemes(themes, overview);
@@ -85,14 +82,9 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     // Look for the overview container (main body of media page)
     const overview = document.querySelector('.overview');
     if (!overview) {
-      // If overview isn't ready, the observer will call us again later
       return;
     }
 
-    // Prevent duplicates
-    if (this.mediaId === mediaId && overview.querySelector('.au-music-section')) return;
-
-    this.mediaId = mediaId;
     this.isProcessing = true;
 
     try {
@@ -101,29 +93,19 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       const cached = await localStorage.get<JikanThemeData>(cacheKey);
 
       if (cached) {
-        this.logger.info(`[MediaMusic] 📦 Found cached themes for ${mediaId}`);
         this.renderThemes(cached, overview);
       } else {
-        this.logger.info(`[MediaMusic] 🛰️ Fetching MAL ID for ${mediaId}...`);
         const idMal = await this.fetchMalId(mediaId);
-        
         if (idMal) {
-          this.logger.info(`[MediaMusic] ✅ Found MAL ID: ${idMal}. Fetching themes from Jikan...`);
           const themes = await this.fetchJikanThemes(idMal);
-          
           if (themes) {
-            this.logger.info(`[MediaMusic] 🎵 Themes fetched successfully. Rendering...`);
             await localStorage.set(cacheKey, themes);
             this.renderThemes(themes, overview);
-          } else {
-            this.logger.warn(`[MediaMusic] ⚠️ No themes returned from Jikan for MAL ${idMal}`);
           }
-        } else {
-          this.logger.warn(`[MediaMusic] ❌ Could not find MAL ID for anime ${mediaId}`);
         }
       }
     } catch (error) {
-      this.logger.error('[MediaMusic] 🛑 Error processing themes', error);
+      this.logger.error('[MediaMusic] Error processing themes', error);
     } finally {
       this.isProcessing = false;
     }
@@ -133,10 +115,8 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     const query = `query ($id: Int) { Media (id: $id) { idMal } }`;
     try {
       const data = await this.apiClient.query<any>(query, { id: mediaId });
-      const idMal = data?.Media?.idMal;
-      return idMal || null;
+      return data?.Media?.idMal || null;
     } catch (err) {
-      this.logger.error(`[MediaMusic] 💥 GraphQL query failed for ${mediaId}`, err);
       return null;
     }
   }
@@ -144,20 +124,15 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
   private async fetchJikanThemes(idMal: number): Promise<JikanThemeData | null> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
       const response = await fetch(`https://api.jikan.moe/v4/anime/${idMal}/themes`, { signal: controller.signal });
       clearTimeout(timeoutId);
       
-      if (!response.ok) {
-        this.logger.error(`[MediaMusic] Jikan API returned status ${response.status}`);
-        return null;
-      }
-      
+      if (!response.ok) return null;
       const data = await response.json();
       return data?.data || null;
     } catch (err) {
-      this.logger.error(`[MediaMusic] Jikan fetch failed or timed out`, err);
       return null;
     }
   }
@@ -168,15 +143,12 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       return;
     }
 
-    // Search for ideal anchors
     const staff = overview.querySelector('.staff');
     const characters = overview.querySelector('.characters');
     const relations = overview.querySelector('.relations');
 
-    // Remove existing ONLY if it's in the wrong place or we are updating
     const existing = document.querySelector('.au-music-section');
     
-    // Determine the ideal sibling
     let idealAnchor: Element | null = null;
     let position: 'before' | 'after' = 'after';
 
@@ -191,7 +163,6 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       position = 'after';
     }
 
-    // If it already exists and is already next to the ideal anchor, don't flicker
     if (existing && idealAnchor) {
       const isCorrectPosition = position === 'before' ? 
                                  existing.nextElementSibling === idealAnchor : 
@@ -199,8 +170,9 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       if (isCorrectPosition) return;
     }
 
-    // Otherwise, cleanup and (re)inject
     if (existing) existing.remove();
+
+    this.logger.info(`[MediaMusic] 🎨 Rendering ${themes.openings.length} OPs and ${themes.endings.length} EDs...`);
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
@@ -208,6 +180,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       margin: 30px 0 !important;
       width: 100% !important;
       display: block !important;
+      min-height: 50px !important;
       position: relative !important;
     `;
 
@@ -218,12 +191,9 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
           <h2 style="font-size: 1.6rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 20px !important; border-bottom: 1px solid var(--color-background-100) !important; padding-bottom: 10px !important;">${title}</h2>
           <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important; gap: 15px !important;">
             ${songs.map(song => {
-              // Extract URL if MAL/Jikan provides it (sometimes they embed it in the string)
               const urlMatch = song.match(/https?:\/\/[^\s)]+/);
               const directUrl = urlMatch ? urlMatch[0] : null;
               const cleanSong = song.replace(/https?:\/\/[^\s)]+/, '').trim();
-              
-              // If no direct URL, use a refined YouTube search
               const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanSong + ' official')}`;
               const finalUrl = directUrl || searchUrl;
 
@@ -248,7 +218,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
 
     if (idealAnchor) {
       if (position === 'before') {
-        idealAnchor.parentNode?.insertBefore(container, idealAnchor);
+        idealAnchor.before(container);
       } else {
         idealAnchor.after(container);
       }
@@ -256,11 +226,10 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       overview.appendChild(container);
     }
     
-    this.logger.info('[MediaMusic] ✅ Positioned correctly');
+    this.logger.info('[MediaMusic] ✅ Injection completed');
   }
 
   private formatSong(song: string): string {
-    // Wrap title in span, handle potential links
     return song.replace(/"([^"]+)"/, '<span style="font-weight: 600; color: var(--color-blue);">$1</span>');
   }
 }
