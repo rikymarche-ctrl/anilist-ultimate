@@ -62,28 +62,26 @@ export class ActivityScoreModule extends BaseModule {
   }
 
   private shouldRun(path: string): boolean {
-    return path === '/' || path === '/home';
+    return path === '/' || path === '/home' || path.includes('/user/') || path.includes('/social');
   }
 
   private async startObservation(): Promise<void> {
     this.checkAndProcess();
 
-    // BUG-007 fix: Observe specific activity feed container instead of document.body
-    const container = await this.waitForElement('.activity-feed-wrap, .activity-feed, .feed-container', 5000);
+    // Broaden search for activity containers to support profiles and social pages
+    const container = await this.waitForElement('.activity-feed-wrap, .activity-feed, .feed-container, .content > .grid-section', 5000);
     if (!container) {
-      log.warn('[ActivityScore] Activity feed container not found, falling back to document.body');
+      log.warn('[ActivityScore] Activity container not found, observing body');
       this.registerObserver(this.OBSERVER_NAME, document.body, { childList: true, subtree: true }, () => {
         this.checkAndProcess();
       });
     } else {
-      // Observe only the activity feed container for better performance
       this.registerObserver(this.OBSERVER_NAME, container, { childList: true, subtree: true }, () => {
         this.checkAndProcess();
       });
-      log.debug('[ActivityScore] Observing activity feed container (BUG-007 optimization)');
+      log.debug('[ActivityScore] Observing activity container');
     }
 
-    // Call checkAndProcess again to catch anything rendered while we were waiting
     this.checkAndProcess();
   }
 
@@ -93,7 +91,7 @@ export class ActivityScoreModule extends BaseModule {
   }
 
   private checkAndProcess(): void {
-    // Select all activity entries that haven't been enhanced yet
+    // Enhanced selector to find all possible activity blocks
     const entries = document.querySelectorAll('.activity-entry:not([data-au-score-enhanced]), .activity-anime:not([data-au-score-enhanced]), .activity-manga:not([data-au-score-enhanced])');
 
     entries.forEach(el => {
@@ -109,7 +107,6 @@ export class ActivityScoreModule extends BaseModule {
         this.pendingQueue.get(key)!.elements.push(entry);
         this.triggerBatch();
       } else {
-        // Mark as failed/skipped so we don't re-process
         entry.setAttribute('data-au-score-enhanced', 'skipped');
       }
     });
@@ -117,9 +114,16 @@ export class ActivityScoreModule extends BaseModule {
 
   private extractActivityInfo(entry: HTMLElement): { userName: string; mediaId: number } | null {
     // 1. Find User Name
+    let userName: string | null = null;
     const userLink = entry.querySelector('a[href^="/user/"]');
-    if (!userLink) return null;
-    const userName = userLink.getAttribute('href')?.replace('/user/', '').replace(/\//g, '');
+    
+    if (userLink) {
+      userName = userLink.getAttribute('href')?.replace('/user/', '').replace(/\//g, '') || null;
+    } else if (window.location.pathname.startsWith('/user/')) {
+      // Fallback: If on profile page, use username from URL
+      userName = window.location.pathname.split('/')[2];
+    }
+
     if (!userName) return null;
 
     // 2. Find Media ID
@@ -185,12 +189,12 @@ export class ActivityScoreModule extends BaseModule {
     badge.style.borderColor = `${ScoreFormatter.getColor(score)}40`;
     badge.style.background = `${ScoreFormatter.getColor(score)}15`;
 
-    // Target the title link
-    const title = entry.querySelector('.title');
-    if (title) {
-      title.insertAdjacentElement('afterend', badge);
+    // Target the title link (optimized for different activity layouts)
+    const target = entry.querySelector('.title, .name, .details .title, .content .title');
+    if (target) {
+      target.insertAdjacentElement('afterend', badge);
     } else {
-      // Fallback to cover if title not found (unlikely for ListActivity)
+      // Fallback to cover if title not found
       const cover = entry.querySelector('.cover, .image, [class*="image"], [class*="cover"]');
       if (cover) {
         (cover as HTMLElement).style.position = 'relative';
