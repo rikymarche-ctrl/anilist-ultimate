@@ -181,26 +181,33 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     const createSection = (title: string, songs: string[]) => {
       if (!songs || songs.length === 0) return '';
       return `
-        <div class="music-group" style="margin-bottom: 40px !important;">
-          <h2 style="font-size: 1.5rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 18px !important; border-bottom: 2px solid var(--color-background-100) !important; padding-bottom: 10px !important;">${title}</h2>
-          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important; gap: 12px !important;">
+        <div class="music-group" style="margin-bottom: 30px !important;">
+          <h2 style="font-size: 1.4rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 15px !important; padding-bottom: 8px !important;">${title}</h2>
+          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important; gap: 10px !important;">
             ${songs.map(song => {
               const urlMatch = song.match(/https?:\/\/[^\s)]+/);
               const directUrl = urlMatch ? urlMatch[0] : null;
-              const cleanSong = song.replace(/https?:\/\/[^\s)]+/, '').trim();
-              const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanSong + ' official')}`;
-              const finalUrl = directUrl || searchUrl;
+              const cleanSong = song.replace(/https?:\/\/[^\s)]+/, '').replace(/"/g, '').trim();
+              
+              const ytUrl = directUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanSong + ' official')}`;
+              const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent(cleanSong)}`;
+              const appleUrl = `https://music.apple.com/search?term=${encodeURIComponent(cleanSong)}`;
 
               return `
-                <div class="song-item" style="background: var(--color-background-100) !important; border: 1px solid var(--color-background-200) !important; padding: 16px 20px !important; border-radius: 10px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; cursor: pointer !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;" 
-                     onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.12)'; this.style.borderColor='var(--color-blue)';" 
-                     onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)'; this.style.borderColor='var(--color-background-200)';" 
-                     onclick="window.open('${finalUrl}', '_blank')">
-                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important; line-height: 1.6 !important; font-weight: 400 !important;">
-                    ${this.formatSong(cleanSong)}
+                <div class="song-item" style="background: var(--color-background-100) !important; border-radius: 4px !important; display: flex !important; align-items: center !important; padding: 12px 16px !important; transition: background 0.2s !important; min-height: 60px !important;">
+                  <div class="song-info" style="flex-grow: 1 !important; font-size: 1.3rem !important; color: var(--color-text) !important; padding-right: 15px !important;">
+                    ${this.formatSong(song.replace(/https?:\/\/[^\s)]+/, '').trim())}
                   </div>
-                  <div style="background: ${directUrl ? 'var(--color-blue-100)' : 'rgba(255, 0, 0, 0.1)'}; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-                    <i class="${directUrl ? 'fas fa-external-link-alt' : 'fab fa-youtube'}" style="color: ${directUrl ? 'var(--color-blue)' : '#ff0000'}; font-size: 1.6rem; opacity: 0.9;"></i>
+                  <div class="song-actions" style="display: flex !important; gap: 8px !important; flex-shrink: 0 !important;">
+                    <a href="${ytUrl}" target="_blank" title="YouTube" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(255,0,0,0.1); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fab fa-youtube" style="color: #ff0000; font-size: 1.4rem;"></i>
+                    </a>
+                    <a href="${spotifyUrl}" target="_blank" title="Spotify" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(30,215,96,0.1); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fab fa-spotify" style="color: #1ed760; font-size: 1.4rem;"></i>
+                    </a>
+                    <a href="${appleUrl}" target="_blank" title="Apple Music" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(252,60,68,0.1); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fab fa-apple" style="color: #fc3c44; font-size: 1.4rem;"></i>
+                    </a>
                   </div>
                 </div>
               `;
