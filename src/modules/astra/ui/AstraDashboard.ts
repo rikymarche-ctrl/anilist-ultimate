@@ -123,8 +123,6 @@ export class AstraDashboard extends BaseComponent {
 
     // Check auth status
     this.state.isAuthenticated = await this.authService.isAuthenticated();
-
-    // Ensure service is initialized before first render to avoid "0 entries" glitch
     await this.service.init();
 
     this.overlay = document.createElement('div');
@@ -1219,9 +1217,15 @@ export class AstraDashboard extends BaseComponent {
 
       // 1. Cover Lightbox - High-resolution image preview
       const coverImg = target.closest('.astra-table-cover') as HTMLImageElement;
-      if (coverImg) {
-        this.openImageLightbox(coverImg.src);
-        return;
+      const rowForCover = target.closest('.astra-grid-row');
+      
+      if (coverImg && rowForCover) {
+        const mediaId = parseInt(rowForCover.getAttribute('data-media-id') || '0');
+        const work = this.service!.getWorks().find(w => w.mediaId === mediaId);
+        if (work && work.cover) {
+          this.openImageLightbox(work.cover);
+          return;
+        }
       }
 
       const row = target.closest('.astra-grid-row');
@@ -1975,30 +1979,50 @@ export class AstraDashboard extends BaseComponent {
     return labels[code] || code;
   }
 
-  /**
-   * Opens a full-screen lightbox for an image
-   */
   private openImageLightbox(url: string): void {
-    let lightbox = document.querySelector('.astra-lightbox') as HTMLElement;
-    if (!lightbox) {
-      lightbox = document.createElement('div');
-      lightbox.className = 'astra-lightbox';
-      lightbox.innerHTML = `<img class="astra-lightbox-content" src="${url.replace('/medium/', '/large/').replace('/small/', '/large/')}">`;
-      document.body.appendChild(lightbox);
-
-      lightbox.addEventListener('click', () => {
-        lightbox.classList.remove('astra-lightbox--open');
-        document.body.style.overflow = '';
-        setTimeout(() => lightbox.remove(), 300);
-      });
+    const overlay = document.createElement('div');
+    overlay.className = 'astra-cover-full-overlay';
+    
+    // ENSURE EXTRA-LARGE: Force replacement regardless of source to fix blur once and for all
+    let highResUrl = url;
+    if (url.includes('s4.anilist.co') || url.includes('anilistcdn')) {
+      highResUrl = url.replace('/large/', '/extraLarge/').replace('/medium/', '/extraLarge/');
     }
+    
+    overlay.innerHTML = `
+      <div class="astra-cover-full-container">
+        <img src="${highResUrl}" 
+             class="astra-cover-full-img"
+             style="height: 95vh !important; width: auto !important; image-rendering: high-quality !important;"
+             onerror="this.src='${url}';">
+      </div>
+    `;
 
-    // Lock background scrolling for UX consistency
+    const close = () => {
+      overlay.style.pointerEvents = 'none';
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.3s ease-out';
+      
+      // Also scale down the image slightly for a nice exit effect
+      const img = overlay.querySelector('img');
+      if (img) {
+        img.style.transform = 'scale(0.95)';
+        img.style.transition = 'transform 0.3s ease-out';
+      }
+
+      setTimeout(() => {
+        overlay.remove();
+        document.body.style.overflow = '';
+      }, 300);
+    };
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay || (e.target as HTMLElement).classList.contains('astra-cover-full-container')) {
+        close();
+      }
+    };
+
     document.body.style.overflow = 'hidden';
-
-    // Trigger animation
-    requestAnimationFrame(() => {
-      lightbox.classList.add('astra-lightbox--open');
-    });
+    document.body.appendChild(overlay);
   }
 }

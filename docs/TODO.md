@@ -77,8 +77,10 @@
 - [ ] astra dashbard: major rework da fare alle stats, pensare come
 - [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono
 - [X] **Follower Stats** - Add follower/following counters to relevant profile sections.
-- [ ] ricontrollar le chiamte API, a quanto pare qualcosa le gestisce male da qualche parte e hitta il limite a caso
-- [ ] Nelle actions dentro l astra dashboard, mettere anche il commento di anilist
+- [X] ricontrollar le chiamte API, a quanto pare qualcosa le gestisce male da qualche parte e hitta il limite a caso
+- [X] Nelle actions dentro l astra dashboard, mettere anche il commento di anilist
+- [ ] c è da implementare anche il soritng, tipo per completed date, data di modifica, start ecc
+- [ ] Quando nel quick edit modifico il progresso, e non tramite il bottone +_, in anime e manga in progress, il counter originale di anilist non si agigorna, devo refreshare la agina per farlofunzionare. Accorciare!
 ---
 
 ## ✅ ARCHIVE (COMPLETED)

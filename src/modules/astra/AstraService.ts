@@ -276,7 +276,7 @@ export class AstraService {
                   type
                   format
                   countryOfOrigin
-                  coverImage { large medium }
+                  coverImage { extraLarge large medium }
                   siteUrl
                   genres
                   episodes
@@ -375,7 +375,7 @@ export class AstraService {
                 title: media.title.english || media.title.romaji || media.title.native || 'Unknown Title',
                 type: type as any,
                 country: media.countryOfOrigin,
-                cover: media.coverImage.large || media.coverImage.medium || undefined,
+                cover: media.coverImage.extraLarge || media.coverImage.large || media.coverImage.medium || undefined,
                 anilistUrl: media.siteUrl,
                 status: entry.status,
                 customLists: customListsArray,
