@@ -168,37 +168,42 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       return;
     }
 
-    // Try to find a good spot inside overview
+    // Try to find a very stable anchor in the overview
+    const description = overview.querySelector('.description-wrap') || overview.querySelector('.description');
     const staff = overview.querySelector('.staff');
-    const characters = overview.querySelector('.characters');
-    const relations = overview.querySelector('.relations');
+    const anchor = staff || description;
 
-    // Remove existing
-    overview.querySelectorAll('.au-music-section').forEach(el => el.remove());
+    // Cleanup existing to avoid duplication
+    document.querySelectorAll('.au-music-section').forEach(el => el.remove());
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
-    container.style.marginTop = '40px';
-    container.style.marginBottom = '40px';
-    container.style.width = '100%';
-    container.style.order = '5'; // Ensure it stays in a reasonable place if using flex
+    container.style.cssText = `
+      margin-top: 40px !important;
+      margin-bottom: 40px !important;
+      width: 100% !important;
+      display: block !important;
+      clear: both !important;
+      position: relative !important;
+      z-index: 10 !important;
+    `;
 
     const createSection = (title: string, songs: string[]) => {
       if (!songs || songs.length === 0) return '';
       return `
-        <div class="music-group" style="margin-bottom: 30px;">
-          <h2 style="font-size: 1.6rem; font-weight: 500; color: var(--color-text-light); margin-bottom: 20px; border-bottom: 1px solid var(--color-background-100); padding-bottom: 10px;">${title}</h2>
-          <div class="songs-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+        <div class="music-group" style="margin-bottom: 30px !important;">
+          <h2 style="font-size: 1.6rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 20px !important; border-bottom: 1px solid var(--color-background-100) !important; padding-bottom: 10px !important;">${title}</h2>
+          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important; gap: 15px !important;">
             ${songs.map(song => {
               const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(song)}`;
               return `
-                <div class="song-item" style="background: var(--color-background-100); padding: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease;" onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';" onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';">
-                  <div class="song-info" style="font-size: 1.3rem; color: var(--color-text); line-height: 1.5; padding-right: 10px;">
+                <div class="song-item" style="background: var(--color-background-100) !important; padding: 16px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.2s ease !important;" onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)';" onclick="window.open('${youtubeUrl}', '_blank')">
+                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important; line-height: 1.5 !important; padding-right: 10px !important;">
                     ${this.formatSong(song)}
                   </div>
-                  <a href="${youtubeUrl}" target="_blank" title="Search on YouTube" style="color: #ff0000; font-size: 1.8rem; opacity: 0.6; transition: all 0.2s; display: flex;" onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)';" onmouseout="this.style.opacity='0.6'; this.style.transform='scale(1)';" onclick="event.stopPropagation();">
+                  <div style="color: #ff0000; font-size: 1.8rem; opacity: 0.6; display: flex;">
                     <i class="fab fa-youtube"></i>
-                  </a>
+                  </div>
                 </div>
               `;
             }).join('')}
@@ -212,12 +217,12 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       ${createSection('Endings', themes.endings)}
     `;
 
-    // Strategic injection: after staff if exists, else after characters, else after relations
-    const anchor = staff || characters || relations;
     if (anchor) {
       anchor.after(container);
+      this.logger.info(`[MediaMusic] ✅ Successfully injected themes after ${anchor.className}`);
     } else {
       overview.appendChild(container);
+      this.logger.info('[MediaMusic] ✅ Successfully appended themes to overview');
     }
   }
 
