@@ -96,24 +96,34 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     this.isProcessing = true;
 
     try {
-      this.logger.info(`[MediaMusic] Processing themes for anime ${mediaId}...`);
+      this.logger.info(`[MediaMusic] 🔍 Processing themes for anime ${mediaId}...`);
       const cacheKey = `music_themes_cache_${mediaId}`;
       const cached = await localStorage.get<JikanThemeData>(cacheKey);
 
       if (cached) {
+        this.logger.info(`[MediaMusic] 📦 Found cached themes for ${mediaId}`);
         this.renderThemes(cached, overview);
       } else {
+        this.logger.info(`[MediaMusic] 🛰️ Fetching MAL ID for ${mediaId}...`);
         const idMal = await this.fetchMalId(mediaId);
+        
         if (idMal) {
+          this.logger.info(`[MediaMusic] ✅ Found MAL ID: ${idMal}. Fetching themes from Jikan...`);
           const themes = await this.fetchJikanThemes(idMal);
+          
           if (themes) {
+            this.logger.info(`[MediaMusic] 🎵 Themes fetched successfully. Rendering...`);
             await localStorage.set(cacheKey, themes);
             this.renderThemes(themes, overview);
+          } else {
+            this.logger.warn(`[MediaMusic] ⚠️ No themes returned from Jikan for MAL ${idMal}`);
           }
+        } else {
+          this.logger.warn(`[MediaMusic] ❌ Could not find MAL ID for anime ${mediaId}`);
         }
       }
     } catch (error) {
-      this.logger.error('[MediaMusic] Error processing themes', error);
+      this.logger.error('[MediaMusic] 🛑 Error processing themes', error);
     } finally {
       this.isProcessing = false;
     }
@@ -123,20 +133,31 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     const query = `query ($id: Int) { Media (id: $id) { idMal } }`;
     try {
       const data = await this.apiClient.query<any>(query, { id: mediaId });
-      return data?.Media?.idMal || null;
+      const idMal = data?.Media?.idMal;
+      return idMal || null;
     } catch (err) {
+      this.logger.error(`[MediaMusic] 💥 GraphQL query failed for ${mediaId}`, err);
       return null;
     }
   }
 
   private async fetchJikanThemes(idMal: number): Promise<JikanThemeData | null> {
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const response = await fetch(`https://api.jikan.moe/v4/anime/${idMal}/themes`);
-      if (!response.ok) return null;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+      
+      const response = await fetch(`https://api.jikan.moe/v4/anime/${idMal}/themes`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        this.logger.error(`[MediaMusic] Jikan API returned status ${response.status}`);
+        return null;
+      }
+      
       const data = await response.json();
       return data?.data || null;
     } catch (err) {
+      this.logger.error(`[MediaMusic] Jikan fetch failed or timed out`, err);
       return null;
     }
   }
