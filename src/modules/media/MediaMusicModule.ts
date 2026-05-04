@@ -168,44 +168,46 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       return;
     }
 
-    // Use the very beginning of the overview as a more stable point
-    const anchor = overview.firstChild;
+    // Search for ideal anchors
+    const staff = overview.querySelector('.staff');
+    const characters = overview.querySelector('.characters');
+    const relations = overview.querySelector('.relations');
 
     // Cleanup ONLY if it's a different media or we explicitly want to refresh
     const existing = document.querySelector('.au-music-section');
-    if (existing) {
-       // If it already exists in the right place, don't touch it to avoid flicker
-       return;
-    }
+    if (existing) return;
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
     container.style.cssText = `
-      margin: 40px 0 !important;
-      padding: 20px !important;
+      margin: 30px 0 !important;
       width: 100% !important;
       display: block !important;
-      background: rgba(255, 0, 0, 0.05) !important;
-      border: 2px solid #ff0000 !important; /* DEBUG BORDER */
-      min-height: 100px !important;
       position: relative !important;
-      z-index: 9999 !important;
     `;
 
     const createSection = (title: string, songs: string[]) => {
       if (!songs || songs.length === 0) return '';
       return `
-        <div class="music-group" style="margin-bottom: 30px !important;">
+        <div class="music-group" style="margin-bottom: 35px !important;">
           <h2 style="font-size: 1.6rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 20px !important; border-bottom: 1px solid var(--color-background-100) !important; padding-bottom: 10px !important;">${title}</h2>
-          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important; gap: 15px !important;">
+          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important; gap: 15px !important;">
             ${songs.map(song => {
-              const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(song)}`;
+              // Extract URL if MAL/Jikan provides it (sometimes they embed it in the string)
+              const urlMatch = song.match(/https?:\/\/[^\s)]+/);
+              const directUrl = urlMatch ? urlMatch[0] : null;
+              const cleanSong = song.replace(/https?:\/\/[^\s)]+/, '').trim();
+              
+              // If no direct URL, use a refined YouTube search
+              const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanSong + ' official')}`;
+              const finalUrl = directUrl || searchUrl;
+
               return `
-                <div class="song-item" style="background: var(--color-background-100) !important; padding: 16px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; cursor: pointer !important;" onclick="window.open('${youtubeUrl}', '_blank')">
-                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important;">
-                    ${this.formatSong(song)}
+                <div class="song-item" style="background: var(--color-background-100) !important; padding: 14px 18px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.2s ease !important; cursor: pointer !important;" onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';" onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)'; this.style.boxShadow='none';" onclick="window.open('${finalUrl}', '_blank')">
+                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important; line-height: 1.4 !important;">
+                    ${this.formatSong(cleanSong)}
                   </div>
-                  <i class="fab fa-youtube" style="color: #ff0000; font-size: 1.8rem;"></i>
+                  <i class="${directUrl ? 'fas fa-external-link-alt' : 'fab fa-youtube'}" style="color: ${directUrl ? 'var(--color-blue)' : '#ff0000'}; font-size: 1.8rem; opacity: 0.7;"></i>
                 </div>
               `;
             }).join('')}
@@ -215,17 +217,22 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     };
 
     container.innerHTML = `
-      <div style="color: #ff0000; font-weight: bold; margin-bottom: 10px;">ASTRA MUSIC MODULE ACTIVE</div>
       ${createSection('Openings', themes.openings)}
       ${createSection('Endings', themes.endings)}
     `;
 
-    if (anchor) {
-      overview.insertBefore(container, anchor);
+    // Logic: BEFORE staff if exists, else AFTER characters, else AFTER relations, else APPEND
+    if (staff) {
+      staff.parentNode?.insertBefore(container, staff);
+    } else if (characters) {
+      characters.after(container);
+    } else if (relations) {
+      relations.after(container);
     } else {
       overview.appendChild(container);
     }
-    this.logger.info('[MediaMusic] 🚩 Injected at the top of overview');
+    
+    this.logger.info('[MediaMusic] ✅ Rendered in premium position');
   }
 
   private formatSong(song: string): string {
