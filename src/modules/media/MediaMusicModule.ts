@@ -166,13 +166,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       position = 'after';
     }
 
-    if (existing && idealAnchor) {
-      const isCorrectPosition = position === 'before' ? 
-                                 existing.nextElementSibling === idealAnchor : 
-                                 idealAnchor.nextElementSibling === existing;
-      if (isCorrectPosition) return;
-    }
-
+    // Force fresh render to apply new styles/content
     if (existing) existing.remove();
 
     const container = document.createElement('div');
