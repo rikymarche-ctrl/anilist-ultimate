@@ -37,6 +37,7 @@ import { MediaListStatus } from '@/api/AnilistTypes';
 export class CalendarModule extends BaseModule {
   private userId: number | null = null;
   private isProcessing: boolean = false;
+  private lastRefreshTime: number = 0;
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
@@ -108,13 +109,18 @@ export class CalendarModule extends BaseModule {
       // Listen for data updates from other modules
       this.eventBus.on(EVENT_TYPES.ASTRA_DATA_UPDATED, async () => {
         const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-        if (isHomePage) {
-          log.info('[Calendar] Astra data updated, refreshing schedule (delayed)...');
-          // Delay a bit to let AniList API sync after mutation
-          setTimeout(async () => {
-            await this.runInjectionFlow(true);
-          }, 1500);
+        if (!isHomePage) return;
+
+        // If we just refreshed (e.g. from PROGRESS_UPDATED), skip the delayed one
+        if (Date.now() - this.lastRefreshTime < 2000) {
+          log.debug('[Calendar] Skipping Astra update refresh (already refreshed recently)');
+          return;
         }
+
+        log.info('[Calendar] Astra data updated, refreshing schedule (delayed)...');
+        setTimeout(async () => {
+          await this.runInjectionFlow(true);
+        }, 1500);
       });
 
       this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, async (payload) => {
@@ -265,12 +271,15 @@ export class CalendarModule extends BaseModule {
 
     try {
       this.isProcessing = true;
+      this.lastRefreshTime = Date.now();
+      
       // Safety timeout: if injection hangs, allow retry after 10s
       setTimeout(() => { this.isProcessing = false; }, 10000);
       
       log.info(`[Calendar] Running injection flow (force=${forceRefresh}, exists=${!!existingContainer}, content=${hasContent})...`);
 
       // 1. Inject UI via DOM Service
+      // The DomService now handles ATOMIC SWAP (doesn't remove before ready)
       const astraEnabled = this.config.isFeatureEnabled('astra');
       const calendarContainer = await this.domService.injectCalendar(
         () => this.handleSettingsClick(),
@@ -278,24 +287,14 @@ export class CalendarModule extends BaseModule {
         astraEnabled
       );
 
-      if (!calendarContainer) return;
+      if (!calendarContainer) {
+        log.warn('[Calendar] Injection failed: no container returned');
+        return;
+      }
 
       // 2. Load Data via Data Service
       if (this.userId) {
-        try {
-          await this.dataService.loadSchedule(this.userId, forceRefresh);
-        } catch (err) {
-          log.warn('[Calendar] Schedule load failed, attempting stale cache fallback', err);
-          // DataService already sets error in store, but we can try to force stale load if entries are 0
-          const state = calendarStore.getState();
-          if (state.entries.length === 0) {
-            const stale = await calendarStore.loadEntriesFromCache(true); // true = allowStale
-            if (stale) {
-              log.info('[Calendar] Fallback successful: using stale entries');
-              calendarStore.setEntries(stale);
-            }
-          }
-        }
+        await this.dataService.loadSchedule(this.userId, forceRefresh);
 
         // 3. Load Social Data (Async, non-blocking)
         if (this.config.isFeatureEnabled('friendActivity')) {

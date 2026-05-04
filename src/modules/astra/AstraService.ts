@@ -31,6 +31,7 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IStorageService } from '@core/interfaces/IStorageService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { MediaListStatus, type MediaListCollectionResponse } from '@/api/AnilistTypes';
+import { AstraParser } from './utils/AstraParser';
 
 export interface AstraWork {
   id: string;
@@ -90,19 +91,19 @@ export const DEFAULT_SECTIONS: AstraSection[] = [
   { id: 'story', name: 'Story', weight: 3, subSections: [] },
   { id: 'characters', name: 'Characters', weight: 2.5, subSections: [] },
   { id: 'visuals', name: 'Visuals', weight: 1.5, subSections: [] },
-  { id: 'enjoyment', name: 'Enjoyment', weight: 1.75, subSections: [] },
-  { id: 'consistency', name: 'Consistency', weight: 0.75, subSections: [] },
-  { id: 'finale', name: 'Finale', weight: 0.5, subSections: [] },
-  { 
-    id: 'sound', 
-    name: 'Sound', 
-    weight: 1, 
+  {
+    id: 'sound',
+    name: 'Sound',
+    weight: 1,
     subSections: [
       { id: 'intro', name: 'Intro', weight: 1 },
       { id: 'outro', name: 'Outro', weight: 1 },
       { id: 'all', name: 'All', weight: 10 }
-    ] 
+    ]
   },
+  { id: 'enjoyment', name: 'Enjoyment', weight: 1.75, subSections: [] },
+  { id: 'consistency', name: 'Consistency', weight: 0.75, subSections: [] },
+  { id: 'finale', name: 'Finale', weight: 0.5, subSections: [] },
 ];
 
 export interface AstraSettings {
@@ -266,6 +267,7 @@ export class AstraService {
                 status
                 score(format: POINT_10)
                 progress
+                notes
                 customLists
                 private
                 hiddenFromStatusLists
@@ -335,6 +337,19 @@ export class AstraService {
               existing.chapters = entry.media.chapters ?? undefined;
               existing.progress = entry.progress;
               existing.duration = entry.media.duration ?? undefined;
+              existing.notes = entry.notes || '';
+
+              // TWO-WAY SYNC: Parse notes for existing work
+              if (entry.notes) {
+                const parsed = AstraParser.parse(entry.notes, this.sections);
+                if (parsed) {
+                  const wasChanged = AstraParser.merge(existing, parsed);
+                  if (wasChanged) {
+                    existing.updatedAt = Date.now();
+                    updated++;
+                  }
+                }
+              }
             } else {
               const media = entry.media;
               const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
@@ -374,7 +389,15 @@ export class AstraService {
                 progress: entry.progress,
                 duration: media.duration ?? undefined
               };
-              
+
+              // TWO-WAY SYNC: Parse notes for NEW work
+              if (entry.notes) {
+                const parsed = AstraParser.parse(entry.notes, this.sections);
+                if (parsed) {
+                  AstraParser.merge(newWork, parsed);
+                }
+              }
+
               // Store AniList score as legacy fallback
               if (entry.score > 0) {
                 // AniList scores are typically 0-10 or 0-100 depending on format, 
@@ -383,6 +406,7 @@ export class AstraService {
                 const normalizedScore = entry.score > 10 ? entry.score / 10 : entry.score;
                 newWork.seasons[0].legacyScore = normalizedScore;
               }
+              newWork.notes = entry.notes || '';
 
               this.works.push(newWork);
               // Update Map index for O(1) lookup
@@ -444,7 +468,7 @@ export class AstraService {
     }
 
     await this.persist();
-    
+
     // Auto-sync with AniList notes
     this.syncToAnilistNotes(updatedWork.mediaId, updatedWork);
 
@@ -457,7 +481,7 @@ export class AstraService {
   async saveEpisodeNote(mediaId: number, episode: number, text: string): Promise<void> {
     await this.init();
     let work = this.getWorkByMediaId(mediaId);
-    
+
     if (!work) {
       log.info(`[AstraService] Work not found for mediaId ${mediaId}. Creating new work for journal entry.`);
       // We don't have full info, but we can seed a basic work
@@ -569,7 +593,7 @@ export class AstraService {
 
     for (const s of this.sections) {
       if (skipSet.has(s.id)) continue;
-      
+
       const v = this.calcSectionScore(s, scores);
       if (v === null || v === undefined || v === 0) continue;
 
@@ -621,42 +645,69 @@ export class AstraService {
   public generateMarkdownReport(work: AstraWork): string {
     const overall = this.calcSeriesOverall(work);
     const season = work.seasons[work.seasons.length - 1]; // Use latest season for breakdown
-    
-    let report = `\n[ASTRA_START]\n`;
-    report += `### 🌟 Astra Review\n`;
-    report += `**Overall Score:** ${overall ? overall.toFixed(1) : 'N/A'}/10\n\n`;
+
+    const formatScore = (val: number | null) => {
+      if (val === null) return 'N/A';
+      return val % 1 === 0 ? val.toFixed(0) : val.toFixed(1);
+    };
+
+    let report = `─── Astra Review ───\n`;
+    report += `Overall Score: ${formatScore(overall)}/10\n\n`;
 
     // 1. Sub-categories Breakdown
-    report += `📊 **Breakdown:**\n`;
+    report += `Breakdown:\n`;
     this.sections.forEach(s => {
       if (season.skip?.includes(s.id)) return;
       const score = this.calcSectionScore(s, season.scores);
       if (score && score > 0) {
-        report += `- ${s.name}: ${score.toFixed(1)}/10\n`;
+        report += `• ${s.name}: ${formatScore(score)}/10\n`;
+
+        // Include sub-sections detail with tree-like structure
+        if (s.subSections && s.subSections.length > 0) {
+          const activeSubs = s.subSections.filter(sub => {
+            const val = season.scores[`${s.id}_${sub.id}`];
+            return val && val > 0;
+          });
+
+          activeSubs.forEach((sub, idx) => {
+            const subScore = season.scores[`${s.id}_${sub.id}`];
+            const isLast = idx === activeSubs.length - 1;
+            const prefix = isLast ? '  └─ ' : '  ├─ ';
+            report += `${prefix}${sub.name}: ${formatScore(subScore!)}/10\n`;
+          });
+        }
       }
     });
 
-    // 2. General Astra Notes
-    if (work.notes && work.notes.trim()) {
-      report += `\n📝 **Notes:**\n${work.notes.trim()}\n`;
-    }
-
-    // 3. Chronological Journal
+    // 2. Chronological Journal
     if (season.episodeNotes && Object.keys(season.episodeNotes).length > 0) {
-      report += `\n📓 **Journal:**\n`;
       const sortedEps = Object.keys(season.episodeNotes)
         .map(Number)
         .sort((a, b) => b - a); // Newest first
 
-      sortedEps.slice(0, 20).forEach(ep => { // Limit to last 20 eps to save space
-        const note = season.episodeNotes![ep];
-        if (note.text?.trim()) {
-          report += `- Ep ${ep}: ${note.text.trim()}\n`;
-        }
-      });
+      const recentNotes = sortedEps.filter(ep => season.episodeNotes![ep].text?.trim());
+
+      if (recentNotes.length > 0) {
+        report += `\nJournal:\n`;
+        recentNotes.forEach(ep => {
+          report += `  Ep ${ep}: ${season.episodeNotes![ep].text.trim()}\n`;
+        });
+      }
     }
 
-    report += `\n[ASTRA_END]`;
+    // 3. Astra Notes (General & Rating)
+    if ((work.notes && work.notes.trim()) || (season.notes && season.notes.trim())) {
+      report += `\nGeneral Notes:\n`;
+      if (work.notes && work.notes.trim()) {
+        report += `  ${work.notes.trim()}\n`;
+      }
+      if (season.notes && season.notes.trim()) {
+        if (work.notes && work.notes.trim()) report += `\n`;
+        report += `  Rating: ${season.notes.trim()}\n`;
+      }
+    }
+
+    report += `\n───────────────`;
     return report;
   }
 
@@ -682,15 +733,14 @@ export class AstraService {
       const astraReport = this.generateMarkdownReport(work);
 
       // 3. Merge: replace or append
-      const startTag = '[ASTRA_START]';
-      const endTag = '[ASTRA_END]';
-      
+      const anchor = 'Astra Review';
+
       let finalNotes = '';
-      if (nativeNotes.includes(startTag) && nativeNotes.includes(endTag)) {
-        // Replace existing Astra section
-        const before = nativeNotes.split(startTag)[0];
-        const after = nativeNotes.split(endTag)[1] || '';
-        finalNotes = (before.trim() + '\n' + astraReport + '\n' + after.trim()).trim();
+      if (nativeNotes.includes(anchor)) {
+        // Replace everything from the anchor to the end (assuming Astra is at the end)
+        // or we could be smarter, but usually user wants it replaced.
+        const before = nativeNotes.split(anchor)[0];
+        finalNotes = (before.trim() + '\n' + astraReport).trim();
       } else {
         // Append new Astra section
         finalNotes = (nativeNotes.trim() + '\n' + astraReport).trim();
@@ -705,13 +755,17 @@ export class AstraService {
           }
         }
       `;
-      
+
       const overall = this.calcSeriesOverall(work);
-      await this.api.mutate(mutation, { 
-        mediaId, 
+      await this.api.mutate(mutation, {
+        mediaId,
         notes: finalNotes,
         score: overall || 0
       });
+
+      // Update local state and persist
+      work.notes = finalNotes;
+      await this.persist();
 
       log.success(`[AstraService] Synced notes for ${work.title} to AniList.`);
     } catch (error) {
@@ -730,7 +784,7 @@ export class AstraService {
         settings: this.settings,
         lastUpdated: Date.now()
       });
-      
+
       this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {
         timestamp: new Date()
       });

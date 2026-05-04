@@ -38,8 +38,6 @@
 
 ## 🛠️ P7 - DEBUG & ERRORS
 
-- [ ] **Runtime Fix** - `TypeError: Cannot read properties of undefined (reading 'init')` at `settings#au-custom-lists`.
-- [ ] **BUG-034: Logging System** - Fix `src/core/logger.ts` so logs actually appear in the console.
 - [X] **API Resilience** - Ensure cached data (Reviews, Calendar) is shown if API is down.
 - [ ] **Astra Bug Hunt** - Systematic testing of internal Astra logic.
 - [ ] **Astra Settings Fixes** - Fix slider overflow (Line 110) and drag-and-drop handles (Line 111).
@@ -59,6 +57,11 @@
 - [ ] abilitare la ricerca dei voti nelle activity dentro la home dei profili utente, e se non c è anche nelle pagine social delle singole opere
 - [X] nelle pagine dei characters continua a spamamre chiamate API, deve farne ZERO https://anilist.co/character/89/Shinji-Ikari
 - [X] UI Cleanup: rimosso tab Astra duplicato dal profilo utente (mantenuto solo nella global nav)
+- [X] **Calendar Stability** - Fixed disappearance bug after Quick Rate save using Atomic Swap injection.
+- [X] **Astra Two-Way Sync** - Implemented report parser to read scores/journal from AniList notes back into Astra.
+- [X] **Astra Report Refinement** - Cleaned up report aesthetics, removed technical tags, and added sub-section breakdown.
+- [X] **Astra Quick-Save** - Added sidebar save button for Journal mode with consistent styling and feedback.
+- [X] **Rating Reorder** - Standardized default sections order (Sound after Visuals).
 
 ---
 
@@ -69,14 +72,13 @@
 - [X] **Brand Cleanup** - Removed legacy "v2" CSS classes and updated logs.
 - [X] **Status Enums** - Centralized TypeScript Enum for status management.
 - [ ] **Review Caching** - Verify if the main `/reviews` page needs caching logic.
-- [ ] una funzione che permette di unire i commenti scritti dentro le note di astra, quelle nei singoli episodi, e fare append al commenton originale di anilist
+- [X] **Astra Note Append** - Combined Astra general notes, episode notes, and rating breakdown into a unified AniList comment.
 - [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
 - [ ] astra dashbard: major rework da fare alle stats, pensare come
 - [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono
 - [X] **Follower Stats** - Add follower/following counters to relevant profile sections.
-- [ ] c è da eliminare la sezione astra quando ado nel mio profilo e la trovo dopo submissions. Deve stare sopra nel pannello perma presente sopra, dopo forum
 - [ ] ricontrollar le chiamte API, a quanto pare qualcosa le gestisce male da qualche parte e hitta il limite a caso
-
+- [ ] Nelle actions dentro l astra dashboard, mettere anche il commento di anilist
 ---
 
 ## ✅ ARCHIVE (COMPLETED)

@@ -54,6 +54,8 @@ export class AstraDashboard extends BaseComponent {
     isDirty: false
   };
   private renderProcessId = 0;
+  private activeTooltip: HTMLElement | null = null;
+  private tooltipTimeout: any = null;
 
   constructor(
     @inject(TOKENS.AstraService) private service: AstraService,
@@ -1016,11 +1018,17 @@ export class AstraDashboard extends BaseComponent {
         return `<div class="astra-edit-row" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}; font-weight: 700; font-family: var(--astra-font-mono)">${score ? (score as number).toFixed(1) : '-'}</div>`;
       }).join('')}
         <div class="astra-table-actions">
-          <a class="astra-icon-btn astra-anilist-link" href="${work.anilistUrl || '#'}" target="_blank" title="Open on AniList">
+          <button class="astra-icon-btn astra-view-comment ${!work.notes ? 'astra-disabled' : ''}" style="cursor: default">
+            <i class="fa fa-comment-alt"></i>
+            <span class="astra-tooltip-large">${work.notes ? work.notes.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : 'No comment on AniList'}</span>
+          </button>
+          <a class="astra-icon-btn astra-anilist-link" href="${work.anilistUrl || '#'}" target="_blank">
             <i class="fa fa-external-link-alt"></i>
+            <span>Open on AniList</span>
           </a>
-          <button class="astra-icon-btn astra-delete-row" title="Delete from Astra">
+          <button class="astra-icon-btn astra-delete-row">
             <i class="fa fa-trash"></i>
+            <span>Delete from Astra</span>
           </button>
         </div>
       </div>
@@ -1327,6 +1335,53 @@ export class AstraDashboard extends BaseComponent {
         this.toast.success('Astra database has been reset.');
         this.renderDashboard();
       }
+    });
+
+    this.attachTooltipManager(overlay);
+  }
+
+  /**
+   * Manages sticky tooltips with a 1-second hide delay and immediate switch on new hover
+   */
+  private attachTooltipManager(overlay: HTMLElement): void {
+    const tableBody = overlay.querySelector('#astra-table-body');
+    if (!tableBody) return;
+
+    const show = (btn: HTMLElement) => {
+      if (this.tooltipTimeout) {
+        clearTimeout(this.tooltipTimeout);
+        this.tooltipTimeout = null;
+      }
+      if (this.activeTooltip && this.activeTooltip !== btn) {
+        this.activeTooltip.classList.remove('astra-tooltip-active');
+      }
+      btn.classList.add('astra-tooltip-active');
+      this.activeTooltip = btn;
+    };
+
+    const hide = (btn: HTMLElement) => {
+      if (this.tooltipTimeout) clearTimeout(this.tooltipTimeout);
+      this.tooltipTimeout = setTimeout(() => {
+        btn.classList.remove('astra-tooltip-active');
+        if (this.activeTooltip === btn) this.activeTooltip = null;
+        this.tooltipTimeout = null;
+      }, 1000);
+    };
+
+    tableBody.addEventListener('mouseover', (e) => {
+      const btn = (e.target as HTMLElement).closest('.astra-icon-btn') as HTMLElement;
+      if (btn) show(btn);
+    });
+
+    tableBody.addEventListener('mouseout', (e) => {
+      const ev = e as MouseEvent;
+      const btn = (ev.target as HTMLElement).closest('.astra-icon-btn') as HTMLElement;
+      if (!btn) return;
+
+      const related = ev.relatedTarget as HTMLElement;
+      if (related && btn.contains(related)) return;
+
+      hide(btn);
     });
   }
 

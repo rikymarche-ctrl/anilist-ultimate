@@ -14,6 +14,7 @@ interface HeaderState {
   onOverrideToggle: (active: boolean) => void;
   onFinaleToggle: () => void;
   onClose: () => void;
+  activeTab?: string;
 }
 
 export class AstraRatingHeader extends AstraView {
@@ -21,6 +22,8 @@ export class AstraRatingHeader extends AstraView {
 
   protected template(state: HeaderState): string {
     this.state = state;
+    const isJournal = state.activeTab === 'journal';
+
     return `
       <header class="astra-modal-header astra-rating-header">
         <div class="astra-header-main">
@@ -33,6 +36,7 @@ export class AstraRatingHeader extends AstraView {
           </div>
 
           <div class="astra-header-actions">
+            ${!isJournal ? `
             <div class="astra-control-group">
                <button class="astra-finale-pill astra-override-pill ${state.manualOverride ? 'active' : ''}" 
                  id="header-override-btn" 
@@ -51,6 +55,7 @@ export class AstraRatingHeader extends AstraView {
                </button>
                ` : ''}
             </div>
+            ` : ''}
           </div>
           
           <div style="flex: 1;"></div>

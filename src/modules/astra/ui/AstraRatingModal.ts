@@ -23,6 +23,7 @@ import { TOKENS } from '@core/di/tokens';
 import { AstraSection, AstraService, AstraSubSection, AstraWork, AstraSeason } from '../AstraService';
 import { AstraRadarChart } from './AstraRadarChart';
 import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { ToastService } from '@core/services/ToastService';
 import { log } from '@core/logger';
 import { AstraDashboard } from './AstraDashboard';
 import { MediaWithViewerResponse, MediaListStatus } from '@/api/AnilistTypes';
@@ -49,7 +50,8 @@ export class AstraRatingModal {
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
     @inject(TOKENS.ApiClient) private api: IApiClient,
-    @inject(TOKENS.EventBus) private eventBus: EventBusTypes.IEventBus
+    @inject(TOKENS.EventBus) private eventBus: EventBusTypes.IEventBus,
+    @inject(TOKENS.ToastService) private toast: ToastService
   ) {
     this.header = new AstraRatingHeader({});
     // BUG-020: Ensure UI stays consistent on resize
@@ -64,7 +66,8 @@ export class AstraRatingModal {
     return container.resolve<AstraDashboard>(TOKENS.AstraDashboard);
   }
 
-  public async open(mediaId: number): Promise<void> {
+  public async open(mediaId: number, initialTab: 'rating' | 'journal' = 'rating'): Promise<void> {
+    this.activeTab = initialTab;
     const data = await this.fetchAniListData(mediaId);
     if (!data) return;
 
@@ -194,6 +197,11 @@ export class AstraRatingModal {
             <span>Journal</span>
           </button>
           <div class="astra-nav-spacer"></div>
+          <button class="astra-nav-item astra-nav-item--save" id="astra-nav-save" 
+            style="display: ${this.activeTab === 'journal' ? 'flex' : 'none'}">
+            <i class="fa fa-save"></i>
+            <span>Save</span>
+          </button>
         </nav>
 
         <div class="astra-modal-main">
@@ -211,26 +219,7 @@ export class AstraRatingModal {
       </div>
     `;
 
-    const headerContainer = this.overlay.querySelector('#astra-header-container') as HTMLElement;
-    if (headerContainer) {
-      this.header.mount(headerContainer, {
-        mediaId: media.id,
-        title: media.title.userPreferred,
-        manualOverride: season.manualOverride,
-        isSeriesFinale: season.isSeriesFinale,
-        showFinale: this.astraService.getSettings().enableSeriesFinale && this.astraService.hasFinaleSection(),
-        onOverrideToggle: (active: boolean) => {
-          this.state?.setManualOverride(this.currentSeasonIdx, active);
-          this.render(media, allCustomLists);
-        },
-        onFinaleToggle: () => {
-          const newState = !season.isSeriesFinale;
-          this.state?.updateSeasonField(this.currentSeasonIdx, 'isSeriesFinale', newState);
-          this.render(media, allCustomLists);
-        },
-        onClose: () => this.close()
-      });
-    }
+    this.renderHeader();
 
     const cover = this.overlay.querySelector('#astra-cover');
     if (cover) {
@@ -256,6 +245,36 @@ export class AstraRatingModal {
     requestAnimationFrame(() => {
       this.overlay?.classList.add('astra-modal-overlay--open');
     });
+  }
+
+  private renderHeader(): void {
+    if (!this.overlay || !this.state || !this.media) return;
+    const work = this.state.data;
+    const season = work.seasons[this.currentSeasonIdx];
+    const headerContainer = this.overlay.querySelector('#astra-header-container') as HTMLElement;
+    
+    if (headerContainer) {
+      headerContainer.innerHTML = ''; // Clear existing header to prevent duplication
+      this.header.mount(headerContainer, {
+        mediaId: this.media.id,
+        title: this.media.title.userPreferred,
+        manualOverride: season.manualOverride,
+        isSeriesFinale: season.isSeriesFinale,
+        showFinale: this.astraService.getSettings().enableSeriesFinale && this.astraService.hasFinaleSection(),
+        onOverrideToggle: (active: boolean) => {
+          this.state?.setManualOverride(this.currentSeasonIdx, active);
+          this.render(this.media, []); 
+        },
+        onFinaleToggle: () => {
+          const newState = !season.isSeriesFinale;
+          this.state?.updateSeasonField(this.currentSeasonIdx, 'isSeriesFinale', newState);
+          this.renderHeader();
+          this.updateLivePreview();
+        },
+        onClose: () => this.close(),
+        activeTab: this.activeTab
+      });
+    }
   }
 
   private renderRatingTab(work: AstraWork, season: AstraSeason, entry: any, sections: AstraSection[], allCustomLists: string[], meta: any, entryCustomLists: Record<string, boolean>): string {
@@ -577,12 +596,16 @@ export class AstraRatingModal {
     });
 
     const closeBtns = this.overlay!.querySelectorAll('.astra-modal-close');
-    const saveBtn = this.overlay!.querySelector('#astra-save');
     const navItems = this.overlay!.querySelectorAll('.astra-nav-item');
     const sliders = this.overlay!.querySelectorAll('.astra-slider');
     const progressInput = this.overlay!.querySelector('#astra-progress') as HTMLInputElement;
     const repeatInput = this.overlay!.querySelector('#astra-repeat') as HTMLInputElement;
     const accordions = this.overlay!.querySelectorAll('.astra-accordion-toggle');
+
+    const allSaveBtns = [
+      this.overlay!.querySelector('#astra-save'),
+      this.overlay!.querySelector('#astra-nav-save')
+    ].filter(Boolean);
 
     accordions.forEach(acc => {
       acc.addEventListener('click', () => {
@@ -632,6 +655,13 @@ export class AstraRatingModal {
         item.classList.add('active');
         this.overlay!.querySelectorAll('.astra-tab-content').forEach(c => c.classList.remove('astra-tab-content--active'));
         this.overlay!.querySelector(`#astra-tab-${tab}`)?.classList.add('astra-tab-content--active');
+
+        // Toggle sidebar save button visibility
+        const navSave = this.overlay!.querySelector('#astra-nav-save') as HTMLElement;
+        if (navSave) navSave.style.display = tab === 'journal' ? 'flex' : 'none';
+
+        // Re-render header to update Override/Finale visibility
+        this.renderHeader();
       });
     });
 
@@ -750,21 +780,53 @@ export class AstraRatingModal {
       });
     });
 
-    saveBtn?.addEventListener('click', async () => {
-      const btn = saveBtn as HTMLButtonElement;
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+    allSaveBtns.forEach(btn => {
+      btn?.addEventListener('click', async () => await this.handleQuickSave());
+    });
+  }
 
-      try {
-        if (this.state) this.state.isDirty = true; // Force save
-        await this.close(); // close() will call save() once
-      } catch (err) {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        log.error('[AstraRatingModal] Save Entry failed', err);
+  private async handleQuickSave(): Promise<void> {
+    const saveBtn = this.overlay!.querySelector('#astra-save') as HTMLButtonElement;
+    const navSaveBtn = this.overlay!.querySelector('#astra-nav-save') as HTMLButtonElement;
+    
+    const btns = [saveBtn, navSaveBtn].filter(Boolean);
+    const originalContents = btns.map(b => b.innerHTML);
+
+    btns.forEach(b => {
+      b.disabled = true;
+      if (b.id === 'astra-save') {
+        b.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+      } else {
+        b.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
       }
     });
+
+    try {
+      if (this.state) this.state.isDirty = true; // Force save
+      await this.save();
+      
+      // Visual feedback for success
+      btns.forEach(b => {
+        b.innerHTML = '<i class="fa fa-check"></i>' + (b.id === 'astra-save' ? ' Saved!' : '');
+        b.classList.add('astra-save-success');
+      });
+
+      setTimeout(() => {
+        btns.forEach((b, i) => {
+          b.disabled = false;
+          b.innerHTML = originalContents[i];
+          b.classList.remove('astra-save-success');
+        });
+      }, 2000);
+
+    } catch (err) {
+      btns.forEach((b, i) => {
+        b.disabled = false;
+        b.innerHTML = originalContents[i];
+      });
+      log.error('[AstraRatingModal] Quick Save failed', err);
+      this.toast.error('Failed to save entry');
+    }
   }
 
   private async save(): Promise<void> {

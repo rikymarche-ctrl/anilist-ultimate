@@ -53,19 +53,6 @@ export class CalendarDomService {
       classes: targetContainer.className
     });
 
-    // Clean up existing instance and DOM element if any
-    const existingContainer = document.getElementById(CSS_CLASSES.CALENDAR);
-    if (existingContainer) {
-      log.debug('[CalendarDomService] Removing existing calendar container from DOM');
-      existingContainer.remove();
-    }
-
-    if (this.calendarGrid) {
-      log.debug('[CalendarDomService] Unmounting previous grid instance');
-      this.calendarGrid.unmount();
-      this.calendarGrid = null;
-    }
-
     // Prepare header (re-using the native H2/H3)
     const actualHeader = headerElement.tagName.toLowerCase() === 'h2' || headerElement.tagName.toLowerCase() === 'h3'
       ? headerElement
@@ -82,43 +69,59 @@ export class CalendarDomService {
       this.injectSettingsButton(parentHeader, onSettingsClick, astraEnabled);
     }
 
-    // Clear native content from the container
-    this.clearNativeAiringContent(targetContainer, headerElement);
-
-    // Create our calendar wrapper
+    // ATOMIC SWAP PREPARATION: Create new container first
     const calendarContainer = document.createElement('div');
     calendarContainer.id = CSS_CLASSES.CALENDAR;
     calendarContainer.className = 'anilist-calendar';
 
-    // Grid container where components will mount
     const gridContainer = document.createElement('div');
     gridContainer.className = 'calendar-grid-container';
     calendarContainer.appendChild(gridContainer);
 
-    // Insert into DOM
-    const sectionHeader = headerElement.closest('.section-header');
-    if (sectionHeader && sectionHeader.parentNode === targetContainer) {
-      log.debug('[CalendarDomService] Inserting after section header');
-      targetContainer.insertBefore(calendarContainer, sectionHeader.nextSibling);
+    // Clean up existing instance (unmount first)
+    if (this.calendarGrid) {
+      log.debug('[CalendarDomService] Unmounting previous grid instance');
+      this.calendarGrid.unmount();
+      this.calendarGrid = null;
+    }
+
+    // Find existing container in DOM to swap
+    const existingContainer = document.getElementById(CSS_CLASSES.CALENDAR);
+
+    // Ensure target container is visible (beat the hider)
+    targetContainer.style.display = 'block';
+    targetContainer.style.opacity = '1';
+    targetContainer.style.visibility = 'visible';
+
+    // Swap or Insert
+    if (existingContainer) {
+      log.debug('[CalendarDomService] Swapping existing calendar container');
+      existingContainer.replaceWith(calendarContainer);
     } else {
-      log.debug('[CalendarDomService] Appending to target container');
-      targetContainer.appendChild(calendarContainer);
+      // Clear native content only if we are injecting for the first time
+      this.clearNativeAiringContent(targetContainer, headerElement);
+      
+      const sectionHeader = headerElement.closest('.section-header');
+      if (sectionHeader && sectionHeader.parentNode === targetContainer) {
+        log.debug('[CalendarDomService] Inserting after section header');
+        targetContainer.insertBefore(calendarContainer, sectionHeader.nextSibling);
+      } else {
+        log.debug('[CalendarDomService] Appending to target container');
+        targetContainer.appendChild(calendarContainer);
+      }
     }
 
     this.containerElement = calendarContainer;
 
     // Resolve and mount the grid component
     try {
-      log.debug('[CalendarDomService] Resolving CalendarGrid from child container');
       const child = container.createChildContainer();
       child.register('CalendarGridProps', { useValue: { onMarkWatched, astraEnabled } });
       this.calendarGrid = child.resolve(CalendarGrid);
-
-      log.debug('[CalendarDomService] Mounting CalendarGrid');
       this.calendarGrid.mount(gridContainer);
     } catch (error) {
       log.error('[CalendarDomService] Failed to initialize CalendarGrid component', error);
-      calendarContainer.innerHTML = `<div class="calendar-error" style="padding: 20px; text-align: center; color: var(--au-error);">Failed to load calendar components. Check console for details.</div>`;
+      calendarContainer.innerHTML = `<div class="calendar-error" style="padding: 20px; text-align: center; color: var(--au-error);">Failed to load calendar components.</div>`;
     }
 
     return calendarContainer;
