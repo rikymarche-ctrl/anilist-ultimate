@@ -32,6 +32,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     webComponents: true,
     virtualScroll: true,
     mediaMetadata: true,
+    mediaMusic: true,
     astra: true,
   },
 

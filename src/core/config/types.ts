@@ -30,6 +30,7 @@ export interface FeatureFlags {
   webComponents: boolean;
   virtualScroll: boolean;
   mediaMetadata: boolean;
+  mediaMusic: boolean;
   astra: boolean;
 }
 

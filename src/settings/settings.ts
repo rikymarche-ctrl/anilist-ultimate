@@ -112,6 +112,7 @@ class SettingsPage {
                 ${this.renderModuleCard('calendar', 'Airing Calendar', 'Modern anime airing schedule directly on your home page.', 'fa-calendar-days')}
                 ${this.renderModuleCard('astra', 'Astra Journal', 'Advanced episode journal and quick rating system.', 'fa-journal-whills')}
                 ${this.renderModuleCard('mediaMetadata', 'Media Metadata', 'Extra database links (MAL, Reddit) on anime/manga pages.', 'fa-circle-info')}
+                ${this.renderModuleCard('mediaMusic', 'Music Themes', 'Display anime openings and endings with YouTube search links.', 'fa-music')}
               </div>
             </div>
 

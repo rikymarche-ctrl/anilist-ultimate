@@ -9,6 +9,7 @@ import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ILogger } from '@core/interfaces/ILogger';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { localStorage } from '@core/storage/StorageManager';
 import type { IMediaMusicModule, JikanThemeData } from './interfaces/IMediaMusicModule';
@@ -22,6 +23,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.Logger) private logger: ILogger,
+    @inject(TOKENS.Config) private config: IConfigManager,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
@@ -31,12 +33,12 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
   public async init(): Promise<void> {
     this.onPageChange(() => {
       this.fullCleanup();
-      if (this.isAnimePage()) {
+      if (this.isAnimePage() && this.config.isFeatureEnabled('mediaMusic')) {
         this.startObservation();
       }
     });
 
-    if (this.isAnimePage()) {
+    if (this.isAnimePage() && this.config.isFeatureEnabled('mediaMusic')) {
       this.startObservation();
     }
   }
@@ -66,11 +68,13 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
   public async renderMusicThemes(mediaId: number, idMal: number): Promise<void> {
     const overview = document.querySelector('.overview');
     if (!overview) return;
-
     this.mediaId = mediaId;
-    const themes = await this.fetchJikanThemes(idMal);
-    if (themes) {
-      this.renderThemes(themes, overview);
+    
+    try {
+      const themes = await this.fetchJikanThemes(idMal);
+      if (themes) this.renderThemes(themes, overview);
+    } catch (e) {
+      this.logger.error('[MediaMusic] Error in manual render', e);
     }
   }
 
@@ -81,7 +85,6 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     if (!match) return;
 
     const mediaId = parseInt(match[1], 10);
-    
     const overview = document.querySelector('.overview');
     if (!overview) return;
 
@@ -91,24 +94,22 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     this.isProcessing = true;
 
     try {
-      this.logger.info(`[MediaMusic] 🔍 Processing themes for anime ${mediaId}...`);
       const cacheKey = `music_themes_cache_${mediaId}`;
-      const cached = await localStorage.get<JikanThemeData>(cacheKey);
+      let themes = await localStorage.get<JikanThemeData>(cacheKey);
 
-      if (cached) {
-        this.renderThemes(cached, overview);
-      } else {
-        const idMal = await this.fetchMalId(mediaId);
+      if (!themes) {
+        const idMal = await this.fetchMalId(mediaId) || 0;
         if (idMal) {
-          const themes = await this.fetchJikanThemes(idMal);
-          if (themes) {
-            await localStorage.set(cacheKey, themes);
-            this.renderThemes(themes, overview);
-          }
+          themes = await this.fetchJikanThemes(idMal);
+          if (themes) await localStorage.set(cacheKey, themes);
         }
       }
+
+      if (themes) {
+        this.renderThemes(themes, overview);
+      }
     } catch (error) {
-      this.logger.error('[MediaMusic] Error processing themes', error);
+      this.logger.error('[MediaMusic] Internal error', error);
     } finally {
       this.isProcessing = false;
     }
@@ -119,102 +120,52 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     try {
       const data = await this.apiClient.query<any>(query, { id: mediaId });
       return data?.Media?.idMal || null;
-    } catch (err) {
-      return null;
-    }
+    } catch (err) { return null; }
   }
 
   private async fetchJikanThemes(idMal: number): Promise<JikanThemeData | null> {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch(`https://api.jikan.moe/v4/anime/${idMal}/themes`, { signal: controller.signal });
-      clearTimeout(timeoutId);
+      const response = await fetch(`https://api.jikan.moe/v4/anime/${idMal}/themes`);
       if (!response.ok) return null;
       const data = await response.json();
       return data?.data || null;
-    } catch (err) {
-      return null;
-    }
+    } catch (err) { return null; }
   }
 
   private renderThemes(themes: JikanThemeData, overview: Element): void {
-    if (!themes.openings.length && !themes.endings.length) return;
-
-    const headers = Array.from(overview.querySelectorAll('h2, .section-header'));
-    const staffHeader = headers.find(h => h.textContent?.trim().toLowerCase() === 'staff');
-    const charactersHeader = headers.find(h => h.textContent?.trim().toLowerCase() === 'characters');
-    const relationsHeader = headers.find(h => h.textContent?.trim().toLowerCase() === 'relations');
-
-    const staffSection = staffHeader?.closest('.section') || staffHeader?.parentElement;
-    const charactersSection = charactersHeader?.closest('.section') || charactersHeader?.parentElement;
-    const relationsSection = relationsHeader?.closest('.section') || relationsHeader?.parentElement;
-
-    const existing = document.querySelector('.au-music-section');
+    const staffSection = this.findSection(overview, 'Staff');
+    const charactersSection = this.findSection(overview, 'Characters');
     
-    let idealAnchor: Element | null = null;
-    let position: 'before' | 'after' = 'after';
+    let anchor = staffSection || charactersSection || overview.lastElementChild;
+    let pos: 'before' | 'after' = staffSection ? 'before' : 'after';
 
-    if (staffSection) {
-      idealAnchor = staffSection;
-      position = 'before';
-    } else if (charactersSection) {
-      idealAnchor = charactersSection;
-      position = 'after';
-    } else if (relationsSection) {
-      idealAnchor = relationsSection;
-      position = 'after';
-    }
-
-    // Force fresh render to apply new styles/content
-    if (existing) existing.remove();
+    document.querySelectorAll('.au-music-section').forEach(e => e.remove());
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
-    container.style.cssText = `
-      margin: 30px 0 !important;
-      width: 100% !important;
-      display: block !important;
-      position: relative !important;
-    `;
+    container.style.cssText = `margin: 30px 0 !important; width: 100% !important;`;
 
-    const createSection = (title: string, songs: string[]) => {
-      if (!songs || songs.length === 0) return '';
+    const build = (title: string, songs: string[]) => {
+      if (!songs.length) return '';
       return `
-        <div class="music-group" style="margin-bottom: 30px !important;">
-          <h2 style="font-size: 1.4rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 15px !important; padding-bottom: 8px !important;">${title}</h2>
-          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important; gap: 10px !important;">
+        <div style="margin-bottom: 30px;">
+          <h2 style="font-size: 1.4rem; color: var(--color-text-light); margin-bottom: 15px;">${title}</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 10px;">
             ${songs.map(song => {
               const urlMatch = song.match(/https?:\/\/[^\s)]+/);
               const directUrl = urlMatch ? urlMatch[0] : null;
               
-              // Ultra-aggressive cleaning: just "Song Name Artist Name"
-              const cleanForSearch = song
-                .replace(/^\d+:\s*/, '') // Remove numbering
-                .replace(/\(eps\s*[\d-]+\)/gi, '') // Remove eps
-                .replace(/https?:\/\/[^\s)]+/g, '') // Remove links
-                .replace(/by/gi, '') // Remove "by" keyword
-                .replace(/[":]/g, '') // Remove quotes and colons
-                .trim();
-              
-              const ytUrl = directUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanForSearch + ' official')}`;
-              const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent(cleanForSearch)}`;
-              const appleUrl = `https://music.apple.com/search?term=${encodeURIComponent(cleanForSearch)}`;
+              const clean = song.replace(/^\d+:\s*/, '').replace(/\(eps\s*[\d-]+\)/gi, '').replace(/https?:\/\/[^\s)]+/g, '').replace(/by/gi, '').replace(/[":]/g, '').trim();
+              const ytUrl = directUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(clean + ' official')}`;
 
               return `
-                <div class="song-item" style="background: #151f2e !important; border-radius: 6px !important; display: flex !important; align-items: center !important; padding: 14px 18px !important; transition: all 0.2s !important; min-height: 65px !important; margin-bottom: 4px !important;">
-                  <div class="song-info" style="flex-grow: 1 !important; font-size: 1.3rem !important; color: var(--color-text) !important; padding-right: 20px !important; line-height: 1.5 !important;">
+                <div style="background: #151f2e; border-radius: 6px; display: flex; align-items: center; padding: 14px 18px; min-height: 65px;">
+                  <div style="flex-grow: 1; font-size: 1.3rem; color: var(--color-text); padding-right: 20px; line-height: 1.5;">
                     ${this.formatSong(song.replace(/https?:\/\/[^\s)]+/, '').trim())}
                   </div>
-                  <div class="song-actions" style="display: flex !important; gap: 10px !important; flex-shrink: 0 !important; align-items: center !important;">
-                    <a href="${ytUrl}" target="_blank" title="YouTube" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,0,0,0.1); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <a href="${ytUrl}" target="_blank" title="Watch on YouTube" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,0,0,0.1); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
                       <i class="fab fa-youtube" style="color: #ff0000; font-size: 1.6rem;"></i>
-                    </a>
-                    <a href="${spotifyUrl}" target="_blank" title="Spotify" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(30,215,96,0.1); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
-                      <i class="fab fa-spotify" style="color: #1ed760; font-size: 1.6rem;"></i>
-                    </a>
-                    <a href="${appleUrl}" target="_blank" title="Apple Music" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(252,60,68,0.1); display: flex; align-items: center; justify-content: center; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">
-                      <i class="fab fa-apple" style="color: #fc3c44; font-size: 1.6rem;"></i>
                     </a>
                   </div>
                 </div>
@@ -225,22 +176,17 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       `;
     };
 
-    container.innerHTML = `
-      ${createSection('Openings', themes.openings)}
-      ${createSection('Endings', themes.endings)}
-    `;
-
-    if (idealAnchor) {
-      if (position === 'before') {
-        idealAnchor.before(container);
-      } else {
-        idealAnchor.after(container);
-      }
-    } else {
-      overview.appendChild(container);
+    container.innerHTML = build('Openings', themes.openings) + build('Endings', themes.endings);
+    if (anchor) {
+      if (pos === 'before') anchor.before(container);
+      else anchor.after(container);
     }
-    
-    this.logger.info('[MediaMusic] ✅ Successfully Positioned');
+  }
+
+  private findSection(overview: Element, text: string): Element | null {
+    const headers = Array.from(overview.querySelectorAll('h2, .section-header'));
+    const h = headers.find(h => h.textContent?.trim().toLowerCase() === text.toLowerCase());
+    return h?.closest('.section') || h?.parentElement || null;
   }
 
   private formatSong(song: string): string {
