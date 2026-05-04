@@ -64,10 +64,13 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
   }
 
   public async renderMusicThemes(mediaId: number, idMal: number): Promise<void> {
+    const overview = document.querySelector('.overview');
+    if (!overview) return;
+
     this.mediaId = mediaId;
     const themes = await this.fetchJikanThemes(idMal);
     if (themes) {
-      this.renderThemes(themes);
+      this.renderThemes(themes, overview);
     }
   }
 
@@ -79,35 +82,38 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
 
     const mediaId = parseInt(match[1], 10);
     
-    // Based on real HTML: <div class="content container">
-    const contentContainer = document.querySelector('.content.container') || 
-                             document.querySelector('.content > .container') || 
-                             document.querySelector('.content');
-                             
-    if (!contentContainer) return;
-    if (this.mediaId === mediaId && contentContainer.querySelector('.au-music-section')) return;
+    // Look for the overview container (main body of media page)
+    const overview = document.querySelector('.overview');
+    if (!overview) {
+      // If overview isn't ready, the observer will call us again later
+      return;
+    }
+
+    // Prevent duplicates
+    if (this.mediaId === mediaId && overview.querySelector('.au-music-section')) return;
 
     this.mediaId = mediaId;
     this.isProcessing = true;
 
     try {
+      this.logger.info(`[MediaMusic] Processing themes for anime ${mediaId}...`);
       const cacheKey = `music_themes_cache_${mediaId}`;
       const cached = await localStorage.get<JikanThemeData>(cacheKey);
 
       if (cached) {
-        this.renderThemes(cached);
+        this.renderThemes(cached, overview);
       } else {
         const idMal = await this.fetchMalId(mediaId);
         if (idMal) {
           const themes = await this.fetchJikanThemes(idMal);
           if (themes) {
             await localStorage.set(cacheKey, themes);
-            this.renderThemes(themes);
+            this.renderThemes(themes, overview);
           }
         }
       }
     } catch (error) {
-      this.logger.error('[MediaMusic] Failed to process music themes', error);
+      this.logger.error('[MediaMusic] Error processing themes', error);
     } finally {
       this.isProcessing = false;
     }
@@ -125,9 +131,9 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
 
   private async fetchJikanThemes(idMal: number): Promise<JikanThemeData | null> {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       const response = await fetch(`https://api.jikan.moe/v4/anime/${idMal}/themes`);
-      if (!response.ok) throw new Error(`Jikan error: ${response.status}`);
+      if (!response.ok) return null;
       const data = await response.json();
       return data?.data || null;
     } catch (err) {
@@ -135,33 +141,26 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     }
   }
 
-  private renderThemes(themes: JikanThemeData): void {
-    if (!themes.openings.length && !themes.endings.length) return;
-
-    // Use specific section anchors from AniList HTML
-    let anchor = document.querySelector('.staff') || 
-                 document.querySelector('.characters') || 
-                 document.querySelector('.description-wrap');
-
-    if (!anchor) {
-      const headers = Array.from(document.querySelectorAll('h2, .section-header'));
-      const staffHeader = headers.find(el => el.textContent?.toLowerCase().includes('staff'));
-      if (staffHeader) anchor = staffHeader.parentElement;
+  private renderThemes(themes: JikanThemeData, overview: Element): void {
+    if (!themes.openings.length && !themes.endings.length) {
+      this.logger.info('[MediaMusic] No themes found for this title.');
+      return;
     }
 
-    if (!anchor) {
-      anchor = document.querySelector('.content.container') || document.querySelector('.content');
-      if (!anchor) return;
-    }
+    // Try to find a good spot inside overview
+    const staff = overview.querySelector('.staff');
+    const characters = overview.querySelector('.characters');
+    const relations = overview.querySelector('.relations');
 
-    // Cleanup existing before injection
-    document.querySelectorAll('.au-music-section').forEach(el => el.remove());
+    // Remove existing
+    overview.querySelectorAll('.au-music-section').forEach(el => el.remove());
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
     container.style.marginTop = '40px';
     container.style.marginBottom = '40px';
     container.style.width = '100%';
+    container.style.order = '5'; // Ensure it stays in a reasonable place if using flex
 
     const createSection = (title: string, songs: string[]) => {
       if (!songs || songs.length === 0) return '';
@@ -192,7 +191,13 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       ${createSection('Endings', themes.endings)}
     `;
 
-    anchor.after(container);
+    // Strategic injection: after staff if exists, else after characters, else after relations
+    const anchor = staff || characters || relations;
+    if (anchor) {
+      anchor.after(container);
+    } else {
+      overview.appendChild(container);
+    }
   }
 
   private formatSong(song: string): string {
