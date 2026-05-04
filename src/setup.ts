@@ -46,6 +46,7 @@ import { ThemeManager } from '@core/ThemeManager';
 import { AuthTokenService } from '@core/auth/AuthTokenService';
 import { AuthService } from '@core/auth/AuthService';
 import { ToastService } from '@core/services/ToastService';
+import { NativeUiSyncService } from '@core/services/NativeUiSyncService';
 
 // Feature Services
 import { CalendarService } from '@/modules/calendar/CalendarService';
@@ -139,6 +140,9 @@ export async function setupDI(): Promise<void> {
   // Module Registry (needs logger and event bus) - REGISTER AS SINGLETON
   container.registerSingleton(TOKENS.ModuleRegistry, ModuleRegistry);
 
+  // Native UI Sync Service
+  container.registerSingleton(TOKENS.NativeUiSyncService, NativeUiSyncService);
+
   // ============================================================================
   // API Client
   // ============================================================================
@@ -214,6 +218,11 @@ export async function setupDI(): Promise<void> {
   const toastService = container.resolve<ToastService>(TOKENS.ToastService);
   toastService.init();
   console.log('[Setup] Toast service initialized');
+
+  // Initialize Native UI Sync Service
+  const syncService = container.resolve<NativeUiSyncService>(TOKENS.NativeUiSyncService);
+  syncService.init();
+  console.log('[Setup] Native UI sync service initialized');
 
   // Start navigation service
   const navigationService = container.resolve<NavigationService>(TOKENS.NavigationService);

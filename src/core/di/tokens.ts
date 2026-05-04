@@ -32,6 +32,7 @@ export const TOKENS = {
   ReviewService: Symbol.for('ReviewService'),
   NavigationService: Symbol.for('NavigationService'),
   SharedGlobalObserver: Symbol.for('SharedGlobalObserver'),
+  NativeUiSyncService: Symbol.for('NativeUiSyncService'),
 
   // API Layer
   ApiClient: Symbol.for('IApiClient'),

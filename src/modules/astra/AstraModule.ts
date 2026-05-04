@@ -317,9 +317,7 @@ export class AstraModule extends BaseModule {
       };
 
       if (action === 'mark-watched') {
-        // handleMarkWatched already has internal async handling, but we unified the entry point
-        // We'll let handleMarkWatched handle its own icons for now, or simplify it
-        this.handleMarkWatched(section, wrapper, mediaId);
+        this.handleMarkWatched(section, mediaId);
       } else if (action === 'edit-entry') {
         (async () => {
           try {
@@ -557,13 +555,11 @@ export class AstraModule extends BaseModule {
    * Handles the mark-watched (increment progress) action.
    * Called by the delegated click handler.
    */
-  private handleMarkWatched(section: HTMLElement, wrapper: HTMLElement, mediaId: number): void {
+  private handleMarkWatched(section: HTMLElement, mediaId: number): void {
     log.debug('[Astra] handleMarkWatched called, mediaId:', mediaId);
     const icon = section.querySelector<HTMLElement>('i');
     if (icon) icon.className = 'fa fa-spinner fa-spin';
     section.style.pointerEvents = 'none';
-
-    const card = wrapper.closest<HTMLElement>('.media-preview-card, .media-card');
 
     (async () => {
       try {
@@ -623,20 +619,6 @@ export class AstraModule extends BaseModule {
           userId,
           status: entry.status
         });
-
-        // Update native UI text (best-effort)
-        if (card) {
-          const progressEl = card.querySelector('.progress');
-          if (progressEl) progressEl.textContent = `${newProgress}`;
-
-          const infoContainer = card.querySelector('.info');
-          if (infoContainer) {
-            const html = infoContainer.innerHTML;
-            if (html.includes('Progress:')) {
-              infoContainer.innerHTML = html.replace(/Progress: (\d+)/, `Progress: ${newProgress}`);
-            }
-          }
-        }
       } catch (err) {
         log.error('[Astra] Failed to increment progress', err);
         this.toast.error('Failed to update progress.');
