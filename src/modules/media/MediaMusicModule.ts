@@ -187,9 +187,9 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     const createSection = (title: string, songs: string[]) => {
       if (!songs || songs.length === 0) return '';
       return `
-        <div class="music-group" style="margin-bottom: 35px !important;">
-          <h2 style="font-size: 1.6rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 20px !important; border-bottom: 1px solid var(--color-background-100) !important; padding-bottom: 10px !important;">${title}</h2>
-          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important; gap: 15px !important;">
+        <div class="music-group" style="margin-bottom: 40px !important;">
+          <h2 style="font-size: 1.5rem !important; font-weight: 500 !important; color: var(--color-text-light) !important; margin-bottom: 18px !important; border-bottom: 2px solid var(--color-background-100) !important; padding-bottom: 10px !important;">${title}</h2>
+          <div class="songs-list" style="display: grid !important; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important; gap: 12px !important;">
             ${songs.map(song => {
               const urlMatch = song.match(/https?:\/\/[^\s)]+/);
               const directUrl = urlMatch ? urlMatch[0] : null;
@@ -198,11 +198,16 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
               const finalUrl = directUrl || searchUrl;
 
               return `
-                <div class="song-item" style="background: var(--color-background-100) !important; padding: 14px 18px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.2s ease !important; cursor: pointer !important;" onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)';" onclick="window.open('${finalUrl}', '_blank')">
-                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important; line-height: 1.4 !important;">
+                <div class="song-item" style="background: var(--color-background-100) !important; border: 1px solid var(--color-background-200) !important; padding: 16px 20px !important; border-radius: 10px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important; cursor: pointer !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;" 
+                     onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 16px rgba(0,0,0,0.12)'; this.style.borderColor='var(--color-blue)';" 
+                     onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)'; this.style.borderColor='var(--color-background-200)';" 
+                     onclick="window.open('${finalUrl}', '_blank')">
+                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important; line-height: 1.6 !important; font-weight: 400 !important;">
                     ${this.formatSong(cleanSong)}
                   </div>
-                  <i class="${directUrl ? 'fas fa-external-link-alt' : 'fab fa-youtube'}" style="color: ${directUrl ? 'var(--color-blue)' : '#ff0000'}; font-size: 1.8rem; opacity: 0.7;"></i>
+                  <div style="background: ${directUrl ? 'var(--color-blue-100)' : 'rgba(255, 0, 0, 0.1)'}; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                    <i class="${directUrl ? 'fas fa-external-link-alt' : 'fab fa-youtube'}" style="color: ${directUrl ? 'var(--color-blue)' : '#ff0000'}; font-size: 1.6rem; opacity: 0.9;"></i>
+                  </div>
                 </div>
               `;
             }).join('')}
