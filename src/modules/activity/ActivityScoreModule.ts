@@ -91,8 +91,8 @@ export class ActivityScoreModule extends BaseModule {
   }
 
   private checkAndProcess(): void {
-    // Enhanced selector to find all possible activity blocks
-    const entries = document.querySelectorAll('.activity-entry:not([data-au-score-enhanced]), .activity-anime:not([data-au-score-enhanced]), .activity-manga:not([data-au-score-enhanced])');
+    // Enhanced selector to find all possible activity blocks, including profile list items
+    const entries = document.querySelectorAll('.activity-entry:not([data-au-score-enhanced]), .activity-anime:not([data-au-score-enhanced]), .activity-manga:not([data-au-score-enhanced]), .list.small:not([data-au-score-enhanced])');
 
     entries.forEach(el => {
       const entry = el as HTMLElement;
@@ -189,16 +189,34 @@ export class ActivityScoreModule extends BaseModule {
     badge.style.borderColor = `${ScoreFormatter.getColor(score)}40`;
     badge.style.background = `${ScoreFormatter.getColor(score)}15`;
 
-    // Target the title link (optimized for different activity layouts)
-    const target = entry.querySelector('.title, .name, .details .title, .content .title');
+    // Target identification
+    const isProfile = window.location.pathname.includes('/user/');
+    const mediaLinks = entry.querySelectorAll('a[href^="/anime/"], a[href^="/manga/"]');
+    const lastLink = mediaLinks[mediaLinks.length - 1];
+    const generalTitle = entry.querySelector('.title, .name, .details .title, .content .title');
+    
+    const target = isProfile ? (lastLink || generalTitle) : generalTitle;
+
     if (target) {
-      target.insertAdjacentElement('afterend', badge);
+      if (isProfile) {
+        // Use after() to put it right after the link/text without being inside it
+        (target as HTMLElement).after(badge);
+        badge.style.marginLeft = '8px';
+        badge.style.display = 'inline-flex';
+        badge.style.verticalAlign = 'middle';
+      } else {
+        target.insertAdjacentElement('afterend', badge);
+      }
+      entry.setAttribute('data-au-score-enhanced', 'true');
     } else {
-      // Fallback to cover if title not found
+      // Fallback to cover
       const cover = entry.querySelector('.cover, .image, [class*="image"], [class*="cover"]');
       if (cover) {
         (cover as HTMLElement).style.position = 'relative';
         cover.appendChild(badge);
+        entry.setAttribute('data-au-score-enhanced', 'true');
+      } else {
+        entry.setAttribute('data-au-score-enhanced', 'no-target');
       }
     }
   }
