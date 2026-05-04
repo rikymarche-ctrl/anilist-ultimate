@@ -11,11 +11,11 @@
   border-radius: 4px;
   font-weight: 700;
   font-size: 11px;
-  margin: 2px 8px 5px 0;
+  margin: 2px 8px 5px 6px;
   width: fit-content !important;
   max-width: 100%;
   align-self: flex-start;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
   min-width: 22px;
   vertical-align: middle;
   transition: all 0.2s ease;
@@ -39,15 +39,46 @@
 }
 
 /* Colors matching ReviewEnhancer (using AU tokens where possible) */
-.au-rating--perfect { color: var(--au-success); }
-.au-rating--excellent { color: var(--au-success); filter: brightness(0.9); }
-.au-rating--high { color: var(--au-success); filter: brightness(0.8); }
-.au-rating--good { color: var(--au-success); filter: brightness(0.7); }
-.au-rating--decent { color: var(--au-warning); }
-.au-rating--medium { color: var(--au-warning); filter: brightness(0.9); }
-.au-rating--poor { color: var(--au-error); }
-.au-rating--bad { color: var(--au-error); filter: brightness(0.8); }
-.au-rating--terrible { color: #9370db; }
+.au-rating--perfect {
+  color: var(--au-success);
+}
+
+.au-rating--excellent {
+  color: var(--au-success);
+  filter: brightness(0.9);
+}
+
+.au-rating--high {
+  color: var(--au-success);
+  filter: brightness(0.8);
+}
+
+.au-rating--good {
+  color: var(--au-success);
+  filter: brightness(0.7);
+}
+
+.au-rating--decent {
+  color: var(--au-warning);
+}
+
+.au-rating--medium {
+  color: var(--au-warning);
+  filter: brightness(0.9);
+}
+
+.au-rating--poor {
+  color: var(--au-error);
+}
+
+.au-rating--bad {
+  color: var(--au-error);
+  filter: brightness(0.8);
+}
+
+.au-rating--terrible {
+  color: #9370db;
+}
 
 .au-friend-header {
   display: flex;
@@ -74,8 +105,8 @@
 }
 
 
-.activity-entry .cover, 
-.activity-anime .cover, 
+.activity-entry .cover,
+.activity-anime .cover,
 .activity-manga .cover,
 .activity-entry .image,
 .activity-anime .image,
