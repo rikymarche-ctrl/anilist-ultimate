@@ -64,14 +64,22 @@ export class CalendarModule extends BaseModule {
       log.success('[Calendar] Preferences loaded from storage');
 
       // Check authentication via centralized client
-      if (!this.apiClient.isAuthenticated()) {
+      const authenticated = this.apiClient.isAuthenticated();
+      log.info(`[Calendar] Auth status: ${authenticated}`);
+
+      if (!authenticated) {
         log.warn('[Calendar] User not authenticated, showing prompt');
         await this.handleUnauthenticated();
         return;
       }
 
-      this.userId = await this.apiClient.getCurrentUserId();
-      log.info('[Calendar] Initializing for user', { userId: this.userId });
+      try {
+        this.userId = await this.apiClient.getCurrentUserId();
+        log.info(`[Calendar] Initializing for user: ${this.userId} (${typeof this.userId})`);
+      } catch (e) {
+        log.error('[Calendar] Failed to get userId', e);
+        return;
+      }
 
       // 1. Setup MutationObserver for late-loading React sections
       await this.setupSectionDetection();
@@ -175,21 +183,8 @@ export class CalendarModule extends BaseModule {
         }
       }, 2000);
 
-      // 4. Initialize global social visibility classes
-      const syncClasses = () => this.domService.syncSocialVisibilityClasses(this.config.isFeatureEnabled('astra'));
-      syncClasses();
-
-      // 5. Subscribe to preference changes to update body classes in real-time
-      calendarStore.subscribeToSelector(
-        (state: any) => ({
-          socialEnabled: state.preferences.socialEnabled,
-          socialShowAvatars: state.preferences.socialShowAvatars,
-        }),
-        () => syncClasses()
-      );
-
-      // 6. PERSISTENCE: Use shared observer to ensure classes stay applied even after React re-renders body
-      this.sharedObserver.register('social-visibility-persistence', () => syncClasses(), 2000);
+      // 4. Social masking is now handled by SocialMaskingService automatically via its init() in setup.ts
+      // No need to manually call syncClasses or register observers here anymore.
 
       // 7. ANTI-DOUBLE: Aggressively hide native airing section if calendar is active
       this.sharedObserver.register('calendar-native-hider', () => {

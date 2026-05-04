@@ -64,9 +64,10 @@ export const AIRING_SCHEDULE_QUERY = `
  * Fetch user's anime list (for progress tracking)
  */
 export const USER_ANIME_LIST_QUERY = `
-  query UserAnimeList($userId: Int!, $type: MediaType = ANIME, $status: MediaListStatus = CURRENT) {
-    MediaListCollection(userId: $userId, type: $type, status: $status) {
+  query UserAnimeList($userId: Int!, $type: MediaType = ANIME) {
+    MediaListCollection(userId: $userId, type: $type) {
       lists {
+        name
         entries {
           id
           mediaId
@@ -79,6 +80,7 @@ export const USER_ANIME_LIST_QUERY = `
           updatedAt
           media {
             id
+            type
             title {
               romaji
               english

@@ -1,52 +1,54 @@
-import { injectable } from 'tsyringe';
 /**
  * @file CalendarStore.ts
- * @description Central reactive store for calendar state with intelligent caching
+ * @description Enterprise-grade reactive store for calendar state with automated persistent caching.
  *
- * Extends Store<CalendarStoreState> to manage:
- *   - Anime entries (schedule + progress merged)
- *   - Loading/error UI state
- *   - User preferences (layout, time format, social toggles)
- *   - Persistent cache with fingerprint-based invalidation
- *
- * Intelligent Caching:
- *   - Persists entries to chrome.storage.local
- *   - TTL 30 minutes
- *   - Fingerprint validation (mediaId + airingAt hash)
- *   - Auto-invalidation on progress updates
+ * Manages anime entries, user preferences, and UI states.
+ * Integrates with CacheService for high-performance schedule persistence.
  *
  * @see Store.ts for the reactive base class
- * @see docs/MODULES.md#1-calendar-module
  */
 
+import { injectable, inject } from 'tsyringe';
 import { Store } from '@core/state/Store';
-import { storage } from '@core/storage/StorageManager';
+import { TOKENS } from '@core/di/tokens';
+import type { IStorageService } from '@core/interfaces/IStorageService';
+import type { ICacheService } from '@core/interfaces/ICacheService';
+import { CacheFactory } from '@core/cache/CacheFactory';
 import { log } from '@core/logger';
-import { DEFAULT_CALENDAR_PREFERENCES, STORAGE_KEYS } from '@core/constants';
+import { DEFAULT_CALENDAR_PREFERENCES, STORAGE_KEYS, DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, CalendarPreferences } from '@core/types';
 
+/**
+ * Structure for persistent calendar cache including integrity fingerprint
+ */
 interface CalendarCache {
   entries: AnimeEntry[];
   fingerprint: string;
-  timestamp: number;
 }
 
+/**
+ * Internal state structure for the CalendarStore
+ */
 interface CalendarState {
-  // Data
+  /** All anime entries (schedule + user progress) */
   entries: AnimeEntry[];
+  /** Global loading state */
   loading: boolean;
+  /** Global error state */
   error: Error | null;
+  /** Last time the data was refreshed from API */
   lastUpdate: Date | null;
-
-  // User preferences
+  /** User-specific UI preferences */
   preferences: CalendarPreferences;
-
-  // UI state
+  /** Currently selected day in the UI */
   selectedDay: string | null;
+  /** Set of day keys currently expanded in the grid */
   expandedDays: Set<string>;
+  /** ID of the active countdown update interval */
   countdownInterval: number | null;
 }
 
+/** Initial state for the store */
 const initialState: CalendarState = {
   entries: [],
   loading: false,
@@ -58,19 +60,37 @@ const initialState: CalendarState = {
   countdownInterval: null,
 };
 
+/**
+ * Centralized Store for the Calendar module.
+ * Implements persistent state and reactive updates.
+ */
 @injectable()
 export class CalendarStore extends Store<CalendarState> {
   private initialized = false;
   private initPromise: Promise<void> | null = null;
+  /** Dedicated persistent cache for airing schedules */
+  private scheduleCache: ICacheService<string, CalendarCache>;
 
-  constructor() {
+  /**
+   * @param storage Injected storage for preferences
+   * @param cacheFactory Factory to create the schedule cache
+   */
+  constructor(
+    @inject(TOKENS.LocalStorage) private storage: IStorageService,
+    @inject(CacheFactory) cacheFactory: CacheFactory
+  ) {
     super(initialState);
-    // Don't call async methods in constructor - violates constructor contract
+
+    this.scheduleCache = cacheFactory.create<string, CalendarCache>({
+      namespace: 'calendar_schedule',
+      maxSize: 1, // We only need the latest schedule
+      ttlMs: 30 * 60 * 1000 // 30 minutes
+    });
   }
 
   /**
-   * Initialize the store - MUST be called before using the store
-   * Safe to call multiple times (idempotent)
+   * Initializes the store by loading preferences from storage.
+   * Safe to call multiple times (idempotent).
    */
   public async init(): Promise<void> {
     if (this.initialized) return;
@@ -82,43 +102,43 @@ export class CalendarStore extends Store<CalendarState> {
   }
 
   /**
-   * Load preferences from storage
+   * Loads user preferences from persistent storage.
    */
   private async loadPreferences(): Promise<void> {
     try {
-      const stored = await storage.get<CalendarPreferences>(STORAGE_KEYS.CALENDAR_PREFS);
-
+      const stored = await this.storage.get<CalendarPreferences>(STORAGE_KEYS.CALENDAR_PREFS);
       if (stored) {
         this.setState({
           preferences: { ...DEFAULT_CALENDAR_PREFERENCES, ...stored },
         });
-        log.info('Calendar preferences loaded', stored);
+        log.info('[CalendarStore] Preferences loaded');
       }
     } catch (error) {
-      log.error('Failed to load calendar preferences', error);
+      log.error('[CalendarStore] Failed to load preferences', error);
     }
   }
 
   /**
-   * Save preferences to storage
+   * Persists preferences and updates local state.
    */
-  async savePreferences(preferences: Partial<CalendarPreferences>): Promise<void> {
+  public async savePreferences(preferences: Partial<CalendarPreferences>): Promise<void> {
     const newPreferences = { ...this.getState().preferences, ...preferences };
-
     this.setState({ preferences: newPreferences });
 
     try {
-      await storage.set(STORAGE_KEYS.CALENDAR_PREFS, newPreferences);
-      log.success('Calendar preferences saved');
+      await this.storage.set(STORAGE_KEYS.CALENDAR_PREFS, newPreferences);
     } catch (error) {
-      log.error('Failed to save calendar preferences', error);
+      log.error('[CalendarStore] Failed to save preferences', error);
     }
   }
 
   /**
-   * Set anime entries
+   * Resets all preferences to their default values.
    */
-  setEntries(entries: AnimeEntry[]): void {
+  public async resetPreferences(): Promise<void> {
+    await this.savePreferences(DEFAULT_CALENDAR_PREFERENCES);
+  }
+  public setEntries(entries: AnimeEntry[]): void {
     this.setState({
       entries,
       lastUpdate: new Date(),
@@ -126,254 +146,139 @@ export class CalendarStore extends Store<CalendarState> {
     });
   }
 
-  /**
-   * Set loading state
-   */
-  setLoading(loading: boolean): void {
+  public setLoading(loading: boolean): void {
     this.setState({ loading });
   }
 
-  /**
-   * Set error state
-   */
-  setError(error: Error): void {
+  public setError(error: Error): void {
     this.setState({ error, loading: false });
   }
 
-  /**
-   * Clear error
-   */
-  clearError(): void {
+  public clearError(): void {
     this.setState({ error: null });
   }
 
   /**
-   * Update a single anime entry
+   * Updates a specific entry by mediaId.
    */
-  updateEntry(mediaId: number, updates: Partial<AnimeEntry>): void {
+  public updateEntry(mediaId: number, updates: Partial<AnimeEntry>): void {
     const entries = this.getState().entries.map((entry) =>
       entry.mediaId === mediaId ? { ...entry, ...updates } : entry
     );
-
     this.setState({ entries });
   }
 
   /**
-   * Update multiple entries at once
+   * Updates multiple entries at once using a Map of updates.
+   * Efficiently performs a single state update.
+   * 
+   * @param updates Map of mediaId to partial entry updates
    */
-  updateEntriesBatch(updatesMap: Map<number, Partial<AnimeEntry>>): void {
+  public updateEntriesBatch(updates: Map<number, Partial<AnimeEntry>>): void {
     const entries = this.getState().entries.map((entry) => {
-      const updates = updatesMap.get(entry.mediaId);
-      return updates ? { ...entry, ...updates } : entry;
+      const update = updates.get(entry.mediaId);
+      return update ? { ...entry, ...update } : entry;
     });
-
     this.setState({ entries });
   }
 
   /**
-   * Remove an entry
+   * Toggles day expansion in the UI grid.
    */
-  removeEntry(mediaId: number): void {
-    const entries = this.getState().entries.filter((entry) => entry.mediaId !== mediaId);
-    this.setState({ entries });
-  }
-
-  /**
-   * Toggle expanded state for a specific day
-   */
-  toggleExpandedDay(day: string): void {
+  public toggleExpandedDay(day: string): void {
     const { expandedDays } = this.getState();
     const newExpandedDays = new Set(expandedDays);
-    
+
     if (newExpandedDays.has(day)) {
       newExpandedDays.delete(day);
     } else {
       newExpandedDays.add(day);
     }
-    
+
     this.setState({ expandedDays: newExpandedDays });
   }
 
   /**
-   * Set selected day
+   * Removes an entry by mediaId.
+   * 
+   * @param mediaId The ID to remove
    */
-  setSelectedDay(day: string | null): void {
-    this.setState({ selectedDay: day });
+  public removeEntry(mediaId: number): void {
+    const entries = this.getState().entries.filter(e => e.mediaId !== mediaId);
+    this.setState({ entries });
   }
 
   /**
-   * Update layout mode
+   * Manages the countdown update interval.
    */
-  setLayoutMode(layoutMode: CalendarPreferences['layoutMode']): void {
-    this.savePreferences({ layoutMode });
-  }
-
-  /**
-   * Update time format
-   */
-  setTimeFormat(timeFormat: CalendarPreferences['timeFormat']): void {
-    this.savePreferences({ timeFormat });
-  }
-
-  /**
-   * Toggle show time
-   */
-  toggleShowTime(): void {
-    const { showTime } = this.getState().preferences;
-    this.savePreferences({ showTime: !showTime });
-  }
-
-  /**
-   * Toggle show episode numbers
-   */
-  toggleShowEpisodeNumbers(): void {
-    const { showEpisodeNumbers } = this.getState().preferences;
-    this.savePreferences({ showEpisodeNumbers: !showEpisodeNumbers });
-  }
-
-  /**
-   * Toggle hide empty days
-   */
-  toggleHideEmptyDays(): void {
-    const { hideEmptyDays } = this.getState().preferences;
-    this.savePreferences({ hideEmptyDays: !hideEmptyDays });
-  }
-
-  /**
-   * Set start day
-   */
-  setStartDay(startDay: CalendarPreferences['startDay']): void {
-    this.savePreferences({ startDay });
-  }
-
-  /**
-   * Set title alignment
-   */
-  setTitleAlignment(titleAlignment: CalendarPreferences['titleAlignment']): void {
-    this.savePreferences({ titleAlignment });
-  }
-
-  /**
-   * Set column justification
-   */
-  setColumnJustify(columnJustify: CalendarPreferences['columnJustify']): void {
-    this.savePreferences({ columnJustify });
-  }
-
-  /**
-   * Toggle full width images
-   */
-  toggleFullWidthImages(): void {
-    const { fullWidthImages } = this.getState().preferences;
-    this.savePreferences({ fullWidthImages: !fullWidthImages });
-  }
-
-  /**
-   * Set max cards per day
-   */
-  setMaxCardsPerDay(maxCardsPerDay: number): void {
-    this.savePreferences({ maxCardsPerDay });
-  }
-
-  /**
-   * Start countdown update interval
-   */
-  startCountdownInterval(callback: () => void, intervalMs: number = 60000): void {
-    // Clear existing interval
+  public startCountdownInterval(callback: () => void, intervalMs: number = 60000): void {
     this.stopCountdownInterval();
-
     const intervalId = window.setInterval(callback, intervalMs);
     this.setState({ countdownInterval: intervalId });
-
-    log.debug('Countdown interval started');
   }
 
-  /**
-   * Stop countdown update interval
-   */
-  stopCountdownInterval(): void {
+  public stopCountdownInterval(): void {
     const { countdownInterval } = this.getState();
-
     if (countdownInterval !== null) {
       window.clearInterval(countdownInterval);
       this.setState({ countdownInterval: null });
-      log.debug('Countdown interval stopped');
     }
   }
 
   /**
-   * Reset to default preferences
+   * Checks if the current state needs a refresh from the API.
    */
-  async resetPreferences(): Promise<void> {
-    this.setState({ preferences: { ...DEFAULT_CALENDAR_PREFERENCES } });
-
-    try {
-      await storage.set(STORAGE_KEYS.CALENDAR_PREFS, DEFAULT_CALENDAR_PREFERENCES);
-      log.success('Calendar preferences reset to defaults');
-    } catch (error) {
-      log.error('Failed to reset preferences', error);
-    }
+  public needsRefresh(maxAgeMs: number = 30 * 60 * 1000): boolean {
+    const { lastUpdate } = this.getState();
+    if (!lastUpdate) return true;
+    return (Date.now() - lastUpdate.getTime()) > maxAgeMs;
   }
 
   /**
-   * Get entries grouped by day
+   * Groups entries by day of the week.
+   * 
+   * @returns Record mapping day name to its anime entries
    */
-  getEntriesByDay(): Record<string, AnimeEntry[]> {
+  public getEntriesByDay(): Record<string, AnimeEntry[]> {
     const { entries } = this.getState();
-    const grouped: Record<string, AnimeEntry[]> = {
-      Sunday: [],
-      Monday: [],
-      Tuesday: [],
-      Wednesday: [],
-      Thursday: [],
-      Friday: [],
-      Saturday: [],
-    };
+    const grouped: Record<string, AnimeEntry[]> = {};
 
-    entries.forEach((entry) => {
-      grouped[entry.dayOfWeek].push(entry);
+    // Initialize groups
+    DAYS_OF_WEEK.forEach((day: string) => {
+      grouped[day] = [];
+    });
+
+    // Group by airingAt day
+    entries.forEach(entry => {
+      const dayIndex = entry.airingAt.getDay();
+      const dayName = DAYS_OF_WEEK[dayIndex];
+      if (grouped[dayName]) {
+        grouped[dayName].push(entry);
+      }
     });
 
     return grouped;
   }
 
-  /**
-   * Get entries for a specific day
-   */
-  getEntriesForDay(day: string): AnimeEntry[] {
-    return this.getState().entries.filter((entry) => entry.dayOfWeek === day);
-  }
+  // ─── Persistent Cache Management ──────────────────────────────────────────
 
   /**
-   * Check if data needs refresh
-   */
-  needsRefresh(maxAgeMs: number = 30 * 60 * 1000): boolean {
-    const { lastUpdate } = this.getState();
-
-    if (!lastUpdate) return true;
-
-    const age = Date.now() - lastUpdate.getTime();
-    return age > maxAgeMs;
-  }
-
-  // ─── Intelligent Caching with Fingerprint Validation ─────────────────────
-
-  private readonly CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
-
-  /**
-   * Generate fingerprint from entries (mediaId + airingAt)
-   * Used to detect if schedule data has changed
+   * Generates a unique fingerprint for a schedule to validate cache integrity.
+   * Based on media IDs and airing timestamps.
    */
   private generateFingerprint(entries: AnimeEntry[]): string {
     if (entries.length === 0) return '';
-
-    // Sort by mediaId for consistent fingerprinting
     const sorted = entries.slice().sort((a, b) => a.mediaId - b.mediaId);
-
-    // Create hash from mediaId + airingAt timestamp
-    const data = sorted.map(e => `${e.mediaId}:${e.airingAt.getTime()}`).join('|');
-
-    // Simple hash function (FNV-1a)
+    
+    const data = sorted.map(e => {
+      // Handle both Date objects (live state) and strings (raw cache data)
+      const time = e.airingAt instanceof Date 
+        ? e.airingAt.getTime() 
+        : new Date(e.airingAt).getTime();
+        
+      return `${e.mediaId}:${time}`;
+    }).join('|');
+ 
     let hash = 2166136261;
     for (let i = 0; i < data.length; i++) {
       hash ^= data.charCodeAt(i);
@@ -383,93 +288,60 @@ export class CalendarStore extends Store<CalendarState> {
   }
 
   /**
-   * Save entries to persistent cache with fingerprint
+   * Persists airing schedule to the unified cache service.
    */
-  async saveEntriesToCache(entries: AnimeEntry[]): Promise<void> {
-    try {
-      const fingerprint = this.generateFingerprint(entries);
-      const cache: CalendarCache = {
-        entries,
-        fingerprint,
-        timestamp: Date.now(),
-      };
-
-      await storage.set(STORAGE_KEYS.CACHE_SCHEDULE, cache);
-      log.debug(`[CalendarStore] Cached ${entries.length} entries with fingerprint ${fingerprint}`);
-    } catch (error) {
-      log.error('[CalendarStore] Failed to save cache', error);
-    }
+  public async saveEntriesToCache(entries: AnimeEntry[]): Promise<void> {
+    const fingerprint = this.generateFingerprint(entries);
+    await this.scheduleCache.set('main_schedule', { entries, fingerprint });
+    log.debug(`[CalendarStore] Schedule cached with fingerprint: ${fingerprint}`);
   }
 
   /**
-   * Load entries from cache if valid and fresh
-   * Returns null if cache is missing or corrupted
-   * @param allowStale If true, returns data even if TTL has expired
+   * Loads entries from persistent cache with integrity check.
    */
-  async loadEntriesFromCache(allowStale: boolean = false): Promise<AnimeEntry[] | null> {
-    try {
-      const cache = await storage.get<CalendarCache>(STORAGE_KEYS.CACHE_SCHEDULE);
+  public async loadEntriesFromCache(): Promise<AnimeEntry[] | null> {
+    const cache = await this.scheduleCache.get('main_schedule');
+    if (!cache) return null;
 
-      if (!cache || !cache.entries || !cache.timestamp || !cache.fingerprint) {
-        log.debug('[CalendarStore] No valid cache found');
-        return null;
-      }
-
-      // Check TTL
-      const age = Date.now() - cache.timestamp;
-      if (!allowStale && age > this.CACHE_TTL_MS) {
-        log.debug(`[CalendarStore] Cache expired (${Math.round(age / 60000)}min old)`);
-        return null;
-      }
-
-      if (allowStale && age > this.CACHE_TTL_MS) {
-        log.info(`[CalendarStore] Using stale cache (${Math.round(age / 60000)}min old) as fallback`);
-      }
-
-      // Validate fingerprint matches (optional paranoia check)
-      const currentFingerprint = this.generateFingerprint(cache.entries);
-      if (currentFingerprint !== cache.fingerprint) {
-        log.warn('[CalendarStore] Cache fingerprint mismatch - data corrupted?');
-        return null;
-      }
-
-      log.info(`[CalendarStore] Loaded ${cache.entries.length} entries from cache (${Math.round(age / 1000)}s old)`);
-      return cache.entries;
-    } catch (error) {
-      log.error('[CalendarStore] Failed to load cache', error);
+    // Verify fingerprint integrity
+    const currentFingerprint = this.generateFingerprint(cache.entries);
+    if (currentFingerprint !== cache.fingerprint) {
+      log.warn('[CalendarStore] Cache fingerprint mismatch. Invalidating.');
+      await this.invalidateCache();
       return null;
     }
+
+    log.info(`[CalendarStore] Loaded ${cache.entries.length} entries from persistent cache`);
+
+    // Hydrate Date objects after JSON restoration
+    return cache.entries.map(entry => ({
+      ...entry,
+      airingAt: new Date(entry.airingAt)
+    }));
   }
 
   /**
-   * Invalidate cache (e.g., after progress update)
+   * Invalidates the persistent schedule cache.
    */
-  async invalidateCache(): Promise<void> {
-    try {
-      await storage.remove(STORAGE_KEYS.CACHE_SCHEDULE);
-      log.info('[CalendarStore] Cache invalidated');
-    } catch (error) {
-      log.error('[CalendarStore] Failed to invalidate cache', error);
-    }
-  }
-
-  /**
-   * Check if cached data fingerprint matches new data
-   * Returns true if data is identical (no need to refetch)
-   */
-  async isCacheFingerprintMatch(newEntries: AnimeEntry[]): Promise<boolean> {
-    try {
-      const cache = await storage.get<CalendarCache>(STORAGE_KEYS.CACHE_SCHEDULE);
-      if (!cache || !cache.fingerprint) return false;
-
-      const newFingerprint = this.generateFingerprint(newEntries);
-      return newFingerprint === cache.fingerprint;
-    } catch (error) {
-      log.error('[CalendarStore] Failed to check fingerprint', error);
-      return false;
-    }
+  public async invalidateCache(): Promise<void> {
+    await this.scheduleCache.clear();
+    log.info('[CalendarStore] Schedule cache invalidated');
   }
 }
 
-// Singleton instance
-export const calendarStore = new CalendarStore();
+/**
+ * Global singleton instance for non-injectable UI components.
+ * Resolved through the centralized DI container to maintain singleton integrity.
+ */
+import { container } from 'tsyringe';
+
+let _instance: CalendarStore | null = null;
+export const calendarStore = new Proxy({} as CalendarStore, {
+  get: (_, prop: keyof CalendarStore) => {
+    if (!_instance) {
+      _instance = container.resolve<CalendarStore>(TOKENS.CalendarStore);
+    }
+    const val = _instance[prop];
+    return typeof val === 'function' ? val.bind(_instance) : val;
+  }
+});

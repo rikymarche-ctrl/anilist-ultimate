@@ -1,35 +1,23 @@
 /**
  * @file NotificationFetchService.ts
- * @description Batch activity detail fetching with intelligent caching
+ * @description Enterprise service for batched activity detail fetching for the Notification module.
  *
- * Extracts activity IDs from notification DOM elements and fetches
- * extended details (media title, type, progress) in a single batched
- * GraphQL request using alias queries. Uses short-lived LRU cache
- * to avoid redundant fetches when users toggle merge/unmerge repeatedly.
- *
- * Caching:
- *   - Persistent cache via chrome.storage.local
- *   - LRU eviction (max 1000 entries)
- *   - TTL 30 days (notification contents are static once generated)
- *
- * @see NotificationGroupService.ts for the grouping consumer
- * @see docs/MODULES.md#2-notification-cleaner-module
+ * Optimizes network traffic by batching individual activity detail requests into
+ * combined GraphQL alias queries and provides long-term persistent caching
+ * for static activity data.
  */
 
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
-import type { IStorageService } from '@core/interfaces/IStorageService';
+import type { ICacheService } from '@core/interfaces/ICacheService';
+import { CacheFactory } from '@core/cache/CacheFactory';
 import type { GraphQLBatcher } from '@core/api/GraphQLBatcher';
-import { STORAGE_KEYS, TIME } from '@core/constants';
+import { TIME } from '@core/constants';
 
-import { LRUCacheWithTTL, type CacheEntry } from '@core/cache/LRUCacheWithTTL';
-
-export interface CachedActivity {
-  details: ActivityDetails;
-  timestamp: number;
-}
-
+/**
+ * Raw activity data structure from AniList API
+ */
 export interface ActivityData {
   status?: string;
   media?: {
@@ -44,6 +32,9 @@ export interface ActivityData {
   message?: string;
 }
 
+/**
+ * Simplified activity details used for notification grouping
+ */
 export interface ActivityDetails {
   text: string;
   mediaId?: number;
@@ -51,23 +42,38 @@ export interface ActivityDetails {
   status?: string;
 }
 
+/**
+ * Service responsible for fetching and caching activity metadata.
+ */
 @injectable()
 export class NotificationFetchService {
-  private activityCache = new LRUCacheWithTTL<number, ActivityDetails>({
+  /** Centralized persistent cache for notification activity details */
+  private cache: ICacheService<number, ActivityDetails>;
+
+  /** Cache configuration constants */
+  private readonly CACHE_CONFIG = {
+    namespace: 'notifications_activity',
     maxSize: 1000,
-    ttlMs: 30 * TIME.DAY_MS,
-    onPersistenceNeeded: () => this.savePersistentCache()
-  });
-
-  private persistentCacheLoaded = false;
-
-  constructor(
-    @inject(TOKENS.GraphQLBatcher) private batcher: GraphQLBatcher,
-    @inject(TOKENS.LocalStorage) private storage: IStorageService
-  ) {}
+    ttlMs: 30 * TIME.DAY_MS // Notification content is mostly static
+  };
 
   /**
-   * Extract activity ID from notification element
+   * @param batcher GraphQL alias batching engine
+   * @param cacheFactory Factory to create isolated cache instances
+   */
+  constructor(
+    @inject(TOKENS.GraphQLBatcher) private batcher: GraphQLBatcher,
+    @inject(CacheFactory) cacheFactory: CacheFactory
+  ) {
+    this.cache = cacheFactory.create<number, ActivityDetails>(this.CACHE_CONFIG);
+  }
+
+  /**
+   * Extracts the activity ID from a notification DOM element.
+   * Scans for data attributes and specific URL patterns in anchor tags.
+   * 
+   * @param notification Notification HTML element
+   * @returns The extracted activity ID or null if not found
    */
   public extractActivityId(notification: HTMLElement): number | null {
     const dataId = notification.getAttribute('data-activity-id');
@@ -83,19 +89,25 @@ export class NotificationFetchService {
   }
 
   /**
-   * Fetch activity details in batch using GraphQLBatcher
+   * Fetches detailed metadata for multiple activity IDs.
+   * Prioritizes persistent cache and uses batcher for pending items.
+   * 
+   * @param activityIds Array of IDs to query
+   * @returns Map of activityId to its details
    */
   public async fetchActivityDetails(activityIds: number[]): Promise<Map<number, ActivityDetails>> {
-    await this.ensureCacheLoaded();
     const results = new Map<number, ActivityDetails>();
-    const pendingIds = activityIds.filter(id => {
-      const cached = this.activityCache.get(id);
+    const pendingIds: number[] = [];
+
+    // Prioritize cache
+    for (const id of activityIds) {
+      const cached = await this.cache.get(id);
       if (cached) {
         results.set(id, cached);
-        return false;
+      } else if (id > 0) {
+        pendingIds.push(id);
       }
-      return id > 0;
-    });
+    }
 
     if (pendingIds.length === 0) return results;
 
@@ -108,6 +120,7 @@ export class NotificationFetchService {
       ... on MessageActivity { message(asHtml: false) }
     `;
 
+    // Dispatch queries through the batcher
     const fetchPromises = pendingIds.map(async id => {
       try {
         const query = `{ Activity(id: ${id}) { ${fields} } }`;
@@ -129,7 +142,7 @@ export class NotificationFetchService {
           }
 
           const details: ActivityDetails = { text, mediaId, mediaTitle, status };
-          this.activityCache.set(id, details);
+          await this.cache.set(id, details);
           results.set(id, details);
         }
       } catch (error) {
@@ -141,55 +154,11 @@ export class NotificationFetchService {
     return results;
   }
 
-  // ─── Persistent Cache Management ──────────────────────────────────────────
-
   /**
-   * Load the persistent cache from storage into memory
-   */
-  private async ensureCacheLoaded(): Promise<void> {
-    if (this.persistentCacheLoaded) return;
-
-    try {
-      const data = await this.storage.get<Record<number, CacheEntry<ActivityDetails>>>(STORAGE_KEYS.CACHE_NOTIFICATIONS);
-      if (data) {
-        this.activityCache.import(data);
-        log.debug(`[NotificationFetch] Loaded ${this.activityCache.size} activities from persistent cache`);
-      }
-    } catch (error) {
-      log.error('[NotificationFetch] Failed to load persistent cache', error);
-    } finally {
-      this.persistentCacheLoaded = true;
-    }
-  }
-
-  /**
-   * Save the in-memory cache to persistent storage
-   */
-  private async savePersistentCache(): Promise<void> {
-    if (!this.persistentCacheLoaded) return; // Don't overwrite if not loaded yet
-
-    try {
-      const exported = this.activityCache.export();
-      const data: Record<number, CacheEntry<ActivityDetails>> = {};
-      exported.forEach((entry, id) => {
-        data[id] = entry;
-      });
-      await this.storage.set(STORAGE_KEYS.CACHE_NOTIFICATIONS, data);
-    } catch (error) {
-      log.error('[NotificationFetch] Failed to save persistent cache', error);
-    }
-  }
-
-  /**
-   * Manually clear the activity cache
-   * Useful for testing or manual resets
+   * Clears the entire notification activity cache.
    */
   public async clearCache(): Promise<void> {
-    const size = this.activityCache.size;
-    if (size > 0) {
-      this.activityCache.clear();
-      await this.storage.remove(STORAGE_KEYS.CACHE_NOTIFICATIONS);
-      log.info(`[NotificationFetch] Persistent cache cleared (${size} entries)`);
-    }
+    await this.cache.clear();
+    log.info('[NotificationFetch] Activity cache cleared');
   }
 }

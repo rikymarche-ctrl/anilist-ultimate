@@ -178,6 +178,7 @@ export interface AiringScheduleResponse {
 export interface MediaListResponse {
   MediaListCollection: {
     lists: Array<{
+      name?: string;
       entries: Array<{
         id: number;
         mediaId: number;
@@ -185,6 +186,7 @@ export interface MediaListResponse {
         status: MediaListStatus;
         media: {
           id: number;
+          type: string;
           title: {
             romaji: string;
             english: string | null;

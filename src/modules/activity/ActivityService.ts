@@ -1,75 +1,87 @@
 /**
  * @file ActivityService.ts
- * @description Batched user score fetching for activity feed entries
+ * @description Enterprise service for fetching activity-related metadata and scores.
  *
- * When users update anime/manga progress in their activity feed, this service
- * fetches their scores for the corresponding media. Uses GraphQL alias batching
- * to fetch multiple user-media pairs in a single request (up to 25 per chunk).
+ * Implements high-performance caching for user scores on the activity feed
+ * and optimizes network traffic via GraphQL alias batching.
  *
- * Caching:
- *   - In-memory cache keyed by "userName-mediaId"
- *   - LRU eviction (max 100 entries)
- *   - TTL 5 minutes
- *   - Failed fetches are cached as null to avoid retry spam
- *
- * @security GraphQL injection risk resolved: userName and mediaId are now passed
- *           as typed variables, not interpolated into query strings. See BUG-002.
- *
- * @see docs/MODULES.md#4-activity-score-module
+ * CACHING:
+ * - ScoreCache: Short-lived (5m) in-memory cache for user-media score pairs.
+ *   Prevents redundant API calls when scrolling the activity feed.
  */
-import { injectable, singleton, inject } from 'tsyringe';
 
+import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { ICacheService } from '@core/interfaces/ICacheService';
+import { CacheFactory } from '@core/cache/CacheFactory';
 import { log } from '@core/logger';
-
 import { ScoreFormat } from '@core/types';
 import { PERFORMANCE } from '@core/constants';
 
-import { LRUCacheWithTTL } from '@core/cache/LRUCacheWithTTL';
-
+/**
+ * Encapsulates score value and its display format
+ */
 export interface ActivityScoreData {
   score: number;
   format: ScoreFormat;
 }
 
+/**
+ * Service responsible for activity feed enhancements and scoring data.
+ */
 @injectable()
-@singleton()
 export class ActivityService {
-  private scoreCache = new LRUCacheWithTTL<string, ActivityScoreData | null>({
-    maxSize: 100,
-    ttlMs: 5 * 60 * 1000 // 5 minutes
-  });
+  /** In-memory cache for activity feed scores */
+  private cache: ICacheService<string, ActivityScoreData | null>;
 
-  constructor(
-    @inject(TOKENS.ApiClient) private api: IApiClient
-  ) {}
+  /** Cache configuration constants */
+  private readonly CACHE_CONFIG = {
+    namespace: 'activity_scores',
+    maxSize: 100,
+    ttlMs: 5 * 60 * 1000, // 5 minutes
+    persistent: false // Short-lived data doesn't need disk persistence
+  };
 
   /**
-   * Fetch scores for a batch of User-Media pairs
+   * @param api Injected AniList API client
+   * @param cacheFactory Factory to create isolated cache instances
+   */
+  constructor(
+    @inject(TOKENS.ApiClient) private api: IApiClient,
+    @inject(CacheFactory) cacheFactory: CacheFactory
+  ) {
+    this.cache = cacheFactory.create<string, ActivityScoreData | null>(this.CACHE_CONFIG);
+  }
+
+  /**
+   * Fetches scores for a batch of user-media pairs.
+   * Optimizes API usage using GraphQL alias batching.
+   * 
+   * @param pairs Array of userName and mediaId pairs to query
+   * @returns Map of "userName-mediaId" key to score data or null
    */
   public async getScoresBatch(pairs: { userName: string; mediaId: number }[]): Promise<Map<string, ActivityScoreData | null>> {
     const results = new Map<string, ActivityScoreData | null>();
     const pendingPairs: { userName: string; mediaId: number; key: string }[] = [];
 
-    pairs.forEach(p => {
+    // Prioritize cache
+    for (const p of pairs) {
       const key = `${p.userName}-${p.mediaId}`;
-      const cached = this.scoreCache.get(key);
-      if (cached !== undefined || this.scoreCache.has(key)) {
-        results.set(key, cached !== undefined ? cached : null);
+      const cached = await this.cache.get(key);
+      if (cached !== undefined || await this.cache.has(key)) {
+        results.set(key, cached ?? null);
       } else {
         pendingPairs.push({ ...p, key });
       }
-    });
+    }
 
     if (pendingPairs.length === 0) return results;
 
-    // AniList Alias Batching (Max ~50 per request to be safe)
     const chunkSize = PERFORMANCE.GRAPHQL_CHUNK_SIZE_ACTIVITY;
     for (let i = 0; i < pendingPairs.length; i += chunkSize) {
       const chunk = pendingPairs.slice(i, i + chunkSize);
       
-      // Build query using GraphQL variables (prevents injection via usernames)
       const varDecls = chunk.map((_, i) => `$u${i}: String!, $m${i}: Int!`).join(', ');
       const aliases = chunk.map((_, i) =>
         `s${i}: MediaList(userName: $u${i}, mediaId: $m${i}) { 
@@ -83,39 +95,27 @@ export class ActivityService {
       chunk.forEach((p, i) => { variables[`u${i}`] = p.userName; variables[`m${i}`] = p.mediaId; });
 
       try {
-        interface ActivityBatchResponse {
-          [key: string]: {
-            score: number;
-            user: {
-              mediaListOptions: {
-                scoreFormat: ScoreFormat;
-              };
-            };
-          } | null;
-        }
-
-        const response = await this.api.query<ActivityBatchResponse>(query, variables, true);
+        const response = await this.api.query<any>(query, variables, true);
         
-        chunk.forEach((p, idx) => {
+        for (let idx = 0; idx < chunk.length; idx++) {
+          const p = chunk[idx];
           const data = response[`s${idx}`];
           const scoreData = data ? {
             score: data.score,
             format: data.user.mediaListOptions.scoreFormat
           } : null;
 
-          this.scoreCache.set(p.key, scoreData);
+          await this.cache.set(p.key, scoreData);
           results.set(p.key, scoreData);
-        });
+        }
       } catch (e) {
         log.error('[ActivityService] Batch fetch failed', e);
-        // Mark as null to avoid spamming failed requests
-        chunk.forEach(p => {
-          this.scoreCache.set(p.key, null);
+        for (const p of chunk) {
+          await this.cache.set(p.key, null);
           results.set(p.key, null);
-        });
+        }
       }
 
-      // Small delay between chunks if multiple
       if (i + chunkSize < pendingPairs.length) {
         await new Promise(r => setTimeout(r, 500));
       }
@@ -125,13 +125,17 @@ export class ActivityService {
   }
 
   /**
-   * Fetch activities for a specific media from people the user follows
+   * Fetches the activity feed entries for a specific media among people the user follows.
+   * 
+   * @param mediaId AniList media ID
+   * @param page Current page number
+   * @returns List of activities and pagination status
    */
   public async getMediaActivity(mediaId: number, page: number = 1): Promise<{ activities: any[]; hasNextPage: boolean }> {
     const query = `
       query ($mediaId: Int, $page: Int) {
         Page(page: $page, perPage: 25) {
-          pageInfo { total hasMorePages }
+          pageInfo { hasMorePages }
           activities(mediaId: $mediaId, isFollowing: true, sort: ID_DESC) {
             ... on ListActivity {
               id type status progress createdAt replyCount likeCount
@@ -144,7 +148,7 @@ export class ActivityService {
     `;
 
     try {
-      const response = await this.api.query<{ Page: { activities: any[]; pageInfo: { hasMorePages: boolean } } }>(query, { mediaId, page });
+      const response = await this.api.query<any>(query, { mediaId, page });
       return {
         activities: response.Page.activities,
         hasNextPage: response.Page.pageInfo.hasMorePages
@@ -156,14 +160,10 @@ export class ActivityService {
   }
 
   /**
-   * Manually clear the score cache
-   * Useful when user manually refreshes data or changes following list
+   * Clears the in-memory score cache.
    */
-  public clearCache(): void {
-    const size = this.scoreCache.size;
-    if (size > 0) {
-      this.scoreCache.clear();
-      log.info(`[ActivityService] Cache manually cleared (${size} entries)`);
-    }
+  public async clearCache(): Promise<void> {
+    await this.cache.clear();
+    log.info('[ActivityService] Cache cleared');
   }
 }

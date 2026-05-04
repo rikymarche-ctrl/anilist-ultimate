@@ -90,11 +90,11 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   protected onMount(): void {
     // subscribeToSelector fires only when the relevant booleans actually change
     calendarStore.subscribeToSelector(
-      state => ({
+      (state: any) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
       }),
-      (curr, prev) => {
+      (curr: any, prev: any) => {
         if (curr.socialEnabled !== prev.socialEnabled || curr.socialShowAvatars !== prev.socialShowAvatars) {
           // 1. Surgically patch the pill (immediate, no rerender needed)
           this.refreshPillSocialButton();

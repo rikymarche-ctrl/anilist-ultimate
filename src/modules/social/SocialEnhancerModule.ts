@@ -31,7 +31,7 @@ import type { FriendActivity } from '@core/types';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { SocialService } from './SocialService';
 import { SocialRenderer } from './SocialRenderer';
-import { calendarStore } from '../calendar/CalendarStore';
+import { CalendarStore } from '../calendar/CalendarStore';
 
 /** Attribute set on cards after first injection to track mediaId */
 const PROCESSED_ATTR = 'data-au-social-processed';
@@ -61,7 +61,8 @@ export class SocialEnhancerModule extends BaseModule {
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
-    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus,
+    @inject(TOKENS.CalendarStore) private calendarStore: CalendarStore
   ) {
     super(eventBus);
   }
@@ -70,7 +71,7 @@ export class SocialEnhancerModule extends BaseModule {
     log.info('SocialEnhancerModule: Initializing...');
 
     // Must wait for store initialization so we don't read default preferences
-    await calendarStore.init();
+    await this.calendarStore.init();
 
     // BUG-030 fix: Clear cache on page navigation to prevent unbounded growth
     this.onPageChange(() => {
@@ -102,12 +103,12 @@ export class SocialEnhancerModule extends BaseModule {
     });
 
     // React immediately to social preference changes using cached data
-    calendarStore.subscribeToSelector(
-      state => ({
+    this.calendarStore.subscribeToSelector(
+      (state: any) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
       }),
-      (curr, prev) => {
+      (curr: any, prev: any) => {
         if (curr.socialEnabled !== prev.socialEnabled || curr.socialShowAvatars !== prev.socialShowAvatars) {
           if (curr.socialEnabled) {
             this.applyPreferencesToAllCards();
@@ -119,7 +120,7 @@ export class SocialEnhancerModule extends BaseModule {
       }
     );
 
-    const { socialEnabled } = calendarStore.getState().preferences;
+    const { socialEnabled } = this.calendarStore.getState().preferences;
     if (socialEnabled && this.isOnHomePage()) {
       this.startObservation();
       this.processNewCards();
@@ -212,7 +213,7 @@ export class SocialEnhancerModule extends BaseModule {
    * Scan for new, unprocessed cards and queue them for batch fetch.
    */
   private processNewCards(): void {
-    const { socialEnabled } = calendarStore.getState().preferences;
+    const { socialEnabled } = this.calendarStore.getState().preferences;
     if (!socialEnabled || !this.isOnHomePage()) return;
 
     const cards = Array.from(document.querySelectorAll<HTMLElement>('.media-preview-card, .media-card'));
@@ -278,7 +279,7 @@ export class SocialEnhancerModule extends BaseModule {
   }
 
   private async flushBatch(): Promise<void> {
-    const { socialEnabled } = calendarStore.getState().preferences;
+    const { socialEnabled } = this.calendarStore.getState().preferences;
     if (!socialEnabled) return;
 
     const ids = Array.from(this.pendingCards.keys());

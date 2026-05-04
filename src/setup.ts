@@ -45,10 +45,12 @@ import { logger } from '@core/logger';
 import { ThemeManager } from '@core/ThemeManager';
 import { AuthTokenService } from '@core/auth/AuthTokenService';
 import { AuthService } from '@core/auth/AuthService';
+import { CacheFactory } from '@core/cache/CacheFactory';
 import { ToastService } from '@core/services/ToastService';
 import { NativeUiSyncService } from '@core/services/NativeUiSyncService';
 
 // Feature Services
+import { CalendarStore } from '@/modules/calendar/CalendarStore';
 import { CalendarService } from '@/modules/calendar/CalendarService';
 import { CalendarDomService } from '@/modules/calendar/services/CalendarDomService';
 import { CalendarDataService } from '@/modules/calendar/services/CalendarDataService';
@@ -87,6 +89,7 @@ import type { ModuleMetadata } from '@core/interfaces/IModule';
 // Shared Components
 import { ActivityFilterBar, ActivityRenderer, CustomListTabManager } from '@/modules/activity/shared';
 import { CustomListService } from '@/modules/social/CustomListService';
+import { SocialMaskingService } from '@core/services/SocialMaskingService';
 
 /**
  * Setup the DI container with all services
@@ -140,9 +143,12 @@ export async function setupDI(): Promise<void> {
 
   // Module Registry (needs logger and event bus) - REGISTER AS SINGLETON
   container.registerSingleton(TOKENS.ModuleRegistry, ModuleRegistry);
+  container.registerSingleton(CacheFactory);
+  container.registerSingleton(TOKENS.CalendarStore, CalendarStore);
 
   // Native UI Sync Service
   container.registerSingleton(TOKENS.NativeUiSyncService, NativeUiSyncService);
+  container.registerSingleton(TOKENS.SocialMaskingService, SocialMaskingService);
 
   // ============================================================================
   // API Client
@@ -206,6 +212,11 @@ export async function setupDI(): Promise<void> {
   // Initialize Critical Services
   // ============================================================================
 
+  // Initialize AuthTokenService (CRITICAL: must be first)
+  const authTokenService = container.resolve<AuthTokenService>(TOKENS.AuthTokenService);
+  await authTokenService.initialize();
+  console.log('[Setup] Auth token service initialized');
+
   // Load configuration
   const config = container.resolve<IConfigManager>(TOKENS.Config);
   await config.load();
@@ -226,15 +237,15 @@ export async function setupDI(): Promise<void> {
   syncService.init();
   console.log('[Setup] Native UI sync service initialized');
 
+  // Initialize Social Masking Service
+  const maskingService = container.resolve<SocialMaskingService>(TOKENS.SocialMaskingService);
+  maskingService.init();
+  console.log('[Setup] Social masking service initialized');
+
   // Start navigation service
   const navigationService = container.resolve<NavigationService>(TOKENS.NavigationService);
   navigationService.start();
   console.log('[Setup] Navigation service started');
-
-  // Initialize AuthTokenService (load token from chrome.storage.local)
-  const authTokenService = container.resolve<AuthTokenService>(TOKENS.AuthTokenService);
-  await authTokenService.initialize();
-  console.log('[Setup] Auth token service initialized');
 
   // ============================================================================
   // Register Modules

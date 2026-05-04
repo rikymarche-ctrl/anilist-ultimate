@@ -35,6 +35,7 @@ import type { ToastService } from '@core/services/ToastService';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
 import { AstraRatingModal } from './ui/AstraRatingModal';
+import { SocialMaskingService } from '@core/services/SocialMaskingService';
 
 @injectable()
 export class AstraModule extends BaseModule {
@@ -45,7 +46,8 @@ export class AstraModule extends BaseModule {
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.ToastService) private toast: ToastService,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
-    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus,
+    @inject(TOKENS.SocialMaskingService) private maskingService: SocialMaskingService
   ) {
     super(eventBus);
   }
@@ -62,6 +64,9 @@ export class AstraModule extends BaseModule {
     } else {
       log.warn('[Astra] Not authenticated, skipping service initialization (UI will still work)');
     }
+    
+    // Sync social masking policy
+    this.maskingService.sync();
 
     this.onPageChange(async (event) => {
       const path = event?.path || window.location.pathname;
@@ -258,8 +263,8 @@ export class AstraModule extends BaseModule {
   }
 
   private initProgressEnhancer(): void {
-    // Apply body classes for CSS rules (same as CalendarDomService)
-    this.updateBodyClasses();
+    // Sync social masking policy
+    this.maskingService.sync();
 
     // BUG-007 fix: Use SharedGlobalObserver for card enhancement
     this.sharedObserver.register('astra-progress-enhancer', () => {
@@ -273,7 +278,6 @@ export class AstraModule extends BaseModule {
         socialShowAvatars: state.preferences.socialShowAvatars,
       }),
       (curr: any) => {
-        this.updateBodyClasses(); // Update body classes first
         this.refreshNativeCardSocialPills(curr.socialEnabled, curr.socialShowAvatars);
       }
     );
@@ -348,33 +352,6 @@ export class AstraModule extends BaseModule {
     // Initial run
     this.enhanceNativeCards();
   }
-
-  /**
-   * Updates body classes to control CSS rules for social bubbles.
-   * This is CRITICAL for the CSS in astra.css to work properly.
-   *
-   * EXACTLY like CalendarDomService.ts:171-181
-   */
-  private updateBodyClasses(): void {
-    const { socialShowAvatars } = calendarStore.getState().preferences;
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // RULE 1: If avatars are hidden, add class to hide native bubbles via CSS
-    // ═══════════════════════════════════════════════════════════════════════════
-    if (!socialShowAvatars) {
-      document.body.classList.add('au-social-avatars-hidden');
-    } else {
-      document.body.classList.remove('au-social-avatars-hidden');
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // RULE 2: Always mark Astra as enabled (our pills are active)
-    // ═══════════════════════════════════════════════════════════════════════════
-    document.body.classList.add('au-astra-enabled');
-
-    log.debug(`[Astra] Body classes updated: avatars=${socialShowAvatars ? 'visible' : 'hidden'}`);
-  }
-
 
   /**
    * Enhances media cards with Astra action pills (quick rate, increment progress, etc.)

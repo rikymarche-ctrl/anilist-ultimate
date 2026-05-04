@@ -1,24 +1,53 @@
-# AniList Ultimate - Roadmap & TODO
+# 🚀 Astra Ultimate - Project Roadmap & TODO
 
 ---
 
-- [ ] **Activity Score Restoration** - Ensure Astra scores appear in user profiles as well
-- [ ] c è da implementare anche il soritng, tipo per completed date, data di modifica, start ecc
-- [ ] astra dashboard: wrapped da finire, ho scaricato le cose fatte con opus per avere lo sfondo fluidop, da integrare nel progetto
-- [ ] astra dashbard: major rework da fare alle stats, pensare come
-- [ ] astra dashboard: fare in modo che qunado scrolo la parte sopra con sync, toggle progress fill etch sparisca, e che rimangano solo i filtri
-- [ ] **Caching** - Verify caching logic.
-- [ ] astra dashboard: le freccette degli slider sono sempre attiva, anche quando i rispettivi slider non ci sono
-- [ ] **Bulk Editor** ? - Create a tool for bulk editing items within custom lists in Astra Dashboard. ?
-- [ ] l hover sull immagine dentro astra funzioni bene solo nella dashboard, nel quickedit è sfocata, e ne compaiono 2
-- [ ] il journal funziona correttamente per gli anime, ma per i manga e le novel? non credo
-- [ ] C è da finire i testi nei messaggi delle notifihce "mentioned you", "activity reply" ecc
-- [ ] abilitare la ricerca dei voti nelle activity dentro la home dei profili utente, e se non c è anche nelle pagine social delle singole opere
-- [ ] **Music Integrtion** - Show Opening/Ending titles with direct YouTube search links.
-- [ ] **Astra Settings Fixes** - Lo slider spinge leggermetne troppo sotto gli elementi
-- [ ] fare in modo che l append del commento autogenerato sia opzionale
-- [ ] git pubblico da setuppare: https://github.com/rikymarche-ctrl/anilist-ultimate (ci sarebbe da chiudere gli altri 2 vecchi))
-- [ ] disattivare il fatto che possa sparire se ho il cursore dentro le quick note![1777870945317](image/TODO/1777870945317.png)
-- [ ] adattare tutto a tutti i thems
+## 📊 Astra Dashboard
+
+*Il centro di controllo dell'esperienza Astra.*
+
+- [X] **Infrastruttura Caching (Enterprise Refactor)**: Sistema centralizzato O(1) con persistenza trasparente completato.
+- [ ] **Sorting & Filtering**: Implementare il sistema di ordinamento reale per la dashboard.
+  - **Filtri da applicare**: `Title`, `Score (Astra)`, `Progress`, `Last Updated`, `Last Added`, `Start Date`, `Completed Date`.
+  - *Nota*: Rimosse metriche esterne non rilevanti (Popularity, Release Date, Average Score) in quanto la dashboard è focalizzata sui dati personali Astra.
+- [ ] **Sorting Avanzato**: Implementare il sorting anche per `Completed Date`, `Data di modifica`, `Start`, ecc.
+- [ ] **Astra Wrapped**: Da finire. Integrare lo sfondo fluido scaricato (fatto con Opus) nel progetto.
+- [ ] **Stats Major Rework**: Riprogettazione profonda delle statistiche (pensare a come strutturarle).
+- [ ] **Dynamic UI (Scrolling)**: Fare in modo che quando si scrolla, la parte superiore (Sync, Toggle Progress, Fill, ecc.) sparisca, lasciando visibili solo i filtri per massimizzare lo spazio di lavoro.
+- [ ] **Bulk Editor**: Creare uno strumento per il bulk editing degli elementi all'interno delle liste personalizzate della Astra Dashboard.
+
+## 📓 Astra Ratings & Journal
+
+*Sistema di annotazione e valutazione avanzata.*
+
+- [ ] **Multi-Format Support**: Il Journal funziona correttamente per gli anime, ma va verificata e implementata la piena compatibilità per Manga e Novel.
+- [ ] **Optional Comments**: Fare in modo che l'append del commento autogenerato sia opzionale.
+- [ ] **Infinite Saving Bug**: Fixare il problema del "Save" che gira all'infinito nell'Astra Journal senza salvare.
+- [ ] un sistema per dare le lodi?
+
+## 👥 Social & Activity
+
+*Integrazione con la community di AniList.*
+
+- [ ] **Notification Texts**: Completare i testi nei messaggi delle notifiche come "mentioned you", "activity reply", ecc.
+
+## 🛠️ Fixes & UX Improvements
+
+*Rifinitura e stabilità dell'interfaccia.*
+
+- [ ] **Slider Arrows**: Le freccette degli slider nella dashboard sono sempre attive, anche quando i rispettivi slider non sono presenti.
+- [ ] **Image Hover/QuickEdit**: Risolvere il problema dell'immagine sfocata nel QuickEdit e il bug del "doppio hover" (compaiono 2 immagini).
+- [ ] **Astra Settings Layout**: Lo slider nelle impostazioni spinge leggermente troppo sotto gli elementi circostanti.
+- [ ] **Theme Adaptation**: Adattare tutti i componenti e le feature a tutti i temi disponibili.
+
+## ⚙️ Core & Infrastructure
+
+*Base tecnica e manutenzione.*
+
+- [X] **Enterprise Cache Validation**: Verificata e ottimizzata tutta la logica di caching (ReviewService, Calendar, Social, Notifications, Activity).
+
+## 📈 Project Management
+
+- [ ] **Setup Git Pubblico**: Configurare il repository ufficiale su [GitHub](https://github.com/rikymarche-ctrl/anilist-ultimate) e procedere con la chiusura definitiva dei due vecchi repository (ci sarebbe da chiudere gli altri 2 vecchi).
 
 ---

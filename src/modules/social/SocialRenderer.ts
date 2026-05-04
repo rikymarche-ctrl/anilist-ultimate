@@ -10,8 +10,8 @@
  * @see docs/MODULES.md#10-social-enhancer-module
  */
 
-import { FriendActivity, MediaType } from '@core/types';
 import { calendarStore } from '../calendar/CalendarStore';
+import { FriendActivity, MediaType } from '@core/types';
 
 export class SocialRenderer {
   /**

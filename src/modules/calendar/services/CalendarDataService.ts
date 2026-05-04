@@ -23,15 +23,17 @@ import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { CalendarService } from '../CalendarService';
-import { calendarStore } from '../CalendarStore';
+import { CalendarStore } from '../CalendarStore';
 import { log } from '@core/logger';
+import { AnimeEntry } from '@core/types';
 
 @injectable()
 export class CalendarDataService {
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.CalendarService) private calendarService: CalendarService,
-    @inject(TOKENS.ToastService) private toastService: any
+    @inject(TOKENS.ToastService) private toastService: any,
+    @inject(TOKENS.CalendarStore) private calendarStore: CalendarStore
   ) {}
 
   /**
@@ -40,15 +42,15 @@ export class CalendarDataService {
    */
   public async loadSchedule(userId: number, forceRefresh: boolean = false): Promise<void> {
     try {
-      calendarStore.setLoading(true);
+      this.calendarStore.setLoading(true);
 
       // Try loading from cache first (unless force refresh)
       if (!forceRefresh) {
-        const cachedEntries = await calendarStore.loadEntriesFromCache();
-        if (cachedEntries) {
-          calendarStore.setEntries(cachedEntries);
-          log.success(`[CalendarData] Loaded ${cachedEntries.length} entries from cache`);
-
+        const cachedEntries = await this.calendarStore.loadEntriesFromCache();
+        if (cachedEntries && cachedEntries.length > 0) {
+          log.info(`[CalendarData] Cache hit: found ${cachedEntries.length} entries`);
+          this.calendarStore.setEntries(cachedEntries);
+          
           // Emit global event
           this.eventBus.emit(EVENT_TYPES.CALENDAR_LOADED, {
             scheduleCount: cachedEntries.length,
@@ -59,17 +61,26 @@ export class CalendarDataService {
 
           return;
         }
+        log.info('[CalendarData] Cache miss or empty cache');
       }
 
       // Cache miss or force refresh - fetch from API
-      log.info('[CalendarData] Fetching fresh schedule from API');
+      log.info(`[CalendarData] Fetching fresh schedule from API for user ${userId}`);
       const entries = await this.calendarService.fetchAiringSchedule(userId);
-      calendarStore.setEntries(entries);
+      
+      log.info(`[CalendarData] API returned ${entries.length} transformed entries`);
+      
+      this.calendarStore.setEntries(entries);
 
       // Save to cache for future loads
-      await calendarStore.saveEntriesToCache(entries);
+      if (entries.length > 0) {
+        await this.calendarStore.saveEntriesToCache(entries);
+        log.debug('[CalendarData] Entries saved to cache');
+      } else {
+        log.warn('[CalendarData] API returned 0 entries. Skipping cache save to avoid poisoning.');
+      }
 
-      log.success(`[CalendarData] Loaded ${entries.length} anime entries (fresh fetch)`);
+      log.success(`[CalendarData] Successfully loaded ${entries.length} anime entries`);
 
       // Emit global event
       this.eventBus.emit(EVENT_TYPES.CALENDAR_LOADED, {
@@ -82,12 +93,12 @@ export class CalendarDataService {
       log.error('[CalendarData] Failed to load schedule from API', error);
       
       // FALLBACK: Try loading stale cache if we haven't already
-      const state = calendarStore.getState();
+      const state = this.calendarStore.getState();
       if (state.entries.length === 0) {
         log.info('[CalendarData] Attempting stale cache fallback after API failure...');
-        const staleEntries = await calendarStore.loadEntriesFromCache(true);
+        const staleEntries = await this.calendarStore.loadEntriesFromCache();
         if (staleEntries) {
-          calendarStore.setEntries(staleEntries);
+          this.calendarStore.setEntries(staleEntries);
           log.success(`[CalendarData] Fallback successful: Loaded ${staleEntries.length} stale entries`);
           
           this.eventBus.emit(EVENT_TYPES.CALENDAR_LOADED, {
@@ -100,10 +111,10 @@ export class CalendarDataService {
         }
       }
 
-      calendarStore.setError(error as Error);
+      this.calendarStore.setError(error as Error);
       throw error;
     } finally {
-      calendarStore.setLoading(false);
+      this.calendarStore.setLoading(false);
     }
   }
 
@@ -113,18 +124,18 @@ export class CalendarDataService {
    */
   public async updateProgress(mediaId: number): Promise<number | null> {
     try {
-      const entry = calendarStore.getState().entries.find(e => e.mediaId === mediaId);
+      const entry = this.calendarStore.getState().entries.find((e: AnimeEntry) => e.mediaId === mediaId);
       if (!entry) throw new Error('Entry not found');
 
       const newProgress = (entry.progress || 0) + 1;
       await this.calendarService.updateProgress(mediaId, newProgress);
 
       // Update local state
-      calendarStore.updateEntry(mediaId, { progress: newProgress });
+      this.calendarStore.updateEntry(mediaId, { progress: newProgress });
       this.toastService.success(`Updated progress for ${entry.title}.`, { mediaId, progress: newProgress });
 
       // Invalidate cache since progress changed
-      await calendarStore.invalidateCache();
+      await this.calendarStore.invalidateCache();
       log.debug('[CalendarData] Cache invalidated after progress update');
 
       // Emit progression event

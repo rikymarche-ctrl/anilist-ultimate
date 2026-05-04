@@ -15,7 +15,6 @@ import { injectable } from 'tsyringe';
 import { log } from '@core/logger';
 import { CSS_CLASSES } from '@core/constants';
 import { container } from '@core/di/container';
-import { calendarStore } from '@/modules/calendar/CalendarStore';
 import { CalendarGrid } from '../components/CalendarGrid';
 
 @injectable()
@@ -100,7 +99,7 @@ export class CalendarDomService {
     } else {
       // Clear native content only if we are injecting for the first time
       this.clearNativeAiringContent(targetContainer, headerElement);
-      
+
       const sectionHeader = headerElement.closest('.section-header');
       if (sectionHeader && sectionHeader.parentNode === targetContainer) {
         log.debug('[CalendarDomService] Inserting after section header');
@@ -146,9 +145,6 @@ export class CalendarDomService {
     parentHeader.querySelectorAll('.view-selector, .grid-icon, .list-icon, [class*="view-selector"]')
       .forEach(el => (el as HTMLElement).style.display = 'none');
 
-    // The CSS rule for .au-calendar-header-managed and global body classes take care of this
-    this.syncSocialVisibilityClasses(astraEnabled);
-
     // Also hide header actions if Astra is enabled
     if (astraEnabled) {
       parentHeader.classList.add('au-calendar-header-managed');
@@ -159,29 +155,6 @@ export class CalendarDomService {
       e.stopPropagation();
       onSettingsClick();
     });
-  }
-
-  /**
-   * Synchronizes global body classes for social visibility based on the 4-point rule
-   */
-  public syncSocialVisibilityClasses(astraEnabled: boolean): void {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
-    
-    // 4-Point Rule for hiding ALL social bubbles/avatars (including native ones on cards)
-    // We hide them if social is disabled OR if friend avatars are disabled
-    const hideSocialBubbles = !socialEnabled || !socialShowAvatars;
-    
-    if (hideSocialBubbles) {
-      document.body.classList.add('au-social-avatars-hidden');
-    } else {
-      document.body.classList.remove('au-social-avatars-hidden');
-    }
-
-    if (astraEnabled) {
-      document.body.classList.add('au-astra-enabled');
-    } else {
-      document.body.classList.remove('au-astra-enabled');
-    }
   }
 
   /**
@@ -239,8 +212,8 @@ export class CalendarDomService {
       if (!airing) {
         // Prevent creating multiple artificial sections
         if (document.querySelector('[data-au-artificial="true"]')) {
-           resolve(document.querySelector('[data-au-artificial="true"] h2') as HTMLElement || null);
-           return;
+          resolve(document.querySelector('[data-au-artificial="true"] h2') as HTMLElement || null);
+          return;
         }
 
         log.info('[CalendarDomService] Native Airing section not found, creating a new container');

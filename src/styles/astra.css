@@ -3651,18 +3651,20 @@ body.au-astra-enabled [class*="activity-bubble"]:not(.au-pill-section):not(.au-p
 }
 
 body.au-social-avatars-hidden .friend-activity-container,
+body.au-social-avatars-hidden .friend-activity,
 body.au-social-avatars-hidden .friend-avatars,
+body.au-social-avatars-hidden .au-social-bubble-portal,
+body.au-social-avatars-hidden [class*="friend-activity"],
 body.au-social-avatars-hidden [class*="friend-avatars"],
-body.au-social-avatars-hidden [class*="avatar-stack"] {
+body.au-social-avatars-hidden [class*="avatar-stack"],
+body.au-social-avatars-hidden [class*="FriendActivity"] {
   display: none !important;
-  visibility: hidden !important;
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
   width: 0 !important;
   height: 0 !important;
   overflow: hidden !important;
-  position: absolute !important;
-  clip: rect(0, 0, 0, 0) !important;
 }
 
 body.au-astra-enabled .section-header .friend-activity,

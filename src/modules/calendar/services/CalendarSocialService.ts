@@ -13,7 +13,7 @@
 
 import { injectable, inject } from 'tsyringe';
 import { SocialService } from '../../social/SocialService';
-import { calendarStore } from '../CalendarStore';
+import { CalendarStore } from '../CalendarStore';
 import { log } from '@core/logger';
 import { AnimeEntry } from '@core/types';
 import { TOKENS } from '@core/di/tokens';
@@ -21,14 +21,21 @@ import { TOKENS } from '@core/di/tokens';
 @injectable()
 export class CalendarSocialService {
   constructor(
-    @inject(TOKENS.SocialService) private socialService: SocialService
+    @inject(TOKENS.SocialService) private socialService: SocialService,
+    @inject(TOKENS.CalendarStore) private calendarStore: CalendarStore
   ) {
-    // React to socialEnabled toggling from settings
-    calendarStore.subscribeToSelector(
-      state => state.preferences.socialEnabled,
-      (curr, prev) => {
-        if (curr === true && prev === false) {
-          log.info('[CalendarSocial] Social features enabled, triggering fetch...');
+    // React to social toggles from settings
+    this.calendarStore.subscribeToSelector(
+      (state: any) => ({
+        enabled: state.preferences.socialEnabled,
+        showAvatars: state.preferences.socialShowAvatars
+      }),
+      (curr: any, prev: any) => {
+        const becameEnabled = curr.enabled && !prev.enabled;
+        const avatarsActivated = curr.enabled && curr.showAvatars && !prev.showAvatars;
+
+        if (becameEnabled || avatarsActivated) {
+          log.info('[CalendarSocial] Social settings changed, triggering fetch...');
           this.loadFriendActivity();
         }
       }
@@ -38,12 +45,12 @@ export class CalendarSocialService {
    * Load friend activity for current calendar entries
    */
   public async loadFriendActivity(): Promise<void> {
-    const entries = calendarStore.getState().entries;
+    const entries = this.calendarStore.getState().entries;
     if (entries.length === 0) return;
 
     log.info('[CalendarSocial] Fetching friend activity in batch...');
     
-    const mediaIds = entries.map(e => e.mediaId);
+    const mediaIds = entries.map((e: AnimeEntry) => e.mediaId);
 
     try {
       const socialMap = await this.socialService.getFriendActivityBatch(mediaIds);
@@ -53,9 +60,9 @@ export class CalendarSocialService {
         updates.set(mediaId, { friendActivity: activity });
       });
 
-      calendarStore.updateEntriesBatch(updates);
-      log.success(`[CalendarSocial] Activity loaded for ${socialMap.size} entries`);
-    } catch (e) {
+      this.calendarStore.updateEntriesBatch(updates);
+      log.success(`[CalendarSocial] Activity loaded for ${socialMap.size} entries. Total updates: ${updates.size}`);
+    } catch (e: any) {
       log.error('[CalendarSocial] Failed to load social batch', e);
     }
   }

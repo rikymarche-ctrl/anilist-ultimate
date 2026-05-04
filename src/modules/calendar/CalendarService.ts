@@ -14,8 +14,8 @@ import { injectable, inject } from 'tsyringe';
 import { USER_ANIME_LIST_QUERY, UPDATE_PROGRESS_MUTATION, UPDATE_NOTES_MUTATION } from '@/api/queries/calendar';
 import { log } from '@core/logger';
 import { DAYS_OF_WEEK } from '@core/constants';
+import { MediaListStatus } from '@/api/AnilistTypes';
 import type { AnimeEntry, MediaListResponse } from '@core/types';
-import { MediaListStatus } from '@core/types';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
@@ -40,11 +40,19 @@ export class CalendarService implements ICalendarService {
     try {
       log.time('Fetch airing schedule');
 
+      // Fetch ALL lists to see what's available
       const data = await this.apiClient.query<MediaListResponse>(USER_ANIME_LIST_QUERY, {
         userId,
         type: 'ANIME',
-        status: MediaListStatus.CURRENT,
       });
+
+      if (data?.MediaListCollection?.lists) {
+        const listNames = data.MediaListCollection.lists.map(l => `${l.name} (${l.entries.length})`);
+        const totalRaw = data.MediaListCollection.lists.reduce((acc, l) => acc + l.entries.length, 0);
+        log.debug(`[CalendarService] API Response: ${data.MediaListCollection.lists.length} lists [${listNames.join(', ')}]. Total: ${totalRaw}`);
+      } else {
+        log.warn('[CalendarService] API response missing MediaListCollection', data);
+      }
 
       const entries = this.transformToAnimeEntries(data);
 
@@ -76,8 +84,26 @@ export class CalendarService implements ICalendarService {
         continue;
       }
 
-      // Only include anime with upcoming episodes
+      // ═══════════════════════════════════════════════════════════════════════════
+      // FILTERING POLICY:
+      // 1. Only include anime (safeguard against mixed collections)
+      // 2. Only include things the user is CURRENTLY watching or REPEATING
+      //    (This excludes 'PLANNING' titles like Akane-banashi)
+      // 3. Only include things with a known upcoming episode
+      // ═══════════════════════════════════════════════════════════════════════════
+      
+      if (media.type !== 'ANIME') {
+        log.debug(`[CalendarService] Skipping "${media.title.romaji}" - Media type is ${media.type}`);
+        continue;
+      }
+
+      if (entry.status !== MediaListStatus.CURRENT && entry.status !== MediaListStatus.REPEATING) {
+        log.debug(`[CalendarService] Skipping "${media.title.romaji}" - Status is ${entry.status} (Not CURRENT)`);
+        continue;
+      }
+
       if (!media.nextAiringEpisode) {
+        log.debug(`[CalendarService] Skipping "${media.title.romaji}" - No upcoming episode found`);
         continue;
       }
 

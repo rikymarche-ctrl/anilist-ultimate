@@ -28,6 +28,7 @@ export const TOKENS = {
   EventBus: Symbol.for('IEventBus'),
   Config: Symbol.for('IConfigManager'),
   ErrorHandler: Symbol.for('IErrorHandler'),
+  Cache: Symbol.for('ICacheService'),
   ToastService: Symbol.for('ToastService'),
   ReviewService: Symbol.for('ReviewService'),
   NavigationService: Symbol.for('NavigationService'),
@@ -55,7 +56,7 @@ export const TOKENS = {
   // Social Module Services
   SocialService: Symbol.for('SocialService'),
   CustomListService: Symbol.for('CustomListService'),
-  BestFriendService: Symbol.for('BestFriendService'),
+  SocialMaskingService: Symbol.for('SocialMaskingService'),
   CommentService: Symbol.for('CommentService'),
 
   // Activity Module Services

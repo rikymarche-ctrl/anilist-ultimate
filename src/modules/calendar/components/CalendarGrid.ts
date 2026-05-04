@@ -19,7 +19,7 @@ import { CalendarSkeleton } from './CalendarSkeleton';
 import { calendarStore } from '../CalendarStore';
 import { DAYS_OF_WEEK, TIME } from '@core/constants';
 import { log } from '@core/logger';
-import type { DayOfWeek } from '@core/types';
+import type { DayOfWeek, AnimeEntry } from '@core/types';
 
 interface CalendarGridProps {
   onMarkWatched: (mediaId: number) => Promise<void>;
@@ -174,7 +174,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
     }
 
     // Subscribe to store changes
-    this.unsubscribe = calendarStore.subscribe((state, prevState) => {
+    this.unsubscribe = calendarStore.subscribe((state: any, prevState: any) => {
       // Performance: Use direct comparisons instead of JSON.stringify
       const shouldRerender =
         state.loading !== prevState.loading ||
@@ -220,8 +220,8 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   /**
    * Filter days that have at least one entry
    */
-  private getNonEmptyDays(entries: any[], orderedDays: string[]): string[] {
-    const daysWithEntries = new Set(entries.map(e => e.airingAt.getDay()));
+  private getNonEmptyDays(entries: AnimeEntry[], orderedDays: string[]): string[] {
+    const daysWithEntries = new Set(entries.map((e: AnimeEntry) => e.airingAt.getDay()));
     return orderedDays.filter(dayName => {
       const dayIndex = DAYS_OF_WEEK.indexOf(dayName as DayOfWeek);
       return daysWithEntries.has(dayIndex);

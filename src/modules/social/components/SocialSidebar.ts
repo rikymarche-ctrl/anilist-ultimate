@@ -24,7 +24,6 @@ import { SocialService } from '../SocialService';
 import { MediaListStatus, MediaType, SocialActivityDetailed, SocialFilter } from '@core/types';
 import { ScoreFormatter } from '@core/utils/ScoreFormatter';
 import { getStatusLabel } from '@core/utils/UIHelpers';
-import { BestFriendService } from '../BestFriendService';
 import { CustomListService } from '../CustomListService';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
@@ -46,7 +45,6 @@ export class SocialSidebar extends BaseComponent {
 
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
-    @inject(TOKENS.BestFriendService) private bestFriendService: BestFriendService,
     @inject(TOKENS.CustomListService) private customListService: CustomListService
   ) {
     super({});
@@ -360,7 +358,7 @@ export class SocialSidebar extends BaseComponent {
 
       // Filter by Best Friends (legacy)
       if (this.currentFilter === 'friends') {
-        processedNodes = nodes.filter((node: SocialActivityDetailed) => this.bestFriendService.isBestFriend(node.user.id));
+        processedNodes = nodes.filter((node: SocialActivityDetailed) => this.customListService.isUserInList('Best Friends', node.user.id));
 
         if (processedNodes.length === 0 && hasNextPage && page < 5) {
           this.isLoading = false;
@@ -438,7 +436,7 @@ export class SocialSidebar extends BaseComponent {
         ? `<div class="au-friend-note">"${node.notes}"</div>`
         : '';
 
-      const isBf = this.bestFriendService.isBestFriend(node.user.id);
+      const isBf = this.customListService.isUserInList('Best Friends', node.user.id);
       const starIcon = isBf ? 'fa-star' : 'fa-star-o';
 
       // Staggered animation delay
@@ -480,7 +478,12 @@ export class SocialSidebar extends BaseComponent {
         const userId = parseInt(row.getAttribute('data-user-id') || '0');
         const userName = row.getAttribute('data-user-name') || '';
 
-        const isNowBf = await this.bestFriendService.toggleBestFriend(userId, userName);
+        const isNowBf = !this.customListService.isUserInList('Best Friends', userId);
+        await this.customListService.toggleUserInList('Best Friends', {
+          id: userId,
+          name: userName,
+          avatar: row.querySelector('img')?.src || ''
+        }, isNowBf);
 
         // Update UI immediately (all instances in sidebar)
         content.querySelectorAll(`.au-friend-row[data-user-id="${userId}"] .au-bf-toggle`).forEach(star => {

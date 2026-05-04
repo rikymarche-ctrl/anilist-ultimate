@@ -173,7 +173,8 @@
   opacity: 0.5;
 }
 
-.friend-avatar {
+.friend-avatar,
+.au-social-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -186,14 +187,16 @@
   margin-right: 0;
 }
 
-.friend-avatar:hover {
+.friend-avatar:hover,
+.au-social-avatar:hover {
   transform: translateY(-2px) scale(1.1);
   z-index: 100 !important;
   border-color: var(--au-primary);
 }
 
 /* Extra count badge */
-.friend-avatar.extra-count {
+.friend-avatar.extra-count,
+.au-social-avatar.extra-count {
   background: var(--au-bg);
   opacity: 0.95;
   display: flex;

@@ -1,28 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CalendarDataService } from './CalendarDataService';
 import { EVENT_TYPES } from '@core/events/EventTypes';
-import { calendarStore } from '../CalendarStore';
 
 // Mock dependencies
-vi.mock('../CalendarStore', () => {
-  const mockState = {
+const mockCalendarStore = {
+  setLoading: vi.fn(),
+  setEntries: vi.fn(),
+  setError: vi.fn(),
+  updateEntry: vi.fn(),
+  getState: vi.fn(() => ({
     entries: [
       { mediaId: 1, title: 'Anime 1', progress: 10 },
       { mediaId: 2, title: 'Anime 2', progress: 5 }
     ],
     loading: false
-  };
-  
-  return {
-    calendarStore: {
-      setLoading: vi.fn(),
-      setEntries: vi.fn(),
-      setError: vi.fn(),
-      updateEntry: vi.fn(),
-      getState: vi.fn(() => mockState),
-    }
-  };
-});
+  })),
+  loadEntriesFromCache: vi.fn(),
+  saveEntriesToCache: vi.fn(),
+  invalidateCache: vi.fn(),
+};
 
 describe('CalendarDataService', () => {
   let service: CalendarDataService;
@@ -50,7 +46,8 @@ describe('CalendarDataService', () => {
     service = new CalendarDataService(
       mockEventBus,
       mockCalendarService,
-      mockToastService
+      mockToastService,
+      mockCalendarStore as any
     );
   });
 
@@ -61,10 +58,10 @@ describe('CalendarDataService', () => {
 
       await service.loadSchedule(123);
 
-      expect(calendarStore.setLoading).toHaveBeenCalledWith(true);
+      expect(mockCalendarStore.setLoading).toHaveBeenCalledWith(true);
       expect(mockCalendarService.fetchAiringSchedule).toHaveBeenCalledWith(123);
-      expect(calendarStore.setEntries).toHaveBeenCalledWith(mockEntries);
-      expect(calendarStore.setLoading).toHaveBeenCalledWith(false);
+      expect(mockCalendarStore.setEntries).toHaveBeenCalledWith(mockEntries);
+      expect(mockCalendarStore.setLoading).toHaveBeenCalledWith(false);
       expect(mockToastService.success).not.toHaveBeenCalled();
       expect(mockEventBus.emit).toHaveBeenCalledWith(EVENT_TYPES.CALENDAR_LOADED, expect.any(Object));
     });
@@ -75,8 +72,8 @@ describe('CalendarDataService', () => {
 
       await expect(service.loadSchedule(123)).rejects.toThrow('API Error');
 
-      expect(calendarStore.setError).toHaveBeenCalledWith(error);
-      expect(calendarStore.setLoading).toHaveBeenCalledWith(false);
+      expect(mockCalendarStore.setError).toHaveBeenCalledWith(error);
+      expect(mockCalendarStore.setLoading).toHaveBeenCalledWith(false);
     });
   });
 
@@ -88,7 +85,7 @@ describe('CalendarDataService', () => {
 
       expect(result).toBe(11); // 10 + 1 from mockState
       expect(mockCalendarService.updateProgress).toHaveBeenCalledWith(1, 11);
-      expect(calendarStore.updateEntry).toHaveBeenCalledWith(1, { progress: 11 });
+      expect(mockCalendarStore.updateEntry).toHaveBeenCalledWith(1, { progress: 11 });
       expect(mockToastService.success).toHaveBeenCalledWith(expect.stringContaining('Anime 1'));
       expect(mockEventBus.emit).toHaveBeenCalledWith(EVENT_TYPES.PROGRESS_UPDATED, expect.any(Object));
     });

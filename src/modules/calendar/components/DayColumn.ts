@@ -78,18 +78,13 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
     columnDate.setDate(today.getDate() + dayDiff);
     const dayNumber = columnDate.getDate();
 
-    // Only show count if there are more than 5 entries
-    const countHTML = entries.length > 5
-      ? `<span class="calendar-day-column__count">${entries.length}</span>`
-      : '';
-
+    // Header template
     header.innerHTML = `
       <h2 class="calendar-day-column__title">
         <span class="calendar-day-column__day-name">${day}</span>
         <span class="calendar-day-column__day-abbr">${abbreviation}</span>
         <span class="calendar-day-column__day-separator">|</span>
         <span class="calendar-day-column__day-number">${dayNumber}</span>
-        ${countHTML}
       </h2>
     `;
 
