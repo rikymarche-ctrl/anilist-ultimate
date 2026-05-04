@@ -168,24 +168,28 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       return;
     }
 
-    // Try to find a very stable anchor in the overview
-    const description = overview.querySelector('.description-wrap') || overview.querySelector('.description');
-    const staff = overview.querySelector('.staff');
-    const anchor = staff || description;
+    // Use the very beginning of the overview as a more stable point
+    const anchor = overview.firstChild;
 
-    // Cleanup existing to avoid duplication
-    document.querySelectorAll('.au-music-section').forEach(el => el.remove());
+    // Cleanup ONLY if it's a different media or we explicitly want to refresh
+    const existing = document.querySelector('.au-music-section');
+    if (existing) {
+       // If it already exists in the right place, don't touch it to avoid flicker
+       return;
+    }
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
     container.style.cssText = `
-      margin-top: 40px !important;
-      margin-bottom: 40px !important;
+      margin: 40px 0 !important;
+      padding: 20px !important;
       width: 100% !important;
       display: block !important;
-      clear: both !important;
+      background: rgba(255, 0, 0, 0.05) !important;
+      border: 2px solid #ff0000 !important; /* DEBUG BORDER */
+      min-height: 100px !important;
       position: relative !important;
-      z-index: 10 !important;
+      z-index: 9999 !important;
     `;
 
     const createSection = (title: string, songs: string[]) => {
@@ -197,13 +201,11 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
             ${songs.map(song => {
               const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(song)}`;
               return `
-                <div class="song-item" style="background: var(--color-background-100) !important; padding: 16px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; transition: all 0.2s ease !important;" onmouseover="this.style.background='var(--color-background-200)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='var(--color-background-100)'; this.style.transform='translateY(0)';" onclick="window.open('${youtubeUrl}', '_blank')">
-                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important; line-height: 1.5 !important; padding-right: 10px !important;">
+                <div class="song-item" style="background: var(--color-background-100) !important; padding: 16px !important; border-radius: 8px !important; display: flex !important; align-items: center !important; justify-content: space-between !important; cursor: pointer !important;" onclick="window.open('${youtubeUrl}', '_blank')">
+                  <div class="song-info" style="font-size: 1.3rem !important; color: var(--color-text) !important;">
                     ${this.formatSong(song)}
                   </div>
-                  <div style="color: #ff0000; font-size: 1.8rem; opacity: 0.6; display: flex;">
-                    <i class="fab fa-youtube"></i>
-                  </div>
+                  <i class="fab fa-youtube" style="color: #ff0000; font-size: 1.8rem;"></i>
                 </div>
               `;
             }).join('')}
@@ -213,17 +215,17 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     };
 
     container.innerHTML = `
+      <div style="color: #ff0000; font-weight: bold; margin-bottom: 10px;">ASTRA MUSIC MODULE ACTIVE</div>
       ${createSection('Openings', themes.openings)}
       ${createSection('Endings', themes.endings)}
     `;
 
     if (anchor) {
-      anchor.after(container);
-      this.logger.info(`[MediaMusic] ✅ Successfully injected themes after ${anchor.className}`);
+      overview.insertBefore(container, anchor);
     } else {
       overview.appendChild(container);
-      this.logger.info('[MediaMusic] ✅ Successfully appended themes to overview');
     }
+    this.logger.info('[MediaMusic] 🚩 Injected at the top of overview');
   }
 
   private formatSong(song: string): string {
