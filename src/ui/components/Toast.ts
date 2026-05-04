@@ -90,7 +90,11 @@ export class Toast extends BaseComponent<ToastProps> {
 
     // Pause on hover
     this.addEventListener(this.element, 'mouseenter', () => this.pauseTimer());
-    this.addEventListener(this.element, 'mouseleave', () => this.resumeTimer());
+    this.addEventListener(this.element, 'mouseleave', () => {
+      if (!this.isPausedByInput()) {
+        this.resumeTimer();
+      }
+    });
 
     // Note input events
     if (this.props.mediaId) {
@@ -113,14 +117,23 @@ export class Toast extends BaseComponent<ToastProps> {
             input.placeholder = 'Saved!';
             input.value = '';
             
-            // Re-enable and auto-dismiss after a short delay
-            setTimeout(() => this.dismiss(), 1500);
+            // Re-enable and auto-dismiss quickly after saving
+            setTimeout(() => this.dismiss(), 500);
           } catch (e) {
             saveBtn.innerHTML = '<i class="fa fa-paper-plane"></i>';
             input.disabled = false;
             (saveBtn as HTMLButtonElement).disabled = false;
           }
         };
+
+        this.addEventListener(input, 'focus', () => this.pauseTimer());
+        this.addEventListener(input, 'blur', () => {
+          // Only resume if mouse is also not over the toast
+          const isHovered = this.element.matches(':hover');
+          if (!isHovered) {
+            this.resumeTimer();
+          }
+        });
 
         this.addEventListener(input, 'keypress', (e) => {
           if (e.key === 'Enter') handleSave();
@@ -132,6 +145,11 @@ export class Toast extends BaseComponent<ToastProps> {
         this.addEventListener(input, 'click', (e) => e.stopPropagation());
       }
     }
+  }
+
+  private isPausedByInput(): boolean {
+    const input = this.querySelector('.au-toast__note-input') as HTMLInputElement;
+    return input === document.activeElement;
   }
 
   protected onMount(): void {
@@ -165,6 +183,8 @@ export class Toast extends BaseComponent<ToastProps> {
   }
 
   private resumeTimer(): void {
+    if (this.isPausedByInput()) return;
+    
     if (this.props.duration && this.remaining! > 0) {
       this.startTime = Date.now();
       this.timer = window.setTimeout(() => this.dismiss(), this.remaining);
