@@ -188,12 +188,13 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
               const urlMatch = song.match(/https?:\/\/[^\s)]+/);
               const directUrl = urlMatch ? urlMatch[0] : null;
               
-              // Extreme cleaning for search: remove "1:", "(eps...)", "by", etc.
+              // Ultra-aggressive cleaning: just "Song Name Artist Name"
               const cleanForSearch = song
-                .replace(/^\d+:\s*/, '') // Remove numbering "1: "
-                .replace(/\(eps\s*[\d-]+\)/gi, '') // Remove "(eps 1-13)"
+                .replace(/^\d+:\s*/, '') // Remove numbering
+                .replace(/\(eps\s*[\d-]+\)/gi, '') // Remove eps
                 .replace(/https?:\/\/[^\s)]+/g, '') // Remove links
-                .replace(/"/g, '') // Remove quotes
+                .replace(/by/gi, '') // Remove "by" keyword
+                .replace(/[":]/g, '') // Remove quotes and colons
                 .trim();
               
               const ytUrl = directUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanForSearch + ' official')}`;
@@ -201,7 +202,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
               const appleUrl = `https://music.apple.com/search?term=${encodeURIComponent(cleanForSearch)}`;
 
               return `
-                <div class="song-item" style="background: var(--color-background-200) !important; border-radius: 4px !important; display: flex !important; align-items: center !important; padding: 14px 18px !important; transition: background 0.2s !important; min-height: 65px !important; margin-bottom: 2px !important;">
+                <div class="song-item" style="background: rgba(255, 255, 255, 0.04) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 6px !important; display: flex !important; align-items: center !important; padding: 14px 18px !important; transition: all 0.2s !important; min-height: 65px !important; margin-bottom: 4px !important;">
                   <div class="song-info" style="flex-grow: 1 !important; font-size: 1.3rem !important; color: var(--color-text) !important; padding-right: 20px !important; line-height: 1.5 !important;">
                     ${this.formatSong(song.replace(/https?:\/\/[^\s)]+/, '').trim())}
                   </div>
