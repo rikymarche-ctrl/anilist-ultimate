@@ -8,7 +8,7 @@
 
 import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
-import { AstraService, AstraWork } from '../AstraService';
+import { AstraService, AstraWorkSummary } from '../AstraService';
 import { log } from '@core/logger';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IStorageService } from '@core/interfaces/IStorageService';
@@ -26,7 +26,7 @@ export interface DashboardState {
   country: string;
   isGrouped: boolean;
   collapsedGroups: Set<string>;
-  filteredWorks: AstraWork[];
+  filteredWorks: AstraWorkSummary[];
   stats: DashboardStats;
 }
 
@@ -168,8 +168,7 @@ export class AstraStore {
       const matchType = this.state.type === 'all' || work.type === this.state.type;
       
       const matchStatus = this.state.status === 'all' || 
-        (this.state.status === 'rated' ? work.seasons.some(s => Object.keys(s.scores).length > 0) : 
-         !work.seasons.some(s => Object.keys(s.scores).length > 0));
+        (this.state.status === 'rated' ? (work.currentScore !== null) : (work.currentScore === null));
       
       const matchAnilist = this.state.anilistStatus === 'all' || work.status === this.state.anilistStatus;
       
@@ -183,8 +182,8 @@ export class AstraStore {
       switch (this.state.sort) {
         case 'updated-desc': return b.updatedAt - a.updatedAt;
         case 'updated-asc': return a.updatedAt - b.updatedAt;
-        case 'score-desc': return (this.service.calcSeriesOverall(b) || 0) - (this.service.calcSeriesOverall(a) || 0);
-        case 'score-asc': return (this.service.calcSeriesOverall(a) || 0) - (this.service.calcSeriesOverall(b) || 0);
+        case 'score-desc': return (b.currentScore || 0) - (a.currentScore || 0);
+        case 'score-asc': return (a.currentScore || 0) - (b.currentScore || 0);
         case 'title-asc': return a.title.localeCompare(b.title);
         default: return 0;
       }
@@ -198,11 +197,11 @@ export class AstraStore {
   /**
    * Calculate dashboard statistics
    */
-  private calculateStats(works: AstraWork[]): void {
+  private calculateStats(works: AstraWorkSummary[]): void {
     const total = works.length;
-    const ratedWorks = works.filter(w => this.service.calcSeriesOverall(w) !== null);
+    const ratedWorks = works.filter(w => w.currentScore !== null);
     const averageScore = ratedWorks.length > 0 
-      ? ratedWorks.reduce((acc, w) => acc + (this.service.calcSeriesOverall(w) || 0), 0) / ratedWorks.length 
+      ? ratedWorks.reduce((acc, w) => acc + (w.currentScore || 0), 0) / ratedWorks.length 
       : 0;
 
     this.state.stats = {

@@ -35,9 +35,23 @@ import { MediaListStatus } from '@/api/AnilistTypes';
 
 @injectable()
 export class CalendarModule extends BaseModule {
+  /** The AniList user ID for schedule filtering */
   private userId: number | null = null;
+
+  /** Guard to prevent overlapping injection attempts during React re-renders */
   private isProcessing: boolean = false;
+
+  /** Timestamp of the last full data refresh to throttle EventBus triggers */
   private lastRefreshTime: number = 0;
+
+  /** Tracked intervals for automatic cleanup on module destruction */
+  private intervals: number[] = [];
+
+  /** Stored resize listener to prevent memory leaks */
+  private resizeListener: (() => void) | null = null;
+
+  /** Timeout reference for the processing guard safety valve */
+  private processingTimeout: number | null = null;
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
@@ -53,20 +67,17 @@ export class CalendarModule extends BaseModule {
   }
 
   /**
-   * Initialize the calendar module
+   * Initialize the calendar module.
+   * Sets up auth checks, initial injection, and reactive listeners.
    */
   public async init(): Promise<void> {
     try {
       log.group('Calendar Module Initialization');
 
-      // CRITICAL: Load calendar preferences from storage FIRST
       await calendarStore.init();
       log.success('[Calendar] Preferences loaded from storage');
 
-      // Check authentication via centralized client
       const authenticated = this.apiClient.isAuthenticated();
-      log.info(`[Calendar] Auth status: ${authenticated}`);
-
       if (!authenticated) {
         log.warn('[Calendar] User not authenticated, showing prompt');
         await this.handleUnauthenticated();
@@ -75,121 +86,83 @@ export class CalendarModule extends BaseModule {
 
       try {
         this.userId = await this.apiClient.getCurrentUserId();
-        log.info(`[Calendar] Initializing for user: ${this.userId} (${typeof this.userId})`);
       } catch (e) {
         log.error('[Calendar] Failed to get userId', e);
         return;
       }
 
-      // 1. Setup MutationObserver for late-loading React sections
+      // 1. Setup late-loading section detection
       await this.setupSectionDetection();
 
       // 2. Initial injection attempt
       await this.runInjectionFlow();
 
-      // 3. Subscribe to navigation events (Event-Driven reactivity)
+      // 3. Reactive Page Changes (Event-Driven)
       this.onPageChange(async (event) => {
         const path = event?.path || window.location.pathname;
-        log.debug('[Calendar] Page changed, checking injection', { path });
-        const isHomePage = path === '/' || path === '/home';
-        
-        if (isHomePage) {
-          // Reset processed state on page change to allow re-injection
+        if (path === '/' || path === '/home') {
           this.isProcessing = false;
-          // Delay to let React/DOM settle
           setTimeout(() => this.runInjectionFlow(), 500);
         }
       });
 
-      // BUG-FIX: Handle resize events that might disrupt the layout or detach the container
-      window.addEventListener('resize', () => {
-        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-        if (isHomePage) {
-          // If calendar is missing but we are on home page, re-inject
+      // 4. Handle Resize Events (Layout persistence)
+      this.resizeListener = () => {
+        const path = window.location.pathname;
+        if (path === '/' || path === '/home') {
           const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
           if (!calendarExists && !this.isProcessing) {
-            log.info('[Calendar] Calendar missing after resize, re-injecting...');
             this.runInjectionFlow();
           }
         }
+      };
+      window.addEventListener('resize', this.resizeListener);
+
+      // 5. Data Update Subscriptions
+      this.subscribe(EVENT_TYPES.ASTRA_DATA_UPDATED, async () => {
+        const path = window.location.pathname;
+        if (path !== '/' && path !== '/home') return;
+        if (Date.now() - this.lastRefreshTime < 2000) return;
+
+        setTimeout(() => this.runInjectionFlow(true), 1500);
       });
 
-      // Listen for data updates from other modules
-      this.eventBus.on(EVENT_TYPES.ASTRA_DATA_UPDATED, async () => {
-        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-        if (!isHomePage) return;
-
-        // If we just refreshed (e.g. from PROGRESS_UPDATED), skip the delayed one
-        if (Date.now() - this.lastRefreshTime < 2000) {
-          log.debug('[Calendar] Skipping Astra update refresh (already refreshed recently)');
-          return;
-        }
-
-        log.info('[Calendar] Astra data updated, refreshing schedule (delayed)...');
-        setTimeout(async () => {
-          await this.runInjectionFlow(true);
-        }, 1500);
-      });
-
-      this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, async (payload) => {
-        // Optimistic update: update the store directly instead of re-fetching
+      this.subscribe(EVENT_TYPES.PROGRESS_UPDATED, async (payload) => {
         if (payload && payload.mediaId) {
-          log.info('[Calendar] Progress updated event received', payload);
-          
-          const entry = calendarStore.getState().entries.find(e => e.mediaId === payload.mediaId);
-          if (entry) {
-             log.info(`[Calendar] Found entry ${entry.title} (mediaId: ${entry.mediaId}). Current progress: ${entry.progress}, New progress: ${payload.progress}`);
-          } else {
-             log.warn(`[Calendar] Could not find entry for mediaId: ${payload.mediaId}`);
-          }
-
           if (payload.status && payload.status !== MediaListStatus.CURRENT) {
-            log.info('[Calendar] Media status is no longer CURRENT, removing from calendar', payload.status);
             calendarStore.removeEntry(payload.mediaId);
-            // Re-render to remove the card from UI
-            const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-            if (isHomePage) await this.runInjectionFlow(true);
+            const path = window.location.pathname;
+            if (path === '/' || path === '/home') await this.runInjectionFlow(true);
           } else {
             calendarStore.updateEntry(payload.mediaId, { progress: payload.progress });
-            // Optimistic UI update: directly update visible card DOM
             this.updateCardProgressUI(payload.mediaId, payload.progress);
           }
         }
       });
 
-      this.eventBus.on(EVENT_TYPES.CALENDAR_DATA_REFRESH, async () => {
-        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-        if (isHomePage) {
-          log.info('[Calendar] Calendar data refresh requested...');
+      this.subscribe(EVENT_TYPES.CALENDAR_DATA_REFRESH, async () => {
+        const path = window.location.pathname;
+        if (path === '/' || path === '/home') {
           await this.runInjectionFlow(true);
         }
       });
 
-      // Persistent Polling for SPA navigation robustness
-      // Sometimes MutationObserver misses the window when React replaces the entire container
-      setInterval(() => {
-        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-        if (isHomePage) {
+      // 6. Persistence Polling (Robustness for SPA misses)
+      this.intervals.push(window.setInterval(() => {
+        const path = window.location.pathname;
+        if (path === '/' || path === '/home') {
           const calendarContainer = document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
           const hasContent = !!calendarContainer?.querySelector('.calendar-grid, .calendar-grid__empty, .calendar-skeleton');
-          
           if ((!calendarContainer || !hasContent) && !this.isProcessing) {
-            log.info('[Calendar] Polling check: Calendar missing or empty, re-injecting...', {
-              hasContainer: !!calendarContainer,
-              hasContent
-            });
             this.runInjectionFlow();
           }
         }
-      }, 2000);
+      }, 2000));
 
-      // 4. Social masking is now handled by SocialMaskingService automatically via its init() in setup.ts
-      // No need to manually call syncClasses or register observers here anymore.
-
-      // 7. ANTI-DOUBLE: Aggressively hide native airing section if calendar is active
+      // 7. Native Airing Section Masking
       this.sharedObserver.register('calendar-native-hider', () => {
-        const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-        if (!isHomePage) return;
+        const path = window.location.pathname;
+        if (path !== '/' && path !== '/home') return;
         
         const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
         if (!calendarExists) return;
@@ -201,25 +174,13 @@ export class CalendarModule extends BaseModule {
             const section = h.closest('section') || h.closest('.list-preview-wrap') || h.closest('.list-preview') || h.parentElement;
             if (section && !(section as HTMLElement).classList.contains('au-native-airing-hidden')) {
               const el = section as HTMLElement;
-              
-              // CRITICAL BUG-FIX: Don't hide the section if it's currently hosting our calendar!
-              if (el.contains(document.getElementById(CSS_CLASSES.CALENDAR))) {
-                log.debug('[Calendar] Skipping hider for container hosting our calendar');
-                return;
-              }
-
+              if (el.contains(document.getElementById(CSS_CLASSES.CALENDAR))) return;
               el.style.display = 'none';
-              el.style.opacity = '0';
-              el.style.visibility = 'hidden';
-              el.style.pointerEvents = 'none';
-              el.style.height = '0';
-              el.style.overflow = 'hidden';
               el.classList.add('au-native-airing-hidden');
-              log.debug('[Calendar] Aggressively suppressed native Airing section');
             }
           }
         });
-      }, 800); // Faster check (800ms) to beat React re-renders
+      }, 800);
 
       log.success('[Calendar] Module initialized successfully');
     } catch (error) {
@@ -230,30 +191,24 @@ export class CalendarModule extends BaseModule {
   }
 
   /**
-   * Setup observer to watch for the Airing section being added to the DOM
+   * Setup detection for late-loading React sections using the SharedGlobalObserver.
    */
   private async setupSectionDetection(): Promise<void> {
-    log.debug('[Calendar] Setting up section detection using SharedGlobalObserver');
-
     this.sharedObserver.register('calendar-airing-detector', async () => {
-      // Only run if on home page and calendar doesn't exist
-      const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
-      if (!isHomePage) return;
+      const path = window.location.pathname;
+      if (path !== '/' && path !== '/home') return;
+      if (document.querySelector(`#${CSS_CLASSES.CALENDAR}`)) return;
 
-      const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
-      if (calendarExists) return;
-
-      // Try to find the section
       const section = await this.domService.findAiringSection();
       if (section) {
-        log.info('[Calendar] Airing section detected via shared observer, triggering injection');
         this.runInjectionFlow();
       }
-    }, 500); // Faster check (500ms) for better SPA response
+    }, 500);
   }
 
   /**
-   * Main flow to inject UI and load data
+   * Main flow to inject UI and load schedule data.
+   * Handles atomic swaps and prevents concurrent execution.
    */
   private async runInjectionFlow(forceRefresh: boolean = false): Promise<void> {
     if (this.isProcessing) return;
@@ -261,20 +216,15 @@ export class CalendarModule extends BaseModule {
     const existingContainer = document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
     const hasContent = !!existingContainer?.querySelector('.calendar-grid, .calendar-grid__empty, .calendar-skeleton');
     
-    // If it exists AND has content AND we aren't forcing a refresh, skip
     if (existingContainer && hasContent && !forceRefresh) return;
 
     try {
       this.isProcessing = true;
       this.lastRefreshTime = Date.now();
       
-      // Safety timeout: if injection hangs, allow retry after 10s
-      setTimeout(() => { this.isProcessing = false; }, 10000);
+      if (this.processingTimeout) window.clearTimeout(this.processingTimeout);
+      this.processingTimeout = window.setTimeout(() => { this.isProcessing = false; }, 10000);
       
-      log.info(`[Calendar] Running injection flow (force=${forceRefresh}, exists=${!!existingContainer}, content=${hasContent})...`);
-
-      // 1. Inject UI via DOM Service
-      // The DomService now handles ATOMIC SWAP (doesn't remove before ready)
       const astraEnabled = this.config.isFeatureEnabled('astra');
       const calendarContainer = await this.domService.injectCalendar(
         () => this.handleSettingsClick(),
@@ -282,16 +232,10 @@ export class CalendarModule extends BaseModule {
         astraEnabled
       );
 
-      if (!calendarContainer) {
-        log.warn('[Calendar] Injection failed: no container returned');
-        return;
-      }
+      if (!calendarContainer) return;
 
-      // 2. Load Data via Data Service
       if (this.userId) {
         await this.dataService.loadSchedule(this.userId, forceRefresh);
-
-        // 3. Load Social Data (Async, non-blocking)
         if (this.config.isFeatureEnabled('friendActivity')) {
           this.socialService.loadFriendActivity();
         }
@@ -300,9 +244,16 @@ export class CalendarModule extends BaseModule {
       log.error('[Calendar] Injection flow failed', error);
     } finally {
       this.isProcessing = false;
+      if (this.processingTimeout) {
+        window.clearTimeout(this.processingTimeout);
+        this.processingTimeout = null;
+      }
     }
   }
 
+  /**
+   * Shows an authentication prompt if the user is not logged in.
+   */
   private async handleUnauthenticated(): Promise<void> {
     const astraEnabled = this.config.isFeatureEnabled('astra');
     const calendarContainer = await this.domService.injectCalendar(() => {}, async () => {}, astraEnabled);
@@ -310,16 +261,17 @@ export class CalendarModule extends BaseModule {
       this.domService.showAuthPrompt(async () => {
         try {
           await this.auth.login();
-          log.success('[Calendar] Login successful, reloading page...');
           window.location.reload();
         } catch (error) {
           log.error('[Calendar] Login error:', error);
-          alert('Login failed. Please try again.');
         }
       });
     }
   }
 
+  /**
+   * Opens the calendar settings panel.
+   */
   private handleSettingsClick(): void {
     const child = container.createChildContainer();
     child.register('SettingsPanelProps', {
@@ -329,30 +281,26 @@ export class CalendarModule extends BaseModule {
     panel.mount(document.body);
   }
 
+  /**
+   * Handles the mark as watched action for a specific anime.
+   */
   private async handleMarkWatched(mediaId: number): Promise<void> {
     try {
       await this.dataService.updateProgress(mediaId);
-      log.success('[Calendar] Progress updated');
     } catch (error) {
       log.error('[Calendar] Mark watched failed', error);
-      alert('Failed to update progress. Please try again.');
     }
   }
 
   /**
-   * Optimistically update card progress UI without full re-render
+   * Optimistically update the progress indicator on a specific anime card.
    */
   private updateCardProgressUI(mediaId: number, newProgress: number): void {
     const card = document.querySelector(`[data-media-id="${mediaId}"]`);
-    if (!card) {
-      log.warn(`[Calendar] Card not found for mediaId ${mediaId}, skipping UI update`);
-      return;
-    }
+    if (!card) return;
 
-    // Update episode number
     const episodeEl = card.querySelector('.anime-card__episode');
     if (episodeEl) {
-      // Get entry data to calculate behind status
       const entry = calendarStore.getState().entries.find(e => e.mediaId === mediaId);
       if (entry) {
         const isBehind = newProgress < (entry.episode - 1);
@@ -360,7 +308,6 @@ export class CalendarModule extends BaseModule {
         const total = entry.totalEpisodes;
         const episodeStr = total && total > 0 ? `${newProgress}/${total}` : `${newProgress}`;
         episodeEl.innerHTML = `${behindDot}Ep ${episodeStr}`;
-        log.debug(`[Calendar] Updated card UI for mediaId ${mediaId}: progress ${newProgress}`);
       }
     }
   }
@@ -370,12 +317,35 @@ export class CalendarModule extends BaseModule {
   }
 
   /**
-   * Cleanup
+   * Cleans up all intervals, listeners, and observers.
    */
-  public async destroy(): Promise<void> {
+  public override async destroy(): Promise<void> {
     log.info('[Calendar] Destroying module');
+    
+    // 1. Clear managed intervals
+    this.intervals.forEach(id => window.clearInterval(id));
+    this.intervals = [];
+
+    // 2. Remove window listeners
+    if (this.resizeListener) {
+      window.removeEventListener('resize', this.resizeListener);
+      this.resizeListener = null;
+    }
+
+    // 3. Clear processing timeout
+    if (this.processingTimeout) {
+      window.clearTimeout(this.processingTimeout);
+      this.processingTimeout = null;
+    }
+
+    // 4. Component cleanup
     this.domService.cleanup();
     calendarStore.stopCountdownInterval();
+
+    // 5. Unregister observers
+    this.sharedObserver.unregister('calendar-native-hider');
+    this.sharedObserver.unregister('calendar-airing-detector');
+
     await super.destroy();
   }
 }

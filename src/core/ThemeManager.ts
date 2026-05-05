@@ -43,7 +43,9 @@ export class ThemeManager {
   constructor(
     @inject(TOKENS.Config) private config: IConfigManager
   ) {
-    this.init();
+    if (typeof window !== 'undefined') {
+      this.init();
+    }
   }
 
   /**

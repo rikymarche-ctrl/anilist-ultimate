@@ -10,13 +10,15 @@ import { log } from '@core/logger';
 import { AstraService, AstraWork } from '../AstraService';
 import { IAstraRatingService, IRatingInitialData } from '../interfaces/IAstraRatingService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { ISyncQueueService } from '@core/interfaces/ISyncQueueService';
 import { MediaWithViewerResponse } from '@/api/AnilistTypes';
 
 @injectable()
 export class AstraRatingService implements IAstraRatingService {
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
-    @inject(TOKENS.ApiClient) private api: IApiClient
+    @inject(TOKENS.ApiClient) private api: IApiClient,
+    @inject(TOKENS.SyncQueue) private syncQueue: ISyncQueueService
   ) {}
 
   /**
@@ -55,6 +57,7 @@ export class AstraRatingService implements IAstraRatingService {
 
   /**
    * Persists work locally and triggers AniList mutation.
+   * If sync fails, it is queued for background retry.
    */
   public async saveAndSync(work: AstraWork, extra: {
     overallScore: number;
@@ -68,15 +71,11 @@ export class AstraRatingService implements IAstraRatingService {
     log.debug(`[AstraRatingService] Saving work ${work.mediaId}...`);
 
     try {
-      // 1. Local Persistence
+      // 1. Local Persistence (Atomic & Critical)
       await this.astraService.saveWork(work);
 
-      // 2. AniList Sync (Mutation)
-      const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$repeat:Int,$private:Boolean,$hidden:Boolean,$notes:String,$lists:[String]) {
-        SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,scoreRaw:$score,repeat:$repeat,private:$private,hiddenFromStatusLists:$hidden,notes:$notes,customLists:$lists) { id status progress score }
-      }`;
-
-      await this.api.mutate(GQL_SAVE, {
+      // 2. Prepare Mutation Payload
+      const payload = {
         mediaId: work.mediaId,
         status: work.status,
         progress: extra.progress ?? work.progress,
@@ -86,12 +85,28 @@ export class AstraRatingService implements IAstraRatingService {
         hidden: extra.hidden || false,
         notes: extra.notes || work.notes,
         lists: extra.customLists || work.customLists
-      });
+      };
 
-      log.success(`[AstraRatingService] Sync completed for ${work.mediaId}`);
+      // 3. Attempt Immediate AniList Sync
+      try {
+        const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$repeat:Int,$private:Boolean,$hidden:Boolean,$notes:String,$lists:[String]) {
+          SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,scoreRaw:$score,repeat:$repeat,private:$private,hiddenFromStatusLists:$hidden,notes:$notes,customLists:$lists) { id }
+        }`;
+        
+        await this.api.mutate(GQL_SAVE, payload);
+        log.success(`[AstraRatingService] Sync completed for ${work.mediaId}`);
+      } catch (syncErr) {
+        log.warn(`[AstraRatingService] Network sync failed for ${work.mediaId}. Enqueueing mutation.`, syncErr);
+        
+        // 4. Persistence Fallback: Enqueue for background sync
+        await this.syncQueue.enqueue('ASTRA_SAVE', payload);
+        
+        // We don't re-throw here because local save succeeded and background sync is guaranteed.
+        // However, we might want to notify the UI that it's "Saved offline".
+      }
     } catch (err) {
-      log.error('[AstraRatingService] Save/Sync failed', err);
-      throw err; // Propagate to controller for UI feedback
+      log.error('[AstraRatingService] Local save failed (Critical)', err);
+      throw err; // Re-throw only if local save failed
     }
   }
 }

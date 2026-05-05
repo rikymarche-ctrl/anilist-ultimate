@@ -4,21 +4,20 @@
  */
 
 import { injectable } from 'tsyringe';
-import { AstraWork } from '../AstraService';
+import { AstraWorkSummary } from '../AstraService';
 import { IStatsService } from '../interfaces/IStatsService';
 import { IDashboardStats } from '../interfaces/IDashboardState';
 import { MediaListStatus } from '@/api/AnilistTypes';
 
 /**
  * Enterprise implementation of the Astra statistics engine.
- * Provides deep insights and distribution analytics.
  */
 @injectable()
 export class AstraStatsService implements IStatsService {
   /**
    * Generates a full statistical report.
    */
-  public calculateStats(works: AstraWork[]): IDashboardStats {
+  public calculateStats(works: AstraWorkSummary[]): IDashboardStats {
     return {
       totalCount: works.length,
       averageScore: this.calculateAverageScore(works),
@@ -33,9 +32,9 @@ export class AstraStatsService implements IStatsService {
   /**
    * Calculates weighted average score across all works.
    */
-  public calculateAverageScore(works: AstraWork[]): number {
+  public calculateAverageScore(works: AstraWorkSummary[]): number {
     const scores = works
-      .map(w => this.getLatestScore(w))
+      .map(w => w.currentScore)
       .filter((s): s is number => s !== null && s > 0);
 
     if (scores.length === 0) return 0;
@@ -44,9 +43,9 @@ export class AstraStatsService implements IStatsService {
   }
 
   /**
-   * Calculates frequency distribution for array or string fields.
+   * Calculates frequency distribution.
    */
-  public getDistribution(works: AstraWork[], attribute: keyof AstraWork): Record<string, number> {
+  public getDistribution(works: AstraWorkSummary[], attribute: keyof AstraWorkSummary): Record<string, number> {
     const distribution: Record<string, number> = {};
 
     for (const work of works) {
@@ -66,14 +65,5 @@ export class AstraStatsService implements IStatsService {
     }
 
     return distribution;
-  }
-
-  /**
-   * Helper to retrieve the most relevant score for a work.
-   */
-  private getLatestScore(work: AstraWork): number | null {
-    if (!work.seasons || work.seasons.length === 0) return null;
-    const latest = work.seasons[work.seasons.length - 1];
-    return latest.legacyScore || null;
   }
 }

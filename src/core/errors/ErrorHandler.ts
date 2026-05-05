@@ -167,21 +167,21 @@ export class ErrorHandler implements IErrorHandler {
    */
   setupGlobalHandlers(): void {
     // Catch unhandled promise rejections
-    window.addEventListener('unhandledrejection', (event) => {
+    self.addEventListener('unhandledrejection', (event: any) => {
       const error =
         event.reason instanceof Error
           ? event.reason
           : new Error(String(event.reason));
-
+  
       this.handle(error, 'Unhandled Promise Rejection', ErrorSeverity.High);
     });
-
+  
     // Catch global errors
-    window.addEventListener('error', (event) => {
+    self.addEventListener('error', (event: any) => {
       const error = event.error || new Error(event.message);
       this.handle(error, 'Global Error', ErrorSeverity.High);
     });
-
+  
     this.logger.debug('[ErrorHandler] Global error handlers setup');
   }
 

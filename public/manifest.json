@@ -6,7 +6,7 @@
   "description": "The ultimate Anilist extension suite. Modern calendar, hover comments, and more.",
   "author": "ExAstra",
   "homepage_url": "https://github.com/rikymarche-ctrl/anilist-ultimate",
-  "permissions": ["storage", "identity", "unlimitedStorage"],
+  "permissions": ["storage", "identity", "unlimitedStorage", "alarms"],
   "host_permissions": [
     "https://anilist.co/*",
     "https://graphql.anilist.co/*"
@@ -53,7 +53,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "assets/*", "src/styles/*.css"],
+      "resources": ["icons/*", "assets/*", "webfonts/*", "src/styles/*.css", "**/*.woff2", "**/*.woff", "**/*.ttf"],
       "matches": ["https://anilist.co/*"]
     }
   ],

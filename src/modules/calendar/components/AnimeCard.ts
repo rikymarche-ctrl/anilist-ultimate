@@ -108,18 +108,67 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     this.syncSocialPortal();
   }
 
+  /**
+   * Surgical update logic to prevent full rerender flickering.
+   */
+  protected override onUpdate(prevProps: AnimeCardProps): boolean {
+    const { anime: prevAnime, options: prevOptions } = prevProps;
+    const { anime, options } = this.props;
+
+    // 1. If options changed (layout mode, etc.), we need a full rerender
+    if (JSON.stringify(prevOptions) !== JSON.stringify(options)) {
+      return false; 
+    }
+
+    // 2. Surgical update for Anime data changes
+    if (prevAnime.mediaId === anime.mediaId) {
+      // Update Progress text
+      const { episodeStr, isBehind } = this.getEpisodeString(anime);
+      const episodeEl = this.element.querySelector('.anime-card__episode');
+      if (episodeEl) {
+        const behindDotHTML = isBehind ? `<span class="behind-indicator"></span>` : '';
+        episodeEl.innerHTML = `${behindDotHTML}Ep ${episodeStr}`;
+      }
+
+      // Update behind class
+      this.toggleClass('anime-card--is-behind', isBehind);
+
+      // Update status classes (aired/airing soon)
+      this.toggleClass('anime-card--aired', this.calendarService.hasAired(anime));
+      this.toggleClass('anime-card--airing-soon', this.calendarService.isAiringSoon(anime));
+
+      // Update title if it changed (unlikely but possible)
+      if (prevAnime.cleanTitle !== anime.cleanTitle) {
+        const titleEl = this.element.querySelector('.anime-card__title');
+        if (titleEl) titleEl.textContent = anime.cleanTitle;
+      }
+
+      // Social portal update (if activity changed)
+      if (JSON.stringify(prevAnime.friendActivity) !== JSON.stringify(anime.friendActivity)) {
+         this.destroySocialPortal();
+         this.syncSocialPortal();
+      }
+
+      return true; // Handled surgically
+    }
+
+    return false; // Different anime or complex change, fallback to rerender
+  }
+
   public override update(props: Partial<AnimeCardProps>): void {
     const prevProps = { ...this.props };
 
-    // 1. Destroy portal BEFORE rerender so it's not left orphaned
-    this.destroySocialPortal();
+    // Update props first
+    this.props = { ...this.props, ...props };
 
-    // 2. Standard update cycle (calls rerender() which replaces this.element)
-    super.update(props);
-
-    // 3. Recreate portal linked to the new element, if needed
     if (this.shouldUpdate(prevProps, this.props)) {
-      this.syncSocialPortal();
+      // Try surgical update
+      if (!this.onUpdate(prevProps)) {
+        // Fallback: Full Rerender
+        this.destroySocialPortal();
+        super.rerender();
+        this.syncSocialPortal();
+      }
     }
   }
 

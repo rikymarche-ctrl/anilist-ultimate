@@ -27,6 +27,129 @@
   --astra-transition: var(--au-transition);
 }
 
+/* ==========================================================================
+   GLOBAL ENHANCEMENTS
+   ========================================================================== */
+
+/* Navbar Button */
+.au-astra-nav {
+  position: relative;
+  font-weight: 800 !important;
+  color: var(--astra-accent) !important;
+  gap: 4px;
+}
+
+.au-astra-nav:hover {
+  background: var(--astra-accent-a10) !important;
+  transform: translateY(-1px);
+}
+
+.au-astra-nav svg {
+  color: var(--astra-accent);
+}
+
+/* Card Enhancements */
+.au-astra-card {
+  position: relative;
+}
+
+.au-pill-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none; /* Changed to none, only children are clickable */
+  border-radius: inherit;
+  transition: background 0.3s ease;
+}
+
+.au-astra-card:hover .au-pill-wrapper {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+}
+
+.action-pill {
+  background: var(--astra-bg);
+  border: 1px solid var(--astra-border);
+  border-radius: 40px;
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  height: 38px;
+  overflow: hidden;
+  width: max-content;
+  max-width: 92%;
+  pointer-events: auto;
+}
+
+/* Small card adjustments */
+.media-preview-card.small .action-pill,
+.media-card.small .action-pill {
+  height: 28px;
+  max-width: 100%;
+  border: none;
+  background: rgba(11, 14, 20, 0.85); /* Slightly darker for contrast without border */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.pill-section {
+  flex: 1 1 0; /* Equal distribution */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 0.2s ease;
+  color: var(--astra-text-dim);
+  padding: 0 12px;
+  min-width: 0; /* Allow shrinking below content size */
+}
+
+.media-preview-card.small .pill-section,
+.media-card.small .pill-section {
+  padding: 0; /* No padding on small cards to save space */
+  font-size: 10px;
+}
+
+/* Social section visibility rules (Zero-Refresh) */
+/* 1. Hide globally if social is disabled */
+body:not(.au-social-enabled) .pill-section[data-action="social-activity"] {
+  display: none !important;
+}
+
+/* 2. Hide specifically on small cards if native avatars are enabled (redundancy check) */
+body.au-social-avatars-enabled .media-preview-card.small .pill-section[data-action="social-activity"],
+body.au-social-avatars-enabled .media-card.small .pill-section[data-action="social-activity"] {
+  display: none !important;
+}
+
+.pill-section:hover {
+  background: var(--astra-accent);
+  color: white;
+}
+
+.pill-section:not(:first-child) {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pill-separator {
+  display: none !important;
+}
+
+.au-pill-pressed {
+  opacity: 0.6;
+}
+
+/* ==========================================================================
+   MODAL CORE
+   ========================================================================== */
+
 /* Modal Overlay */
 .astra-modal-overlay {
   position: fixed;
@@ -294,19 +417,19 @@
    ASTRA - ATOMIC COMPONENTS & LAYOUT
    ========================================================================== */
 
-.astra-v2 {
+.astra-modal-container {
   --astra-header-height: 80px;
   --astra-nav-height: 50px;
   --astra-footer-height: 70px;
 }
 
-.astra-modal--rating.astra-v2 {
+.astra-modal--rating {
   flex-direction: column;
   height: 680px;
   width: 980px;
 }
 
-.astra-v2 .astra-modal-nav {
+.astra-modal-nav {
   width: 100%;
   height: var(--astra-nav-height);
   flex-direction: row;
@@ -317,7 +440,7 @@
   border-right: none;
 }
 
-.astra-v2 .astra-nav-item {
+.astra-nav-item {
   width: auto;
   height: 100%;
   flex-direction: row;
@@ -327,7 +450,7 @@
   font-size: 13px;
 }
 
-.astra-v2 .astra-nav-item.active::after {
+.astra-nav-item.active::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -337,7 +460,7 @@
   background: var(--astra-accent);
 }
 
-.astra-rating-v2-layout {
+.astra-rating-layout {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 20px;
@@ -350,7 +473,7 @@
   overflow: hidden;
 }
 
-.astra-score-form-v2 {
+.astra-score-form {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -384,7 +507,7 @@
   letter-spacing: 0.05em;
 }
 
-.astra-select-v2 {
+.astra-select {
   background: var(--astra-bg-elev-2);
   border: 1px solid var(--astra-border);
   border-radius: 6px;
@@ -466,7 +589,7 @@
   font-size: 11px;
 }
 
-.astra-form-footer-v2 {
+.astra-form-footer {
   margin-top: auto;
   display: flex;
   gap: 16px;

@@ -5,7 +5,7 @@
  */
 
 import { BaseComponent } from '@ui/components/BaseComponent';
-import { AstraWork } from '../../AstraService';
+import { AstraWorkSummary } from '../../AstraService';
 import { getStatusLabel } from '@core/utils/UIHelpers';
 
 /**
@@ -14,7 +14,7 @@ import { getStatusLabel } from '@core/utils/UIHelpers';
 export class AstraWorkGrid extends BaseComponent {
   private readonly CHUNK_SIZE = 50;
   private renderedCount = 0;
-  private works: AstraWork[] = [];
+  private works: AstraWorkSummary[] = [];
 
   constructor() {
     super({});
@@ -45,7 +45,7 @@ export class AstraWorkGrid extends BaseComponent {
   /**
    * Updates the dataset and resets rendering.
    */
-  public updateWorks(works: AstraWork[]): void {
+  public updateWorks(works: AstraWorkSummary[]): void {
     this.works = works;
     this.renderedCount = 0;
     const body = this.querySelector('#astra-grid-body');
@@ -58,10 +58,8 @@ export class AstraWorkGrid extends BaseComponent {
   /**
    * Renders a single row for a work.
    */
-  private createRow(work: AstraWork): HTMLElement {
-    const latestScore = (work.seasons && work.seasons.length > 0 
-      ? work.seasons[work.seasons.length - 1].legacyScore 
-      : null) ?? null;
+  private createRow(work: AstraWorkSummary): HTMLElement {
+    const score = work.currentScore;
 
     const row = this.createFromHTML(`
       <div class="astra-work-row" data-id="${work.mediaId}">
@@ -70,17 +68,17 @@ export class AstraWorkGrid extends BaseComponent {
         </div>
         <div class="col-title">
           <div class="title-main">${work.title}</div>
-          <div class="title-sub">${work.type} • ${work.country || 'N/A'}</div>
+          <div class="title-sub">${work.type} • ${work.country || 'JP'}</div>
         </div>
         <div class="col-status">
           <span class="status-badge status-${work.status.toLowerCase()}">${getStatusLabel(work.status, work.type)}</span>
         </div>
         <div class="col-progress">
-          <div class="progress-text">${work.progress || 0} / ${work.episodes || '?'}</div>
+          <div class="progress-text">${work.progress || 0} / ${work.episodes || work.chapters || '?'}</div>
         </div>
         <div class="col-score">
-          <div class="score-pill ${this.getScoreClass(latestScore)}">
-            ${latestScore ? latestScore.toFixed(1) : '--'}
+          <div class="score-pill ${this.getScoreClass(score)}">
+            ${score ? score.toFixed(1) : '--'}
           </div>
         </div>
         <div class="col-actions">

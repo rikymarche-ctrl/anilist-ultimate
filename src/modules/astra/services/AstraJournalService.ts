@@ -25,7 +25,7 @@ export class AstraJournalService {
    * Save a note for a specific episode
    */
   public async saveEpisodeNote(mediaId: number, seasonIdx: number, episode: number, data: Partial<AstraEpisodeNote>): Promise<void> {
-    const work = await this.astraService.getWork(mediaId);
+    const work = await this.astraService.getFullWork(mediaId);
     if (!work || !work.seasons[seasonIdx]) return;
 
     if (!work.seasons[seasonIdx].episodeNotes) {

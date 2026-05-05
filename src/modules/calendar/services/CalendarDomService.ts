@@ -11,7 +11,7 @@
  * @see docs/MODULES.md#1-calendar-module
  */
 
-import { injectable } from 'tsyringe';
+import { injectable, DependencyContainer } from 'tsyringe';
 import { log } from '@core/logger';
 import { CSS_CLASSES } from '@core/constants';
 import { container } from '@core/di/container';
@@ -21,6 +21,8 @@ import { CalendarGrid } from '../components/CalendarGrid';
 export class CalendarDomService {
   private containerElement: HTMLElement | null = null;
   private calendarGrid: CalendarGrid | null = null;
+  /** Reference to the child container for proper disposal (BUG-FIX: Memory Leak) */
+  private childContainer: DependencyContainer | null = null;
 
   constructor() { }
 
@@ -114,9 +116,17 @@ export class CalendarDomService {
 
     // Resolve and mount the grid component
     try {
-      const child = container.createChildContainer();
-      child.register('CalendarGridProps', { useValue: { onMarkWatched, astraEnabled } });
-      this.calendarGrid = child.resolve(CalendarGrid);
+      // 1. Dispose of previous container to prevent memory leaks
+      if (this.childContainer) {
+        log.debug('[CalendarDomService] Disposing previous DI child container');
+        this.childContainer.dispose();
+      }
+
+      // 2. Create new specialized child container for this render cycle
+      this.childContainer = container.createChildContainer();
+      this.childContainer.register('CalendarGridProps', { useValue: { onMarkWatched, astraEnabled } });
+      
+      this.calendarGrid = this.childContainer.resolve(CalendarGrid);
       this.calendarGrid.mount(gridContainer);
     } catch (error) {
       log.error('[CalendarDomService] Failed to initialize CalendarGrid component', error);
@@ -290,6 +300,13 @@ export class CalendarDomService {
   public cleanup(): void {
     this.calendarGrid?.unmount();
     this.calendarGrid = null;
+
+    if (this.childContainer) {
+      log.debug('[CalendarDomService] Disposing child container during cleanup');
+      this.childContainer.dispose();
+      this.childContainer = null;
+    }
+
     this.containerElement?.remove();
     this.containerElement = null;
   }

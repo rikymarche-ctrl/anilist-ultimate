@@ -33,6 +33,23 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import { MediaListStatus, type MediaListCollectionResponse } from '@/api/AnilistTypes';
 import { AstraParser } from './utils/AstraParser';
 
+export interface AstraWorkSummary {
+  id: string;
+  mediaId: number;
+  title: string;
+  type: 'anime' | 'manga' | 'novel';
+  cover?: string;
+  status: MediaListStatus;
+  progress?: number;
+  episodes?: number;
+  chapters?: number;
+  country?: string;
+  updatedAt: number;
+  currentScore: number | null;
+  sectionScores?: Record<string, number | null>;
+  genres?: string[];
+}
+
 export interface AstraWork {
   id: string;
   mediaId: number;
@@ -132,21 +149,21 @@ function generateUUID(): string {
   });
 }
 
-
-
 @singleton()
 @injectable()
 export class AstraService {
-  private works: AstraWork[] = [];
-  // Performance optimization: O(1) lookup by mediaId instead of O(n) find
-  private worksByMediaId: Map<number, AstraWork> = new Map();
+  private summaries: AstraWorkSummary[] = [];
+  private fullWorkCache: Map<number, AstraWork> = new Map();
+  private readonly MAX_CACHE_SIZE = 20;
+
   private sections: AstraSection[] = DEFAULT_SECTIONS;
   private settings: AstraSettings = DEFAULT_SETTINGS;
-  private isLoaded = false;
-  private readonly STORAGE_KEY = 'au_astra_data';
+  private isInitialized = false;
+
   private readonly MANIFEST_KEY = 'au_astra_manifest';
   private readonly WORK_PREFIX = 'au_astra_work_';
-  private initPromise: Promise<void> | null = null;
+  private readonly SECTIONS_KEY = 'au_astra_sections';
+  private readonly SETTINGS_KEY = 'au_astra_settings';
 
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
@@ -155,101 +172,115 @@ export class AstraService {
   ) { }
 
   /**
-   * Initialize and load data from storage
+   * Initializes the service by loading the manifest and configuration.
    */
-  async init(): Promise<void> {
-    if (this.isLoaded) return;
-    if (this.initPromise) return this.initPromise;
+  public async init(): Promise<void> {
+    if (this.isInitialized) return;
 
-    this.initPromise = (async () => {
-      try {
-        // 1. Try to load from new atomic manifest
-        let manifest = await this.storage.get<{ workIds: number[], settings: AstraSettings, sections: AstraSection[] }>(this.MANIFEST_KEY);
+    log.info('[AstraService] Initializing Atomic Storage...');
 
-        if (!manifest) {
-          // 2. MIGRATION: Check if legacy data exists
-          const legacyData = await this.storage.get<any>(this.STORAGE_KEY);
-          if (legacyData && legacyData.works) {
-            log.info(`[AstraService] Migrating ${legacyData.works.length} works to atomic storage...`);
+    try {
+      const [manifest, sections, settings] = await Promise.all([
+        this.storage.get<AstraWorkSummary[]>(this.MANIFEST_KEY),
+        this.storage.get<AstraSection[]>(this.SECTIONS_KEY),
+        this.storage.get<AstraSettings>(this.SETTINGS_KEY)
+      ]);
 
-            this.settings = legacyData.settings || DEFAULT_SETTINGS;
-            this.sections = legacyData.sections || [...DEFAULT_SECTIONS];
-            this.works = legacyData.works;
-
-            // Save each work individually
-            for (const work of this.works) {
-              await this.storage.set(`${this.WORK_PREFIX}${work.mediaId}`, work);
-            }
-
-            // Save manifest
-            manifest = {
-              workIds: this.works.map(w => w.mediaId),
-              settings: this.settings,
-              sections: this.sections
-            };
-            await this.storage.set(this.MANIFEST_KEY, manifest);
-
-            // Optional: Cleanup legacy data (keeping it for now to be safe)
-            // await this.storage.remove(this.STORAGE_KEY);
-          }
-        }
-
-        if (manifest) {
-          this.settings = manifest.settings || DEFAULT_SETTINGS;
-          this.sections = manifest.sections || [...DEFAULT_SECTIONS];
-
-          // Load all works in parallel
-          const workKeys = manifest.workIds.map(id => `${this.WORK_PREFIX}${id}`);
-          const worksData = await this.storage.getMultiple<Record<string, AstraWork>>(workKeys);
-
-          this.works = Object.values(worksData).filter((w): w is AstraWork => !!w);
-          this.rebuildWorkIndex();
-        }
-
-        this.isLoaded = true;
-        log.success(`[AstraService] Atomic initialization complete. Loaded ${this.works.length} works.`);
-        this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED);
-      } catch (error) {
-        log.error('[AstraService] Failed to load data', error);
-        this.works = [];
-        this.sections = DEFAULT_SECTIONS;
-      } finally {
-        this.initPromise = null;
+      // Defensive check: handle corrupted object format from previous failed build
+      if (manifest && !Array.isArray(manifest)) {
+        log.warn('[AstraService] Manifest corrupted (object found instead of array). Attempting recovery...');
+        const anyManifest = manifest as any;
+        this.summaries = Array.isArray(anyManifest.summaries) ? anyManifest.summaries : [];
+        this.sections = Array.isArray(anyManifest.sections) ? anyManifest.sections : (sections || [...DEFAULT_SECTIONS]);
+        this.settings = anyManifest.settings ? { ...DEFAULT_SETTINGS, ...anyManifest.settings } : (settings ? { ...DEFAULT_SETTINGS, ...settings } : DEFAULT_SETTINGS);
+      } else {
+        this.summaries = manifest || [];
+        this.sections = sections || [...DEFAULT_SECTIONS];
+        this.settings = settings ? { ...DEFAULT_SETTINGS, ...settings } : DEFAULT_SETTINGS;
       }
-    })();
 
-    return this.initPromise;
-  }
-
-  /**
-   * Get all works
-   */
-  getWorks(): AstraWork[] {
-    return this.works;
-  }
-
-  async getWork(mediaId: number): Promise<AstraWork | undefined> {
-    await this.init();
-    return this.works.find(w => w.mediaId === mediaId);
-  }
-
-  /**
-   * Get a single work by mediaId
-   * Performance: O(1) Map lookup instead of O(n) array find
-   */
-  getWorkByMediaId(mediaId: number): AstraWork | undefined {
-    return this.worksByMediaId.get(mediaId);
-  }
-
-  /**
-   * Rebuild the work index Map from the works array
-   * Call this after bulk modifications to works array
-   */
-  private rebuildWorkIndex(): void {
-    this.worksByMediaId.clear();
-    for (const work of this.works) {
-      this.worksByMediaId.set(work.mediaId, work);
+      this.isInitialized = true;
+      log.success(`[AstraService] Initialization complete. Loaded ${this.summaries.length} summaries.`);
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED);
+    } catch (error) {
+      log.error('[AstraService] Initialization failed', error);
+      this.summaries = [];
     }
+  }
+
+  /**
+   * Helper to create a summary from a full work
+   */
+  private createSummary(work: AstraWork): AstraWorkSummary {
+    const latestSeason = work.seasons && work.seasons.length > 0 
+      ? work.seasons[work.seasons.length - 1] 
+      : null;
+
+    const sectionScores: Record<string, number | null> = {};
+    if (latestSeason) {
+      this.sections.forEach(s => {
+        sectionScores[s.id] = this.calcSectionScore(s, latestSeason.scores);
+      });
+    }
+
+    return {
+      id: work.id,
+      mediaId: work.mediaId,
+      title: work.title,
+      type: work.type,
+      cover: work.cover,
+      status: work.status,
+      progress: work.progress,
+      episodes: work.episodes,
+      chapters: work.chapters,
+      country: work.country,
+      updatedAt: work.updatedAt,
+      genres: work.genres,
+      currentScore: latestSeason ? (latestSeason.legacyScore || this.calcSeasonScore(latestSeason)) : null,
+      sectionScores
+    };
+  }
+
+  /**
+   * Get all work summaries (for the dashboard)
+   */
+  getWorks(): AstraWorkSummary[] {
+    return this.summaries;
+  }
+
+  /**
+   * Get full work data (Lazy Loaded)
+   */
+  async getFullWork(mediaId: number): Promise<AstraWork | undefined> {
+    await this.init();
+
+    // 1. Check LRU Cache
+    const cached = this.fullWorkCache.get(mediaId);
+    if (cached) return cached;
+
+    // 2. Load from storage
+    log.debug(`[AstraService] Lazy loading full work for media ${mediaId}...`);
+    const key = `${this.WORK_PREFIX}${mediaId}`;
+    const fullWork = await this.storage.get<AstraWork>(key);
+    
+    if (fullWork) {
+      // Manage LRU cache
+      if (this.fullWorkCache.size >= this.MAX_CACHE_SIZE) {
+        const firstKey = this.fullWorkCache.keys().next().value;
+        if (firstKey !== undefined) this.fullWorkCache.delete(firstKey);
+      }
+      this.fullWorkCache.set(mediaId, fullWork);
+      return fullWork;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * For backward compatibility, but now uses summaries.
+   */
+  getWorkByMediaId(mediaId: number): AstraWorkSummary | undefined {
+    return this.summaries.find(s => s.mediaId === mediaId);
   }
 
   /**
@@ -321,80 +352,75 @@ export class AstraService {
         apiClient.query<MediaListCollectionResponse>(query, { userId, type: 'MANGA' })
       ]);
 
-      let added = 0;
-      let updated = 0;
+      let addedCount = 0;
+      let updatedCount = 0;
 
-      // Reset custom lists for all existing works before sync to ensure accuracy
-      this.works.forEach(w => w.customLists = []);
-
-      const processResult = (result: MediaListCollectionResponse) => {
+      const processResult = async (result: MediaListCollectionResponse) => {
         const collection = result?.MediaListCollection;
         if (!collection?.lists) return;
 
         for (const list of collection.lists) {
           for (const entry of list.entries) {
-            const existing = this.getWorkByMediaId(entry.mediaId);
+            const existingSummary = this.getWorkByMediaId(entry.mediaId);
 
-            if (existing) {
+            if (existingSummary) {
+              // Load full work to check if sync needed
+              const full = await this.getFullWork(entry.mediaId);
+              if (!full) continue;
+
               const newTitle = entry.media.title.english || entry.media.title.romaji || entry.media.title.native || 'Unknown Title';
-              if (existing.status !== entry.status || existing.title !== newTitle) {
-                if (existing.title !== newTitle) existing.title = newTitle;
-                existing.status = entry.status;
-                updated++;
+              let changed = false;
+
+              if (full.status !== entry.status || full.title !== newTitle) {
+                full.title = newTitle;
+                full.status = entry.status;
+                changed = true;
               }
 
-              // Extract custom lists from entry
-              existing.customLists = [];
+              // Sync metadata
+              full.customLists = [];
               if (entry.customLists) {
-                const customListsRaw = entry.customLists as Record<string, boolean>;
-                const customListsArray = Object.keys(customListsRaw).filter(key => customListsRaw[key]);
-                existing.customLists = customListsArray;
+                const cl = entry.customLists as Record<string, boolean>;
+                full.customLists = Object.keys(cl).filter(k => cl[k]);
               }
+              if (entry.private) full.customLists.push('Private');
+              if (entry.hiddenFromStatusLists) full.customLists.push('Hide from status lists');
 
-              // Add Private and Hide from status lists flags
-              if (entry.private === true) {
-                existing.customLists.push('Private');
-              }
-              if (entry.hiddenFromStatusLists === true) {
-                existing.customLists.push('Hide from status lists');
-              }
+              full.genres = entry.media.genres || [];
+              full.episodes = entry.media.episodes ?? undefined;
+              full.chapters = entry.media.chapters ?? undefined;
+              full.progress = entry.progress;
+              full.duration = entry.media.duration ?? undefined;
+              full.notes = entry.notes || '';
 
-              existing.genres = entry.media.genres || [];
-              existing.episodes = entry.media.episodes ?? undefined;
-              existing.chapters = entry.media.chapters ?? undefined;
-              existing.progress = entry.progress;
-              existing.duration = entry.media.duration ?? undefined;
-              existing.notes = entry.notes || '';
-
-              // TWO-WAY SYNC: Parse notes for existing work
+              // Parse notes for Astra data
               if (entry.notes) {
                 const parsed = AstraParser.parse(entry.notes, this.sections);
-                if (parsed) {
-                  const wasChanged = AstraParser.merge(existing, parsed);
-                  if (wasChanged) {
-                    existing.updatedAt = Date.now();
-                    updated++;
-                  }
+                if (parsed && AstraParser.merge(full, parsed)) {
+                  changed = true;
                 }
               }
+
+              if (changed) {
+                full.updatedAt = Date.now();
+                await this.storage.set(`${this.WORK_PREFIX}${full.mediaId}`, full);
+                // Update summary in manifest
+                const idx = this.summaries.findIndex(s => s.mediaId === full.mediaId);
+                if (idx >= 0) this.summaries[idx] = this.createSummary(full);
+                updatedCount++;
+              }
             } else {
+              // NEW WORK
               const media = entry.media;
               const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
 
-              // Extract custom lists from entry
-              let customListsArray: string[] = [];
+              let customLists: string[] = [];
               if (entry.customLists) {
-                const customListsRaw = entry.customLists as Record<string, boolean>;
-                customListsArray = Object.keys(customListsRaw).filter(key => customListsRaw[key]);
+                const cl = entry.customLists as Record<string, boolean>;
+                customLists = Object.keys(cl).filter(k => cl[k]);
               }
-
-              // Add Private and Hide from status lists flags
-              if (entry.private === true && !customListsArray.includes('Private')) {
-                customListsArray.push('Private');
-              }
-              if (entry.hiddenFromStatusLists === true && !customListsArray.includes('Hide from status lists')) {
-                customListsArray.push('Hide from status lists');
-              }
+              if (entry.private) customLists.push('Private');
+              if (entry.hiddenFromStatusLists) customLists.push('Hide from status lists');
 
               const newWork: AstraWork = {
                 id: `w_${generateUUID()}`,
@@ -403,12 +429,11 @@ export class AstraService {
                 type: type as any,
                 country: media.countryOfOrigin,
                 cover: media.coverImage.extraLarge || media.coverImage.large || media.coverImage.medium || undefined,
-                anilistUrl: media.siteUrl,
                 status: entry.status,
-                customLists: customListsArray,
+                customLists,
                 tags: [],
                 seasons: [this.createDefaultSeason()],
-                notes: '',
+                notes: entry.notes || '',
                 updatedAt: Date.now(),
                 genres: media.genres || [],
                 episodes: media.episodes ?? undefined,
@@ -417,43 +442,33 @@ export class AstraService {
                 duration: media.duration ?? undefined
               };
 
-              // TWO-WAY SYNC: Parse notes for NEW work
               if (entry.notes) {
                 const parsed = AstraParser.parse(entry.notes, this.sections);
-                if (parsed) {
-                  AstraParser.merge(newWork, parsed);
-                }
+                if (parsed) AstraParser.merge(newWork, parsed);
               }
 
-              // Store AniList score as legacy fallback
               if (entry.score > 0) {
-                // AniList scores are typically 0-10 or 0-100 depending on format, 
-                // but entry.score in GQL collections is usually the formatted one.
-                // We normalize to 0-10 if it's > 10.
-                const normalizedScore = entry.score > 10 ? entry.score / 10 : entry.score;
-                newWork.seasons[0].legacyScore = normalizedScore;
+                const normalized = entry.score > 10 ? entry.score / 10 : entry.score;
+                newWork.seasons[0].legacyScore = normalized;
               }
-              newWork.notes = entry.notes || '';
 
-              this.works.push(newWork);
-              // Update Map index for O(1) lookup
-              this.worksByMediaId.set(newWork.mediaId, newWork);
-              added++;
+              await this.storage.set(`${this.WORK_PREFIX}${newWork.mediaId}`, newWork);
+              this.summaries.push(this.createSummary(newWork));
+              addedCount++;
             }
           }
         }
       };
 
-      processResult(animeRes);
-      processResult(mangaRes);
+      await processResult(animeRes);
+      await processResult(mangaRes);
 
-      // Always persist after sync
-      this.works.sort((a, b) => b.updatedAt - a.updatedAt);
-      this.rebuildWorkIndex();
+      // Persist the manifest (summaries list)
+      this.summaries.sort((a, b) => b.updatedAt - a.updatedAt);
       await this.persist();
 
-      log.info(`[AstraService] Sync complete: +${added} added, ~${updated} updated`);
-      return { added, updated };
+      log.info(`[AstraService] Sync complete: +${addedCount} added, ~${updatedCount} updated`);
+      return { added: addedCount, updated: updatedCount };
     } catch (error) {
       log.error('[AstraService] Sync failed', error);
       throw error;
@@ -461,21 +476,18 @@ export class AstraService {
   }
 
   /**
-   * Save or update a work
+   * Save or update a full work
    */
   async saveWork(work: Partial<AstraWork> & { mediaId: number }): Promise<AstraWork> {
     await this.init();
 
-    const existingIdx = this.works.findIndex(w => w.mediaId === work.mediaId);
-    let updatedWork: AstraWork;
-
-    if (existingIdx >= 0) {
-      updatedWork = { ...this.works[existingIdx], ...work, updatedAt: Date.now() };
-      this.works[existingIdx] = updatedWork;
-      this.worksByMediaId.set(updatedWork.mediaId, updatedWork);
+    let fullWork = await this.getFullWork(work.mediaId);
+    
+    if (fullWork) {
+      fullWork = { ...fullWork, ...work, updatedAt: Date.now() };
     } else {
-      updatedWork = {
-        id: `w_${Math.random().toString(36).slice(2, 11)}`,
+      fullWork = {
+        id: `w_${generateUUID()}`,
         title: 'Unknown',
         type: 'anime',
         status: MediaListStatus.PLANNING,
@@ -485,33 +497,41 @@ export class AstraService {
         updatedAt: Date.now(),
         ...work
       } as AstraWork;
-      this.works.unshift(updatedWork);
-      this.worksByMediaId.set(updatedWork.mediaId, updatedWork);
     }
 
-    // Atomic Save: Only save this specific work
-    await this.storage.set(`${this.WORK_PREFIX}${updatedWork.mediaId}`, updatedWork);
+    // 1. Atomic Save: Save the full details
+    await this.storage.set(`${this.WORK_PREFIX}${fullWork.mediaId}`, fullWork);
+    this.fullWorkCache.set(fullWork.mediaId, fullWork);
 
-    // Also update manifest (since IDs list might have changed)
+    // 2. Update summary in manifest
+    const existingIdx = this.summaries.findIndex(s => s.mediaId === fullWork!.mediaId);
+    const summary = this.createSummary(fullWork);
+
+    if (existingIdx >= 0) {
+      this.summaries[existingIdx] = summary;
+    } else {
+      this.summaries.unshift(summary);
+    }
+
+    // 3. Persist manifest
     await this.persist();
 
-    // Auto-sync with AniList notes
-    this.syncToAnilistNotes(updatedWork.mediaId, updatedWork);
+    // Auto-sync with AniList notes (background)
+    this.syncToAnilistNotes(fullWork.mediaId, fullWork);
 
-    return updatedWork;
+    return fullWork;
   }
 
   /**
-   * Internal persist of manifest and settings
+   * Internal persist of manifest (summaries, settings, sections)
    */
   private async persist(): Promise<void> {
     try {
-      await this.storage.set(this.MANIFEST_KEY, {
-        workIds: this.works.map(w => w.mediaId),
-        sections: this.sections,
-        settings: this.settings,
-        lastUpdated: Date.now()
-      });
+      await Promise.all([
+        this.storage.set(this.MANIFEST_KEY, this.summaries),
+        this.storage.set(this.SECTIONS_KEY, this.sections),
+        this.storage.set(this.SETTINGS_KEY, this.settings)
+      ]);
 
       this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {
         timestamp: new Date()
@@ -522,72 +542,38 @@ export class AstraService {
   }
 
   /**
-   * Save a note for a specific episode
-   */
-  async saveEpisodeNote(mediaId: number, episode: number, text: string): Promise<void> {
-    await this.init();
-    let work = this.getWorkByMediaId(mediaId);
-
-    if (!work) {
-      log.info(`[AstraService] Work not found for mediaId ${mediaId}. Creating new work for journal entry.`);
-      // We don't have full info, but we can seed a basic work
-      work = {
-        id: `w_${generateUUID()}`,
-        mediaId,
-        title: 'Unknown (Pending Sync)',
-        type: 'anime',
-        status: MediaListStatus.CURRENT,
-        customLists: [],
-        tags: [],
-        seasons: [this.createDefaultSeason()],
-        notes: '',
-        updatedAt: Date.now(),
-      };
-      this.works.push(work);
-      this.worksByMediaId.set(mediaId, work);
-    }
-
-    // Find the last season (current)
-    const season = work.seasons[work.seasons.length - 1];
-    if (!season) return;
-
-    if (!season.episodeNotes) {
-      season.episodeNotes = {};
-    }
-
-    season.episodeNotes[episode] = {
-      ...season.episodeNotes[episode],
-      text
-    };
-
-    work.updatedAt = Date.now();
-    await this.persist();
-
-    // Auto-sync journal with AniList notes
-    this.syncToAnilistNotes(mediaId, work);
-
-    log.info(`[AstraService] Saved note for ${work.title} Ep ${episode}`);
-  }
-
-  /**
-   * Delete a work
+   * Delete a work and its atomic storage
    */
   async deleteWork(mediaId: number): Promise<void> {
-    this.works = this.works.filter(w => w.mediaId !== mediaId);
-    // Remove from Map index
-    this.worksByMediaId.delete(mediaId);
-    await this.persist();
+    await this.init();
+    this.summaries = this.summaries.filter(s => s.mediaId !== mediaId);
+    this.fullWorkCache.delete(mediaId);
+    
+    // Remove both from manifest and individual storage
+    await Promise.all([
+      this.storage.remove(`${this.WORK_PREFIX}${mediaId}`),
+      this.persist()
+    ]);
+    
+    log.info(`[AstraService] Deleted work ${mediaId}`);
   }
 
   /**
    * Delete ALL works (Reset)
    */
   async clearAllWorks(): Promise<void> {
-    this.works = [];
-    // Clear Map index
-    this.worksByMediaId.clear();
-    await this.persist();
-    log.info('[AstraService] All works cleared');
+    await this.init();
+    const keysToRemove = this.summaries.map(s => `${this.WORK_PREFIX}${s.mediaId}`);
+    
+    this.summaries = [];
+    this.fullWorkCache.clear();
+    
+    await Promise.all([
+      ...keysToRemove.map(key => this.storage.remove(key)),
+      this.persist()
+    ]);
+    
+    log.info('[AstraService] All Astra data cleared');
   }
 
   /**
@@ -820,55 +806,61 @@ export class AstraService {
   }
 
   /**
-   * Export all data as JSON string
+   * Export all data as JSON string (Full Data)
    */
-  exportJSON(): string {
+  async exportJSON(): Promise<string> {
+    await this.init();
+    
+    // Load ALL full works for export
+    const workKeys = this.summaries.map(s => `${this.WORK_PREFIX}${s.mediaId}`);
+    const worksData = await this.storage.getMultiple<Record<string, AstraWork>>(workKeys);
+    const works = Object.values(worksData).filter((w): w is AstraWork => !!w);
+
     return JSON.stringify({
-      works: this.works,
+      works,
       sections: this.sections,
-      exportedAt: new Date().toISOString()
+      settings: this.settings,
+      exportedAt: new Date().toISOString(),
+      version: '2.0.0-atomic'
     }, null, 2);
   }
 
   /**
    * Import data from JSON with basic schema validation.
-   * @param jsonStr The JSON string to import.
-   * @returns True if successful, false otherwise.
    */
   async importJSON(jsonStr: string): Promise<boolean> {
     try {
       const data = JSON.parse(jsonStr);
       
-      // Basic Zero-Trust validation
       if (!data.works || !Array.isArray(data.works)) {
         log.warn('[AstraService] Import aborted: Missing works array');
         return false;
       }
 
-      // Validate first few entries for structural integrity
-      const isValid = data.works.slice(0, 10).every((w: any) => 
-        typeof w.mediaId === 'number' && 
-        typeof w.title === 'string' && 
-        Array.isArray(w.seasons)
-      );
-
-      if (!isValid) {
-        log.error('[AstraService] Import aborted: Invalid work structure detected');
-        return false;
+      // 1. Batch save all full works
+      for (const work of data.works) {
+        if (work.mediaId) {
+          await this.storage.set(`${this.WORK_PREFIX}${work.mediaId}`, work);
+        }
       }
 
-      this.works = data.works;
+      // 2. Rebuild summaries from imported data
+      this.summaries = data.works.map((w: any) => this.createSummary(w));
+      
       if (data.sections && Array.isArray(data.sections)) {
         this.sections = data.sections;
       }
+      if (data.settings) {
+        this.settings = data.settings;
+      }
 
-      // Migrate to atomic storage after import
+      // 3. Persist manifest
       await this.persist();
       
-      log.success(`[AstraService] Successfully imported ${this.works.length} works.`);
+      log.success(`[AstraService] Successfully imported ${this.summaries.length} works.`);
       return true;
     } catch (error) {
-      log.error('[AstraService] Import failed due to parsing or persistence error', error);
+      log.error('[AstraService] Import failed', error);
       return false;
     }
   }

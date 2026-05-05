@@ -40,7 +40,7 @@ export class NavigationService {
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.Logger) private logger: ILogger
   ) {
-    this.currentPath = window.location.pathname;
+    this.currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
   }
 
   /**

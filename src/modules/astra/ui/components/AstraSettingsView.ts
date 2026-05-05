@@ -55,8 +55,7 @@ export class AstraSettingsView extends AstraView {
     const toast = container.resolve<ToastService>(TOKENS.ToastService);
     
     this.$('#astra-save-settings')?.addEventListener('click', () => {
-      // In V2, we will add full section editing here. 
-      // For now, it's a placeholder for the existing save logic.
+      // TODO: Implement full section editing.
       toast.success('Settings saved!');
     });
   }

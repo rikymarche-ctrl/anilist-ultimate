@@ -3,7 +3,7 @@
  * @description Contract for the business logic responsible for filtering and sorting Astra data.
  */
 
-import { AstraWork } from '../AstraService';
+import { AstraWorkSummary } from '../AstraService';
 import { IDashboardFilters, AstraSortType } from './IDashboardState';
 
 /**
@@ -18,22 +18,22 @@ export interface IFilterService {
    * @param filters - The active filtering criteria.
    * @returns A filtered subset of the works.
    */
-  filter(works: AstraWork[], filters: IDashboardFilters): AstraWork[];
+  filter(works: AstraWorkSummary[], filters: IDashboardFilters): AstraWorkSummary[];
 
   /**
    * Sorts a collection of works based on a specific criteria.
    * 
-   * @param works - The collection to sort (mutates in-place or returns new).
+   * @param works - The collection to sort.
    * @param sortType - The sorting algorithm to apply.
    * @returns The sorted collection.
    */
-  sort(works: AstraWork[], sortType: AstraSortType): AstraWork[];
+  sort(works: AstraWorkSummary[], sortType: AstraSortType): AstraWorkSummary[];
 
   /**
-   * Performs fuzzy search across title, notes, and tags.
+   * Performs fuzzy search across title, and searchable metadata.
    * 
    * @param works - The collection to search within.
    * @param query - The search string.
    */
-  search(works: AstraWork[], query: string): AstraWork[];
+  search(works: AstraWorkSummary[], query: string): AstraWorkSummary[];
 }

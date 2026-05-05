@@ -77,8 +77,8 @@ export class AstraRatingController extends AstraView {
     this.allCustomLists = allCustomLists;
 
     const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
-    this.work = await this.service.getWork(mediaId) || this.createDefaultWork(media, mediaType);
-    this.currentSeasonIdx = this.work.seasons.length - 1;
+    this.work = await this.service.getFullWork(mediaId) || this.createDefaultWork(media, mediaType);
+    this.currentSeasonIdx = this.work ? this.work.seasons.length - 1 : 0;
     this.activeTab = 'rating';
     this.isDirty = false;
 
@@ -143,7 +143,7 @@ export class AstraRatingController extends AstraView {
 
   protected template(): string {
     return `
-      <div class="astra-modal astra-modal--rating astra-v2">
+      <div class="astra-modal astra-modal--rating">
         <div id="astra-header-mount"></div>
         <nav class="astra-modal-nav">
           <div class="astra-nav-item ${this.activeTab === 'rating' ? 'active' : ''}" data-tab="rating">
@@ -194,7 +194,7 @@ export class AstraRatingController extends AstraView {
 
     if (this.activeTab === 'rating') {
       const layout = document.createElement('div');
-      layout.className = 'astra-rating-v2-layout';
+      layout.className = 'astra-rating-layout';
       content.appendChild(layout);
 
       const formMount = document.createElement('div');

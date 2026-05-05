@@ -2,77 +2,41 @@
 
 ---
 
+## ✅ Enterprise Refactoring (COMPLETED)
+- [X] **Atomic Storage & Lazy Loading**: Split monolithic JSON into manifest + media keys.
+- [X] **Performance Optimization**: Fixed "Rerender Suicide" in AnimeCards and grid.
+- [X] **API Decoupling**: Implemented `SyncQueueService` for background, non-blocking AniList sync.
+- [X] **Infrastructure Cleanup**: Removed all "v2", "legacy", and migration debt.
+- [X] **Smart Journal Sync**: Replaces existing Astra notes instead of appending duplicates.
+
+---
+
 ## 📊 Astra Dashboard
 
 *Il centro di controllo dell'esperienza Astra.*
 
-- [X] **Infrastruttura Caching (Enterprise Refactor)**: Sistema centralizzato O(1) con persistenza trasparente completato.
-- [ ] **Sorting & Filtering**: Implementare il sistema di ordinamento reale per la dashboard.
-  - **Filtri da applicare**: `Title`, `Score (Astra)`, `Progress`, `Last Updated`, `Last Added`, `Start Date`, `Completed Date`.
-  - *Nota*: Rimosse metriche esterne non rilevanti (Popularity, Release Date, Average Score) in quanto la dashboard è focalizzata sui dati personali Astra.
-- [ ] **Sorting Avanzato**: Implementare il sorting anche per `Completed Date`, `Data di modifica`, `Start`, ecc.
-- [ ] **Astra Wrapped**: Da finire. Integrare lo sfondo fluido scaricato (fatto con Opus) nel progetto.
-- [ ] **Stats Major Rework**: Riprogettazione profonda delle statistiche (pensare a come strutturarle).
-- [ ] **Dynamic UI (Scrolling)**: Fare in modo che quando si scrolla, la parte superiore (Sync, Toggle Progress, Fill, ecc.) sparisca, lasciando visibili solo i filtri per massimizzare lo spazio di lavoro.
-- [ ] **Bulk Editor**: Creare uno strumento per il bulk editing degli elementi all'interno delle liste personalizzate della Astra Dashboard.
+- [X] **Infrastruttura Caching**: Sistema centralizzato O(1) completato.
+- [ ] **Sorting Avanzato**: Implementare nel `AstraFilterService` il sorting reale per `Completed Date`, `Data di modifica`, `Start`, ecc. (Logica pronta, serve UI binding).
+- [ ] **Astra Wrapped**: Integrare lo sfondo fluido (Opus) per il recap stagionale.
+- [ ] **Dynamic UI (Scrolling)**: Header collassabile durante lo scroll della grid per massimizzare lo spazio.
+- [ ] **Bulk Editor**: Strumento per editing massivo di tag e liste personalizzate.
 
 ## 📓 Astra Ratings & Journal
 
 *Sistema di annotazione e valutazione avanzata.*
 
-- [ ] **Multi-Format Support**: Il Journal funziona correttamente per gli anime, ma va verificata e implementata la piena compatibilità per Manga e Novel.
-- [ ] **Optional Comments**: Fare in modo che l'append del commento autogenerato sia opzionale.
-- [ ] **Infinite Saving Bug**: Fixare il problema del "Save" che gira all'infinito nell'Astra Journal senza salvare.
-- [ ] un sistema per dare le lodi?
-
-## 👥 Social & Activity
-
-*Integrazione con la community di AniList.*
-
-- [ ] **Notification Texts**: Completare i testi nei messaggi delle notifiche come "mentioned you", "activity reply", ecc.
+- [ ] **Multi-Format Support**: Verificare piena compatibilità del Journal per Manga (Chapters) e Novel (Volumes).
+- [ ] **Optional Comments**: Opzione nelle impostazioni per disabilitare il sync automatico dei commenti su AniList.
+- [ ] **Sistema Lodi**: Implementare un sistema per assegnare "lodi" o premi speciali a opere eccezionali.
 
 ## 🛠️ Fixes & UX Improvements
 
 *Rifinitura e stabilità dell'interfaccia.*
 
-- [ ] **Slider Arrows**: Le freccette degli slider nella dashboard sono sempre attive, anche quando i rispettivi slider non sono presenti.
-- [ ] **Image Hover/QuickEdit**: Risolvere il problema dell'immagine sfocata nel QuickEdit e il bug del "doppio hover" (compaiono 2 immagini).
-- [ ] **Astra Settings Layout**: Lo slider nelle impostazioni spinge leggermente troppo sotto gli elementi circostanti.
-- [ ] **Theme Adaptation**: Adattare tutti i componenti e le feature a tutti i temi disponibili.
-
-## ⚙️ Core & Infrastructure
-
-*Base tecnica e manutenzione.*
-
-- [X] **Enterprise Cache Validation**: Verificata e ottimizzata tutta la logica di caching (ReviewService, Calendar, Social, Notifications, Activity).
+- [ ] **Slider Arrows Bug**: Le freccette degli slider rimangono visibili anche senza contenuto.
+- [ ] **QuickEdit Cleanup**: Risolvere immagine sfocata e bug del "doppio hover".
+- [ ] **Modal UX**: Verificare che il tasto "Save" chiuda sempre la modale dopo aver accodato la richiesta.
+- [ ] **Theme Adaptation**: Audit finale per compatibilità con i temi Dark/Contrast di AniList.
 
 ## 📈 Project Management
-
-- [ ] **Setup Git Pubblico**: Configurare il repository ufficiale su [GitHub](https://github.com/rikymarche-ctrl/anilist-ultimate) e procedere con la chiusura definitiva dei due vecchi repository (ci sarebbe da chiudere gli altri 2 vecchi).
-- [ ] anilist-ultimate-v2\docs\codebase_research_audit.md
-
-
-
-
-Il save fa troppe chiamate ad anilist
-
-il commento non va più
-
-il bordo rosso dell episodio indietro non si fixa se andiamo a pari
-
-![1777943839743](image/TODO/1777943839743.png)
-
-è vero ch fa append ma... ![1777943946883](image/TODO/1777943946883.png)modificare per detectare la sezione e cambiarla piuttosto che mettere alla fine
-
-
-fare decoupling, se ci sono troppe chiamate api (impossibile) astra deve comunque caricarrsi. AL massimo salviamo tutte le cose da  fare in una singola query e la si spedisce  a fine timer, ma qualcosa non va. è impossibile. Astra deve andare sempre e comunque, al masimo non aggiorna subito, ma finisce lì
-
-![1777944076496](image/TODO/1777944076496.png)
-
-
-se clicco save che chiuda la modale caspita
-
-
-non non biyori continua a sbattrsene dei voti (problema mio non dell estensioen)
-
----
+- [ ] **Setup Git Pubblico**: Configurare il repository ufficiale e archiviare i vecchi branch sperimentali.

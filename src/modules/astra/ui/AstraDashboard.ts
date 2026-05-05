@@ -1,111 +1,93 @@
 /**
  * @file AstraDashboard.ts
- * @description Root component for the Astra Dashboard modal.
- * Orchestrates sub-components and binds them to the Dashboard Controller.
+ * @description Modern, reactive dashboard component for Astra.
  */
 
 import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraView } from './base/AstraView';
-import type { IDashboardController } from '../interfaces/IDashboardController';
-import { AstraDashboardHeader } from './components/AstraDashboardHeader';
-import { AstraStatsOverview } from './components/AstraStatsOverview';
-import { AstraWorkGrid } from './components/AstraWorkGrid';
-import { log } from '@core/logger';
-import { EVENT_TYPES } from '@core/events/EventTypes';
+import { AstraStore, DashboardState } from '../store/AstraStore';
+import { AstraService } from '../AstraService';
+import { AstraStatsHeader } from './components/AstraStatsHeader';
+import { AstraFilterBar } from './components/AstraFilterBar';
+import { AstraWorkTable } from './components/AstraWorkTable';
+import { AstraSettingsView } from './components/AstraSettingsView';
 import type { IEventBus } from '@core/interfaces/IEventBus';
+import { EVENT_TYPES } from '@core/events/EventTypes';
+import { log } from '@core/logger';
 
-/**
- * Implementation of the Astra Dashboard.
- */
 @injectable()
 @singleton()
 export class AstraDashboard extends AstraView {
   private overlay: HTMLElement | null = null;
-
-  // Child Components
-  private header: AstraDashboardHeader;
-  private stats: AstraStatsOverview;
-  private grid: AstraWorkGrid;
+  private activeTab: 'dashboard' | 'settings' = 'dashboard';
+  
+  // Sub-components
+  private statsHeader: AstraStatsHeader;
+  private filterBar: AstraFilterBar;
+  private workTable: AstraWorkTable;
+  private settingsView: AstraSettingsView;
 
   constructor(
-    @inject(TOKENS.AstraDashboardController) private controller: IDashboardController,
+    @inject(TOKENS.AstraStore) private store: AstraStore,
+    @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
     super({});
-
+    
     // Initialize components
-    this.header = new AstraDashboardHeader(this.controller);
-    this.stats = new AstraStatsOverview();
-    this.grid = new AstraWorkGrid();
+    this.statsHeader = new AstraStatsHeader({});
+    this.filterBar = new AstraFilterBar(this.store);
+    this.workTable = new AstraWorkTable(this.store, this.service);
+    this.settingsView = new AstraSettingsView(this.service);
 
-    // Global listeners
+    // Listen for global open event
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, () => this.open());
   }
 
-  /**
-   * Opens the dashboard modal.
-   */
   public async open(): Promise<void> {
     if (this.overlay) return;
 
-    log.debug('[AstraDashboard] Opening dashboard shell...');
-
-    // Initialize data through controller
-    await this.controller.open();
-
+    log.debug('[AstraDashboard] Opening dashboard...');
+    await this.service.init();
+    
     this.overlay = document.createElement('div');
     this.overlay.className = 'astra-modal-overlay';
     document.body.appendChild(this.overlay);
     document.body.style.overflow = 'hidden';
 
-    // Mount shell template
     this.mount(this.overlay);
-
-    // Initial render of children
-    this.renderInternal();
-
-    // Subscribe to state changes for reactive updates
-    const unsubscribe = this.controller.subscribe((state) => {
-      this.header.updateView();
-      this.stats.updateStats(state.stats);
-      this.grid.updateWorks(state.filteredWorks);
-    });
-
-    // Handle closing via ESC
-    const escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this.close();
-    };
-    window.addEventListener('keydown', escHandler);
-
-    // Cleanup subscription on close
-    this.onCloseCleanup = () => {
-      unsubscribe();
-      window.removeEventListener('keydown', escHandler);
-    };
 
     requestAnimationFrame(() => {
       this.overlay?.classList.add('astra-modal-overlay--open');
     });
   }
 
-  private onCloseCleanup: (() => void) | null = null;
+  public mount(parent: HTMLElement): void {
+    this.parent = parent;
+    this.renderContainer();
+    
+    // Subscribe to store updates
+    const unsubscribe = this.store.subscribe((state) => {
+      this.refreshComponents(state);
+    });
 
-  /**
-   * Closes the dashboard modal.
-   */
+    this._unsubscribe = unsubscribe;
+  }
+
+  protected onUnmount(): void {
+    if (this._unsubscribe) {
+      this._unsubscribe();
+      this._unsubscribe = null;
+    }
+  }
+
+  private _unsubscribe: (() => void) | null = null;
+
   public close(): void {
     if (!this.overlay) return;
-
+    
     this.overlay.classList.add('astra-modal-overlay--closing');
-
-    if (this.onCloseCleanup) {
-      this.onCloseCleanup();
-      this.onCloseCleanup = null;
-    }
-
-    this.controller.close();
-
     setTimeout(() => {
       this.unmount();
       this.overlay?.remove();
@@ -114,62 +96,86 @@ export class AstraDashboard extends AstraView {
     }, 350);
   }
 
-  protected render(): HTMLElement {
-    const container = this.createFromHTML(this.template());
-    this.attachEventsInternal(container);
-    return container;
-  }
-
-  protected attachEvents(): void {
-    // Required by BaseComponent
-  }
-
   protected template(): string {
     return `
-      <div class="astra-modal astra-modal--dashboard astra-v2">
+      <div class="astra-modal astra-modal--dashboard">
         <nav class="astra-modal-nav">
           <div class="astra-nav-brand">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
             </svg>
           </div>
-          <div class="astra-nav-item active" data-tab="dashboard">
-            <i class="fa fa-home"></i> <span>Dashboard</span>
+          <div class="astra-nav-item ${this.activeTab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">
+            <i class="fa-solid fa-house"></i> <span>Dashboard</span>
           </div>
-          <div class="astra-nav-item" data-tab="settings">
-            <i class="fa fa-cog"></i> <span>Settings</span>
+          <div class="astra-nav-item ${this.activeTab === 'settings' ? 'active' : ''}" data-tab="settings">
+            <i class="fa-solid fa-gear"></i> <span>Settings</span>
           </div>
           <div class="astra-nav-spacer"></div>
-          <button class="astra-modal-close" id="astra-dashboard-close">
-            <i class="fa fa-times"></i>
-          </button>
+          <button class="astra-modal-close"><i class="fa-solid fa-xmark"></i></button>
         </nav>
 
         <div class="astra-modal-main">
-           <div id="astra-header-mount"></div>
-           <div id="astra-stats-mount"></div>
-           <div id="astra-grid-mount" class="astra-scroll-container"></div>
+          <div id="astra-dashboard-content">
+             <!-- Sub-components will be mounted here -->
+          </div>
         </div>
       </div>
     `;
   }
 
-  private renderInternal(): void {
-    this.header.mount(this.$('#astra-header-mount')!);
-    this.stats.mount(this.$('#astra-stats-mount')!);
-    this.grid.mount(this.$('#astra-grid-mount')!);
-
-    // Initial data push to components
-    const state = this.controller.getState();
-    this.stats.updateStats(state.stats);
-    this.grid.updateWorks(state.filteredWorks);
+  private renderContainer(): void {
+    if (!this.overlay) return;
+    this.overlay.innerHTML = this.template();
+    this.element = this.overlay.firstElementChild as HTMLElement;
+    this.bindEvents();
+    this.onMount();
   }
 
-  private attachEventsInternal(container: HTMLElement): void {
-    container.querySelector('#astra-dashboard-close')?.addEventListener('click', () => this.close());
+  protected onMount(): void {
+    const content = this.$('#astra-dashboard-content');
+    if (!content) return;
 
-    container.addEventListener('mousedown', (e) => {
-      if (e.target === container.parentElement) this.close();
+    if (this.activeTab === 'dashboard') {
+      content.innerHTML = `
+        <div class="astra-dashboard-layout">
+          <div id="astra-stats-mount"></div>
+          <div id="astra-filters-mount"></div>
+          <div id="astra-table-mount"></div>
+        </div>
+      `;
+      
+      const state = this.store.getState();
+      this.statsHeader.mount(this.$('#astra-stats-mount')!, state.stats);
+      this.filterBar.mount(this.$('#astra-filters-mount')!, state);
+      this.workTable.mount(this.$('#astra-table-mount')!, state);
+    } else {
+      this.settingsView.mount(content);
+    }
+  }
+
+  private refreshComponents(state: DashboardState): void {
+    if (this.activeTab === 'dashboard') {
+      this.statsHeader.update(state.stats);
+      this.workTable.update(state);
+    }
+  }
+
+  protected bindEvents(): void {
+    this.$$('.astra-nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const tab = (item as HTMLElement).dataset.tab as any;
+        if (tab && tab !== this.activeTab) {
+          this.activeTab = tab;
+          this.renderContainer();
+        }
+      });
+    });
+
+    this.$('.astra-modal-close')?.addEventListener('click', () => this.close());
+    
+    this.overlay?.addEventListener('mousedown', (e) => {
+      if (e.target === this.overlay) this.close();
     });
   }
 }

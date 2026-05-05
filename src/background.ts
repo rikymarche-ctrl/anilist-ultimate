@@ -1,234 +1,92 @@
 /**
- * @file Service worker MV3 per gestione OAuth tramite chrome.identity
- * @author ExAstra
- * @version 1.0.0
- *
- * Gestisce il flusso OAuth con AniList in modo nativo Chrome, salvando
- * il token in chrome.storage.local (accessibile da tutti i contesti).
- * Non dipende da tsyringe o DOM - standalone.
+ * @file background.ts
+ * @description Enterprise Service Worker orchestrator.
+ * 
+ * Fully unified with the Astra DI architecture. 
+ * Delegates all logic to injected services.
  */
 
-import {
-  MSG,
-  AUTH_STORAGE_KEY,
-  AUTH_USER_CACHE_KEY,
-  type AuthLoginResponse,
-  type AuthLogoutResponse,
-  type AuthStatusResponse,
-  type UserCache,
-} from './shared/messages';
+import 'reflect-metadata';
+import { container } from '@core/di/container';
+import { TOKENS } from '@core/di/tokens';
+import { log } from '@core/logger';
+import { setupDI } from './setup';
+import type { ISyncQueueService } from '@core/interfaces/ISyncQueueService';
+import type { AuthService } from '@core/auth/AuthService';
+import { MSG } from './shared/messages';
 
 /**
- * Configurazione OAuth AniList
+ * Initialize Background context
  */
-const OAUTH_CONFIG = {
-  CLIENT_ID: import.meta.env.VITE_ANILIST_CLIENT_ID || '35100',
-  AUTH_URL: 'https://anilist.co/api/v2/oauth/authorize',
-  API_URL: 'https://graphql.anilist.co',
-};
-
-/**
- * Query GraphQL per ottenere i dati dell'utente loggato
- */
-const VIEWER_QUERY = `
-  query {
-    Viewer {
-      id
-      name
-    }
-  }
-`;
-
-/**
- * Gestisce il flusso di login OAuth
- */
-async function handleLogin(): Promise<AuthLoginResponse> {
+async function initializeBackground(): Promise<void> {
   try {
-    // 1. Richiedi l'Access Token tramite Implicit Grant
-    // IMPORTANTE: Per AniList non includiamo redirect_uri nell'URL di richiesta
-    const authURL = new URL(OAUTH_CONFIG.AUTH_URL);
-    authURL.searchParams.set('client_id', OAUTH_CONFIG.CLIENT_ID);
-    authURL.searchParams.set('response_type', 'token');
+    // 1. Initialize DI Container for Background context
+    await setupDI(true);
+    log.info('[Background] Service Worker initialized with DI');
 
-    console.log('[Background] Starting secure OAuth flow (Implicit)');
-    
-    let responseURL: string | undefined;
-    try {
-      responseURL = await chrome.identity.launchWebAuthFlow({
-        url: authURL.toString(),
-        interactive: true,
-      });
-    } catch (launchError: any) {
-      if (launchError.message === 'The user did not approve access') {
-        console.log('[Background] Login cancelled by user.');
-        return { success: false, error: 'Login cancelled by user.' };
-      }
-      console.error('[Background] launchWebAuthFlow error:', launchError);
-      throw new Error(`Chrome could not load the auth page: ${launchError.message}`);
-    }
-
-    if (!responseURL) {
-      throw new Error('No response URL from OAuth flow');
-    }
-
-    console.log('[Background] Full Response URL:', responseURL);
-
-    const url = new URL(responseURL);
-    
-    // 1. Controlla se c'è un errore nella query string o nel fragment
-    const errorParam = url.searchParams.get('error') || new URLSearchParams(url.hash.substring(1)).get('error');
-    if (errorParam) {
-      console.log('[Background] Auth error from server:', errorParam);
-      return { 
-        success: false, 
-        error: errorParam === 'access_denied' ? 'Access denied by user.' : `OAuth Error: ${errorParam}`
-      };
-    }
-
-    // 2. Estrae il token dall'URL di risposta (nel fragment #)
-    const fragment = url.hash.substring(1);
-    console.log('[Background] URL Fragment:', fragment);
-    
-    const params = new URLSearchParams(fragment);
-    const token = params.get('access_token');
-
-    if (!token) {
-      throw new Error('No access token in OAuth response');
-    }
-
-    console.log('[Background] OAuth token obtained successfully');
-
-    // 3. Fetcha i dati utente da AniList
-    const response = await fetch(OAUTH_CONFIG.API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ query: VIEWER_QUERY }),
+    // 2. Setup Alarms for background synchronization (BUG-005 fix)
+    chrome.alarms.create('sync_queue_process', {
+      periodInMinutes: 5,
+      delayInMinutes: 1
     });
 
-    if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const viewer = data?.data?.Viewer;
-
-    if (!viewer) {
-      throw new Error('No viewer data in GraphQL response');
-    }
-
-    const userCache: UserCache = {
-      userId: viewer.id,
-      userName: viewer.name,
-    };
-
-    // Salva token e user cache in chrome.storage.local
-    await chrome.storage.local.set({
-      [AUTH_STORAGE_KEY]: token,
-      [AUTH_USER_CACHE_KEY]: userCache,
-    });
-
-    console.log('[Background] Login successful for user:', viewer.name);
-
-    return {
-      success: true,
-      token,
-      userId: viewer.id,
-      userName: viewer.name,
-    };
-  } catch (error) {
-    console.error('[Background] Login failed:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    log.debug('[Background] Operational alarms configured');
+  } catch (err) {
+    console.error('[Background] Critical initialization failure', err);
   }
 }
 
 /**
- * Gestisce il logout (rimuove token e cache)
- */
-async function handleLogout(): Promise<AuthLogoutResponse> {
-  try {
-    await chrome.storage.local.remove([AUTH_STORAGE_KEY, AUTH_USER_CACHE_KEY]);
-    console.log('[Background] Logout successful');
-    return { success: true };
-  } catch (error) {
-    console.error('[Background] Logout failed:', error);
-    return { success: false };
-  }
-}
-
-/**
- * Restituisce lo status di autenticazione corrente
- */
-async function handleGetStatus(): Promise<AuthStatusResponse> {
-  try {
-    const result = await chrome.storage.local.get([
-      AUTH_STORAGE_KEY,
-      AUTH_USER_CACHE_KEY,
-    ]);
-
-    const token = result[AUTH_STORAGE_KEY] as string | undefined;
-    const userCache = result[AUTH_USER_CACHE_KEY] as UserCache | undefined;
-
-    if (token && userCache) {
-      return {
-        authenticated: true,
-        token,
-        userId: userCache.userId,
-        userName: userCache.userName,
-      };
-    }
-
-    return { authenticated: false };
-  } catch (error) {
-    console.error('[Background] Get status failed:', error);
-    return { authenticated: false };
-  }
-}
-
-/**
- * Listener messaggi da popup e content script
+ * Message Dispatcher
+ * Routes runtime messages to the appropriate unified services.
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  console.log('[Background] Received message:', message.type);
+  log.debug(`[Background] Router: Received ${message.type}`);
+
+  // Resolve services lazily to ensure DI is ready
+  const auth = container.resolve<AuthService>(TOKENS.AuthService);
+  const queue = container.resolve<ISyncQueueService>(TOKENS.SyncQueue);
 
   switch (message.type) {
     case MSG.AUTH_LOGIN:
-      handleLogin().then(sendResponse);
-      return true; // Async response
+      auth.performOAuthLogin().then(sendResponse);
+      return true;
 
     case MSG.AUTH_LOGOUT:
-      handleLogout().then(sendResponse);
-      return true; // Async response
+      auth.performLogout().then(sendResponse);
+      return true;
 
     case MSG.AUTH_STATUS:
-      handleGetStatus().then(sendResponse);
-      return true; // Async response
+      auth.getStatus().then(sendResponse);
+      return true;
+
+    case 'SYNC_QUEUE_PROCESS':
+      queue.process().then(() => sendResponse({ success: true }));
+      return true;
 
     default:
-      console.warn('[Background] Unknown message type:', message.type);
+      log.warn(`[Background] Router: Unknown message type ${message.type}`);
       sendResponse({ success: false, error: 'Unknown message type' });
       return false;
   }
 });
 
-console.log('[Background] Service worker initialized');
+/**
+ * Alarm Dispatcher (Background Tasks)
+ */
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'sync_queue_process') {
+    log.info('[Background] Alarm: Triggering scheduled sync cycle...');
+    const queue = container.resolve<ISyncQueueService>(TOKENS.SyncQueue);
+    queue.process().catch(err => log.error('[Background] Alarm: Scheduled sync failed', err));
+  }
+});
 
-// Stampa redirect URI per configurazione OAuth su AniList
-const redirectURL = chrome.identity.getRedirectURL();
-console.log('='.repeat(80));
-console.log('ANILIST OAUTH CONFIGURATION');
-console.log('='.repeat(80));
-console.log('Per configurare OAuth su AniList:');
-console.log('1. Vai a: https://anilist.co/settings/developer');
-console.log(`2. Modifica l\'app con Client ID: ${OAUTH_CONFIG.CLIENT_ID}`);
-console.log('3. Aggiungi questo Redirect URI:');
-console.log('');
-console.log(`   ${redirectURL}`);
-console.log('');
-console.log('4. Salva le modifiche');
-console.log('='.repeat(80));
+// Start initialization
+initializeBackground();
+
+// Redirect URL info (Dev Diagnostic)
+if (import.meta.env.DEV) {
+  const redirectURL = chrome.identity.getRedirectURL();
+  console.log('%c[Astra] OAUTH REDIRECT URI: ' + redirectURL, 'color: #3dbbee; font-weight: bold;');
+}

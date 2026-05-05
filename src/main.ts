@@ -37,9 +37,17 @@ import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
 import './styles/astra.css';
-// BUG-010 & Audit 2.1 Fix: Font Awesome switched from JS (SVG Engine) to CSS (Webfonts)
-// The JS version causes heavy DOM scanning and increases bundle size by 2MB.
-import '@fortawesome/fontawesome-free/css/all.min.css';
+// BUG-010 & Audit 2.1 Fix: Font Awesome loaded via CDN to ensure correct path resolution in content scripts.
+// Local bundling often fails due to relative path breakage when injected into the host page.
+function loadFontAwesome(): void {
+  if (!document.querySelector('link[href*="fontawesome"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
+    link.crossOrigin = 'anonymous';
+    document.head.appendChild(link);
+  }
+}
 
 /**
  * Initialize the global debug object
@@ -68,7 +76,10 @@ async function init(): Promise<void> {
 
   try {
     console.log('[DEBUG] Setting up DI...');
-    // Setup DI container and load configuration
+    // Setup DI container    // Load icons
+    loadFontAwesome();
+
+    // Start DI and UI injection
     await setupDI();
     console.log('[DEBUG] DI setup complete');
 

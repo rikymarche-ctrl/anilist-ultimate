@@ -40,9 +40,17 @@ import '../../styles/activity-enhancer.css';
  */
 @injectable()
 export class MediaSocialEnhancer extends BaseModule {
+  /** Observer name for targeted mutation tracking */
   private readonly OBSERVER_NAME = 'media-social-continuous';
+  
+  /** Container for custom activities rendered via Astra */
   private customActivitiesContainer: HTMLElement | null = null;
+  
+  /** The current media ID extracted from the URL */
   private mediaId: number | null = null;
+  
+  /** Timeout for the "Following" tab stall detection */
+  private stallTimeout: number | null = null;
 
   constructor(
     @inject(TOKENS.Logger) private logger: ILogger,
@@ -59,12 +67,12 @@ export class MediaSocialEnhancer extends BaseModule {
   }
 
   /**
-   * Initialize the module
+   * Initialize the module.
+   * Sets up page change listeners and initial page detection.
    */
   public async init(): Promise<void> {
     this.logger.info('[MediaSocialEnhancer] Initializing with shared components');
 
-    // Use centralized navigation events instead of polling
     this.onPageChange(() => {
       this.fullCleanup();
       if (this.isOnMediaSocialPage()) {
@@ -79,76 +87,59 @@ export class MediaSocialEnhancer extends BaseModule {
     }
   }
 
-  /**
-   * Get module name
-   */
   public getName(): string {
     return 'mediaSocialEnhancer';
   }
 
-  /**
-   * Check if on media social page or overview page
-   */
   private isOnMediaSocialPage(): boolean {
     return /^\/(anime|manga)\/\d+/.test(window.location.pathname);
   }
 
-  /**
-   * Extract media ID from URL
-   */
   private extractMediaId(): void {
     const match = window.location.pathname.match(/\/(anime|manga)\/(\d+)/);
     this.mediaId = match ? parseInt(match[2], 10) : null;
     this.logger.info(`[MediaSocialEnhancer] Media ID: ${this.mediaId}`);
   }
 
-  /**
-   * Full cleanup on page change
-   */
   private fullCleanup(): void {
-    // BUG-007 fix: Unregister from SharedGlobalObserver
     this.sharedObserver.unregister(this.OBSERVER_NAME);
 
-    // Cleanup shared components
+    if (this.stallTimeout) {
+      window.clearTimeout(this.stallTimeout);
+      this.stallTimeout = null;
+    }
+
     this.filterBar.destroy();
     this.tabManager.destroy();
 
-    // Cleanup custom container
     this.customActivitiesContainer?.remove();
     this.customActivitiesContainer = null;
   }
 
   /**
-   * Start observation
+   * Registers the module with the SharedGlobalObserver.
    */
   private startObservation(): void {
     this.checkAndProcess();
 
-    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
     this.sharedObserver.register(this.OBSERVER_NAME, () => {
       this.checkAndProcess();
     });
   }
 
-  /**
-   * Check and process page
-   */
   private checkAndProcess(): void {
     const isSocialPage = window.location.pathname.endsWith('/social');
     
-    // Inject filter bar
     if (!document.querySelector('.au-activity-bar')) {
       this.injectFilterBar(isSocialPage);
     }
 
-    // Inject custom lists tab
     if (!document.querySelector('.au-custom-list-btn')) {
       this.injectCustomListsTab(isSocialPage);
     }
 
     const header = this.findSocialHeader(isSocialPage);
 
-    // Apply filters
     const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
     const feed = document.querySelector(feedSelector);
     
@@ -160,9 +151,6 @@ export class MediaSocialEnhancer extends BaseModule {
     }
   }
 
-  /**
-   * Helper to find the social section header
-   */
   private findSocialHeader(isSocialPage: boolean): Element | null {
     if (isSocialPage) {
       return document.querySelector('.section-header');
@@ -172,9 +160,6 @@ export class MediaSocialEnhancer extends BaseModule {
     }
   }
 
-  /**
-   * Hijack the native "Following" tab to provide a reliable Astra feed
-   */
   private hijackFollowingTab(header: Element | null): void {
     if (!header) return;
     
@@ -184,7 +169,6 @@ export class MediaSocialEnhancer extends BaseModule {
       if (text === 'Following' && !tab.hasAttribute('data-au-hijacked')) {
         tab.setAttribute('data-au-hijacked', 'true');
         
-        // Listener for click
         tab.addEventListener('click', () => {
           this.logger.info('[MediaSocialEnhancer] "Following" tab clicked, monitoring for stall');
           this.monitorFollowingStall();
@@ -192,7 +176,6 @@ export class MediaSocialEnhancer extends BaseModule {
       }
     });
 
-    // Handle initial state if page loads with Following active
     const activeTab = header.querySelector('.feed-type-toggle .button.active');
     if (activeTab?.textContent?.trim() === 'Following' && !this.isAstraActive()) {
        this.monitorFollowingStall();
@@ -204,22 +187,24 @@ export class MediaSocialEnhancer extends BaseModule {
   }
 
   /**
-   * Monitor if the native following feed stalls, then take over
+   * Monitors the "Following" feed for stalls.
+   * If the native feed fails to load, Astra takes over and renders its own feed.
    */
   private monitorFollowingStall(): void {
     const checkDelay = 1500;
-    setTimeout(async () => {
+    if (this.stallTimeout) window.clearTimeout(this.stallTimeout);
+    
+    this.stallTimeout = window.setTimeout(async () => {
+      this.stallTimeout = null;
       const isSocialPage = window.location.pathname.endsWith('/social');
       const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
       const container = document.querySelector(feedSelector) as HTMLElement;
       
       if (!container) return;
 
-      // Check if Following is still active
       const activeTab = document.querySelector('.feed-type-toggle .button.active');
       if (activeTab?.textContent?.trim() !== 'Following') return;
 
-      // Check for stall/empty
       const isEmpty = container.children.length === 0 || 
                       (container.children.length === 1 && container.querySelector('.loading-spinner'));
       
@@ -231,9 +216,6 @@ export class MediaSocialEnhancer extends BaseModule {
     }, checkDelay);
   }
 
-  /**
-   * Load the following feed via Astra API
-   */
   private async loadAstraFollowingFeed(container: HTMLElement): Promise<void> {
     if (!this.mediaId) return;
 
@@ -254,16 +236,12 @@ export class MediaSocialEnhancer extends BaseModule {
     }
   }
 
-  /**
-   * Inject filter bar using shared component
-   */
   private injectFilterBar(isSocialPage: boolean): void {
     let header: Element | null = null;
     
     if (isSocialPage) {
       header = document.querySelector('.section-header');
     } else {
-      // On Overview, find the header that specifically belongs to the Social/Activity section
       const headers = Array.from(document.querySelectorAll('.section-header'));
       header = headers.find(h => h.textContent?.includes('Recent Activity')) || null;
     }
@@ -279,22 +257,16 @@ export class MediaSocialEnhancer extends BaseModule {
       onSearchChange: () => this.applyFilters(),
     });
 
-    // Create and inject
     const bar = this.filterBar.create();
-
-    // Force reset to 'ALL' on every page navigation
     this.filterBar.reset();
 
     bar.classList.add('au-media-social-bar');
-
-    // Media Social page needs special layout handling (header flex container)
-    bar.style.setProperty('margin-top', '12px', 'important'); // Space from Self/Following/Global tabs
-    bar.style.setProperty('margin-bottom', '8px', 'important'); // Space before first entry
+    bar.style.setProperty('margin-top', '12px', 'important');
+    bar.style.setProperty('margin-bottom', '8px', 'important');
     bar.style.width = '100%';
     bar.style.flexBasis = '100%';
-    bar.style.order = '10'; // Ensure it stays at the bottom
+    bar.style.order = '10';
 
-    // Fix button spacing - AGGRESSIVE approach with !important
     const applySpacing = () => {
       const buttons = bar.querySelectorAll('.au-filter-btn');
       buttons.forEach((btn, index) => {
@@ -302,7 +274,6 @@ export class MediaSocialEnhancer extends BaseModule {
           (btn as HTMLElement).style.setProperty('margin-left', '8px', 'important');
         }
       });
-      // Also force the container to have gap
       const container = bar.querySelector('.au-activity-bar__left') as HTMLElement;
       if (container) {
         container.style.setProperty('gap', '8px', 'important');
@@ -310,64 +281,42 @@ export class MediaSocialEnhancer extends BaseModule {
       }
     };
 
-    // Apply immediately
     applySpacing();
-
-    // Apply again after a small delay in case of re-render
     setTimeout(applySpacing, 100);
 
-    // Header needs flex layout for proper bar positioning
     (header as HTMLElement).style.display = 'flex';
     (header as HTMLElement).style.flexWrap = 'wrap';
     (header as HTMLElement).style.alignItems = 'center';
     (header as HTMLElement).style.justifyContent = 'space-between';
 
-    const tabs = header.querySelector('.feed-type-toggle');
-    if (tabs) {
-      // If tabs exist, keep them in place and just append the bar
-      header.appendChild(bar);
-    } else {
-      header.appendChild(bar);
-    }
-
+    header.appendChild(bar);
     this.logger.success(`[MediaSocialEnhancer] Filter bar injected on ${isSocialPage ? 'Social' : 'Overview'} page`);
   }
 
-  /**
-   * Inject custom lists tab using shared component
-   */
   private async injectCustomListsTab(isSocialPage: boolean): Promise<void> {
-    // Determine the correct toggle container
     let toggleSelector = '.feed-type-toggle';
     
     if (!isSocialPage) {
-      // On Overview, find the toggle that has Self/Following/Global
       const toggles = Array.from(document.querySelectorAll('.feed-type-toggle'));
       const socialToggle = toggles.find(t => t.textContent?.includes('Following'));
       if (socialToggle) {
-        // We might need a unique way to identify it if there are multiple
         socialToggle.classList.add('au-social-toggle');
         toggleSelector = '.au-social-toggle';
       }
     }
 
-    // Configure tab manager
     this.tabManager.configure({
       toggleSelector: toggleSelector,
       scopeAttribute: 'data-v-4f9e87dc',
       onListChange: (listName) => this.handleListChange(listName),
     });
 
-    // Inject
     const success = await this.tabManager.inject();
     if (success) {
       this.logger.success(`[MediaSocialEnhancer] Custom lists tab injected on ${isSocialPage ? 'Social' : 'Overview'}`);
     }
   }
 
-  /**
-   * Apply filters using shared renderer
-   */
   private applyFilters(): void {
     if (this.tabManager.isActive()) {
       this.renderer.hideNativeActivities();
@@ -377,7 +326,6 @@ export class MediaSocialEnhancer extends BaseModule {
     const activeFilters = this.filterBar.getActiveFilters();
     const searchQuery = this.filterBar.getSearchQuery();
 
-    // Use a more inclusive selector that works across both Social and Overview pages
     this.renderer.configure({
       activitySelector: '.activity-entry, .activity-anime, .activity-manga, .activity-text',
     });
@@ -385,50 +333,36 @@ export class MediaSocialEnhancer extends BaseModule {
     this.renderer.applyFilters(activeFilters, searchQuery);
   }
 
-  /**
-   * Handle custom list change
-   */
   private async handleListChange(listName: string | null): Promise<void> {
     this.logger.info(`[MediaSocialEnhancer] Custom list changed: ${listName || 'none'}`);
 
     if (listName) {
-      // Show custom list activities
       await this.loadCustomListActivities(listName);
     } else {
-      // Clear custom list, show native activities
       this.clearCustomActivities();
       this.renderer.showNativeActivities();
       this.checkAndProcess();
     }
   }
 
-  /**
-   * Load and display custom list activities for this media
-   */
   private async loadCustomListActivities(listName: string): Promise<void> {
     if (!this.mediaId) {
       this.logger.warn('[MediaSocialEnhancer] No media ID available');
       return;
     }
 
-    // Hide native activities
     this.renderer.hideNativeActivities();
 
-    // Create container if needed
     if (!this.customActivitiesContainer) {
       this.createCustomActivitiesContainer();
     }
 
-    // Show loader
     if (this.customActivitiesContainer) {
       this.renderer.showLoader(this.customActivitiesContainer);
     }
 
     try {
-      // Fetch activities for this media from custom list users
       const activities = await this.fetchCustomListActivitiesForMedia(listName, this.mediaId);
-
-      // Render activities
       if (this.customActivitiesContainer) {
         this.renderer.renderCustomActivities(activities, this.customActivitiesContainer);
       }
@@ -440,9 +374,6 @@ export class MediaSocialEnhancer extends BaseModule {
     }
   }
 
-  /**
-   * Create container for custom activities
-   */
   private createCustomActivitiesContainer(): void {
     const isSocialPage = window.location.pathname.endsWith('/social');
     const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
@@ -453,7 +384,6 @@ export class MediaSocialEnhancer extends BaseModule {
     const container = document.createElement('div');
     container.className = 'au-custom-activities-container';
     
-    // On Overview, we usually want to prepend to the sidebar activities
     if (isSocialPage) {
       feed.appendChild(container);
     } else {
@@ -463,18 +393,12 @@ export class MediaSocialEnhancer extends BaseModule {
     this.customActivitiesContainer = container;
   }
 
-  /**
-   * Clear custom activities
-   */
   private clearCustomActivities(): void {
     if (this.customActivitiesContainer) {
       this.renderer.clear(this.customActivitiesContainer);
     }
   }
 
-  /**
-   * Fetch activities for custom list users filtered by media ID
-   */
   private async fetchCustomListActivitiesForMedia(
     listName: string,
     mediaId: number
@@ -490,7 +414,6 @@ export class MediaSocialEnhancer extends BaseModule {
       `[MediaSocialEnhancer] Fetching activities for media ${mediaId} from ${userIds.length} users`
     );
 
-    // GraphQL query filtered by media ID
     const query = `
       query ($userIds: [Int], $mediaId: Int, $page: Int, $perPage: Int) {
         Page(page: $page, perPage: $perPage) {
@@ -529,12 +452,10 @@ export class MediaSocialEnhancer extends BaseModule {
   }
 
   /**
-   * Destroy module
+   * Teardown logic to clear intervals, observers, and UI containers.
    */
   public override async destroy(): Promise<void> {
-    this.filterBar.destroy();
-    this.tabManager.destroy();
-    this.customActivitiesContainer?.remove();
+    this.fullCleanup();
     await super.destroy();
   }
 }

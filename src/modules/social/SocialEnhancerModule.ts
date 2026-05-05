@@ -39,6 +39,7 @@ const MEDIA_ID_ATTR = 'data-au-social-media-id';
 
 @injectable()
 export class SocialEnhancerModule extends BaseModule {
+  /** Timer for batching API requests to avoid spamming GraphQL */
   private batchTimeout: ReturnType<typeof setTimeout> | null = null;
   
   /** Track portal controllers to prevent duplicates and cleanup on page change */
@@ -50,13 +51,16 @@ export class SocialEnhancerModule extends BaseModule {
   /** Cache of fetched activities, keyed by mediaId — used for instant re-inject */
   private activityCache: Map<number, FriendActivity[]> = new Map();
 
-  /** PERF-002 fix: LRU tracking for cache eviction */
+  /** PERF-002 fix: LRU tracking for cache eviction (max 100 entries) */
   private readonly MAX_CACHE_SIZE = 100;
   private cacheOrder: number[] = [];
 
-  /** BUG-030 fix: TTL for cache entries (5 minutes) */
+  /** BUG-030 fix: TTL for cache entries (5 minutes) to ensure data freshness */
   private readonly CACHE_TTL_MS = 5 * 60 * 1000;
   private cacheTimestamps: Map<number, number> = new Map();
+
+  /** Unsubscribe function for the calendar store to prevent memory leaks */
+  private storeUnsubscribe: (() => void) | null = null;
 
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
@@ -67,17 +71,18 @@ export class SocialEnhancerModule extends BaseModule {
     super(eventBus);
   }
 
+  /**
+   * Initialize the social enhancer module.
+   * Sets up page change listeners and store subscriptions.
+   */
   public async init(): Promise<void> {
     log.info('SocialEnhancerModule: Initializing...');
 
-    // Must wait for store initialization so we don't read default preferences
     await this.calendarStore.init();
 
-    // BUG-030 fix: Clear cache on page navigation to prevent unbounded growth
     this.onPageChange(() => {
       const cacheSize = this.activityCache.size;
       
-      // Cleanup DOM immediately on navigation to prevent orphaned bubbles
       this.removeAllWrappers();
       this.pendingCards.clear();
       if (this.batchTimeout) {
@@ -92,18 +97,15 @@ export class SocialEnhancerModule extends BaseModule {
         log.debug(`[SocialEnhancer] Cache cleared on page change (was ${cacheSize} entries)`);
       }
 
-      // If we moved away from home, stop observation
       if (!this.isOnHomePage()) {
         this.stopObservation();
       } else {
-        // If we moved to/stayed on home, ensure observation is active
         this.startObservation();
         this.processNewCards();
       }
     });
 
-    // React immediately to social preference changes using cached data
-    this.calendarStore.subscribeToSelector(
+    this.storeUnsubscribe = this.calendarStore.subscribeToSelector(
       (state: any) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
@@ -128,75 +130,68 @@ export class SocialEnhancerModule extends BaseModule {
   }
 
   /**
-   * Check if the current page is the AniList home page
+   * Check if the current page is a valid home page for social injection.
    */
   private isOnHomePage(): boolean {
     const path = window.location.pathname;
-    const isHome = path === '/' || path === '/home' || path === '/home/' || path.startsWith('/home?');
-    log.debug(`[SocialEnhancer] Path check: ${path} -> isHome: ${isHome}`);
-    return isHome;
+    return path === '/' || path === '/home' || path === '/home/' || path.startsWith('/home?');
   }
 
   public getName(): string {
     return 'socialEnhancer';
   }
 
-  // ─── Observation ───────────────────────────────────────────────────────────
-
+  /**
+   * Registers the module with the SharedGlobalObserver.
+   */
   private startObservation(): void {
-    // BUG-007 fix: Use SharedGlobalObserver instead of individual observer
     this.sharedObserver.register('socialEnhancer', () => {
       this.processNewCards();
     });
   }
 
+  /**
+   * Unregisters the module from the SharedGlobalObserver.
+   */
   private stopObservation(): void {
     this.sharedObserver.unregister('socialEnhancer');
   }
 
-  // ─── Preference change handling ────────────────────────────────────────────
-
   /**
-   * Called when a social preference changes.
-   * Re-applies injection to ALL currently-tagged cards using the cache — no API call.
-   * Untagged cards will be picked up by the normal observer path.
+   * Re-applies preferences to all currently tagged cards.
+   * Uses the cache to avoid redundant API calls.
    */
   private applyPreferencesToAllCards(): void {
     const tagged = document.querySelectorAll<HTMLElement>(`[${MEDIA_ID_ATTR}]`);
 
     tagged.forEach(card => {
       const mediaId = parseInt(card.getAttribute(MEDIA_ID_ATTR)!, 10);
-      const activities = this.getCachedActivities(mediaId) ?? []; // PERF-002 fix: use LRU cache
+      const activities = this.getCachedActivities(mediaId) ?? [];
 
-      // Cleanup existing portal if any
       this.portalControllers.get(card)?.abort();
 
       const titleEl = card.querySelector('.title');
       const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
 
-      // Extract type for portal
       const link = (card as any)?.href || card.querySelector<HTMLAnchorElement>('a.cover')?.href || card.querySelector<HTMLAnchorElement>('a')?.href;
       const typeMatch = link?.match(/\/(anime|manga)\//);
       const type = (typeMatch ? typeMatch[1].toUpperCase() : 'ANIME') as any;
 
-      // Re-inject with current preferences (SocialRenderer checks prefs internally)
       const controller = SocialRenderer.attachPortal(card, mediaId, title, activities, type);
       this.portalControllers.set(card, controller);
     });
 
-    // Also ensure observer is running and pick up any new cards
     this.startObservation();
     this.processNewCards();
   }
 
   /**
-   * Remove all social wrappers from the DOM (when social is fully disabled).
+   * Removes all social bubbles and resets card processing state.
    */
   private removeAllWrappers(): void {
     this.portalControllers.forEach(controller => controller.abort());
     this.portalControllers.clear();
 
-    // Remove processed marks so cards can be re-picked if social is re-enabled later
     document.querySelectorAll<HTMLElement>(`[${PROCESSED_ATTR}]`).forEach(el => {
       el.removeAttribute(PROCESSED_ATTR);
     });
@@ -207,10 +202,8 @@ export class SocialEnhancerModule extends BaseModule {
     }
   }
 
-  // ─── Normal first-injection path ───────────────────────────────────────────
-
   /**
-   * Scan for new, unprocessed cards and queue them for batch fetch.
+   * Scans the DOM for new media cards and triggers activity processing.
    */
   private processNewCards(): void {
     const { socialEnabled } = this.calendarStore.getState().preferences;
@@ -220,31 +213,26 @@ export class SocialEnhancerModule extends BaseModule {
 
     let added = false;
     cards.forEach(card => {
-      // Skip already-processed cards
       if (card.hasAttribute(PROCESSED_ATTR)) return;
 
       const extracted = this.extractMediaInfo(card);
       if (!extracted) return;
       const { mediaId, type } = extracted;
 
-      // Tag the card so we can find it later by mediaId
       card.setAttribute(PROCESSED_ATTR, 'true');
       card.setAttribute(MEDIA_ID_ATTR, String(mediaId));
 
-      // If we already have cached data, inject immediately — no fetch needed
-      const cachedActivities = this.getCachedActivities(mediaId); // PERF-002 fix: use LRU cache
+      const cachedActivities = this.getCachedActivities(mediaId);
       if (cachedActivities) {
         const activities = cachedActivities;
         const titleEl = card.querySelector('.title');
         const title = titleEl ? titleEl.textContent?.trim() || 'Anime' : 'Anime';
         
-        // We know the type from extraction above
         const controller = SocialRenderer.attachPortal(card, mediaId, title, activities, type);
         this.portalControllers.set(card, controller);
         return;
       }
 
-      // Otherwise queue for batch fetch
       if (!this.pendingCards.has(mediaId)) {
         this.pendingCards.set(mediaId, { elements: [], type });
       }
@@ -257,6 +245,9 @@ export class SocialEnhancerModule extends BaseModule {
     }
   }
 
+  /**
+   * Extracts media ID and type from a card element's URL.
+   */
   private extractMediaInfo(card: HTMLElement): { mediaId: number, type: any } | null {
     const link = (card as any).href ||
       card.querySelector<HTMLAnchorElement>('a.cover')?.href ||
@@ -273,11 +264,17 @@ export class SocialEnhancerModule extends BaseModule {
     };
   }
 
+  /**
+   * Schedules a debounced batch fetch for all pending cards.
+   */
   private scheduleBatchFetch(): void {
     if (this.batchTimeout) clearTimeout(this.batchTimeout);
     this.batchTimeout = setTimeout(() => { this.flushBatch(); }, 800);
   }
 
+  /**
+   * Executes the GraphQL batch query for all pending media IDs.
+   */
   private async flushBatch(): Promise<void> {
     const { socialEnabled } = this.calendarStore.getState().preferences;
     if (!socialEnabled) return;
@@ -296,8 +293,7 @@ export class SocialEnhancerModule extends BaseModule {
       currentBatch.forEach((data, mediaId) => {
         const activities = results.get(mediaId) ?? [];
 
-        // Store in cache for instant re-apply on future pref changes
-        this.setCachedActivities(mediaId, activities); // PERF-002 fix: use LRU cache
+        this.setCachedActivities(mediaId, activities);
 
         data.elements.forEach(card => {
           const titleEl = card.querySelector('.title');
@@ -312,30 +308,33 @@ export class SocialEnhancerModule extends BaseModule {
     }
   }
 
-  // ─── Lifecycle ─────────────────────────────────────────────────────────────
-
+  /**
+   * Cleans up all resources and subscriptions.
+   */
   public override async destroy(): Promise<void> {
-    // BUG-007 fix: Unregister from SharedGlobalObserver
     this.stopObservation();
 
-    super.destroy();
+    if (this.storeUnsubscribe) {
+      this.storeUnsubscribe();
+      this.storeUnsubscribe = null;
+    }
+
+    await super.destroy();
     if (this.batchTimeout) clearTimeout(this.batchTimeout);
     this.pendingCards.clear();
     this.activityCache.clear();
-    this.cacheTimestamps.clear(); // BUG-030 fix: clear timestamps
-    this.cacheOrder = []; // PERF-002 fix: clear LRU order
+    this.cacheTimestamps.clear();
+    this.cacheOrder = [];
   }
 
-  // ─── PERF-002 Fix: LRU Cache Helpers ──────────────────────────────────────
-
-  /** Get from cache with LRU tracking and TTL validation */
+  /**
+   * Retrieves activities from LRU cache if fresh.
+   */
   private getCachedActivities(mediaId: number): FriendActivity[] | undefined {
     if (!this.activityCache.has(mediaId)) return undefined;
 
-    // BUG-030 fix: Check if entry is still fresh
     const timestamp = this.cacheTimestamps.get(mediaId);
     if (timestamp && (Date.now() - timestamp) > this.CACHE_TTL_MS) {
-      // Expired - evict and return undefined
       this.activityCache.delete(mediaId);
       this.cacheTimestamps.delete(mediaId);
       this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
@@ -343,29 +342,28 @@ export class SocialEnhancerModule extends BaseModule {
       return undefined;
     }
 
-    // Move to end (most recently used)
     this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
     this.cacheOrder.push(mediaId);
 
     return this.activityCache.get(mediaId);
   }
 
-  /** Set cache with LRU eviction and TTL tracking */
+  /**
+   * Adds results to LRU cache and handles eviction if capacity exceeded.
+   */
   private setCachedActivities(mediaId: number, activities: FriendActivity[]): void {
-    // Evict oldest if at capacity
     if (this.activityCache.size >= this.MAX_CACHE_SIZE && !this.activityCache.has(mediaId)) {
       const oldest = this.cacheOrder.shift();
       if (oldest !== undefined) {
         this.activityCache.delete(oldest);
-        this.cacheTimestamps.delete(oldest); // BUG-030 fix: also delete timestamp
+        this.cacheTimestamps.delete(oldest);
         log.debug(`[SocialEnhancer] LRU evicted mediaId ${oldest} (cache size: ${this.activityCache.size})`);
       }
     }
 
     this.activityCache.set(mediaId, activities);
-    this.cacheTimestamps.set(mediaId, Date.now()); // BUG-030 fix: store timestamp
+    this.cacheTimestamps.set(mediaId, Date.now());
 
-    // Update LRU order
     this.cacheOrder = this.cacheOrder.filter(id => id !== mediaId);
     this.cacheOrder.push(mediaId);
   }

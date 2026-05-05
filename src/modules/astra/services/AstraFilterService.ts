@@ -4,21 +4,19 @@
  */
 
 import { injectable } from 'tsyringe';
-import { AstraWork } from '../AstraService';
+import { AstraWorkSummary } from '../AstraService';
 import { IFilterService } from '../interfaces/IFilterService';
 import { IDashboardFilters, AstraSortType } from '../interfaces/IDashboardState';
 
 /**
  * Enterprise implementation of the Astra filtering engine.
- * Provides optimized filtering and sorting for large datasets.
  */
 @injectable()
 export class AstraFilterService implements IFilterService {
   /**
    * Filters works based on multiple criteria.
-   * Implementation note: Uses a combined filter pass for O(n) performance.
    */
-  public filter(works: AstraWork[], filters: IDashboardFilters): AstraWork[] {
+  public filter(works: AstraWorkSummary[], filters: IDashboardFilters): AstraWorkSummary[] {
     let result = works;
 
     // 1. Media Type Filter
@@ -36,16 +34,7 @@ export class AstraFilterService implements IFilterService {
       result = result.filter(w => w.country === filters.country);
     }
 
-    // 4. AniList Sync Status Filter
-    if (filters.anilistStatus !== 'all') {
-      if (filters.anilistStatus === 'synced') {
-        result = result.filter(w => !!w.anilistUrl);
-      } else {
-        result = result.filter(w => !w.anilistUrl);
-      }
-    }
-
-    // 5. Search (if query exists)
+    // 4. Search (if query exists)
     if (filters.search && filters.search.trim() !== '') {
       result = this.search(result, filters.search);
     }
@@ -54,22 +43,21 @@ export class AstraFilterService implements IFilterService {
   }
 
   /**
-   * Performs fuzzy-like search across multiple searchable fields.
+   * Performs fuzzy-like search.
    */
-  public search(works: AstraWork[], query: string): AstraWork[] {
+  public search(works: AstraWorkSummary[], query: string): AstraWorkSummary[] {
     const q = query.toLowerCase().trim();
     return works.filter(w => 
       w.title.toLowerCase().includes(q) ||
-      w.notes?.toLowerCase().includes(q) ||
-      w.tags?.some(t => t.toLowerCase().includes(q))
+      w.genres?.some(g => g.toLowerCase().includes(q))
     );
   }
 
   /**
    * Sorts works based on the selected criteria.
    */
-  public sort(works: AstraWork[], sortType: AstraSortType): AstraWork[] {
-    const sorted = [...works]; // Avoid mutating original reference
+  public sort(works: AstraWorkSummary[], sortType: AstraSortType): AstraWorkSummary[] {
+    const sorted = [...works];
 
     switch (sortType) {
       case 'updated-desc':
@@ -81,20 +69,11 @@ export class AstraFilterService implements IFilterService {
       case 'progress-desc':
         return sorted.sort((a, b) => (b.progress || 0) - (a.progress || 0));
       case 'score-desc':
-        return sorted.sort((a, b) => (this.getOverallScore(b) || 0) - (this.getOverallScore(a) || 0));
+        return sorted.sort((a, b) => (b.currentScore || 0) - (a.currentScore || 0));
       case 'score-asc':
-        return sorted.sort((a, b) => (this.getOverallScore(a) || 0) - (this.getOverallScore(b) || 0));
+        return sorted.sort((a, b) => (a.currentScore || 0) - (b.currentScore || 0));
       default:
         return sorted;
     }
-  }
-
-  /**
-   * Helper to get a stable score for sorting
-   */
-  private getOverallScore(work: AstraWork): number | null {
-    if (!work.seasons || work.seasons.length === 0) return null;
-    const latest = work.seasons[work.seasons.length - 1];
-    return latest.legacyScore || null;
   }
 }

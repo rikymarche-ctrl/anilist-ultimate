@@ -5,7 +5,7 @@
 
 import { AstraView } from '../base/AstraView';
 import { AstraStore, DashboardState } from '../../store/AstraStore';
-import { AstraService, AstraWork } from '../../AstraService';
+import { AstraService, AstraWorkSummary } from '../../AstraService';
 import { AstraRatingController } from '../AstraRatingController';
 import { container, inject, injectable } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
@@ -51,15 +51,14 @@ export class AstraWorkTable extends AstraView {
     `;
   }
 
-  private renderRow(work: AstraWork, sections: any[]): string {
-    const lastSeason = work.seasons[work.seasons.length - 1];
+  private renderRow(work: AstraWorkSummary, sections: any[]): string {
     const total = work.type === 'anime' ? work.episodes : work.chapters;
     let percent = (total && total > 0) ? Math.min(100, Math.round(((work.progress || 0) / total) * 100)) : 0;
     
     // Fallback for active titles with unknown total
     if (percent === 0 && (work.progress || 0) > 0) percent = 5;
 
-    const overallScore = this.service.calcSeriesOverall(work);
+    const overallScore = work.currentScore;
     const scoreClass = (overallScore || 0) >= 8 ? 'high' : (overallScore || 0) >= 6 ? 'mid' : 'low';
     
     return `
@@ -83,7 +82,7 @@ export class AstraWorkTable extends AstraView {
           <div class="astra-table-score-badge ${scoreClass}">${overallScore ? overallScore.toFixed(1) : '-'}</div>
         </div>
         ${sections.map(s => {
-          const score = lastSeason.scores[s.id];
+          const score = work.sectionScores ? work.sectionScores[s.id] : null;
           return `<div class="astra-col-section" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}">${score ? (score as number).toFixed(1) : '-'}</div>`;
         }).join('')}
         <div class="astra-col-actions">

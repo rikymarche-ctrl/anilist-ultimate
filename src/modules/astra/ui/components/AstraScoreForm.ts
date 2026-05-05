@@ -41,11 +41,11 @@ export class AstraScoreForm extends AstraView {
     const meta = { progress: entry?.progress || 0, total: entry?.media?.episodes || work.progress || 0 };
 
     return `
-      <div class="astra-score-form-v2">
+      <div class="astra-score-form">
         <div class="astra-form-header-section astra-quick-grid-2x2">
           <div class="astra-input-box">
             <span class="astra-label-xs">STATUS</span>
-            <select class="astra-select-v2" id="astra-status">
+            <select class="astra-select" id="astra-status">
               ${[MediaListStatus.CURRENT, MediaListStatus.COMPLETED, MediaListStatus.PAUSED, MediaListStatus.DROPPED, MediaListStatus.PLANNING, MediaListStatus.REPEATING].map(s => 
                 `<option value="${s}" ${work.status === s ? 'selected' : ''}>${getStatusLabel(s, work.type)}</option>`).join('')}
             </select>
@@ -86,7 +86,7 @@ export class AstraScoreForm extends AstraView {
           </div>
         </div>
         <div class="astra-form-scroll"><div class="astra-field-group ${season.manualOverride ? 'astra-disabled' : ''}">${this.sortSectionsForSymmetry(sections).map(s => this.renderScoreInput(s, season)).join('')}</div></div>
-        <div class="astra-form-footer-v2">
+        <div class="astra-form-footer">
           <div class="astra-notes-area"><textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes || ''}</textarea></div>
           <div class="astra-overall-area">
             <div class="astra-overall-box">

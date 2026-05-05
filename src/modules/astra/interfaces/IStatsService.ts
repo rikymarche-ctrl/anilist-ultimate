@@ -3,7 +3,7 @@
  * @description Contract for calculating analytical insights from Astra data.
  */
 
-import { AstraWork } from '../AstraService';
+import { AstraWorkSummary } from '../AstraService';
 import { IDashboardStats } from './IDashboardState';
 
 /**
@@ -17,14 +17,14 @@ export interface IStatsService {
    * @param works - The collection of works to analyze.
    * @returns A comprehensive stats object.
    */
-  calculateStats(works: AstraWork[]): IDashboardStats;
+  calculateStats(works: AstraWorkSummary[]): IDashboardStats;
 
   /**
    * Calculates the weighted average score for a specific subset.
    * 
    * @param works - The collection to calculate average for.
    */
-  calculateAverageScore(works: AstraWork[]): number;
+  calculateAverageScore(works: AstraWorkSummary[]): number;
 
   /**
    * Generates a distribution map for a specific attribute (e.g., Status, Genre).
@@ -32,5 +32,5 @@ export interface IStatsService {
    * @param works - The collection to analyze.
    * @param attribute - The work attribute to group by.
    */
-  getDistribution(works: AstraWork[], attribute: keyof AstraWork): Record<string, number>;
+  getDistribution(works: AstraWorkSummary[], attribute: keyof AstraWorkSummary): Record<string, number>;
 }

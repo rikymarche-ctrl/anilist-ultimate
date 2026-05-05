@@ -39,14 +39,29 @@ import '../../styles/notification-cleaner.css';
 
 @injectable()
 export class NotificationCleanerModule extends BaseModule {
-  private enabled: boolean = false;
-  private isProcessing = false;
-  private needsReprocess = false;
-  private lastNotificationCount = 0;
+  /** Observer name for targeted mutation tracking */
   private readonly OBSERVER_NAME = 'notifications-continuous';
-  private pollingInterval: number | null = null; // Fallback polling for Load More
+  
+  /** Current grouping preference state */
+  private enabled: boolean = false;
 
+  /** Guard to prevent recursive loops during DOM manipulation */
+  private isProcessing = false;
+
+  /** Flag to trigger a second pass if DOM changed during processing */
+  private needsReprocess = false;
+
+  /** Track notification count to skip redundant cycles */
+  private lastNotificationCount = 0;
+
+  /** Fallback polling for "Load More" button detection in infinite scroll */
+  private pollingInterval: number | null = null;
+
+  /** Current page path to track SPA navigation resets */
   private currentPath = '';
+
+  /** Stored click listener for CAPTURE phase event delegation */
+  private delegatedClickListener: ((e: MouseEvent) => void) | null = null;
 
   constructor(
     @inject(TOKENS.NotificationFetchService) private fetchService: NotificationFetchService,
@@ -59,30 +74,29 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   /**
-   * Initialize the module
+   * Initialize the module.
+   * Sets up preference tracking and global click event delegation.
    */
   public async init(): Promise<void> {
     try {
       log.info('NotificationCleaner: Initializing...');
 
       this.enabled = (await storage.get<boolean>('clutterfree_group_likes')) ?? false;
-      console.log('[NOTIF DEBUG] Init - enabled:', this.enabled);
 
-      // Fix for dead toggle buttons: event delegation using CAPTURE phase
-      // This bypasses any stopPropagation() called by Vue.js
-      document.body.addEventListener('click', (e) => {
+      // Track listener for cleanup
+      this.delegatedClickListener = (e: MouseEvent) => {
         const btn = (e.target as HTMLElement).closest('.au-compress-button');
         if (btn) {
           e.preventDefault();
           e.stopPropagation();
-          console.log('[NOTIF DEBUG] Delegated toggle button clicked! (Capture Phase)');
+          log.debug('[NotificationCleaner] Delegated toggle button clicked');
           this.toggleGrouping();
         }
-      }, true);
+      };
+      document.body.addEventListener('click', this.delegatedClickListener, true);
 
       this.onPageChange(async (event) => {
         const path = event?.path || window.location.pathname;
-        // Ignore pushState events that do not actually change the page (e.g. infinite scroll)
         if (path === this.currentPath) return;
         this.currentPath = path;
 
@@ -106,71 +120,65 @@ export class NotificationCleanerModule extends BaseModule {
     return 'notificationCleaner';
   }
 
+  /**
+   * Performs a hard reset of all internal state and UI artifacts.
+   */
   private fullReset(): void {
     this.cleanup();
     this.filterService.cleanup();
     this.lastNotificationCount = 0;
     this.isProcessing = false;
 
-    // Clear polling interval
     if (this.pollingInterval) {
       window.clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
 
-    // Clear all processed markers
     document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
       n.removeAttribute('data-au-processed');
     });
   }
 
+  /**
+   * Starts observation of the notification container.
+   * Uses targeted observer for performance.
+   */
   private async startObservation(): Promise<void> {
     this.checkAndProcess();
 
-    // BUG-007 fix: Observe specific container instead of document.body
     const container = await this.waitForElement('.notifications', 5000);
     if (!container) {
-      log.warn('[NotificationCleaner] Notifications container not found, falling back to document.body');
-      // Fallback to document.body if container not found (unlikely on /notifications page)
+      log.warn('[NotificationCleaner] Notifications container not found, observing body');
       this.registerObserver(this.OBSERVER_NAME, document.body, { childList: true, subtree: true }, () => {
         this.checkAndProcess();
       });
     } else {
-      // Observe only the notifications container for better performance
       this.registerObserver(this.OBSERVER_NAME, container, { childList: true, subtree: true }, () => {
         this.checkAndProcess();
       });
-      log.debug('[NotificationCleaner] Observing .notifications container (BUG-007 optimization)');
+      log.debug('[NotificationCleaner] Observing .notifications container');
     }
 
-    // Call checkAndProcess AGAIN to catch anything rendered while we were waiting
     this.checkAndProcess();
 
-    // PERF: Polling fallback to catch notifications loaded via "Load More"
-    // MutationObserver may not always trigger when Anilist dynamically adds notifications
     if (!this.pollingInterval) {
       this.pollingInterval = window.setInterval(() => {
-        console.log('[NOTIF DEBUG] Polling check for new notifications');
         this.checkAndProcess();
-      }, 2000); // Check every 2 seconds
+      }, 2000);
     }
   }
 
+  /**
+   * Orchestrates the processing cycle (settings injection, filters, grouping).
+   */
   private checkAndProcess(): void {
-    console.log('[NOTIF DEBUG] checkAndProcess called, isProcessing:', this.isProcessing);
+    if (this.isProcessing) return;
 
-    if (this.isProcessing) {
-      console.log('[NOTIF DEBUG] checkAndProcess BLOCKED by isProcessing guard');
-      return;
-    }
-
-    // Inject settings UI if on notifications page
     const markAllButton = document.querySelector('.reset-btn, .reset-button, .mark-all, .mark-as-read');
     if (markAllButton && !document.querySelector('.au-compress-button')) {
       this.injectSettingsUI(markAllButton as HTMLElement);
     }
 
-    // Inject search bar via filter service
     if (!document.querySelector('.au-notification-search-wrapper')) {
       this.filterService.injectSearchBar((query: string) => {
         this.filterService.applySearchFilter(query);
@@ -178,13 +186,10 @@ export class NotificationCleanerModule extends BaseModule {
     }
 
     const container = document.querySelector('.notifications');
-    console.log('[NOTIF DEBUG] Container found:', !!container);
-
     if (container) {
       this.processNotifications();
     }
 
-    // Apply search filter if query exists
     const currentQuery = this.filterService.getSearchQuery();
     if (currentQuery) {
       this.filterService.applySearchFilter(currentQuery);
@@ -192,41 +197,23 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   private injectSettingsUI(markAllButton: HTMLElement): void {
-    if (document.querySelector('.au-compress-button')) {
-      console.log('[NOTIF DEBUG] Button already exists, skipping injection');
-      return;
-    }
-
-    console.log('[NOTIF DEBUG] Creating merge/unmerge button, enabled:', this.enabled);
+    if (document.querySelector('.au-compress-button')) return;
 
     const compressButton = document.createElement('div');
     compressButton.className = `au-compress-button ${this.enabled ? 'compressed' : ''}`;
     compressButton.textContent = this.enabled ? 'Unmerge User Activity' : 'Merge User Activity';
 
-    // Fallback direct listener
-    compressButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      console.log('[NOTIF DEBUG] Direct button listener clicked!');
-      this.toggleGrouping();
-    });
-
     markAllButton.parentElement?.insertBefore(compressButton, markAllButton);
-    console.log('[NOTIF DEBUG] Button injected into DOM');
   }
 
   private async toggleGrouping(): Promise<void> {
-    console.log(`[NOTIF DEBUG] toggleGrouping triggered! isProcessing=${this.isProcessing}`);
-    
-    // Emergency unlock if stuck for some reason
     if (this.isProcessing) {
-      console.warn('[NOTIF DEBUG] isProcessing was true, forcing unlock to process click.');
       this.isProcessing = false;
     }
 
     this.enabled = !this.enabled;
     await storage.set('clutterfree_group_likes', this.enabled);
 
-    console.log(`[NOTIF DEBUG] Toggle clicked! New state: ${this.enabled ? 'ENABLED (will merge)' : 'DISABLED (will unmerge)'}`);
     log.info(`[NotificationCleaner] Toggle to ${this.enabled ? 'ENABLED (merge)' : 'DISABLED (unmerge)'}`);
 
     const toggleBtn = document.querySelector('.au-compress-button');
@@ -236,63 +223,43 @@ export class NotificationCleanerModule extends BaseModule {
     }
 
     this.suspendObserver(this.OBSERVER_NAME);
-
-    // Always restore original DOM first
     this.clearVirtualNotifications();
     this.lastNotificationCount = 0;
 
     if (this.enabled) {
-      // Re-merge: clear processed markers and re-process
       document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
         n.removeAttribute('data-au-processed');
       });
 
-      // Small delay to let DOM settle, then re-process
       setTimeout(() => {
         this.processNotifications();
         this.resumeObserver(this.OBSERVER_NAME);
       }, 50);
     } else {
-      // Unmerge: just resume observer, no re-processing needed
-      log.info('[NotificationCleaner] Unmerge complete, resuming observer');
       this.resumeObserver(this.OBSERVER_NAME);
     }
   }
 
+  /**
+   * Main logic for grouping consecutive notifications from the same user.
+   */
   private async processNotifications(): Promise<void> {
     if (this.isProcessing) {
       this.needsReprocess = true;
       return;
     }
 
-    // Skip grouping entirely when disabled
-    if (!this.enabled) {
-      console.log('[NOTIF DEBUG] processNotifications called but SKIPPED (enabled=false)');
-      log.debug('[NotificationCleaner] Skipping processNotifications - disabled');
-      return;
-    }
-
-    console.log('[NOTIF DEBUG] processNotifications RUNNING (enabled=true)');
+    if (!this.enabled) return;
 
     const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>(
       '.notification:not(.au-virtual-notification):not(.au-sub-notification), ' +
       '.notification-item:not(.au-virtual-notification):not(.au-sub-notification)'
     ));
 
-    console.log('[NOTIF DEBUG] Total notifications found:', currentNotifications.length);
-    console.log('[NOTIF DEBUG] Last notification count:', this.lastNotificationCount);
-
-    // Immediate tagging pass
     currentNotifications.forEach(n => this.extractUsernameFromNotif(n));
-
     const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
 
-    console.log('[NOTIF DEBUG] New (unprocessed) notifications:', newNotifications.length);
-
-    // BUG-003 fix: Check total count change instead of just lastCount > 0
-    // This allows detection of new notifications loaded via infinite scroll
     if (newNotifications.length === 0 && currentNotifications.length === this.lastNotificationCount) {
-      console.log('[NOTIF DEBUG] processNotifications SKIPPED - no new notifications and count unchanged');
       return;
     }
 
@@ -306,9 +273,8 @@ export class NotificationCleanerModule extends BaseModule {
       let currentGroup: NotificationGroup | null = null;
       const groupsToProcess: NotificationGroup[] = [];
       const singleGroupsToProcess: NotificationGroup[] = [];
-      const pendingEnhancements: HTMLElement[] = []; // PERF: Batch API calls for clones added to existing groups
+      const pendingEnhancements: HTMLElement[] = [];
 
-      // Pre-calculate visible notifications map for faster lookup
       const visibleNotifs = Array.from(document.querySelectorAll<HTMLElement>(
         '.notification:not(.au-hidden-notification):not(.au-sub-notification), ' +
         '.notification-item:not(.au-hidden-notification):not(.au-sub-notification)'
@@ -327,13 +293,10 @@ export class NotificationCleanerModule extends BaseModule {
 
         const time = notification.querySelector('.time')?.textContent?.trim() || '';
 
-        // Find preceding visible notification (could be from previous batch)
         const idx = visibleNotifs.indexOf(notification);
         const prevVisible = idx > 0 ? visibleNotifs[idx - 1] : null;
         const prevUser = prevVisible ? this.extractUsernameFromNotif(prevVisible) : null;
 
-        // Merging logic: user must match. 
-        // We now allow different types to be grouped if they are consecutive from the same user.
         if (prevVisible && prevUser === username) {
           if (prevVisible.classList.contains('au-virtual-notification')) {
             this.addToExistingGroup(prevVisible, notification, username, pendingEnhancements);
@@ -347,8 +310,6 @@ export class NotificationCleanerModule extends BaseModule {
             currentGroup.types.set(notifType || 'unknown', tCount + 1);
             continue;
           } else {
-            // Type and user match, but we need to transition into a new group structure
-            // Check if prevVisible is a single notification (not yet in a group)
             if (currentGroup) {
                if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
                else singleGroupsToProcess.push(currentGroup);
@@ -366,7 +327,6 @@ export class NotificationCleanerModule extends BaseModule {
           }
         }
 
-        // Standard: Not consecutive, close previous group and start new one
         if (currentGroup) {
           if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
           else singleGroupsToProcess.push(currentGroup);
@@ -387,12 +347,10 @@ export class NotificationCleanerModule extends BaseModule {
         else singleGroupsToProcess.push(currentGroup);
       }
 
-      // Process groups
       for (const group of groupsToProcess) {
         await this.performGrouping(group);
       }
 
-      // Enhancement for singles
       if (singleGroupsToProcess.length > 0) {
         const singles = singleGroupsToProcess.map(g => g.elements[0]);
         singles.forEach(s => {
@@ -404,7 +362,6 @@ export class NotificationCleanerModule extends BaseModule {
         await this.groupService.enhanceNotificationsWithActivityDetails(singles);
       }
 
-      // PERF: Batch enhance all clones added to existing groups in a single API call
       if (pendingEnhancements.length > 0) {
         await this.groupService.enhanceNotificationsWithActivityDetails(pendingEnhancements);
       }
@@ -448,7 +405,6 @@ export class NotificationCleanerModule extends BaseModule {
     }
     vn.classList.add('au-virtual-notification');
 
-    // Convert activity links to spans inside virtual notif to prevent corruption
     vn.querySelectorAll('a').forEach(link => {
       if (link.getAttribute('href')?.includes('/activity/')) {
         const span = document.createElement('span');
@@ -478,7 +434,6 @@ export class NotificationCleanerModule extends BaseModule {
       }
     });
 
-    // Add timestamp range (Recent - Oldest)
     const firstTime = template.querySelector('.time')?.textContent?.trim();
     const lastNotif = group.elements[group.elements.length - 1];
     const lastTime = lastNotif.querySelector('.time')?.textContent?.trim();
@@ -545,7 +500,6 @@ export class NotificationCleanerModule extends BaseModule {
       this.groupService.stripUsername(clone, user);
       dropdown.appendChild(clone);
 
-      // PERF: Defer API call - will be batched later
       pendingEnhancements.push(clone);
     }
     notif.style.display = 'none';
@@ -556,10 +510,8 @@ export class NotificationCleanerModule extends BaseModule {
     const attr = notif.getAttribute('data-au-user');
     if (attr) return attr;
     
-    // Strategy 1: Look for user link in the text (Standard)
     let link = notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]:not(.avatar)');
     
-    // Strategy 2: Look for user link in the avatar (Compact)
     if (!link) {
       link = notif.querySelector<HTMLAnchorElement>('a.avatar[href*="/user/"]') || 
              notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
@@ -584,7 +536,6 @@ export class NotificationCleanerModule extends BaseModule {
     const virtuals = document.querySelectorAll('.au-virtual-notification, .au-notification-dropdown');
     const hiddens = document.querySelectorAll<HTMLElement>('.au-hidden-notification');
 
-    console.log(`[NOTIF DEBUG] clearVirtualNotifications - removing ${virtuals.length} virtuals, restoring ${hiddens.length} hiddens`);
     log.debug(`[NotificationCleaner] Clearing ${virtuals.length} virtual notifications, ${hiddens.length} hidden notifications`);
 
     virtuals.forEach(n => n.remove());
@@ -595,8 +546,17 @@ export class NotificationCleanerModule extends BaseModule {
     });
   }
 
-  public async destroy(): Promise<void> {
+  /**
+   * Teardown logic to clear intervals and remove global listeners.
+   */
+  public override async destroy(): Promise<void> {
     this.fullReset();
+    
+    if (this.delegatedClickListener) {
+      document.body.removeEventListener('click', this.delegatedClickListener, true);
+      this.delegatedClickListener = null;
+    }
+
     await super.destroy();
   }
 }

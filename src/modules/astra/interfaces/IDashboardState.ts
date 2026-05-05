@@ -4,7 +4,7 @@
  * Includes search parameters, active filters, and calculated view data.
  */
 
-import { AstraWork } from '../AstraService';
+import { AstraWorkSummary } from '../AstraService';
 import { MediaListStatus } from '@/api/AnilistTypes';
 
 /**
@@ -50,7 +50,7 @@ export interface IDashboardState {
   filters: IDashboardFilters;
   sort: AstraSortType;
   stats: IDashboardStats;
-  filteredWorks: AstraWork[];
+  filteredWorks: AstraWorkSummary[];
   activeTab: 'dashboard' | 'settings';
   isLoading: boolean;
   error: string | null;

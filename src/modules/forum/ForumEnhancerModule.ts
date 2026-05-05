@@ -146,5 +146,6 @@ export class ForumEnhancerModule extends BaseModule {
     }
 
     document.querySelectorAll('.au-media-link-btn').forEach(btn => btn.remove());
+    await super.destroy();
   }
 }

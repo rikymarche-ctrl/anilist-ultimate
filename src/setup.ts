@@ -48,6 +48,7 @@ import { AuthService } from '@core/auth/AuthService';
 import { CacheFactory } from '@core/cache/CacheFactory';
 import { ToastService } from '@core/services/ToastService';
 import { NativeUiSyncService } from '@core/services/NativeUiSyncService';
+import { SyncQueueService } from '@core/services/SyncQueueService';
 
 // Feature Services
 import { CalendarStore } from '@/modules/calendar/CalendarStore';
@@ -77,15 +78,19 @@ import { MediaSocialEnhancer } from '@/modules/social/MediaSocialEnhancer';
 import { UserSocialStatsModule } from '@/modules/social/UserSocialStatsModule';
 import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
 import { UserBannerModule } from '@/modules/social/UserBannerModule';
+import { SocialSidebar } from '@/modules/social/components/SocialSidebar';
 import { AstraModule } from '@/modules/astra/AstraModule';
 import { AstraService } from '@/modules/astra/AstraService';
+import { AstraStore } from '@/modules/astra/store/AstraStore';
 import { AstraFilterService } from '@/modules/astra/services/AstraFilterService';
 import { AstraStatsService } from '@/modules/astra/services/AstraStatsService';
 import { AstraJournalService } from '@/modules/astra/services/AstraJournalService';
 import { AstraRatingService } from '@/modules/astra/services/AstraRatingService';
 import { AstraRatingController } from '@/modules/astra/ui/AstraRatingController';
-import { AstraDashboardController } from '@/modules/astra/ui/AstraDashboardController';
 import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
+import { PillUIBuilder } from '@/modules/astra/ui/PillUIBuilder';
+import { HomeProgressStrategy } from '@/modules/astra/strategies/HomeProgressStrategy';
+import { UserListStrategy } from '@/modules/astra/strategies/UserListStrategy';
 import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
 
@@ -95,10 +100,12 @@ import { CustomListService } from '@/modules/social/CustomListService';
 import { SocialMaskingService } from '@core/services/SocialMaskingService';
 
 /**
- * Setup the DI container with all services
+ * Setup the DI container with all services.
+ * 
+ * @param isBackground Set to true if running in Service Worker context (no DOM)
  */
-export async function setupDI(): Promise<void> {
-  console.log('[Setup] Configuring DI container...');
+export async function setupDI(isBackground = false): Promise<void> {
+  console.log(`[Setup] Configuring DI container (Background: ${isBackground})...`);
 
   // ============================================================================
   // Core Infrastructure
@@ -152,6 +159,7 @@ export async function setupDI(): Promise<void> {
   // Native UI Sync Service
   container.registerSingleton(TOKENS.NativeUiSyncService, NativeUiSyncService);
   container.registerSingleton(TOKENS.SocialMaskingService, SocialMaskingService);
+  container.registerSingleton(TOKENS.SyncQueue, SyncQueueService);
 
   // ============================================================================
   // API Client
@@ -191,6 +199,7 @@ export async function setupDI(): Promise<void> {
   // Social Services
   container.registerSingleton(TOKENS.SocialService, SocialService);
   container.registerSingleton(TOKENS.CustomListService, CustomListService);
+  container.registerSingleton(SocialSidebar);
 
   // Activity Services
   container.registerSingleton(TOKENS.ActivityService, ActivityService);
@@ -204,14 +213,23 @@ export async function setupDI(): Promise<void> {
   container.registerSingleton(TOKENS.NotificationFilterService, NotificationFilterService);
 
   // Astra Services
+  container.registerSingleton(TOKENS.AstraStore, AstraStore);
   container.registerSingleton(TOKENS.AstraService, AstraService);
   container.registerSingleton(TOKENS.AstraFilterService, AstraFilterService);
   container.registerSingleton(TOKENS.AstraStatsService, AstraStatsService);
   container.registerSingleton(TOKENS.AstraJournalService, AstraJournalService);
   container.registerSingleton(TOKENS.IAstraRatingService, AstraRatingService);
   container.registerSingleton(TOKENS.AstraRatingController, AstraRatingController);
-  container.registerSingleton(TOKENS.AstraDashboardController, AstraDashboardController);
   container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
+  container.registerSingleton(TOKENS.AstraPillBuilder, PillUIBuilder);
+  
+  // Register Astra Strategies
+  container.register(TOKENS.AstraStrategies, {
+    useValue: [
+      new HomeProgressStrategy(),
+      new UserListStrategy(),
+    ]
+  });
   container.registerSingleton(TOKENS.MediaMusicModule, MediaMusicModule);
 
   // ============================================================================
@@ -233,31 +251,39 @@ export async function setupDI(): Promise<void> {
   errorHandler.setupGlobalHandlers();
   console.log('[Setup] Error handler initialized');
 
-  // Initialize Toast Service
-  const toastService = container.resolve<ToastService>(TOKENS.ToastService);
-  toastService.init();
-  console.log('[Setup] Toast service initialized');
-
-  // Initialize Native UI Sync Service
-  const syncService = container.resolve<NativeUiSyncService>(TOKENS.NativeUiSyncService);
-  syncService.init();
-  console.log('[Setup] Native UI sync service initialized');
-
-  // Initialize Social Masking Service
-  const maskingService = container.resolve<SocialMaskingService>(TOKENS.SocialMaskingService);
-  maskingService.init();
-  console.log('[Setup] Social masking service initialized');
-
-  // Start navigation service
+  // Start navigation service (Background can use it for path logic, but no DOM listeners)
   const navigationService = container.resolve<NavigationService>(TOKENS.NavigationService);
-  navigationService.start();
-  console.log('[Setup] Navigation service started');
+  if (!isBackground) {
+    navigationService.start();
+    console.log('[Setup] Navigation service started');
+  }
+
+  // ============================================================================
+  // Initialize UI-only Services
+  // ============================================================================
+  if (!isBackground) {
+    // Initialize Theme manager
+    container.resolve(ThemeManager);
+
+    // Initialize Toast Service
+    const toastService = container.resolve<ToastService>(TOKENS.ToastService);
+    toastService.init();
+    console.log('[Setup] Toast service initialized');
+
+    // Initialize Native UI Sync Service
+    const syncService = container.resolve<NativeUiSyncService>(TOKENS.NativeUiSyncService);
+    syncService.init();
+    console.log('[Setup] Native UI sync service initialized');
+
+    // Initialize Social Masking Service
+    const maskingService = container.resolve<SocialMaskingService>(TOKENS.SocialMaskingService);
+    maskingService.init();
+    console.log('[Setup] Social masking service initialized');
+  }
 
   // ============================================================================
   // Register Modules
   // ============================================================================
-
-  const registry = container.resolve<ModuleRegistry>(TOKENS.ModuleRegistry);
 
   const modules: ModuleMetadata[] = [
     {
@@ -381,8 +407,11 @@ export async function setupDI(): Promise<void> {
     },
   ];
 
-  registry.registerAll(modules);
-  console.log(`[Setup] Registered ${modules.length} modules`);
+  if (!isBackground) {
+    const registry = container.resolve<ModuleRegistry>(TOKENS.ModuleRegistry);
+    registry.registerAll(modules);
+    console.log(`[Setup] Registered ${modules.length} modules`);
+  }
 
   console.log('[Setup] DI container configured successfully');
 }

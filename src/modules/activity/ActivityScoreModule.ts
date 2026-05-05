@@ -225,5 +225,6 @@ export class ActivityScoreModule extends BaseModule {
     this.stopObservation();
     document.querySelectorAll('.au-activity-rating').forEach(el => el.remove());
     document.querySelectorAll('[data-au-score-enhanced]').forEach(el => el.removeAttribute('data-au-score-enhanced'));
+    await super.destroy();
   }
 }
