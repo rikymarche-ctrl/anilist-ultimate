@@ -142,13 +142,43 @@ export class GraphQLBatcher {
     return { combinedQuery, aliasMap };
   }
 
+  /**
+   * Formats a value for GraphQL injection.
+   * Handles strings, numbers, booleans, arrays, and nested objects.
+   * 
+   * @param val The value to format
+   * @returns GraphQL-compatible string representation
+   */
   private format(val: any): string {
-    if (val === null) return 'null';
-    if (typeof val === 'string') return `"${val.replace(/"/g, '\\"')}"`;
-    if (Array.isArray(val)) return `[${val.map(v => this.format(v)).join(', ')}]`;
-    if (typeof val === 'object') {
-      return `{ ${Object.entries(val).map(([k, v]) => `${k}: ${this.format(v)}`).join(', ')} }`;
+    if (val === null || val === undefined) return 'null';
+    
+    if (typeof val === 'string') {
+      // Basic heuristic: if it looks like a variable reference, don't quote it
+      // (Though batcher inlines everything, so this is just for safety)
+      if (val.startsWith('$')) return val;
+      
+      // Escape backslashes and double quotes
+      const escaped = val
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"');
+      return `"${escaped}"`;
     }
+    
+    if (typeof val === 'number' || typeof val === 'boolean') {
+      return String(val);
+    }
+    
+    if (Array.isArray(val)) {
+      return `[${val.map(v => this.format(v)).join(', ')}]`;
+    }
+    
+    if (typeof val === 'object') {
+      const entries = Object.entries(val)
+        .map(([k, v]) => `${k}: ${this.format(v)}`)
+        .join(', ');
+      return `{ ${entries} }`;
+    }
+    
     return String(val);
   }
 }

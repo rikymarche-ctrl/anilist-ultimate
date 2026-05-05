@@ -79,9 +79,12 @@ import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
 import { UserBannerModule } from '@/modules/social/UserBannerModule';
 import { AstraModule } from '@/modules/astra/AstraModule';
 import { AstraService } from '@/modules/astra/AstraService';
-import { AstraStore } from '@/modules/astra/store/AstraStore';
+import { AstraFilterService } from '@/modules/astra/services/AstraFilterService';
+import { AstraStatsService } from '@/modules/astra/services/AstraStatsService';
 import { AstraJournalService } from '@/modules/astra/services/AstraJournalService';
-import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
+import { AstraRatingService } from '@/modules/astra/services/AstraRatingService';
+import { AstraRatingController } from '@/modules/astra/ui/AstraRatingController';
+import { AstraDashboardController } from '@/modules/astra/ui/AstraDashboardController';
 import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
 import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
@@ -202,9 +205,12 @@ export async function setupDI(): Promise<void> {
 
   // Astra Services
   container.registerSingleton(TOKENS.AstraService, AstraService);
-  container.registerSingleton(TOKENS.AstraStore, AstraStore);
+  container.registerSingleton(TOKENS.AstraFilterService, AstraFilterService);
+  container.registerSingleton(TOKENS.AstraStatsService, AstraStatsService);
   container.registerSingleton(TOKENS.AstraJournalService, AstraJournalService);
-  container.registerSingleton(TOKENS.AstraRatingModal, AstraRatingModal);
+  container.registerSingleton(TOKENS.IAstraRatingService, AstraRatingService);
+  container.registerSingleton(TOKENS.AstraRatingController, AstraRatingController);
+  container.registerSingleton(TOKENS.AstraDashboardController, AstraDashboardController);
   container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
   container.registerSingleton(TOKENS.MediaMusicModule, MediaMusicModule);
 
@@ -266,8 +272,8 @@ export async function setupDI(): Promise<void> {
       description: 'Hover to see comments on activity feed',
       enabled: config.isFeatureEnabled('hoverComments'),
       factory: () => container.resolve(HoverCommentsModule),
+      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/') || path.startsWith('/activity/'),
     },
-
     {
       name: 'notificationCleaner',
       description: 'Enhanced notification management',
@@ -280,48 +286,56 @@ export async function setupDI(): Promise<void> {
       description: 'Show review ratings on cards',
       enabled: config.isFeatureEnabled('reviewEnhancer'),
       factory: () => container.resolve(ReviewEnhancerModule),
+      pageMatch: (path) => path === '/' || path === '/home' || path.includes('/reviews') || /^\/(anime|manga)\/\d+/.test(path),
     },
     {
       name: 'activityEnhancer',
       description: 'Enhanced activity feed',
       enabled: config.isFeatureEnabled('socialActivity'),
       factory: () => container.resolve(ActivityEnhancerModule),
+      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/') || path.startsWith('/activity/'),
     },
     {
       name: 'forumEnhancer',
       description: 'Enhanced forum features',
       enabled: config.isFeatureEnabled('forumEnhancer'),
       factory: () => container.resolve(ForumEnhancerModule),
+      pageMatch: (path) => path.startsWith('/forum'),
     },
     {
       name: 'activityScore',
       description: 'Show scores in activity feed',
       enabled: config.isFeatureEnabled('activityScore'),
       factory: () => container.resolve(ActivityScoreModule),
+      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/') || path.startsWith('/activity/'),
     },
     {
       name: 'socialActivity',
       description: 'Social activity sidebar',
       enabled: config.isFeatureEnabled('friendActivity'),
       factory: () => container.resolve(SocialActivityModule),
+      pageMatch: (path) => path === '/' || path === '/home',
     },
     {
       name: 'socialEnhancer',
       description: 'Social features enhancer',
       enabled: config.isFeatureEnabled('friendActivity'),
       factory: () => container.resolve(SocialEnhancerModule),
+      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/'),
     },
     {
       name: 'customList',
       description: 'Custom list management',
       enabled: config.isFeatureEnabled('friendActivity'),
       factory: () => container.resolve(CustomListModule),
+      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/'),
     },
     {
       name: 'mediaSocialEnhancer',
       description: 'Media page social enhancements',
       enabled: config.isFeatureEnabled('friendActivity'),
       factory: () => container.resolve(MediaSocialEnhancer),
+      pageMatch: (path) => /^\/(anime|manga)\/\d+/.test(path),
     },
     {
       name: 'userBanner',

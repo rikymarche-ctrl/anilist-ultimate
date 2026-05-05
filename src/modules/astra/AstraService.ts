@@ -132,12 +132,7 @@ function generateUUID(): string {
   });
 }
 
-interface AstraDataStore {
-  works: AstraWork[];
-  sections: AstraSection[];
-  settings: AstraSettings;
-  lastUpdated: number;
-}
+
 
 @singleton()
 @injectable()
@@ -149,6 +144,8 @@ export class AstraService {
   private settings: AstraSettings = DEFAULT_SETTINGS;
   private isLoaded = false;
   private readonly STORAGE_KEY = 'au_astra_data';
+  private readonly MANIFEST_KEY = 'au_astra_manifest';
+  private readonly WORK_PREFIX = 'au_astra_work_';
   private initPromise: Promise<void> | null = null;
 
   constructor(
@@ -166,21 +163,51 @@ export class AstraService {
 
     this.initPromise = (async () => {
       try {
-        const data = await this.storage.get<AstraDataStore>(this.STORAGE_KEY);
-        if (data) {
-          this.works = data.works || [];
-          // Build the Map index for fast lookup
-          this.rebuildWorkIndex();
-          this.settings = data.settings || DEFAULT_SETTINGS;
-          // Use stored sections if they exist, otherwise fallback to defaults
-          if (data.sections && data.sections.length > 0) {
-            this.sections = data.sections;
-          } else {
-            this.sections = [...DEFAULT_SECTIONS];
+        // 1. Try to load from new atomic manifest
+        let manifest = await this.storage.get<{ workIds: number[], settings: AstraSettings, sections: AstraSection[] }>(this.MANIFEST_KEY);
+
+        if (!manifest) {
+          // 2. MIGRATION: Check if legacy data exists
+          const legacyData = await this.storage.get<any>(this.STORAGE_KEY);
+          if (legacyData && legacyData.works) {
+            log.info(`[AstraService] Migrating ${legacyData.works.length} works to atomic storage...`);
+
+            this.settings = legacyData.settings || DEFAULT_SETTINGS;
+            this.sections = legacyData.sections || [...DEFAULT_SECTIONS];
+            this.works = legacyData.works;
+
+            // Save each work individually
+            for (const work of this.works) {
+              await this.storage.set(`${this.WORK_PREFIX}${work.mediaId}`, work);
+            }
+
+            // Save manifest
+            manifest = {
+              workIds: this.works.map(w => w.mediaId),
+              settings: this.settings,
+              sections: this.sections
+            };
+            await this.storage.set(this.MANIFEST_KEY, manifest);
+
+            // Optional: Cleanup legacy data (keeping it for now to be safe)
+            // await this.storage.remove(this.STORAGE_KEY);
           }
         }
+
+        if (manifest) {
+          this.settings = manifest.settings || DEFAULT_SETTINGS;
+          this.sections = manifest.sections || [...DEFAULT_SECTIONS];
+
+          // Load all works in parallel
+          const workKeys = manifest.workIds.map(id => `${this.WORK_PREFIX}${id}`);
+          const worksData = await this.storage.getMultiple<Record<string, AstraWork>>(workKeys);
+
+          this.works = Object.values(worksData).filter((w): w is AstraWork => !!w);
+          this.rebuildWorkIndex();
+        }
+
         this.isLoaded = true;
-        log.success(`[AstraService] Initialization complete. Loaded ${this.works.length} works and ${this.sections.length} sections.`);
+        log.success(`[AstraService] Atomic initialization complete. Loaded ${this.works.length} works.`);
         this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED);
       } catch (error) {
         log.error('[AstraService] Failed to load data', error);
@@ -443,17 +470,12 @@ export class AstraService {
     let updatedWork: AstraWork;
 
     if (existingIdx >= 0) {
-      updatedWork = {
-        ...this.works[existingIdx],
-        ...work,
-        updatedAt: Date.now(),
-      };
+      updatedWork = { ...this.works[existingIdx], ...work, updatedAt: Date.now() };
       this.works[existingIdx] = updatedWork;
-      // Update Map index with new object reference
       this.worksByMediaId.set(updatedWork.mediaId, updatedWork);
     } else {
-      updatedWork = Object.assign({
-        id: `w_${generateUUID()}`,
+      updatedWork = {
+        id: `w_${Math.random().toString(36).slice(2, 11)}`,
         title: 'Unknown',
         type: 'anime',
         status: MediaListStatus.PLANNING,
@@ -461,18 +483,42 @@ export class AstraService {
         seasons: [this.createDefaultSeason()],
         notes: '',
         updatedAt: Date.now(),
-      }, work) as AstraWork;
+        ...work
+      } as AstraWork;
       this.works.unshift(updatedWork);
-      // Update Map index
       this.worksByMediaId.set(updatedWork.mediaId, updatedWork);
     }
 
+    // Atomic Save: Only save this specific work
+    await this.storage.set(`${this.WORK_PREFIX}${updatedWork.mediaId}`, updatedWork);
+
+    // Also update manifest (since IDs list might have changed)
     await this.persist();
 
     // Auto-sync with AniList notes
     this.syncToAnilistNotes(updatedWork.mediaId, updatedWork);
 
     return updatedWork;
+  }
+
+  /**
+   * Internal persist of manifest and settings
+   */
+  private async persist(): Promise<void> {
+    try {
+      await this.storage.set(this.MANIFEST_KEY, {
+        workIds: this.works.map(w => w.mediaId),
+        sections: this.sections,
+        settings: this.settings,
+        lastUpdated: Date.now()
+      });
+
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {
+        timestamp: new Date()
+      });
+    } catch (error) {
+      log.error('[AstraService] Persist manifest failed', error);
+    }
   }
 
   /**
@@ -774,26 +820,6 @@ export class AstraService {
   }
 
   /**
-   * Internal persist to storage
-   */
-  private async persist(): Promise<void> {
-    try {
-      await this.storage.set(this.STORAGE_KEY, {
-        works: this.works,
-        sections: this.sections,
-        settings: this.settings,
-        lastUpdated: Date.now()
-      });
-
-      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {
-        timestamp: new Date()
-      });
-    } catch (error) {
-      log.error('[AstraService] Persist failed', error);
-    }
-  }
-
-  /**
    * Export all data as JSON string
    */
   exportJSON(): string {
@@ -805,20 +831,44 @@ export class AstraService {
   }
 
   /**
-   * Import data from JSON
+   * Import data from JSON with basic schema validation.
+   * @param jsonStr The JSON string to import.
+   * @returns True if successful, false otherwise.
    */
   async importJSON(jsonStr: string): Promise<boolean> {
     try {
       const data = JSON.parse(jsonStr);
-      if (!data.works || !Array.isArray(data.works)) return false;
+      
+      // Basic Zero-Trust validation
+      if (!data.works || !Array.isArray(data.works)) {
+        log.warn('[AstraService] Import aborted: Missing works array');
+        return false;
+      }
+
+      // Validate first few entries for structural integrity
+      const isValid = data.works.slice(0, 10).every((w: any) => 
+        typeof w.mediaId === 'number' && 
+        typeof w.title === 'string' && 
+        Array.isArray(w.seasons)
+      );
+
+      if (!isValid) {
+        log.error('[AstraService] Import aborted: Invalid work structure detected');
+        return false;
+      }
 
       this.works = data.works;
-      if (data.sections) this.sections = data.sections;
+      if (data.sections && Array.isArray(data.sections)) {
+        this.sections = data.sections;
+      }
 
+      // Migrate to atomic storage after import
       await this.persist();
+      
+      log.success(`[AstraService] Successfully imported ${this.works.length} works.`);
       return true;
     } catch (error) {
-      log.error('[AstraService] Import failed', error);
+      log.error('[AstraService] Import failed due to parsing or persistence error', error);
       return false;
     }
   }

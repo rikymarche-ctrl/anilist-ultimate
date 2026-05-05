@@ -6,7 +6,7 @@
 import { AstraView } from '../base/AstraView';
 import { AstraStore, DashboardState } from '../../store/AstraStore';
 import { AstraService, AstraWork } from '../../AstraService';
-import { AstraRatingModal } from '../AstraRatingModal';
+import { AstraRatingController } from '../AstraRatingController';
 import { container, inject, injectable } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 
@@ -99,7 +99,7 @@ export class AstraWorkTable extends AstraView {
   }
 
   protected bindEvents(): void {
-    const modal = container.resolve<AstraRatingModal>(TOKENS.AstraRatingModal);
+    const modal = container.resolve<AstraRatingController>(TOKENS.AstraRatingController);
 
     this.$$('.astra-grid-row').forEach(row => {
       const mediaId = parseInt(row.getAttribute('data-media-id') || '0');

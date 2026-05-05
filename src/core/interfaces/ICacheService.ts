@@ -66,4 +66,9 @@ export interface ICacheService<K, V> {
    * Returns the current number of items stored in memory.
    */
   size(): number;
+
+  /**
+   * Forces immediate persistence of any pending changes.
+   */
+  flush(): Promise<void>;
 }

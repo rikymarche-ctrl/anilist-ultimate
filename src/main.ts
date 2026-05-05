@@ -37,9 +37,9 @@ import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
 import './styles/astra.css';
-// BUG-010 fix: Font Awesome bundled locally instead of CDN
-// Using JS version (SVG) for maximum compatibility with AniList CSP
-import '@fortawesome/fontawesome-free/js/all.min.js';
+// BUG-010 & Audit 2.1 Fix: Font Awesome switched from JS (SVG Engine) to CSS (Webfonts)
+// The JS version causes heavy DOM scanning and increases bundle size by 2MB.
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 /**
  * Initialize the global debug object

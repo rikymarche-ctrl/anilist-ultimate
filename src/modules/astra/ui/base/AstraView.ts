@@ -40,6 +40,7 @@ export abstract class AstraView extends BaseComponent {
   public unmount(): void {
     if (this.element && this.element.parentElement) {
       this.onUnmount();
+      this.cleanup();
       this.element.remove();
     }
     this.parent = null;
@@ -52,8 +53,10 @@ export abstract class AstraView extends BaseComponent {
     if (!this.element || !this.parent) return;
     
     const oldElement = this.element;
-    const html = this.template(state);
+    this.onUnmount();
+    this.cleanup(); // Clean up listeners before re-rendering
     
+    const html = this.template(state);
     const container = document.createElement('div');
     container.innerHTML = html.trim();
     const newElement = container.firstElementChild as HTMLElement;
@@ -61,9 +64,16 @@ export abstract class AstraView extends BaseComponent {
     if (newElement) {
       this.element = newElement;
       this.parent.replaceChild(this.element, oldElement);
-      this.onMount(); // Re-bind events and lifecycle
+      this.onMount();
       this.bindEvents();
     }
+  }
+
+  /**
+   * Internal cleanup of DOM references if needed
+   */
+  protected cleanup(): void {
+    // Subclasses can implement specific cleanup
   }
 
   /**

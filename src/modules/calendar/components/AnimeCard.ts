@@ -495,7 +495,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   private handleEditEntry(): void {
     const { anime } = this.props;
-    const modal = container.resolve<any>(TOKENS.AstraRatingModal);
+    const modal = container.resolve<any>(TOKENS.AstraRatingController);
     modal.open(anime.mediaId);
   }
 

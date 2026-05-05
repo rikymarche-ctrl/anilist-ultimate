@@ -18,7 +18,11 @@ interface HeaderState {
 }
 
 export class AstraRatingHeader extends AstraView {
-  private state: HeaderState | null = null;
+  protected state: HeaderState | null = null;
+
+  public getState(): HeaderState | null {
+    return this.state;
+  }
 
   protected template(state: HeaderState): string {
     this.state = state;

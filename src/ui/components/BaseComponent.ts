@@ -15,6 +15,7 @@
  */
 
 import type { ComponentProps } from '@core/types';
+import { Sanitizer } from '@core/utils/Sanitizer';
 
 export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
   protected element: HTMLElement;
@@ -48,10 +49,25 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
     const prevProps = { ...this.props };
     this.props = { ...this.props, ...props };
 
-    // Only re-render if props actually changed
+    // Only update if props actually changed
     if (this.shouldUpdate(prevProps, this.props)) {
-      this.rerender();
+      // Optimization: Try surgical DOM update first
+      // If onUpdate returns true, it handled the update itself
+      if (!this.onUpdate(prevProps)) {
+        this.rerender();
+      }
     }
+  }
+
+  /**
+   * Optional: Handle surgical DOM updates for specific props.
+   * If this returns true, rerender() will be skipped.
+   * 
+   * @param prevProps Previous props before the update
+   * @returns true if update was handled surgically, false to fallback to rerender()
+   */
+  protected onUpdate(_prevProps: P): boolean {
+    return false; // Default: fallback to full rerender
   }
 
   /**
@@ -84,7 +100,8 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
   }
 
   /**
-   * Re-render the component
+   * Re-render the component (Full Reconstruction)
+   * Use sparingly; prefer onUpdate() for better performance.
    */
   protected rerender(): void {
     const parent = this.element.parentElement;
@@ -252,11 +269,13 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
   }
 
   /**
-   * Helper to create element from HTML string
+   * Helper to create element from HTML string.
+   * Auto-sanitizes content unless explicitly marked as trusted.
    */
-  protected createFromHTML(html: string): HTMLElement {
+  protected createFromHTML(html: string, isTrusted: boolean = false): HTMLElement {
     const template = document.createElement('template');
-    template.innerHTML = html.trim();
+    const content = isTrusted ? html : Sanitizer.sanitize(html);
+    template.innerHTML = content.trim();
     return template.content.firstElementChild as HTMLElement;
   }
 }

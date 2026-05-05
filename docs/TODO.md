@@ -49,5 +49,30 @@
 ## 📈 Project Management
 
 - [ ] **Setup Git Pubblico**: Configurare il repository ufficiale su [GitHub](https://github.com/rikymarche-ctrl/anilist-ultimate) e procedere con la chiusura definitiva dei due vecchi repository (ci sarebbe da chiudere gli altri 2 vecchi).
+- [ ] anilist-ultimate-v2\docs\codebase_research_audit.md
+
+
+
+
+Il save fa troppe chiamate ad anilist
+
+il commento non va più
+
+il bordo rosso dell episodio indietro non si fixa se andiamo a pari
+
+![1777943839743](image/TODO/1777943839743.png)
+
+è vero ch fa append ma... ![1777943946883](image/TODO/1777943946883.png)modificare per detectare la sezione e cambiarla piuttosto che mettere alla fine
+
+
+fare decoupling, se ci sono troppe chiamate api (impossibile) astra deve comunque caricarrsi. AL massimo salviamo tutte le cose da  fare in una singola query e la si spedisce  a fine timer, ma qualcosa non va. è impossibile. Astra deve andare sempre e comunque, al masimo non aggiorna subito, ma finisce lì
+
+![1777944076496](image/TODO/1777944076496.png)
+
+
+se clicco save che chiuda la modale caspita
+
+
+non non biyori continua a sbattrsene dei voti (problema mio non dell estensioen)
 
 ---

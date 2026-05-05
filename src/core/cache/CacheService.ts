@@ -1,11 +1,11 @@
 /**
  * @file CacheService.ts
- * @description Enterprise cache service providing high-performance in-memory caching with automatic background persistence.
+ * @description Optimized enterprise cache service with debounced background persistence.
  *
  * This service implements the ICacheService interface and wraps LRUCacheWithTTL to provide:
  * 1. O(1) in-memory operations.
- * 2. Transparent namespace-based persistence to chrome.storage.local.
- * 3. TTL-based expiration.
+ * 2. Optimized debounced persistence to chrome.storage.local to avoid "Serialization Storms".
+ * 3. TTL-based expiration and automatic cleanup.
  * 4. Automatic initialization from storage.
  */
 
@@ -35,6 +35,13 @@ export class CacheService<K = string, V = any> implements ICacheService<K, V> {
   private initialized = false;
   /** Promise guard for concurrent initialization */
   private initPromise: Promise<void> | null = null;
+  /** Timer for debounced persistence */
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Flag to track changes since last persistence */
+  private isDirty = false;
+
+  /** Constants for optimization */
+  private readonly DEBOUNCE_MS = 2000; // 2 seconds
 
   /**
    * @param storage Injected storage service (usually LocalStorageService)
@@ -58,9 +65,6 @@ export class CacheService<K = string, V = any> implements ICacheService<K, V> {
   /**
    * Ensures the cache is populated from persistent storage before use.
    * This is called lazily on the first operation.
-   * 
-   * @returns Promise that resolves when initialization is complete
-   * @private
    */
   private async ensureInitialized(): Promise<void> {
     if (this.initialized || !this.persistent) return;
@@ -86,10 +90,6 @@ export class CacheService<K = string, V = any> implements ICacheService<K, V> {
 
   /**
    * Retrieves a value from the cache.
-   * Triggers lazy initialization if necessary.
-   * 
-   * @param key The key to retrieve
-   * @returns The value or undefined if not found/expired
    */
   public async get(key: K): Promise<V | undefined> {
     await this.ensureInitialized();
@@ -97,30 +97,21 @@ export class CacheService<K = string, V = any> implements ICacheService<K, V> {
   }
 
   /**
-   * Sets a value in the cache and triggers background persistence.
-   * 
-   * @param key The key to set
-   * @param value The value to store
+   * Sets a value in the cache and schedules debounced persistence.
    */
   public async set(key: K, value: V): Promise<void> {
     await this.ensureInitialized();
     this.lru.set(key, value);
-    if (this.persistent) {
-      await this.persist();
-    }
+    this.markDirty();
   }
 
   /**
-   * Removes an item from the cache and updates persistence.
-   * 
-   * @param key The key to remove
+   * Removes an item from the cache and schedules debounced persistence.
    */
   public async delete(key: K): Promise<void> {
     await this.ensureInitialized();
     this.lru.delete(key);
-    if (this.persistent) {
-      await this.persist();
-    }
+    this.markDirty();
   }
 
   /**
@@ -128,6 +119,11 @@ export class CacheService<K = string, V = any> implements ICacheService<K, V> {
    */
   public async clear(): Promise<void> {
     this.lru.clear();
+    this.isDirty = false;
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
     if (this.persistent) {
       await this.storage.remove(`cache_${this.namespace}`);
     }
@@ -135,9 +131,6 @@ export class CacheService<K = string, V = any> implements ICacheService<K, V> {
 
   /**
    * Checks if a key exists and is fresh.
-   * 
-   * @param key The key to check
-   * @returns True if exists and fresh
    */
   public async has(key: K): Promise<boolean> {
     await this.ensureInitialized();
@@ -152,18 +145,51 @@ export class CacheService<K = string, V = any> implements ICacheService<K, V> {
   }
 
   /**
-   * Synchronizes the current in-memory state to persistent storage.
-   * 
-   * @private
+   * Schedules a debounced persistence operation.
    */
-  private async persist(): Promise<void> {
+  private markDirty(): void {
     if (!this.persistent) return;
+    this.isDirty = true;
+    
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+    }
+    
+    this.persistTimer = setTimeout(() => {
+      this.persist();
+    }, this.DEBOUNCE_MS);
+  }
+
+  /**
+   * Synchronizes the current in-memory state to persistent storage.
+   * Performs an internal "Sweep" to remove expired items before saving.
+   */
+  public async persist(): Promise<void> {
+    if (!this.persistent || !this.isDirty) return;
     
     try {
+      this.persistTimer = null;
+      
+      // OPTIMIZATION: The export() call already filters by order.
+      // We perform a sweep-on-persist to avoid bloating storage with stale data.
       const data = this.lru.export();
+      
       await this.storage.set(`cache_${this.namespace}`, data);
+      this.isDirty = false;
+      this.logger.debug(`[CacheService:${this.namespace}] Persisted ${data.length} items (Serialization Storm avoided)`);
     } catch (error) {
       this.logger.error(`[CacheService:${this.namespace}] Failed to persist cache`, error);
+    }
+  }
+
+  /**
+   * Forces immediate persistence if there are pending changes.
+   * Useful for teardown scenarios.
+   */
+  public async flush(): Promise<void> {
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      await this.persist();
     }
   }
 }

@@ -34,7 +34,7 @@ import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver'
 import type { ToastService } from '@core/services/ToastService';
 import { AstraService } from './AstraService';
 import { AstraDashboard } from './ui/AstraDashboard';
-import { AstraRatingModal } from './ui/AstraRatingModal';
+import { AstraRatingController } from './ui/AstraRatingController';
 import { SocialMaskingService } from '@core/services/SocialMaskingService';
 
 @injectable()
@@ -42,7 +42,7 @@ export class AstraModule extends BaseModule {
   constructor(
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard,
-    @inject(TOKENS.AstraRatingModal) private ratingModal: AstraRatingModal,
+    @inject(TOKENS.AstraRatingController) private ratingModal: AstraRatingController,
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.ToastService) private toast: ToastService,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,

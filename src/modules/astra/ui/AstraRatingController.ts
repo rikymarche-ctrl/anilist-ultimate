@@ -1,78 +1,97 @@
 /**
  * @file AstraRatingController.ts
- * @description Orchestrator for the Astra Rating Modal (V2)
+ * @description Orchestrator for the Astra Rating Modal.
+ * Delegated business logic to AstraRatingService.
  */
 
 import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraService, AstraWork } from '../AstraService';
 import { AstraView } from './base/AstraView';
-import { AstraJournalService } from '../services/AstraJournalService';
+import type { IAstraRatingService } from '../interfaces/IAstraRatingService';
 import { AstraScoreForm } from './components/AstraScoreForm';
 import { AstraEpisodeJournal } from './components/AstraEpisodeJournal';
 import { AstraRadarPreview } from './components/AstraRadarPreview';
-import { MediaListStatus, type MediaWithViewerResponse } from '@/api/AnilistTypes';
+import { AstraRatingHeader } from './components/AstraRatingHeader';
+import { MediaListStatus } from '@/api/AnilistTypes';
 import { log } from '@core/logger';
-import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { ToastService } from '@core/services/ToastService';
 
-export interface RatingState {
-  work: AstraWork;
-  media: any;
-  currentSeasonIdx: number;
-  activeTab: 'rating' | 'journal';
-  allCustomLists: string[];
-}
-
+/**
+ * Enterprise implementation of the Rating Modal Controller.
+ * Adheres to Clean Architecture by delegating data operations to specialized services.
+ */
 @injectable()
 @singleton()
 export class AstraRatingController extends AstraView {
   private overlay: HTMLElement | null = null;
-  private state: RatingState | null = null;
+  private work: AstraWork | null = null;
+  private media: any = null;
+  private allCustomLists: string[] = [];
+  private currentSeasonIdx: number = 0;
+  private activeTab: 'rating' | 'journal' = 'rating';
+  private isSaving: boolean = false;
+  private isDirty: boolean = false;
 
   // Sub-components
+  private header: AstraRatingHeader;
   private scoreForm: AstraScoreForm;
   private journalView: AstraEpisodeJournal;
   private radarPreview: AstraRadarPreview;
 
   constructor(
     @inject(TOKENS.AstraService) private service: AstraService,
-    @inject(TOKENS.ApiClient) private api: IApiClient,
+    @inject(TOKENS.IAstraRatingService) private ratingService: IAstraRatingService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(TOKENS.AstraJournalService) private journalService: AstraJournalService,
     @inject(TOKENS.ToastService) private toast: ToastService
   ) {
     super({});
-    this.scoreForm = new AstraScoreForm(this.service);
-    this.journalView = new AstraEpisodeJournal(this.journalService);
+    this.header = new AstraRatingHeader({});
+    this.scoreForm = new AstraScoreForm(this.service, this.eventBus);
+    this.journalView = new AstraEpisodeJournal(this.eventBus);
     this.radarPreview = new AstraRadarPreview({});
 
-    // Global listener for opening (if not using direct calls)
+    // Global listener for opening
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN_MODAL, (detail: any) => this.open(detail.mediaId));
   }
 
+  /**
+   * Opens the rating modal.
+   */
   public async open(mediaId: number): Promise<void> {
     if (this.overlay) return;
 
-    const data = await this.fetchAniListData(mediaId);
-    if (!data) return;
+    log.info(`[AstraRatingController] Opening modal for mediaId: ${mediaId}`);
+    
+    // Delegate data fetching to Service
+    const data = await this.ratingService.fetchInitialData(mediaId);
+    if (!data) {
+      this.toast.error('Failed to load AniList data.');
+      return;
+    }
 
     const { media, allCustomLists } = data;
-    const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
+    this.media = media;
+    this.allCustomLists = allCustomLists;
 
-    const work = await this.service.getWork(mediaId) || this.createDefaultWork(media, mediaType);
-    
-    this.state = {
-      work,
-      media,
-      currentSeasonIdx: work.seasons.length - 1,
-      activeTab: 'rating',
-      allCustomLists
-    };
+    const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
+    this.work = await this.service.getWork(mediaId) || this.createDefaultWork(media, mediaType);
+    this.currentSeasonIdx = this.work.seasons.length - 1;
+    this.activeTab = 'rating';
+    this.isDirty = false;
 
     this.renderContainer();
+
+    // ESC key listener
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        this.close();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
   }
 
   private createDefaultWork(media: any, type: 'anime' | 'manga' | 'novel'): AstraWork {
@@ -85,46 +104,10 @@ export class AstraRatingController extends AstraView {
       country: media.countryOfOrigin,
       cover: media.coverImage.extraLarge || media.coverImage.large,
       status: entry?.status || MediaListStatus.PLANNING,
-      customLists: [],
-      tags: [],
-      notes: '',
-      updatedAt: Date.now(),
-      seasons: [{
-        id: 's_1',
-        label: 'Season 1',
-        scores: {},
-        notes: entry?.notes || '',
-      }]
+      customLists: [], tags: [], notes: '', updatedAt: Date.now(),
+      seasons: [this.service.createDefaultSeason()],
+      progress: entry?.progress || 0
     };
-  }
-
-  private async fetchAniListData(mediaId: number): Promise<{ media: MediaWithViewerResponse['Media']; allCustomLists: string[] } | null> {
-    const GQL = `query($id: Int) {
-      Viewer { mediaListOptions { animeList { customLists } } }
-      Media(id: $id) {
-        id title { userPreferred } type format episodes status countryOfOrigin
-        nextAiringEpisode { episode }
-        coverImage { large extraLarge color }
-        mediaListEntry {
-          status progress score(format: POINT_100) notes
-          repeat private hiddenFromStatusLists
-          startedAt { year month day }
-          completedAt { year month day }
-          customLists
-        }
-      }
-    }`;
-
-    try {
-      const resp = await this.api.query<MediaWithViewerResponse>(GQL, { id: mediaId });
-      return {
-        media: resp.Media,
-        allCustomLists: resp.Viewer?.mediaListOptions?.animeList?.customLists || []
-      };
-    } catch (err) {
-      log.error('[AstraRatingController] Failed to fetch data', err);
-      return null;
-    }
   }
 
   private renderContainer(): void {
@@ -140,8 +123,15 @@ export class AstraRatingController extends AstraView {
     });
   }
 
-  public close(): void {
+  public async close(): Promise<void> {
     if (!this.overlay) return;
+
+    // Auto-save on close if dirty
+    if (this.isDirty && !this.isSaving) {
+      log.info('[AstraRatingController] Auto-saving before close');
+      await this.save(false);
+    }
+
     this.overlay.classList.add('astra-modal-overlay--closing');
     setTimeout(() => {
       this.unmount();
@@ -152,28 +142,22 @@ export class AstraRatingController extends AstraView {
   }
 
   protected template(): string {
-    if (!this.state) return '';
-    
     return `
       <div class="astra-modal astra-modal--rating astra-v2">
+        <div id="astra-header-mount"></div>
         <nav class="astra-modal-nav">
-          <div class="astra-nav-back" id="astra-modal-back-btn">
-            <i class="fa fa-chevron-left"></i>
-            <span>Back</span>
-          </div>
-          <div class="astra-nav-item ${this.state.activeTab === 'rating' ? 'active' : ''}" data-tab="rating">
+          <div class="astra-nav-item ${this.activeTab === 'rating' ? 'active' : ''}" data-tab="rating">
             <i class="fa fa-sliders"></i> <span>Rating</span>
           </div>
-          <div class="astra-nav-item ${this.state.activeTab === 'journal' ? 'active' : ''}" data-tab="journal">
+          <div class="astra-nav-item ${this.activeTab === 'journal' ? 'active' : ''}" data-tab="journal">
             <i class="fa fa-book"></i> <span>Journal</span>
           </div>
           <div class="astra-nav-spacer"></div>
-          <button class="astra-modal-close" id="astra-modal-close-btn"><i class="fa fa-times"></i></button>
         </nav>
 
         <div class="astra-modal-main">
           <div id="astra-rating-content">
-             <!-- Sub-components mount here -->
+             <!-- Tab content mounts here -->
           </div>
         </div>
       </div>
@@ -181,29 +165,65 @@ export class AstraRatingController extends AstraView {
   }
 
   protected onMount(): void {
-    const content = this.$('#astra-rating-content');
-    if (!content || !this.state) return;
+    if (!this.work) return;
 
-    if (this.state.activeTab === 'rating') {
-      content.innerHTML = `
-        <div class="astra-rating-v2-layout">
-          <div id="astra-form-mount"></div>
-          <div id="astra-radar-mount"></div>
-        </div>
-      `;
-      this.scoreForm.mount(this.$('#astra-form-mount')!, { work: this.state.work, seasonIdx: this.state.currentSeasonIdx });
-      
-      const season = this.state.work.seasons[this.state.currentSeasonIdx];
-      this.radarPreview.mount(this.$('#astra-radar-mount')!, { 
-        scores: this.consolidateScores(season.scores), 
-        sections: this.service.getSections() 
+    const headerMount = this.$('#astra-header-mount');
+    if (headerMount) {
+      const season = this.work.seasons[this.currentSeasonIdx];
+      this.header.mount(headerMount, {
+        mediaId: this.work.mediaId,
+        title: this.work.title,
+        manualOverride: !!season.manualOverride,
+        isSeriesFinale: !!season.isSeriesFinale,
+        showFinale: this.service.getSettings().enableSeriesFinale && this.service.hasFinaleSection(),
+        onOverrideToggle: (active: boolean) => this.handleOverrideToggle(active),
+        onFinaleToggle: () => this.handleFinaleToggle(),
+        onClose: () => this.close(),
+        activeTab: this.activeTab
+      });
+    }
+
+    this.renderTabContent();
+  }
+
+  private renderTabContent(): void {
+    const content = this.$('#astra-rating-content');
+    if (!content || !this.work) return;
+
+    content.innerHTML = '';
+
+    if (this.activeTab === 'rating') {
+      const layout = document.createElement('div');
+      layout.className = 'astra-rating-v2-layout';
+      content.appendChild(layout);
+
+      const formMount = document.createElement('div');
+      formMount.id = 'astra-form-mount';
+      layout.appendChild(formMount);
+
+      const radarMount = document.createElement('div');
+      radarMount.id = 'astra-radar-mount';
+      layout.appendChild(radarMount);
+
+      this.scoreForm.mount(formMount, {
+        work: this.work,
+        seasonIdx: this.currentSeasonIdx,
+        allCustomLists: this.allCustomLists,
+        entry: this.media.mediaListEntry
+      });
+
+      const season = this.work.seasons[this.currentSeasonIdx];
+      this.radarPreview.mount(radarMount, {
+        scores: this.consolidateScores(season.scores),
+        sections: this.service.getSections()
       });
     } else {
       this.journalView.mount(content, {
-        work: this.state.work,
-        seasonIdx: this.state.currentSeasonIdx,
-        progress: this.state.media.mediaListEntry?.progress || 0,
-        total: this.state.media.episodes
+        work: this.work,
+        seasonIdx: this.currentSeasonIdx,
+        progress: this.media.mediaListEntry?.progress || 0,
+        total: this.media.episodes,
+        airedCount: this.media.nextAiringEpisode ? this.media.nextAiringEpisode.episode - 1 : (this.media.status === 'FINISHED' ? this.media.episodes : (this.media.episodes || 0))
       });
     }
   }
@@ -220,71 +240,147 @@ export class AstraRatingController extends AstraView {
   protected bindEvents(): void {
     this.$$('.astra-nav-item').forEach(item => {
       item.addEventListener('click', () => {
-        const tab = (item as HTMLElement).dataset.tab as any;
-        if (tab && tab !== this.state?.activeTab) {
-          this.state!.activeTab = tab;
-          this.onMount(); // Use onMount to re-render content instead of full renderContainer
+        const tab = (item as HTMLElement).dataset.tab as 'rating' | 'journal';
+        if (tab && tab !== this.activeTab) {
+          this.activeTab = tab;
+          this.$$('.astra-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tab));
+          this.renderTabContent();
+          const currentState = this.header.getState();
+          if (currentState) {
+            this.header.update({ ...currentState, activeTab: tab });
+          }
         }
       });
     });
 
-    this.$('#astra-modal-back-btn')?.addEventListener('click', () => this.close());
-    this.$('#astra-modal-close-btn')?.addEventListener('click', () => this.close());
-
-    // Listen for score updates from ScoreForm
-    window.addEventListener('astra-live-score-update', (e: any) => {
-      const { sectionId, value } = e.detail;
-      if (!this.state) return;
-      
-      const season = this.state.work.seasons[this.state.currentSeasonIdx];
-      season.scores[sectionId] = value;
-      
-      const consolidated = this.consolidateScores(season.scores);
-      this.radarPreview.updateRadar(consolidated, this.service.getSections());
-      
-      const overall = this.service.calcSeasonScore(season);
-      const scoreDisplay = this.$('#astra-live-score');
-      if (scoreDisplay) scoreDisplay.textContent = overall ? overall.toFixed(2) : '—';
-    });
-
-    // Listen for Save action
-    this.$('#astra-save-btn')?.addEventListener('click', () => this.save());
+    // Sub-component events via EventBus
+    this.eventBus.on('astra-live-score-update', (payload: any) => this.handleScoreUpdate(payload));
+    this.eventBus.on('astra-field-update', (payload: any) => this.handleFieldUpdate(payload));
+    this.eventBus.on('astra-journal-update', (payload: any) => this.handleJournalUpdate(payload));
+    this.eventBus.on('astra-save-request', () => this.save(true));
   }
 
-  private async save(): Promise<void> {
-    if (!this.state || !this.overlay) return;
+  private handleScoreUpdate(payload: any): void {
+    const { id, value } = payload;
+    if (!this.work) return;
+    const season = this.work.seasons[this.currentSeasonIdx];
+    season.scores[id] = value;
+    this.isDirty = true;
+
+    const consolidated = this.consolidateScores(season.scores);
+    this.radarPreview.updateRadar(consolidated, this.service.getSections());
+
+    const overall = this.service.calcSeasonScore(season);
+    const display = document.getElementById('astra-overall-val');
+    if (display) {
+      display.textContent = overall ? overall.toFixed(1) : '—';
+    }
+  }
+
+  private handleFieldUpdate(payload: any): void {
+    const { field, value } = payload;
+    if (!this.work) return;
+
+    if (field === 'status') this.work.status = value;
+    else if (field === 'progress') this.work.progress = value;
+    else (this.work as any)[field] = value;
+
+    this.isDirty = true;
+  }
+
+  private handleJournalUpdate(payload: any): void {
+    const { episode, text } = payload;
+    if (!this.work) return;
+    const season = this.work.seasons[this.currentSeasonIdx];
+    if (!season.episodeNotes) season.episodeNotes = {};
+    season.episodeNotes[episode] = { text };
+    this.isDirty = true;
+  }
+
+  private handleOverrideToggle(active: boolean): void {
+    if (!this.work) return;
+    this.work.seasons[this.currentSeasonIdx].manualOverride = active;
+    this.isDirty = true;
+    this.renderTabContent();
+  }
+
+  private handleFinaleToggle(): void {
+    if (!this.work) return;
+    const season = this.work.seasons[this.currentSeasonIdx];
+    season.isSeriesFinale = !season.isSeriesFinale;
+    this.isDirty = true;
+    this.renderTabContent();
+  }
+
+  /**
+   * Orchestrates the save process by delegating to AstraRatingService.
+   */
+  private async save(shouldClose: boolean): Promise<void> {
+    if (this.isSaving || !this.work || !this.overlay) return;
     
-    this.overlay.classList.add('astra-saving');
-    const work = this.state.work;
-    const season = work.seasons[this.state.currentSeasonIdx];
+    this.isSaving = true;
+    const saveBtn = this.$('#astra-save-btn') as HTMLButtonElement;
+    const originalHTML = saveBtn?.innerHTML || '';
     
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+    }
+
     try {
-      // 1. Save locally
-      await this.service.saveWork(work);
+      const season = this.work.seasons[this.currentSeasonIdx];
+      
+      // Update work object with latest form values
+      const startDateInput = this.$('#astra-start-date') as HTMLInputElement;
+      const finishDateInput = this.$('#astra-finish-date') as HTMLInputElement;
+      const notesArea = this.$('#astra-general-notes') as HTMLTextAreaElement;
 
-      // 2. Sync to AniList
+      if (startDateInput) season.startDate = startDateInput.value;
+      if (finishDateInput) season.endDate = finishDateInput.value;
+      if (notesArea) season.notes = notesArea.value;
+
+      const customLists = Array.from(this.$$('.astra-custom-list-cb:checked')).map(cb => (cb as HTMLInputElement).dataset.name!);
+      this.work.customLists = customLists;
+
+      const privateCb = this.$('#astra-private-cb') as HTMLInputElement;
+      const hideCb = this.$('#astra-hide-cb') as HTMLInputElement;
+      const progressInput = this.$('#astra-progress') as HTMLInputElement;
+      const repeatInput = this.$('#astra-repeat') as HTMLInputElement;
+      
       const overall = this.service.calcSeasonScore(season) || 0;
-      const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$notes:String) {
-        SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,scoreRaw:$score,notes:$notes) { id status progress score }
-      }`;
 
-      await this.api.mutate(GQL_SAVE, {
-        mediaId: work.mediaId,
-        status: work.status,
-        progress: work.progress || 0,
-        score: Math.round(overall * 10),
-        notes: season.notes
+      this.isDirty = false;
+
+      // Delegate to Service
+      await this.ratingService.saveAndSync(this.work, {
+        overallScore: overall,
+        progress: progressInput ? parseInt(progressInput.value) : undefined,
+        repeat: repeatInput ? parseInt(repeatInput.value) : undefined,
+        private: privateCb?.checked,
+        hidden: hideCb?.checked,
+        notes: this.work.notes,
+        customLists: customLists
       });
 
-      this.toast.success('Ratings synced with AniList!');
-      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId: work.mediaId });
-      
-      this.close();
+      if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fa fa-check"></i> Saved!';
+        saveBtn.classList.add('astra-save-success');
+      }
+
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId: this.work.mediaId });
+
+      if (shouldClose) {
+        setTimeout(() => this.close(), 300);
+      }
     } catch (err) {
       log.error('[AstraRatingController] Save failed', err);
       this.toast.error('Failed to sync ratings.');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalHTML;
+      }
     } finally {
-      this.overlay.classList.remove('astra-saving');
+      this.isSaving = false;
     }
   }
 }
