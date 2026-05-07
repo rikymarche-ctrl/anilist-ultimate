@@ -8,8 +8,9 @@ import { ICardEnhancementStrategy } from './ICardEnhancementStrategy';
 export class UserListStrategy implements ICardEnhancementStrategy {
   public readonly name = 'user-list';
 
-  public canHandle(path: string): boolean {
-    return path.includes('/animelist') || path.includes('/mangalist');
+  public canHandle(_path: string): boolean {
+    // DISABLED: User requested pills only in calendar and home progress sections
+    return false;
   }
 
   public getCards(): HTMLElement[] {

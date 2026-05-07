@@ -90,6 +90,12 @@ export class AstraModule extends BaseModule {
     this.domService.injectNavbarButton(() => this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN));
     this.domService.hijackMediaButton((id) => this.ratingModal.open(id));
 
+    // 4. Reactive UI Updates
+    this.eventBus.on(EVENT_TYPES.CALENDAR_SETTINGS_CHANGED, () => {
+      log.debug('[Astra] Settings changed, refreshing pills...');
+      this.domService.refreshAllPills();
+    });
+
     // Cleanup interval for navbar redundancy
     this.intervals.push(window.setInterval(() => {
       this.domService.injectNavbarButton(() => this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN));

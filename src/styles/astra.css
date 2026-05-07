@@ -66,12 +66,12 @@
   /* Boosted to ensure visibility over all native overlays */
   pointer-events: none;
   border-radius: inherit;
-  transition: background 0.3s ease;
-  opacity: 1 !important;
-  /* Force visibility */
+  transition: all 0.3s ease;
+  opacity: 0;
 }
 
 .au-astra-card:hover .au-pill-wrapper {
+  opacity: 1 !important;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
 }

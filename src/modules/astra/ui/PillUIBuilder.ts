@@ -25,27 +25,27 @@ export class PillUIBuilder {
   public build(options: PillOptions): string {
     const { isUserListCard, socialEnabled, score, astraEnabled } = options;
     
-    const ratingHTML = astraEnabled ? `
-      <div class="pill-section" data-action="edit-entry" title="Astra Rating">
-        <i class="fa-solid fa-star"></i>
-        <span class="score-value">${score !== null ? score.toFixed(1) : '-'}</span>
+    const markWatchedHTML = isUserListCard ? `
+      <div class="pill-section" data-action="mark-watched" title="Increment Progress">
+        <i class="fa fa-plus"></i>
       </div>
     ` : '';
 
-    const markWatchedHTML = isUserListCard ? `
-      <div class="pill-section" data-action="mark-watched" title="Increment Progress">
-        <i class="fa-solid fa-plus"></i>
+    const ratingHTML = astraEnabled ? `
+      <div class="pill-section" data-action="edit-entry" title="Astra Rating">
+        <i class="fa fa-pencil"></i>
+        ${score !== null ? `<span class="score-value">${score.toFixed(1)}</span>` : ''}
       </div>
     ` : '';
 
     const socialHTML = socialEnabled ? `
       <div class="pill-section" data-action="social-activity" title="Social Activity">
-        <i class="fa-solid fa-users"></i>
+        <i class="fa fa-users"></i>
       </div>
     ` : '';
 
     // Add separator if we have multiple sections
-    const sections = [ratingHTML, markWatchedHTML, socialHTML].filter(h => h !== '');
+    const sections = [markWatchedHTML, ratingHTML, socialHTML].filter(h => h !== '');
     
     return `
       <div class="action-pill" style="z-index: 1000 !important; pointer-events: auto !important;">
