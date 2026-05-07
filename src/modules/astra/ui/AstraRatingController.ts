@@ -62,13 +62,24 @@ export class AstraRatingController extends AstraView {
     const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
     const work = await this.service.getFullWork(mediaId) || this.createDefaultWork(media, mediaType);
 
+    // Calculate Progress metadata
+    const totalCount = media.episodes || null;
+    let airedCount: number | null = null;
+    if (media.nextAiringEpisode) {
+      airedCount = media.nextAiringEpisode.episode - 1;
+    } else if (media.status === 'FINISHED') {
+      airedCount = totalCount;
+    }
+
     // Initialize Store
     this.store = new AstraRatingStore({
       work,
       media,
       allCustomLists,
       currentSeasonIdx: work.seasons.length - 1,
-      activeTab: 'rating'
+      activeTab: 'rating',
+      airedCount,
+      totalCount
     }, this.eventBus);
 
     this.scoreForm.connect(this.store);

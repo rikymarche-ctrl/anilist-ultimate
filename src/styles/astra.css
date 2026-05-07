@@ -598,6 +598,18 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   opacity: 0.4;
 }
 
+/* Calendar Icon Fix */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 .astra-modal-header {
   height: 64px;
   border-bottom: 1px solid var(--astra-border-soft);
@@ -1056,16 +1068,7 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   font-size: 16px;
 }
 
-.astra-stepper-center {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  border-left: 1px solid var(--astra-border-soft);
-  border-right: 1px solid var(--astra-border-soft);
-  gap: 4px;
-}
+/* Stepper center consolidated below */
 
 .astra-stepper-center input {
   background: transparent;
@@ -1295,15 +1298,18 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 6px;
   background: rgba(0, 0, 0, 0.1);
   height: 100%;
+  padding: 0 8px;
+  min-width: 90px;
 }
 
-.astra-muted-inline {
+.astra-progress-label {
   font-size: 11px;
   color: var(--astra-muted);
   white-space: nowrap;
+  font-weight: 600;
 }
 
 .astra-modal--rating .astra-select,

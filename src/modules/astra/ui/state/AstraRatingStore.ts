@@ -15,6 +15,8 @@ export interface AstraRatingState {
   activeTab: 'rating' | 'journal';
   isDirty: boolean;
   isSaving: boolean;
+  airedCount: number | null;
+  totalCount: number | null;
 }
 
 export class AstraRatingStore {

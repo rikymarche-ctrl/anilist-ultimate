@@ -29,7 +29,16 @@ export class AstraScoreForm extends AstraView {
     const season = work.seasons[currentSeasonIdx];
     const sections = this.service.getSections();
     const entryCustomLists = entry?.customLists || {};
-    const meta = { progress: entry?.progress || 0, total: media?.episodes || 0 };
+    // Smart Progress Label Logic
+    const watched = work.progress || 0;
+    const aired = state.airedCount;
+    const total = state.totalCount;
+    let progressLabel = `/ ${total || '?'}`;
+    
+    // Mostra il numero di mezzo solo se diverso dal totale (serie in corso)
+    if (aired !== null && aired !== total) {
+      progressLabel = `/ ${aired} / ${total || '?'}`;
+    }
 
     return `
       <div class="astra-score-form">
@@ -49,7 +58,10 @@ export class AstraScoreForm extends AstraView {
             <div class="astra-input-box"><span class="astra-label-xs">PROGRESS</span>
               <div class="astra-stepper">
                 <button class="astra-step-btn" data-field="progress" data-step="-1">-</button>
-                <div class="astra-stepper-center"><input type="number" class="astra-number-input" id="astra-progress" value="${work.progress || 0}"><span>/ ${meta.total || '?'}</span></div>
+                <div class="astra-stepper-center">
+                  <input type="number" class="astra-number-input" id="astra-progress" value="${watched}">
+                  <span class="astra-progress-label">${progressLabel}</span>
+                </div>
                 <button class="astra-step-btn" data-field="progress" data-step="1">+</button>
               </div>
             </div>
