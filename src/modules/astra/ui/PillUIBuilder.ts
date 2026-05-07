@@ -1,9 +1,5 @@
-/**
- * @file PillUIBuilder.ts
- * @description Centralized builder for Astra action pills.
- */
-
 import { injectable } from 'tsyringe';
+import { html } from '@core/utils/Template';
 
 /**
  * Options for pill building
@@ -20,38 +16,50 @@ export interface PillOptions {
 @injectable()
 export class PillUIBuilder {
   /**
-   * Builds the HTML structure for an Astra pill
+   * Builds the secure HTMLElement structure for an Astra pill
    */
-  public build(options: PillOptions): string {
+  public build(options: PillOptions): HTMLElement {
     const { isUserListCard, socialEnabled, score, astraEnabled } = options;
     
-    const markWatchedHTML = isUserListCard ? `
+    const markWatchedHTML = isUserListCard ? html`
       <div class="pill-section" data-action="mark-watched" title="Increment Progress">
         <i class="fa fa-plus"></i>
       </div>
-    ` : '';
+    ` : null;
 
-    const ratingHTML = astraEnabled ? `
+    const ratingHTML = astraEnabled ? html`
       <div class="pill-section" data-action="edit-entry" title="Astra Rating">
         <i class="fa fa-pencil"></i>
-        ${score !== null ? `<span class="score-value">${score.toFixed(1)}</span>` : ''}
+        ${score !== null ? html`<span class="score-value">${score.toFixed(1)}</span>` : ''}
       </div>
-    ` : '';
+    ` : null;
 
-    const socialHTML = socialEnabled ? `
+    const socialHTML = socialEnabled ? html`
       <div class="pill-section" data-action="social-activity" title="Social Activity">
         <i class="fa fa-users"></i>
       </div>
-    ` : '';
+    ` : null;
 
-    // Add separator if we have multiple sections
-    const sections = [markWatchedHTML, ratingHTML, socialHTML].filter(h => h !== '');
+    // Filter out null sections
+    const sections = [markWatchedHTML, ratingHTML, socialHTML].filter(s => s !== null) as HTMLElement[];
     
-    return `
+    const pill = html`
       <div class="action-pill" style="z-index: 1000 !important; pointer-events: auto !important;">
-        ${sections.join('<div class="pill-separator" aria-hidden="true"></div>')}
       </div>
     `;
+
+    // Add sections with separators
+    sections.forEach((section, index) => {
+      pill.appendChild(section);
+      if (index < sections.length - 1) {
+        const separator = document.createElement('div');
+        separator.className = 'pill-separator';
+        separator.setAttribute('aria-hidden', 'true');
+        pill.appendChild(separator);
+      }
+    });
+
+    return pill;
   }
 
   /**
@@ -71,7 +79,9 @@ export class PillUIBuilder {
     wrapper.className = 'au-pill-wrapper';
     wrapper.setAttribute('data-au-media-id', String(options.mediaId));
     wrapper.style.zIndex = '999'; // Triple safety
-    wrapper.innerHTML = this.build(options);
+    
+    const pill = this.build(options);
+    wrapper.appendChild(pill);
     
     container.appendChild(wrapper);
     return wrapper;

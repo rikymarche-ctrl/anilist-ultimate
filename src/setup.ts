@@ -91,7 +91,9 @@ import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
 import { PillUIBuilder } from '@/modules/astra/ui/PillUIBuilder';
 import { HomeProgressStrategy } from '@/modules/astra/strategies/HomeProgressStrategy';
 import { UserListStrategy } from '@/modules/astra/strategies/UserListStrategy';
-import { AstraDomService } from '@/modules/astra/services/AstraDomService';
+import { AstraEnhancementService } from '@/modules/astra/services/AstraEnhancementService';
+import { AstraNavigationService } from '@/modules/astra/services/AstraNavigationService';
+import { AstraPreferencesService } from '@/modules/astra/services/AstraPreferencesService';
 import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
 
@@ -223,7 +225,9 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.registerSingleton(TOKENS.AstraRatingController, AstraRatingController);
   container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
   container.registerSingleton(TOKENS.AstraPillBuilder, PillUIBuilder);
-  container.registerSingleton(TOKENS.AstraDomService, AstraDomService);
+  container.registerSingleton(TOKENS.AstraEnhancementService, AstraEnhancementService);
+  container.registerSingleton(TOKENS.AstraNavigationService, AstraNavigationService);
+  container.registerSingleton(TOKENS.AstraPreferencesService, AstraPreferencesService);
   
   // Register Astra Strategies
   container.register(TOKENS.AstraStrategies, {
