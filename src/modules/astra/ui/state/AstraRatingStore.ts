@@ -80,6 +80,13 @@ export class AstraRatingStore {
     this.notify('saving-change');
   }
 
+  public updateMediaListEntry(patch: Partial<any>): void {
+    if (!this.state.media.mediaListEntry) this.state.media.mediaListEntry = {};
+    Object.assign(this.state.media.mediaListEntry, patch);
+    this.setDirty(true);
+    this.notify('state-change');
+  }
+
   private notify(type: string = 'state-change', field?: string): void {
     this.eventBus.emit('astra-store-updated', { state: this.getState(), type, field });
   }

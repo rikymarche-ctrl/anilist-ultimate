@@ -83,6 +83,7 @@ export class AstraRatingController extends AstraView {
     }, this.eventBus);
 
     this.scoreForm.connect(this.store);
+    this.scoreForm.resetState();
     this.journalView.connect(this.store);
 
     this.renderContainer();
@@ -219,16 +220,20 @@ export class AstraRatingController extends AstraView {
 
       this.scoreForm.mount(formMount, state);
 
+      const season = state.work.seasons[state.currentSeasonIdx];
+      const consolidated = this.consolidateScores(season.scores);
+
+      // Update section labels and radar
+      this.scoreForm.updateSectionScores(consolidated);
+
       const radarTarget = formMount.querySelector('.astra-radar-mount');
       if (radarTarget) {
-        const season = state.work.seasons[state.currentSeasonIdx];
         this.radarPreview.mount(radarTarget as HTMLElement, {
-          scores: this.consolidateScores(season.scores),
+          scores: consolidated,
           sections: this.service.getSections()
         });
       }
 
-      const season = state.work.seasons[state.currentSeasonIdx];
       const overall = this.service.calcSeasonScore(season);
       this.updateOverallScore(overall);
     } else {
@@ -276,7 +281,9 @@ export class AstraRatingController extends AstraView {
     } else if (type === 'score-update' || type === 'override-change') {
       const season = state.work.seasons[state.currentSeasonIdx];
       const consolidated = this.consolidateScores(season.scores);
+      
       this.radarPreview.updateRadar(consolidated, this.service.getSections());
+      this.scoreForm.updateSectionScores(consolidated);
 
       const overall = this.service.calcSeasonScore(season);
       this.updateOverallScore(overall);

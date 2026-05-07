@@ -574,6 +574,7 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   resize: none;
   outline: none;
   transition: all 0.2s ease;
+  box-sizing: border-box; /* Previene l'overflow */
 }
 
 .astra-ep-textarea:focus {
@@ -1049,23 +1050,47 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   align-items: center;
   background: var(--astra-bg-elev-2);
   border: 1px solid var(--astra-border-soft);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
-  height: 34px;
-  width: 100%;
+  height: 36px;
+  min-width: 150px;
 }
 
 .astra-step-btn {
-  width: 32px;
+  width: 44px;
   height: 100%;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.03);
   border: none;
   color: var(--astra-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.astra-step-btn:hover {
+  background: var(--astra-accent-a20);
+  color: var(--astra-accent);
+}
+
+.astra-step-btn:first-child {
+  border-right: 1px solid var(--astra-border-soft);
+}
+
+.astra-step-btn:last-child {
+  border-left: 1px solid var(--astra-border-soft);
+}
+
+.astra-stepper-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
 }
 
 /* Stepper center consolidated below */
@@ -1080,10 +1105,20 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   outline: none;
 }
 
+.astra-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  padding-right: 40px !important;
+  cursor: pointer;
+}
+
 .astra-select,
 .astra-date-input,
 .astra-textarea {
-  background: var(--astra-bg-elev-2);
+  background-color: var(--astra-bg-elev-2);
   border: 1px solid var(--astra-border-soft);
   border-radius: 6px;
   padding: 6px 10px;
@@ -1091,6 +1126,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-size: 13px;
   outline: none;
   width: 100%;
+  box-sizing: border-box; /* Previene l'overflow */
 }
 
 /* Dropdown Logic */
@@ -1101,17 +1137,130 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .astra-dropdown-trigger {
   width: 100%;
-  height: 34px;
+  height: 30px;
   background: var(--astra-bg-elev-2);
   border: 1px solid var(--astra-border-soft);
   border-radius: 6px;
   padding: 0 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   cursor: pointer;
-  color: var(--astra-text-dim);
+  color: var(--astra-text);
   font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.astra-dropdown-trigger i:first-child {
+  color: var(--astra-accent);
+  font-size: 14px;
+}
+
+.astra-dropdown-trigger span {
+  flex: 1;
+  text-align: left;
+  font-weight: 600;
+}
+
+.astra-dropdown-trigger i:last-child {
+  font-size: 11px;
+  color: var(--astra-muted);
+  transition: transform 0.2s ease;
+}
+
+.astra-dropdown.active .astra-dropdown-trigger i:last-child {
+  transform: rotate(180deg);
+}
+
+.astra-dropdown-item i {
+  width: 16px;
+  text-align: center;
+  color: var(--astra-muted);
+}
+
+.astra-dropdown-divider {
+  height: 1px;
+  background: var(--astra-border-soft);
+  margin: 6px 0;
+  opacity: 0.5;
+}
+
+.astra-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--astra-border-soft);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  background: var(--astra-bg-elev-3);
+}
+
+.astra-checkbox.checked {
+  background: var(--astra-accent);
+  border-color: var(--astra-accent);
+}
+
+.astra-checkbox.checked::after {
+  content: '\f00c';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  color: white;
+  font-size: 10px;
+}
+
+/* Premium Toggle Switch */
+.astra-toggle {
+  width: 44px;
+  height: 22px;
+  background: var(--astra-bg-elev-3);
+  border: 1.5px solid var(--astra-border-soft);
+  border-radius: 20px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.astra-toggle-handle {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  background: var(--astra-muted);
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.astra-toggle.active {
+  background: var(--astra-accent-a20);
+  border-color: var(--astra-accent);
+}
+
+.astra-toggle.active .astra-toggle-handle {
+  left: calc(100% - 17px);
+  background: var(--astra-accent);
+  box-shadow: 0 0 10px var(--astra-accent-a50);
+}
+
+.astra-toggle:hover {
+  border-color: var(--astra-muted);
+}
+.astra-toggle.active:hover {
+  border-color: var(--astra-accent);
+}
+
+.astra-dropdown-item.active {
+  background: var(--astra-accent-a10);
+  color: var(--astra-accent);
+}
+
+.astra-dropdown-item.active i {
+  color: var(--astra-accent);
 }
 
 .astra-dropdown-menu {
@@ -1315,7 +1464,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .astra-modal--rating .astra-select,
 .astra-modal--rating .astra-date-input {
   height: 30px !important;
-  background: var(--astra-bg-elev-2) !important;
+  background-color: var(--astra-bg-elev-2) !important;
   border: 1px solid var(--astra-border) !important;
   border-radius: 6px !important;
   padding: 0 10px !important;
@@ -1363,13 +1512,30 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 700;
 }
 
-/* Sidebar (Radar) */
 .astra-sidebar {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 340px;
   height: 100%;
+}
+
+/* Sidebar (Radar) */
+.astra-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: var(--astra-bg-elev-2);
+  color: var(--astra-text);
+  font-family: inherit;
 }
 
 .astra-btn--full {
@@ -1380,9 +1546,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-radius: 8px;
-  background: var(--astra-bg-elev-2);
-  border: 1px solid var(--astra-accent);
-  color: var(--astra-accent);
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
@@ -1634,12 +1797,327 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   min-height: 0;
 }
 
+.astra-settings-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0 32px 12px 32px;
+}
+
 .astra-settings-grid {
   flex: 1;
   overflow-y: auto !important;
-  padding: 0 24px 40px 24px;
+  padding-right: 16px;
   min-height: 0;
+  margin-bottom: 0;
 }
+
+.astra-settings-section {
+  margin-bottom: 24px;
+}
+
+.astra-section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--astra-muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.astra-section-title i {
+  color: var(--astra-accent);
+  width: 16px;
+  text-align: center;
+}
+
+.astra-sections-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 16px;
+}
+
+.astra-settings-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--astra-border-soft);
+}
+
+.astra-sections-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  gap: 16px;
+}
+
+.astra-section-config-card {
+  background: var(--astra-bg-elev);
+  border: 1px solid var(--astra-border-soft);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.astra-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.astra-section-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.astra-section-name-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--astra-text);
+  font-size: 15px;
+  font-weight: 800;
+  padding: 2px 0;
+  width: 100%;
+}
+
+.astra-section-name-input:focus {
+  outline: none;
+  border-bottom-color: var(--astra-accent);
+}
+
+.astra-section-weight-info {
+  font-size: 11px;
+  color: var(--astra-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.astra-section-weight-info b {
+  color: var(--astra-accent);
+}
+
+.astra-section-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.astra-subsections-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px dashed var(--astra-border-soft);
+}
+
+.astra-subsection-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--astra-bg-elev-2);
+  border-radius: 8px;
+  border: 1px solid var(--astra-border-soft);
+}
+
+.astra-sub-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.astra-sub-name-input {
+  background: transparent !important;
+  border: none !important;
+  color: var(--astra-muted) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 0 !important;
+  width: 100% !important;
+  outline: none !important;
+  transition: color 0.2s;
+}
+
+.astra-sub-name-input:focus {
+  color: var(--astra-text) !important;
+}
+
+.astra-sub-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--astra-muted);
+  text-transform: uppercase;
+}
+
+.astra-remove-sub {
+  background: transparent;
+  border: none;
+  color: var(--astra-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+.astra-remove-sub:hover {
+  color: #ef4444;
+  opacity: 1;
+}
+
+.astra-stepper--xs {
+  width: 100% !important;
+  height: 28px !important;
+  background: var(--astra-bg-elev) !important;
+  border-radius: 6px !important;
+}
+
+.astra-sub-weight-input {
+  background: transparent !important;
+  border: none !important;
+  color: var(--astra-accent) !important;
+  font-weight: 800 !important;
+  font-size: 12px !important;
+  width: 100% !important;
+  text-align: center !important;
+  padding: 0 !important;
+}
+
+/* Duplicates removed */
+
+.astra-icon-btn.destructive {
+  color: var(--astra-muted);
+  opacity: 0.6;
+}
+
+.astra-icon-btn.destructive:hover {
+  color: #ef4444;
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.astra-settings-item {
+  background: var(--astra-bg-elev);
+  border: 1px solid var(--astra-border-soft);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.astra-settings-item:hover {
+  border-color: var(--astra-accent-a30);
+  background: var(--astra-bg-elev-2);
+}
+
+.astra-settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.astra-settings-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--astra-text);
+}
+
+.astra-settings-desc {
+  font-size: 12px;
+  color: var(--astra-muted);
+  line-height: 1.4;
+}
+
+.astra-settings-header {
+  padding: 20px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--astra-border-soft);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.astra-settings-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.astra-settings-header h2 {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.astra-settings-footer {
+  padding: 24px 0;
+  border-top: 1px solid var(--astra-border-soft);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.astra-settings-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.astra-settings-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.astra-badge-warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+/* Redundant stepper definition consolidated in line 2054 */
+
+.astra-unit {
+  font-size: 11px;
+  color: var(--astra-muted);
+  font-weight: 800;
+}
+
+.astra-settings-item--warning {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+/* Duplicates removed - consolidated above */
 
 @keyframes astra-fade-in {
   from {
@@ -1657,6 +2135,83 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   max-width: 1600px;
   width: 95vw;
   height: 92vh;
+  display: flex;
+  flex-direction: row;
+}
+
+#astra-dashboard-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Settings Stepper & Badges */
+.astra-settings-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.astra-settings-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.astra-badge-warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.astra-stepper--inline {
+  width: 130px !important;
+  height: 36px !important;
+  background: var(--astra-bg-elev-2) !important;
+  border-radius: 8px !important;
+}
+
+.astra-weight-input {
+  background: transparent !important;
+  border: none !important;
+  color: var(--astra-accent) !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  width: 100% !important;
+  text-align: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  appearance: textfield;
+}
+
+.astra-weight-input:focus {
+  outline: none !important;
+}
+
+.astra-weight-input::-webkit-outer-spin-button,
+.astra-weight-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.astra-unit {
+  font-size: 11px;
+  color: var(--astra-muted);
+  font-weight: 800;
+}
+
+.astra-settings-item--warning {
+  border-color: rgba(245, 158, 11, 0.3) !important;
 }
 
 .astra-dashboard-header {
@@ -2013,10 +2568,64 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-size: 14px;
 }
 
-.astra-macro-chip:hover {
-  background: var(--astra-bg-elev-2);
-  border-color: var(--astra-accent-a50);
+.astra-btn--secondary:hover {
+  background: var(--astra-bg-elev);
+  border-color: var(--astra-accent);
   color: var(--astra-text);
+}
+
+.astra-btn--primary {
+  background: var(--astra-bg-elev-2) !important;
+  color: var(--astra-accent) !important;
+  border: 1px solid var(--astra-accent) !important;
+  font-weight: 800 !important;
+  padding: 12px 28px !important;
+  border-radius: 10px !important;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 14px !important;
+}
+
+.astra-btn--primary:hover {
+  background: var(--astra-accent) !important;
+  color: #000 !important;
+  box-shadow: 0 4px 20px var(--astra-accent-a40) !important;
+  transform: translateY(-1px);
+}
+
+.astra-btn--primary i {
+  font-size: 16px !important;
+  transition: transform 0.25s ease;
+}
+
+.astra-btn--primary:hover i {
+  transform: scale(1.1);
+}
+
+.astra-btn--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 8px 20px !important;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 13px;
+}
+
+.astra-btn--danger:hover {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
 }
 
 .astra-macro-chip.active {
@@ -2791,27 +3400,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 0 8px var(--astra-accent-a20);
 }
 
-/* Settings & Sub-sections */
-.astra-settings {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 20px 20px;
-}
-
-.astra-settings-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.astra-settings-card {
-  background: var(--astra-bg-elev-1);
-  border: 1px solid var(--astra-border-soft);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-}
-
 .astra-card-header {
   margin-bottom: 24px;
   border-bottom: 1px solid var(--astra-border-soft);
@@ -3022,26 +3610,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   gap: 12px;
 }
 
-#astra-add-section {
-  width: 100%;
-  justify-content: center;
-  padding: 14px;
-  font-size: 14px;
-  border-style: dashed;
-  margin-top: 24px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 12px;
-  color: var(--astra-text-dim);
-  transition: all 0.2s;
-  border: 1px dashed var(--astra-border);
-}
-
-#astra-add-section:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-style: solid;
-  color: var(--astra-text);
-  transform: translateY(-2px);
-}
+/* Deleted legacy #astra-add-section styles */
 
 .astra-sub-label small {
   color: var(--astra-muted);
@@ -3660,17 +4229,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   font-weight: 600;
 }
 
-.astra-btn--danger {
-  background: rgba(235, 87, 87, 0.1);
-  color: #eb5757;
-  border: 1px solid rgba(235, 87, 87, 0.2);
-}
-
-.astra-btn--danger:hover {
-  background: #eb5757;
-  color: white;
-  border-color: #eb5757;
-}
+/* Duplicates removed */
 
 .astra-preview-overlay {
   position: fixed;

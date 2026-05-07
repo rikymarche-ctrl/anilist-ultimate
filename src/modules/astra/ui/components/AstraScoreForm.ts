@@ -11,6 +11,7 @@ import { AstraRatingStore, AstraRatingState } from '../state/AstraRatingStore';
  */
 export class AstraScoreForm extends AstraView {
   private store: AstraRatingStore | null = null;
+  private openDropdownId: string | null = null;
 
   constructor(
     private service: AstraService,
@@ -21,6 +22,10 @@ export class AstraScoreForm extends AstraView {
 
   public connect(store: AstraRatingStore): void {
     this.store = store;
+  }
+
+  public resetState(): void {
+    this.openDropdownId = null;
   }
 
   protected template(state: AstraRatingState): string {
@@ -40,15 +45,36 @@ export class AstraScoreForm extends AstraView {
       progressLabel = `/ ${aired} / ${total || '?'}`;
     }
 
+    const statusOptions = [
+      { value: MediaListStatus.CURRENT, label: getStatusLabel(MediaListStatus.CURRENT, work.type), icon: 'fa-play-circle' },
+      { value: MediaListStatus.COMPLETED, label: getStatusLabel(MediaListStatus.COMPLETED, work.type), icon: 'fa-check-circle' },
+      { value: MediaListStatus.PAUSED, label: getStatusLabel(MediaListStatus.PAUSED, work.type), icon: 'fa-pause-circle' },
+      { value: MediaListStatus.DROPPED, label: getStatusLabel(MediaListStatus.DROPPED, work.type), icon: 'fa-times-circle' },
+      { value: MediaListStatus.PLANNING, label: getStatusLabel(MediaListStatus.PLANNING, work.type), icon: 'fa-calendar' },
+      { value: MediaListStatus.REPEATING, label: getStatusLabel(MediaListStatus.REPEATING, work.type), icon: 'fa-redo' },
+    ];
+    const currentStatus = statusOptions.find(o => o.value === work.status) || statusOptions[0];
+
     return `
       <div class="astra-score-form">
         <div class="astra-form-header-section astra-quick-grid-2x2">
           <div class="astra-input-box">
             <span class="astra-label-xs">STATUS</span>
-            <select class="astra-select" id="astra-status">
-              ${[MediaListStatus.CURRENT, MediaListStatus.COMPLETED, MediaListStatus.PAUSED, MediaListStatus.DROPPED, MediaListStatus.PLANNING, MediaListStatus.REPEATING].map(s => 
-                `<option value="${s}" ${work.status === s ? 'selected' : ''}>${getStatusLabel(s, work.type)}</option>`).join('')}
-            </select>
+            <div class="astra-dropdown" id="astra-status-dropdown">
+              <button class="astra-dropdown-trigger">
+                <i class="fa ${currentStatus.icon}"></i>
+                <span>${currentStatus.label}</span>
+                <i class="fa fa-chevron-down"></i>
+              </button>
+              <div class="astra-dropdown-menu">
+                ${statusOptions.map(o => `
+                  <div class="astra-dropdown-item astra-status-option ${work.status === o.value ? 'active' : ''}" data-value="${o.value}">
+                    <i class="fa ${o.icon}"></i>
+                    <span>${o.label}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
           </div>
           <div class="astra-input-split">
             <div class="astra-input-box"><span class="astra-label-xs">START</span><input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}"></div>
@@ -78,12 +104,21 @@ export class AstraScoreForm extends AstraView {
             <div class="astra-dropdown" id="astra-lists-dropdown">
               <button class="astra-dropdown-trigger"><i class="fa fa-list-ul"></i><span>Manage Lists</span><i class="fa fa-chevron-down"></i></button>
               <div class="astra-dropdown-menu">
-                <div class="astra-dropdown-scroll">
-                  ${allCustomLists.map(l => `<label class="astra-dropdown-item"><input type="checkbox" class="astra-custom-list-cb" data-name="${l}" ${entryCustomLists[l] ? 'checked' : ''}><span>${l}</span></label>`).join('')}
-                </div>
+                  ${allCustomLists.map(list => `
+                    <div class="astra-dropdown-item astra-list-option ${entryCustomLists[list] ? 'active' : ''}" data-list="${list}">
+                      <div class="astra-checkbox ${entryCustomLists[list] ? 'checked' : ''}"></div>
+                      <span>${list}</span>
+                    </div>
+                  `).join('')}
                 <div class="astra-dropdown-divider"></div>
-                <label class="astra-dropdown-item astra-dropdown-item--special"><input type="checkbox" id="astra-hide-cb" ${entry?.hiddenFromStatusLists ? 'checked' : ''}><span>Hide</span></label>
-                <label class="astra-dropdown-item astra-dropdown-item--special"><input type="checkbox" id="astra-private-cb" ${entry?.private ? 'checked' : ''}><span>Private</span></label>
+                <div class="astra-dropdown-item astra-list-option ${entry?.hiddenFromStatusLists ? 'active' : ''}" data-type="hide">
+                  <div class="astra-checkbox ${entry?.hiddenFromStatusLists ? 'checked' : ''}"></div>
+                  <span>Hide from status lists</span>
+                </div>
+                <div class="astra-dropdown-item astra-list-option ${entry?.private ? 'active' : ''}" data-type="private">
+                  <div class="astra-checkbox ${entry?.private ? 'checked' : ''}"></div>
+                  <span>Private</span>
+                </div>
               </div>
             </div>
           </div>
@@ -268,19 +303,28 @@ export class AstraScoreForm extends AstraView {
     this.$('#astra-progress')?.addEventListener('change', (e) => this.handleInput('progress', parseInt((e.target as HTMLInputElement).value) || 0));
     this.$('#astra-repeat')?.addEventListener('change', (e) => this.handleInput('repeat', parseInt((e.target as HTMLInputElement).value) || 0));
     this.$('#astra-status')?.addEventListener('change', (e) => this.handleInput('status', (e.target as HTMLSelectElement).value));
-    this.$('#astra-hide-cb')?.addEventListener('change', (e) => this.handleInput('hiddenFromStatusLists', (e.target as HTMLInputElement).checked));
-    this.$('#astra-private-cb')?.addEventListener('change', (e) => this.handleInput('private', (e.target as HTMLInputElement).checked));
     this.$('#astra-general-notes')?.addEventListener('input', (e) => this.handleInput('notes', (e.target as HTMLTextAreaElement).value));
     this.$('#astra-manual-score')?.addEventListener('input', (e) => this.handleInput('manual-score', parseFloat((e.target as HTMLInputElement).value) || 0));
 
-    this.$$('.astra-custom-list-cb').forEach(cb => {
-      cb.addEventListener('change', () => {
-        const lists: Record<string, boolean> = {};
-        this.$$('.astra-custom-list-cb').forEach(c => {
-          const name = (c as HTMLInputElement).dataset.name;
-          if (name) lists[name] = (c as HTMLInputElement).checked;
-        });
-        this.handleInput('customLists', lists);
+    this.$$('.astra-list-option').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!this.store) return;
+        const currentState = this.store.getState();
+        const type = (opt as HTMLElement).dataset.type;
+        const listName = (opt as HTMLElement).dataset.list;
+
+        if (type === 'hide') {
+          const current = currentState.media.mediaListEntry?.hiddenFromStatusLists || false;
+          this.handleInput('hiddenFromStatusLists', !current);
+        } else if (type === 'private') {
+          const current = currentState.media.mediaListEntry?.private || false;
+          this.handleInput('private', !current);
+        } else if (listName) {
+          const currentLists = { ...(currentState.media.mediaListEntry?.customLists || {}) };
+          currentLists[listName] = !currentLists[listName];
+          this.handleInput('customLists', currentLists);
+        }
       });
     });
 
@@ -288,12 +332,39 @@ export class AstraScoreForm extends AstraView {
       acc.addEventListener('click', () => acc.closest('.astra-score-group')?.classList.toggle('astra-score-group--collapsed'));
     });
 
-    this.$('.astra-dropdown-trigger')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.$('#astra-lists-dropdown')?.classList.toggle('active');
+    // Restore open dropdown if any
+    if (this.openDropdownId) {
+      this.$(`#${this.openDropdownId}`)?.classList.add('active');
+    }
+
+    this.$$('.astra-dropdown-trigger').forEach(trigger => {
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const parent = (e.currentTarget as HTMLElement).parentElement;
+        const id = parent?.id || null;
+
+        // Close other dropdowns first
+        this.$$('.astra-dropdown').forEach(d => {
+          if (d !== parent) {
+            d.classList.remove('active');
+          }
+        });
+
+        const isClosing = parent?.classList.contains('active');
+        parent?.classList.toggle('active');
+        this.openDropdownId = isClosing ? null : id;
+      });
     });
 
-    document.addEventListener('click', () => this.$('#astra-lists-dropdown')?.classList.remove('active'));
+    this.$$('.astra-status-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const val = (opt as HTMLElement).dataset.value;
+        if (val) this.handleInput('status', val);
+        opt.closest('.astra-dropdown')?.classList.remove('active');
+      });
+    });
+
+    document.addEventListener('click', () => this.$$('.astra-dropdown').forEach(d => d.classList.remove('active')));
     this.$('#astra-save-btn')?.addEventListener('click', () => this.eventBus.emit('astra-save-request'));
   }
 
@@ -313,19 +384,27 @@ export class AstraScoreForm extends AstraView {
       entry.completedAt = value ? { year: y, month: m, day: d } : { year: null, month: null, day: null };
       this.store.setDirty(true);
     } else if (field === 'customLists') {
-      entry.customLists = value;
-      this.store.setDirty(true);
+      this.store.updateMediaListEntry({ customLists: value });
     } else if (field === 'hiddenFromStatusLists') {
-      entry.hiddenFromStatusLists = value;
-      this.store.setDirty(true);
+      this.store.updateMediaListEntry({ hiddenFromStatusLists: value });
     } else if (field === 'private') {
-      entry.private = value;
-      this.store.setDirty(true);
+      this.store.updateMediaListEntry({ private: value });
     } else if (field === 'notes') {
       this.store.updateSeason({ notes: value });
     } else if (field === 'manual-score') {
       this.store.updateSeason({ legacyScore: value });
     }
+  }
+
+  public updateSectionScores(consolidated: Record<string, number | null>): void {
+    Object.entries(consolidated).forEach(([id, val]) => {
+      const el = document.getElementById(`avg-${id}`);
+      if (el) {
+        const formatted = val === null || val === 0 ? '—' : (val % 1 === 0 ? val.toString() : val.toFixed(1));
+        el.textContent = formatted;
+        el.style.color = AstraRadarChart.getScoreColor(val);
+      }
+    });
   }
 
   private updateSliderTrack(slider: HTMLInputElement): void {

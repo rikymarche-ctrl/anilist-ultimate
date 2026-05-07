@@ -126,11 +126,13 @@ export const DEFAULT_SECTIONS: AstraSection[] = [
 export interface AstraSettings {
   enableSeriesFinale: boolean;
   finaleWeightMultiplier: number;
+  appendAstraToComment: boolean;
 }
 
 export const DEFAULT_SETTINGS: AstraSettings = {
   enableSeriesFinale: true,
   finaleWeightMultiplier: 3,
+  appendAstraToComment: false,
 };
 
 /**
@@ -349,7 +351,8 @@ export class AstraService {
 
   async updateSettings(settings: Partial<AstraSettings>): Promise<void> {
     this.settings = { ...this.settings, ...settings };
-    await this.persist();
+    await this.storage.set(this.SETTINGS_KEY, this.settings);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'settings', timestamp: new Date() } as any);
   }
 
   /**
@@ -605,21 +608,127 @@ export class AstraService {
   }
 
   /**
-   * Delete ALL works (Reset)
+   * Complete factory reset: deletes ALL works, sections, and settings.
    */
-  async clearAllWorks(): Promise<void> {
+  async factoryReset(): Promise<void> {
     await this.init();
-    const keysToRemove = this.summaries.map(s => `${this.WORK_PREFIX}${s.mediaId}`);
-    
+    const keysToRemove = [
+      ...this.summaries.map(s => `${this.WORK_PREFIX}${s.mediaId}`),
+      this.MANIFEST_KEY,
+      this.SECTIONS_KEY,
+      this.SETTINGS_KEY
+    ];
+
     this.summaries = [];
     this.fullWorkCache.clear();
-    
-    await Promise.all([
-      ...keysToRemove.map(key => this.storage.remove(key)),
-      this.persist()
-    ]);
-    
-    log.info('[AstraService] All Astra data cleared');
+    this.sections = [...DEFAULT_SECTIONS];
+    this.settings = { ...DEFAULT_SETTINGS };
+
+    await Promise.all(keysToRemove.map(key => this.storage.remove(key)));
+    this.isInitialized = false; // Force re-init on next use
+    log.info('[AstraService] Factory reset complete');
+  }
+
+  /**
+   * Updates a section weight and persists changes
+   */
+  public async updateSectionWeight(id: string, weight: number): Promise<void> {
+    const section = this.sections.find(s => s.id === id);
+    if (!section) return;
+
+    section.weight = weight;
+    await this.storage.set(this.SECTIONS_KEY, this.sections);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
+    log.info(`[AstraService] Updated section ${id} weight to ${weight}`);
+  }
+
+  /**
+   * Updates a section name
+   */
+  public async updateSectionName(id: string, name: string): Promise<void> {
+    const section = this.sections.find(s => s.id === id);
+    if (!section) return;
+
+    section.name = name;
+    await this.storage.set(this.SECTIONS_KEY, this.sections);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
+  }
+
+  /**
+   * Updates a sub-section weight
+   */
+  public async updateSubSectionWeight(sectionId: string, subId: string, weight: number): Promise<void> {
+    const section = this.sections.find(s => s.id === sectionId);
+    if (!section || !section.subSections) return;
+
+    const sub = section.subSections.find(s => s.id === subId);
+    if (!sub) return;
+
+    sub.weight = weight;
+    await this.storage.set(this.SECTIONS_KEY, this.sections);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
+  }
+
+  /**
+   * Updates the name of a sub-section
+   */
+  public async updateSubSectionName(sectionId: string, subId: string, newName: string): Promise<void> {
+    const section = this.sections.find(s => s.id === sectionId);
+    const sub = section?.subSections?.find(s => s.id === subId);
+    if (sub) {
+      sub.name = newName;
+      await this.storage.set(this.SECTIONS_KEY, this.sections);
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
+    }
+  }
+
+  /**
+   * Adds a new sub-section to a specific section
+   */
+  public async addSubSection(sectionId: string, name: string): Promise<void> {
+    const section = this.sections.find(s => s.id === sectionId);
+    if (!section) return;
+
+    if (!section.subSections) section.subSections = [];
+    const subId = name.toLowerCase().replace(/\s+/g, '-');
+    if (section.subSections.find(s => s.id === subId)) return;
+
+    section.subSections.push({ id: subId, name, weight: 1 });
+    await this.storage.set(this.SECTIONS_KEY, this.sections);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
+  }
+
+  /**
+   * Removes a sub-section from a specific section
+   */
+  public async removeSubSection(sectionId: string, subId: string): Promise<void> {
+    const section = this.sections.find(s => s.id === sectionId);
+    if (!section || !section.subSections) return;
+
+    section.subSections = section.subSections.filter(s => s.id !== subId);
+    await this.storage.set(this.SECTIONS_KEY, this.sections);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
+  }
+
+  /**
+   * Adds a new custom section
+   */
+  public async addSection(name: string): Promise<void> {
+    const id = name.toLowerCase().replace(/\s+/g, '-');
+    if (this.sections.find(s => s.id === id)) return;
+
+    this.sections.push({ id, name, weight: 1, subSections: [] });
+    await this.storage.set(this.SECTIONS_KEY, this.sections);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
+  }
+
+  /**
+   * Removes a section
+   */
+  public async removeSection(id: string): Promise<void> {
+    this.sections = this.sections.filter(s => s.id !== id);
+    await this.storage.set(this.SECTIONS_KEY, this.sections);
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { type: 'sections', timestamp: new Date() } as any);
   }
 
   /**
@@ -807,21 +916,18 @@ export class AstraService {
       const res = await this.api.query<any>(query, { mediaId });
       let nativeNotes = res?.MediaList?.notes || '';
 
-      // 2. Generate our report
-      const astraReport = this.generateMarkdownReport(work);
-
-      // 3. Merge: replace or append
+      // 2. Generate our report if enabled
+      const astraReport = this.settings.appendAstraToComment ? this.generateMarkdownReport(work) : '';
       const anchor = 'Astra Review';
 
       let finalNotes = '';
-      if (nativeNotes.includes(anchor)) {
-        // Replace everything from the anchor to the end (assuming Astra is at the end)
-        // or we could be smarter, but usually user wants it replaced.
-        const before = nativeNotes.split(anchor)[0];
-        finalNotes = (before.trim() + '\n' + astraReport).trim();
+      const cleanNativeNotes = nativeNotes.includes(anchor) ? nativeNotes.split(anchor)[0].trim() : nativeNotes.trim();
+
+      if (this.settings.appendAstraToComment) {
+        finalNotes = (cleanNativeNotes + '\n' + astraReport).trim();
       } else {
-        // Append new Astra section
-        finalNotes = (nativeNotes.trim() + '\n' + astraReport).trim();
+        // If disabled, we only keep the manual notes (what was before the anchor)
+        finalNotes = cleanNativeNotes;
       }
 
       // 4. Save back to AniList
