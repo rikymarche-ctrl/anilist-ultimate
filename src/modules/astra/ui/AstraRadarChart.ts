@@ -73,12 +73,13 @@ export class AstraRadarChart {
         const ly = 50 + Math.sin(angle) * 42;
 
         const transform = 'translate(-50%, -50%)';
+        const formattedVal = v == null || v === 0 ? '0' : (v % 1 === 0 ? v.toString() : v.toFixed(1));
 
         return `
           <div class="astra-radar-label-abs" style="left: ${lx}%; top: ${ly}%; transform: ${transform};">
             <div class="astra-radar-label-name">${s.name}</div>
             <div class="astra-radar-label-val" style="color: ${color}">
-              ${v == null ? '—' : v.toFixed(1)}
+              ${v == null ? '—' : formattedVal}
             </div>
           </div>
         `;
@@ -100,11 +101,9 @@ export class AstraRadarChart {
   }
 
   public static getScoreColor(v: number | null): string {
-    if (v == null) return 'var(--astra-muted)';
-    if (v >= 9) return 'var(--astra-score-great)';
-    if (v >= 7) return 'var(--astra-score-good)';
-    if (v >= 5) return 'var(--astra-score-mid)';
-    if (v >= 3) return 'var(--astra-score-meh)';
-    return 'var(--astra-score-bad)';
+    if (v == null || v === 0) return 'var(--astra-muted)';
+    // 0.1 (Red) -> 10 (Green)
+    const hue = (v / 10) * 120;
+    return `hsl(${hue}, 80%, 60%)`;
   }
 }

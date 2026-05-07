@@ -125,6 +125,7 @@ export const EVENT_TYPES = {
   ASTRA_OPEN: 'astra:open',
   ASTRA_OPEN_MODAL: 'astra:open-modal',
   ASTRA_DATA_UPDATED: 'astra:data-updated',
+  ASTRA_SAVE_NOTE: 'astra:save-note',
 } as const;
 
 /**
@@ -287,6 +288,12 @@ export interface UserAuthenticatedEvent {
   timestamp: Date;
 }
 
+export interface AstraSaveNoteEvent {
+  mediaId: number;
+  episode: number;
+  notes: string;
+}
+
 /**
  * AppEventMap - Centralized mapping of events to payloads
  */
@@ -350,4 +357,5 @@ export interface AppEventMap {
   [EVENT_TYPES.ASTRA_OPEN]: undefined;
   [EVENT_TYPES.ASTRA_OPEN_MODAL]: { mediaId: number };
   [EVENT_TYPES.ASTRA_DATA_UPDATED]: { mediaId?: number; timestamp: Date };
+  [EVENT_TYPES.ASTRA_SAVE_NOTE]: AstraSaveNoteEvent;
 }

@@ -9,13 +9,13 @@ import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { SocialService } from './SocialService';
-import { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 
 @injectable()
 export class UserSocialStatsModule extends BaseModule {
+  private processedUser: string | null = null;
+
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
-    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
     super(eventBus);
@@ -28,32 +28,38 @@ export class UserSocialStatsModule extends BaseModule {
       this.injectStats();
     });
 
-    this.sharedObserver.register('social-stats', () => {
-      this.injectStats();
-    });
-
     // Initial check
     this.injectStats();
   }
 
   private async injectStats(): Promise<void> {
     const parts = window.location.pathname.split('/');
-    const isSocialPage = parts[3] === 'social' || parts[4] === 'social';
     const isProfilePage = parts[1] === 'user' && parts[2];
-    
+
     if (!isProfilePage) return;
 
     const username = parts[2];
-    const user = await this.socialService.getFullUser(username);
-    if (!user) return;
+    const isSocialPage = parts[3] === 'social' || parts[4] === 'social';
 
-    // 1. Target Social Sidebar (if on social page)
-    if (isSocialPage) {
-      this.injectIntoSocialSidebar(user);
+    // Prevent redundant fetches for the same user on the same page
+    if (this.processedUser === `${username}-${isSocialPage}`) return;
+
+    try {
+      const user = await this.socialService.getFullUser(username);
+      if (!user) return;
+
+      this.processedUser = `${username}-${isSocialPage}`;
+
+      // 1. Target Social Sidebar (if on social page)
+      if (isSocialPage) {
+        this.injectIntoSocialSidebar(user);
+      }
+
+      // 2. Target Main Profile Navigation (always if on profile)
+      this.injectIntoProfileNav(user);
+    } catch (error) {
+      log.error(`[UserSocialStatsModule] Failed to inject stats for ${username}`, error);
     }
-
-    // 2. Target Main Profile Navigation (always if on profile)
-    this.injectIntoProfileNav(user);
   }
 
   private injectIntoSocialSidebar(counts: { following: number, followers: number }): void {
@@ -99,7 +105,7 @@ export class UserSocialStatsModule extends BaseModule {
     span.style.fontSize = '0.85em';
     span.style.marginLeft = '4px';
     span.style.fontWeight = 'normal';
-    
+
     el.appendChild(span);
   }
 
@@ -108,7 +114,7 @@ export class UserSocialStatsModule extends BaseModule {
   }
 
   public override async destroy(): Promise<void> {
-    this.sharedObserver.unregister('social-stats');
+    this.processedUser = null;
     await super.destroy();
   }
 }

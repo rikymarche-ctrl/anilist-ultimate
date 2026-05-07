@@ -91,6 +91,7 @@ import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
 import { PillUIBuilder } from '@/modules/astra/ui/PillUIBuilder';
 import { HomeProgressStrategy } from '@/modules/astra/strategies/HomeProgressStrategy';
 import { UserListStrategy } from '@/modules/astra/strategies/UserListStrategy';
+import { AstraDomService } from '@/modules/astra/services/AstraDomService';
 import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
 
@@ -222,6 +223,7 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.registerSingleton(TOKENS.AstraRatingController, AstraRatingController);
   container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
   container.registerSingleton(TOKENS.AstraPillBuilder, PillUIBuilder);
+  container.registerSingleton(TOKENS.AstraDomService, AstraDomService);
   
   // Register Astra Strategies
   container.register(TOKENS.AstraStrategies, {
@@ -280,6 +282,9 @@ export async function setupDI(isBackground = false): Promise<void> {
     maskingService.init();
     console.log('[Setup] Social masking service initialized');
   }
+
+  // Activate Astra Journal listeners
+  container.resolve(TOKENS.AstraJournalService);
 
   // ============================================================================
   // Register Modules
@@ -373,7 +378,7 @@ export async function setupDI(isBackground = false): Promise<void> {
     {
       name: 'astra',
       description: 'Advanced scoring system (Astra)',
-      enabled: config.isFeatureEnabled('astra'),
+      enabled: true,
       factory: () => container.resolve(AstraModule),
       pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra') || /^\/(anime|manga)\/\d+/.test(path),
     },

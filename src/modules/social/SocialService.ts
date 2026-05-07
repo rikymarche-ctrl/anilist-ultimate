@@ -19,8 +19,8 @@ import { CacheFactory } from '@core/cache/CacheFactory';
 import { log } from '@core/logger';
 import { FriendActivity, MediaListStatus, SocialActivityDetailed, SocialFilter } from '@core/types';
 import { GraphQLBatcher } from '@core/api/GraphQLBatcher';
-import type { 
-  DetailedActivityResponse, 
+import type {
+  DetailedActivityResponse,
   FollowingsResponse
 } from '@/api/AnilistTypes';
 
@@ -50,6 +50,10 @@ export class SocialService {
 
   /** Cached ID of the current authenticated user */
   private viewerId: number | null = null;
+
+  /** Track failed fetches to avoid "thundering herd" on 429s (TTL 2min) */
+  private failedFetches: Map<string, number> = new Map();
+  private readonly FAILURE_TTL_MS = 2 * 60 * 1000;
 
   /** Cache configuration constants */
   private readonly CONFIG = {
@@ -172,8 +176,8 @@ export class SocialService {
    * Fetches detailed activity entries for the Social Sidebar
    */
   public async getDetailedActivity(
-    mediaId: number, 
-    filter: SocialFilter, 
+    mediaId: number,
+    filter: SocialFilter,
     page: number = 1,
     status?: MediaListStatus | 'all'
   ): Promise<{ nodes: SocialActivityDetailed[], hasNextPage: boolean }> {
@@ -207,7 +211,7 @@ export class SocialService {
     if (status && status !== 'all') {
       variables.status = status.toUpperCase();
     }
-    
+
     if (filter === 'following') {
       variables.isFollowing = true;
     } else if (filter === 'self') {
@@ -289,14 +293,26 @@ export class SocialService {
    * @returns User data or null if not found
    */
   public async getFullUser(name: string): Promise<FullUserData | null> {
-    const cached = await this.userCache.get(name.toLowerCase());
+    const cacheKey = name.toLowerCase();
+
+    // Check if we previously failed this fetch recently
+    const lastFailure = this.failedFetches.get(cacheKey);
+    if (lastFailure && (Date.now() - lastFailure) < this.FAILURE_TTL_MS) {
+      return null;
+    }
+
+    const cached = await this.userCache.get(cacheKey);
     if (cached) return cached;
 
     const userQuery = `query ($name: String) { User(name: $name) { id name avatar { medium } } }`;
 
     try {
       const userResponse = await this.api.query<any>(userQuery, { name });
-      if (!userResponse.User) return null;
+      if (!userResponse.User) {
+        // Not found is a permanent failure for this session
+        this.failedFetches.set(cacheKey, Date.now() + (24 * 60 * 60 * 1000));
+        return null;
+      }
 
       const user = userResponse.User;
       const countsQuery = `
@@ -316,10 +332,12 @@ export class SocialService {
         followers: countsResponse.followers.pageInfo.total || 0
       };
 
-      await this.userCache.set(name.toLowerCase(), userData);
+      await this.userCache.set(cacheKey, userData);
+      this.failedFetches.delete(cacheKey);
       return userData;
     } catch (e) {
       log.error(`[SocialService] Full user fetch failed for ${name}`, e);
+      this.failedFetches.set(cacheKey, Date.now());
       return null;
     }
   }

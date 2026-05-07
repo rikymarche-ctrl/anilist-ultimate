@@ -53,20 +53,18 @@ export class SocialMaskingService {
     const { socialEnabled, socialShowAvatars } = state.preferences;
     const astraEnabled = this.config.isFeatureEnabled('astra');
 
-    // 4-Point Rule: Hide native social bubbles if either global social or avatars are disabled
-    const shouldHide = !socialEnabled || !socialShowAvatars;
+    // 4-Point Rule: Hide native social bubbles if Astra is enabled AND either global social or avatars are disabled
+    const shouldHide = astraEnabled && (!socialEnabled || !socialShowAvatars);
 
     document.body.classList.toggle('au-social-avatars-hidden', shouldHide);
-    document.body.classList.toggle('au-social-enabled', socialEnabled);
-    document.body.classList.toggle('au-social-avatars-enabled', socialShowAvatars);
+    document.body.classList.toggle('au-social-enabled', astraEnabled && socialEnabled);
+    document.body.classList.toggle('au-social-avatars-enabled', astraEnabled && socialShowAvatars);
+    document.body.classList.toggle('au-astra-enabled', astraEnabled);
 
     if (shouldHide) {
       log.debug('[SocialMaskingService] Native social bubbles MASKED');
     } else {
       log.debug('[SocialMaskingService] Native social bubbles VISIBLE');
     }
-
-    // Always maintain the astra-enabled class for feature-specific CSS
-    document.body.classList.toggle('au-astra-enabled', astraEnabled);
   }
 }

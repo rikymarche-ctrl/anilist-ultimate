@@ -39,5 +39,7 @@ export interface IAstraRatingService {
     hidden?: boolean;
     notes?: string;
     customLists?: string[];
+    startedAt?: any;
+    completedAt?: any;
   }): Promise<void>;
 }

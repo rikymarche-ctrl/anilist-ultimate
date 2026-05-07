@@ -88,6 +88,7 @@ export const TOKENS = {
   AstraFilterService: Symbol.for('IFilterService'),
   AstraStatsService: Symbol.for('IStatsService'),
   IAstraRatingService: Symbol.for('IAstraRatingService'),
+  AstraDomService: Symbol.for('AstraDomService'),
   MediaMusicModule: Symbol.for('MediaMusicModule'),
 
   // Sync Queue

@@ -1,34 +1,30 @@
-/**
- * @file AstraEpisodeJournal.ts
- * @description Component for the per-episode journal tab.
- * Uses EventBus for communication.
- */
-
 import { AstraView } from '../base/AstraView';
-import { AstraWork, AstraEpisodeNote } from '../../AstraService';
-import type { IEventBus } from '@core/interfaces/IEventBus';
-
-export interface JournalState {
-  work: AstraWork;
-  seasonIdx: number;
-  progress: number;
-  total: number | null;
-  airedCount: number | null;
-}
+import { AstraEpisodeNote } from '../../AstraService';
+import { AstraRatingStore, AstraRatingState } from '../state/AstraRatingStore';
 
 /**
  * Component for tracking per-episode notes.
- * Adheres to enterprise standards by using injected EventBus.
+ * Connects to AstraRatingStore for state synchronization.
  */
 export class AstraEpisodeJournal extends AstraView {
-  constructor(private eventBus: IEventBus) {
+  private store: AstraRatingStore | null = null;
+
+  constructor() {
     super({});
   }
 
-  protected template(state: JournalState): string {
-    const { work, seasonIdx, progress, total, airedCount } = state;
-    const season = work.seasons[seasonIdx];
+  public connect(store: AstraRatingStore): void {
+    this.store = store;
+  }
+
+  protected template(state: AstraRatingState): string {
+    const { work, currentSeasonIdx, media } = state;
+    const season = work.seasons[currentSeasonIdx];
     const notes = season.episodeNotes || {};
+    
+    const progress = work.progress || 0;
+    const total = media.episodes;
+    const airedCount = media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : (media.status === 'FINISHED' ? media.episodes : (media.episodes || 0));
 
     return `
       <div class="astra-journal-view">
@@ -76,16 +72,14 @@ export class AstraEpisodeJournal extends AstraView {
   }
 
   protected bindEvents(): void {
+    if (!this.store) return;
+
     this.$$('.astra-ep-textarea').forEach(area => {
       area.addEventListener('input', (e) => {
         const ep = parseInt(area.closest('.astra-ep-row')?.getAttribute('data-ep') || '0');
         const text = (e.target as HTMLTextAreaElement).value;
-        this.onNoteUpdate(ep, text);
+        this.store?.updateJournal(ep, text);
       });
     });
-  }
-
-  private onNoteUpdate(episode: number, text: string): void {
-    this.eventBus.emit('astra-journal-update', { episode, text });
   }
 }

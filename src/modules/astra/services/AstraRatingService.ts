@@ -67,6 +67,8 @@ export class AstraRatingService implements IAstraRatingService {
     hidden?: boolean;
     notes?: string;
     customLists?: string[];
+    startedAt?: any;
+    completedAt?: any;
   }): Promise<void> {
     log.debug(`[AstraRatingService] Saving work ${work.mediaId}...`);
 
@@ -81,16 +83,30 @@ export class AstraRatingService implements IAstraRatingService {
         progress: extra.progress ?? work.progress,
         score: Math.round(extra.overallScore * 10),
         repeat: extra.repeat || 0,
-        private: extra.private || false,
-        hidden: extra.hidden || false,
+        private: extra.private ?? false,
+        hidden: extra.hidden ?? false,
         notes: extra.notes || work.notes,
-        lists: extra.customLists || work.customLists
+        lists: extra.customLists || work.customLists,
+        startedAt: extra.startedAt,
+        completedAt: extra.completedAt
       };
 
       // 3. Attempt Immediate AniList Sync
       try {
-        const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$repeat:Int,$private:Boolean,$hidden:Boolean,$notes:String,$lists:[String]) {
-          SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress,scoreRaw:$score,repeat:$repeat,private:$private,hiddenFromStatusLists:$hidden,notes:$notes,customLists:$lists) { id }
+        const GQL_SAVE = `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int,$score:Int,$repeat:Int,$private:Boolean,$hidden:Boolean,$notes:String,$lists:[String],$startedAt:FuzzyDateInput,$completedAt:FuzzyDateInput) {
+          SaveMediaListEntry(
+            mediaId:$mediaId,
+            status:$status,
+            progress:$progress,
+            scoreRaw:$score,
+            repeat:$repeat,
+            private:$private,
+            hiddenFromStatusLists:$hidden,
+            notes:$notes,
+            customLists:$lists,
+            startedAt:$startedAt,
+            completedAt:$completedAt
+          ) { id }
         }`;
         
         await this.api.mutate(GQL_SAVE, payload);

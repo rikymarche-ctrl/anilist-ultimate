@@ -49,11 +49,10 @@ export class AstraRatingHeader extends AstraView {
                  <span>OVERRIDE</span>
                </button>
 
-               ${state.showFinale ? `
-               <button class="astra-finale-pill ${state.isSeriesFinale ? 'active' : ''} ${state.manualOverride ? 'astra-disabled' : ''}" 
+               ${state.showFinale && !state.manualOverride ? `
+               <button class="astra-finale-pill ${state.isSeriesFinale ? 'active' : ''}" 
                  id="header-finale-btn" 
-                 title="${state.manualOverride ? 'Cannot toggle finale during manual override' : 'Toggle Series Finale'}"
-                 ${state.manualOverride ? 'disabled' : ''}>
+                 title="Toggle Series Finale">
                  <i class="fa fa-flag-checkered"></i>
                  <span>FINALE</span>
                </button>

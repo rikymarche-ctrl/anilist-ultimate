@@ -29,8 +29,7 @@ import { EVENT_TYPES } from '@core/events/EventTypes';
 export class CalendarService implements ICalendarService {
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
-    @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(TOKENS.AstraService) private astraService: any
+    @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) { }
 
   /**
@@ -185,9 +184,9 @@ export class CalendarService implements ICalendarService {
       });
       log.debug('[CalendarService] AniList mutation successful');
 
-      // 2. Update Astra Episode Journal (Per-episode notes)
-      await this.astraService.saveEpisodeNote(mediaId, episode, notes);
-      log.debug('[CalendarService] Astra Journal save successful');
+      // 2. Update Astra Episode Journal (Per-episode notes) via EventBus to avoid circular dependency
+      this.eventBus.emit(EVENT_TYPES.ASTRA_SAVE_NOTE, { mediaId, episode, notes });
+      log.debug('[CalendarService] Astra Journal event emitted');
 
       log.success('Notes updated successfully in AniList and Astra Journal');
       return true;

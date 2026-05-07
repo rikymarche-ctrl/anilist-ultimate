@@ -172,6 +172,52 @@ export class AstraService {
   ) { }
 
   /**
+   * Increments progress for a media entry and notifies the system.
+   */
+  public async incrementProgress(mediaId: number): Promise<{ mediaId: number; progress: number; title: string } | null> {
+    try {
+      const userId = await this.api.getCurrentUserId();
+      if (!userId) throw new Error('Not logged in');
+
+      const data = await this.api.query<any>(`
+        query ($mediaId: Int, $userId: Int) {
+          MediaList(mediaId: $mediaId, userId: $userId) {
+            id progress status media { id title { romaji } }
+          }
+        }
+      `, { mediaId, userId });
+
+      if (!data?.MediaList) throw new Error('Entry not found');
+
+      const entry = data.MediaList;
+      const newProgress = (entry.progress || 0) + 1;
+
+      await this.api.mutate(`
+        mutation ($id: Int, $progress: Int) {
+          SaveMediaListEntry(id: $id, progress: $progress) { id progress }
+        }
+      `, { id: entry.id, progress: newProgress });
+      
+      this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
+        mediaId: entry.media.id,
+        progress: newProgress,
+        previousProgress: entry.progress,
+        userId,
+        status: entry.status
+      });
+
+      return { 
+        mediaId: entry.media.id, 
+        progress: newProgress, 
+        title: entry.media.title.romaji 
+      };
+    } catch (err) {
+      log.error('[AstraService] Failed to increment progress', err);
+      throw err;
+    }
+  }
+
+  /**
    * Initializes the service by loading the manifest and configuration.
    */
   public async init(): Promise<void> {

@@ -6,13 +6,33 @@
 import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraService, AstraWork, AstraSeason, AstraEpisodeNote } from '../AstraService';
+import { EVENT_TYPES } from '@core/events/EventTypes';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 
 @injectable()
 @singleton()
 export class AstraJournalService {
   constructor(
-    @inject(TOKENS.AstraService) private astraService: AstraService
-  ) {}
+    @inject(TOKENS.AstraService) private astraService: AstraService,
+    @inject(TOKENS.EventBus) private eventBus: IEventBus
+  ) {
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners(): void {
+    this.eventBus.on(EVENT_TYPES.ASTRA_SAVE_NOTE, async (data) => {
+      if (!data) return;
+      const { mediaId, episode, notes } = data;
+      // Find the current season for this media
+      const work = await this.astraService.getFullWork(mediaId);
+      if (!work) return;
+      
+      const seasonIdx = work.seasons.length - 1;
+      if (seasonIdx < 0) return;
+
+      await this.saveEpisodeNote(mediaId, seasonIdx, episode, { text: notes });
+    });
+  }
 
   /**
    * Get journal notes for a specific season

@@ -30,13 +30,13 @@
 - [ ] **Sistema Lodi**: Implementare un sistema per assegnare "lodi" o premi speciali a opere eccezionali.
 
 ## 🛠️ Fixes & UX Improvements
-
-*Rifinitura e stabilità dell'interfaccia.*
-
+- [ ] **Riprogettazione Flussi Iniezione**: Studiare tutte le combinazioni (Calendar ON/OFF, Astra ON/OFF) per decidere il comportamento ideale della Pillola/Capsula in ogni scenario (Home, Liste, Calendar).
+- [ ] **Fix Astra Dashboard**: Risolvere il blocco totale della dashboard nato con l'apertura del nuovo branch (probabile conflitto DI o Storage).
 - [ ] **Slider Arrows Bug**: Le freccette degli slider rimangono visibili anche senza contenuto.
 - [ ] **QuickEdit Cleanup**: Risolvere immagine sfocata e bug del "doppio hover".
 - [ ] **Modal UX**: Verificare che il tasto "Save" chiuda sempre la modale dopo aver accodato la richiesta.
 - [ ] **Theme Adaptation**: Audit finale per compatibilità con i temi Dark/Contrast di AniList.
+- [ ] **SharedGlobalObserver Audit**: Verificare l'impatto prestazionale dello scansionamento globale rispetto a MutationObservers mirati.
 
 ## 📈 Project Management
 - [ ] **Setup Git Pubblico**: Configurare il repository ufficiale e archiviare i vecchi branch sperimentali.

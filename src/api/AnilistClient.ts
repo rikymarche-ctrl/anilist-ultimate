@@ -71,6 +71,7 @@ export class AnilistClient implements IApiClient {
   private queue: RequestQueueItem<any>[] = [];
   private activeRequests = 0;
   private isRateLimited = false;
+  private viewerCache: AniListUser | null = null;
 
   constructor(
     @inject(TOKENS.ErrorHandler) private errorHandler: IErrorHandler,
@@ -106,6 +107,7 @@ export class AnilistClient implements IApiClient {
    * Update request headers
    */
   private updateHeaders(): void {
+    this.viewerCache = null; // Invalidate cache on token change
     this.client = new GraphQLClient(API_CONFIG.ENDPOINT, {
       headers: this.getHeaders(),
     });
@@ -182,7 +184,7 @@ export class AnilistClient implements IApiClient {
 
     try {
       const response = await this.executeRequest(item);
-      
+
       // Standard queries expect just the data, queryRaw expects the full response
       if (item.isRaw) {
         item.resolve(response);
@@ -283,7 +285,7 @@ export class AnilistClient implements IApiClient {
       // Use raw fetch to get access to both data and errors if needed
       // Actually, we can use the client.rawRequest if we want to be clean
       const response = await this.client.rawRequest<T>(item.query, item.variables);
-      
+
       // If the caller used queryRaw, we return the whole thing
       // We detect this by checking if the resolve expectation matches
       // (This is a bit hacky but keeps the interface clean for now)
@@ -361,6 +363,8 @@ export class AnilistClient implements IApiClient {
    * Get current user details
    */
   public async getCurrentUser(): Promise<AniListUser> {
+    if (this.viewerCache) return this.viewerCache;
+
     const query = `
       query {
         Viewer {
@@ -380,7 +384,8 @@ export class AnilistClient implements IApiClient {
 
     try {
       const data = await this.query<{ Viewer: AniListUser }>(query);
-      return data.Viewer;
+      this.viewerCache = data.Viewer;
+      return this.viewerCache;
     } catch (error: unknown) {
       log.error('Failed to fetch user details', error);
       const statusCode = isApiError(error) ? error.response?.status : undefined;
