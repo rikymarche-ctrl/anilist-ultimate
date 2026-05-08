@@ -129,8 +129,8 @@ export class Toast extends BaseComponent<ToastProps> {
           }
         });
 
-        this.addEventListener(input, 'keypress', (e) => {
-          if (e.key === 'Enter') handleSave();
+        this.addEventListener(input, 'keypress', (e: Event) => {
+          if ((e as KeyboardEvent).key === 'Enter') handleSave();
         });
 
         this.addEventListener(saveBtn as HTMLElement, 'click', handleSave);
@@ -207,5 +207,8 @@ if (typeof document !== 'undefined') {
       to { transform: scaleX(0); }
     }
   `;
-  document.head.appendChild(style);
+  const target = document.head || document.documentElement;
+  if (target) {
+    target.appendChild(style);
+  }
 }

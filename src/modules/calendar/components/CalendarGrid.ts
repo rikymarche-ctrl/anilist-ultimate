@@ -16,7 +16,8 @@ import { BaseComponent } from '@ui/components/BaseComponent';
 import { container } from '@core/di/container';
 import { DayColumn } from './DayColumn';
 import { CalendarSkeleton } from './CalendarSkeleton';
-import { calendarStore } from '../CalendarStore';
+import { CalendarStore } from '../CalendarStore';
+import { TOKENS } from '@core/di/tokens';
 import { DAYS_OF_WEEK, TIME } from '@core/constants';
 import { log } from '@core/logger';
 import type { DayOfWeek, AnimeEntry } from '@core/types';
@@ -32,13 +33,18 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   private unsubscribe: (() => void) | null = null;
 
   constructor(
-    @inject('CalendarGridProps') props: CalendarGridProps
+    @inject('CalendarGridProps') props: CalendarGridProps,
+    @inject(TOKENS.CalendarStore) private store: CalendarStore
   ) {
     super(props);
+    // Re-render now that this.store is assigned (BaseComponent constructor calls render BEFORE this assignment)
+    this.element = this.render();
   }
 
   protected render(): HTMLElement {
-    const state = calendarStore.getState();
+    if (!this.store) return this.createElement('div', { class: 'calendar-grid-loading' });
+    
+    const state = this.store.getState();
     const { preferences, loading, entries } = state;
     const { hideEmptyDays, showEmptyToday } = preferences;
 
@@ -84,7 +90,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
       grid.classList.add(`days-count-${daysToShow.length}`);
 
       // Create day columns
-      const entriesByDay = calendarStore.getEntriesByDay();
+      const entriesByDay = this.store.getEntriesByDay();
       
       daysToShow.forEach((day) => {
         const props = {
@@ -174,7 +180,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
     }
 
     // Subscribe to store changes
-    this.unsubscribe = calendarStore.subscribe((state: any, prevState: any) => {
+    this.unsubscribe = this.store.subscribe((state: any, prevState: any) => {
       // Performance: Use direct comparisons instead of JSON.stringify
       const shouldRerender =
         state.loading !== prevState.loading ||
@@ -188,7 +194,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
     });
 
     // Start countdown update interval
-    calendarStore.startCountdownInterval(() => {
+    this.store.startCountdownInterval(() => {
       this.updateCountdowns();
     }, TIME.COUNTDOWN_UPDATE_INTERVAL);
   }
@@ -232,7 +238,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
    * Update countdown timers in all cards
    */
   private updateCountdowns(): void {
-    const { preferences } = calendarStore.getState();
+    const { preferences } = this.store.getState();
     if (preferences.timeFormat === 'countdown') {
       this.dayColumns.forEach((column) => {
         column.updateCardTimes('countdown');
@@ -274,7 +280,7 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
   }
 
   protected onUnmount(): void {
-    calendarStore.stopCountdownInterval();
+    this.store.stopCountdownInterval();
     if (this.unsubscribe) {
       this.unsubscribe();
     }

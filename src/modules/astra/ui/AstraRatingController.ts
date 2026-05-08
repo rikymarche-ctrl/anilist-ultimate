@@ -1,3 +1,9 @@
+/**
+ * @file AstraRatingController.ts
+ * @description Enterprise controller for the Astra Rating Modal.
+ * Refactored to align with Core Standards: DI, SOC, and secure templates.
+ */
+
 import { injectable, singleton, inject, delay } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraService } from '../AstraService';
@@ -15,11 +21,11 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { ToastService } from '@core/services/ToastService';
 import { AstraRatingStore } from './state/AstraRatingStore';
-import { html } from '@core/utils/Template';
+import { html, when } from '@core/utils/Template';
 
 /**
  * Enterprise implementation of the Rating Modal Controller.
- * Refactored to use DI for sub-components and secure templates.
+ * Orchestrates sub-components and manages the modal lifecycle.
  */
 @injectable()
 @singleton()
@@ -27,6 +33,7 @@ export class AstraRatingController extends AstraView {
   private overlay: HTMLElement | null = null;
   private store: AstraRatingStore | null = null;
   private isSaving: boolean = false;
+  private isOpening: boolean = false;
 
   constructor(
     @inject(delay(() => AstraService)) private service: AstraService,
@@ -42,10 +49,17 @@ export class AstraRatingController extends AstraView {
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN_MODAL, (detail: any) => this.open(detail.mediaId));
   }
 
+  /**
+   * Opens the rating modal for a specific media entry.
+   * 
+   * @param mediaId AniList media ID
+   */
   public async open(mediaId: number): Promise<void> {
-    if (this.overlay) return;
+    if (this.overlay || this.isOpening) return;
+    this.isOpening = true;
 
-    log.info(`[AstraRatingController] Opening modal for mediaId: ${mediaId}`);
+    try {
+      log.info(`[AstraRatingController] Opening modal for mediaId: ${mediaId}`);
 
     const data = await this.ratingService.fetchInitialData(mediaId);
     if (!data) {
@@ -88,7 +102,10 @@ export class AstraRatingController extends AstraView {
         document.removeEventListener('keydown', escHandler);
       }
     };
-    document.addEventListener('keydown', escHandler);
+      this.addEventListener(document.body, 'keydown', escHandler as any);
+    } finally {
+      this.isOpening = false;
+    }
   }
 
   private createDefaultWork(media: any, type: 'anime' | 'manga' | 'novel'): AstraWork {
@@ -110,8 +127,11 @@ export class AstraRatingController extends AstraView {
   private renderContainer(): void {
     this.overlay = document.createElement('div');
     this.overlay.className = 'astra-modal-overlay';
-    document.body.appendChild(this.overlay);
-    document.body.style.overflow = 'hidden';
+    const target = document.body || document.documentElement;
+    if (target) {
+      target.appendChild(this.overlay);
+      if (document.body) document.body.style.overflow = 'hidden';
+    }
 
     this.mount(this.overlay);
 
@@ -120,6 +140,9 @@ export class AstraRatingController extends AstraView {
     });
   }
 
+  /**
+   * Closes the modal and triggers auto-save if necessary.
+   */
   public async close(): Promise<void> {
     if (!this.overlay || !this.store) return;
 
@@ -138,6 +161,9 @@ export class AstraRatingController extends AstraView {
     }, 350);
   }
 
+  /**
+   * Main shell template for the rating modal.
+   */
   protected template(): HTMLElement {
     const state = this.store?.getState();
     const activeTab = state?.activeTab || 'rating';
@@ -147,14 +173,14 @@ export class AstraRatingController extends AstraView {
       <div class="astra-modal astra-modal--rating">
         <nav class="astra-modal-nav">
           <div class="astra-nav-item astra-nav-item--ghost"></div>
-          <div class="astra-nav-item ${activeTab === 'rating' ? 'active' : ''}" data-tab="rating">
+          <div class="astra-nav-item ${when(activeTab === 'rating', 'active')}" data-tab="rating">
             <i class="fa fa-sliders"></i> <span>Rating</span>
           </div>
-          <div class="astra-nav-item ${activeTab === 'journal' ? 'active' : ''}" data-tab="journal">
+          <div class="astra-nav-item ${when(activeTab === 'journal', 'active')}" data-tab="journal">
             <i class="fa fa-book"></i> <span>Journal</span>
           </div>
           <div style="flex: 1;"></div>
-          <div class="astra-nav-item astra-nav-save ${isDirty ? 'dirty' : ''} ${activeTab !== 'journal' ? 'hidden' : ''}" id="sidebar-save-btn">
+          <div class="astra-nav-item astra-nav-save ${when(isDirty, 'dirty')} ${when(activeTab !== 'journal', 'hidden')}" id="sidebar-save-btn">
             <i class="fa fa-check"></i> <span>Save</span>
           </div>
         </nav>
@@ -172,6 +198,14 @@ export class AstraRatingController extends AstraView {
     if (!this.store) return;
     this.renderHeader();
     this.renderTabContent();
+  }
+
+  protected override onUnmount(): void {
+    this.header.unmount();
+    this.scoreForm.unmount();
+    this.journalView.unmount();
+    this.radarPreview.unmount();
+    super.onUnmount();
   }
 
   private renderHeader(): void {
@@ -205,6 +239,10 @@ export class AstraRatingController extends AstraView {
     const state = this.store?.getState();
     if (!content || !state) return;
 
+    // Ensure components are unmounted before re-mounting in a new container
+    this.scoreForm.unmount();
+    this.journalView.unmount();
+
     content.innerHTML = '';
 
     if (state.activeTab === 'rating') {
@@ -215,7 +253,7 @@ export class AstraRatingController extends AstraView {
       this.scoreForm.mount(formMount, state);
 
       const season = state.work.seasons[state.currentSeasonIdx];
-      const consolidated = this.consolidateScores(season.scores);
+      const consolidated = this.service.consolidateScores(season.scores);
 
       this.scoreForm.updateSectionScores(consolidated);
 
@@ -234,24 +272,21 @@ export class AstraRatingController extends AstraView {
     }
   }
 
-  private consolidateScores(rawScores: Record<string, number | null>): Record<string, number | null> {
-    const sections = this.service.getSections();
-    const consolidated: Record<string, number | null> = {};
-    sections.forEach(s => {
-      consolidated[s.id] = this.service.calcSectionScore(s, rawScores);
-    });
-    return consolidated;
-  }
-
+  /**
+   * Binds modal interaction events.
+   */
   protected bindEvents(): void {
     this.$$('.astra-nav-item').forEach(item => {
-      item.addEventListener('click', () => {
+      this.addEventListener(item, 'click', () => {
         const tab = (item as HTMLElement).dataset.tab as 'rating' | 'journal';
         if (tab) this.store?.setTab(tab);
       });
     });
 
-    this.$('#sidebar-save-btn')?.addEventListener('click', () => this.save(true));
+    const saveBtn = this.$('#sidebar-save-btn');
+    if (saveBtn) {
+      this.addEventListener(saveBtn, 'click', () => this.save(true));
+    }
 
     this.eventBus.on('astra-store-updated', (payload: any) => this.handleStoreUpdate(payload));
     this.eventBus.on('astra-save-request', () => this.save(true));
@@ -273,7 +308,7 @@ export class AstraRatingController extends AstraView {
       }
     } else if (type === 'score-update' || type === 'override-change') {
       const season = state.work.seasons[state.currentSeasonIdx];
-      const consolidated = this.consolidateScores(season.scores);
+      const consolidated = this.service.consolidateScores(season.scores);
       
       this.radarPreview.updateRadar(consolidated, this.service.getSections());
       this.scoreForm.updateSectionScores(consolidated);
@@ -287,6 +322,11 @@ export class AstraRatingController extends AstraView {
     }
   }
 
+  /**
+   * Persists the current state to the backend and synchronizes with AniList.
+   * 
+   * @param shouldClose Whether to close the modal after a successful save
+   */
   private async save(shouldClose: boolean): Promise<void> {
     const state = this.store?.getState();
     if (this.isSaving || !state || !this.overlay) return;

@@ -11,14 +11,15 @@ import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
 import { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
-import { calendarStore } from '@/modules/calendar/CalendarStore';
+import { CalendarStore } from '@/modules/calendar/CalendarStore';
 import type { IConfigManager } from '@core/interfaces/IConfigManager';
 
 @injectable()
 export class SocialMaskingService {
   constructor(
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
-    @inject(TOKENS.Config) private config: IConfigManager
+    @inject(TOKENS.Config) private config: IConfigManager,
+    @inject(TOKENS.CalendarStore) private store: CalendarStore
   ) {}
 
   /**
@@ -31,7 +32,7 @@ export class SocialMaskingService {
     this.sync();
 
     // 1. Subscribe to store changes for real-time updates
-    calendarStore.subscribeToSelector(
+    this.store.subscribeToSelector(
       (state: any) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
@@ -49,7 +50,7 @@ export class SocialMaskingService {
    * Synchronizes the DOM state with current preferences
    */
   public sync(): void {
-    const state = calendarStore.getState();
+    const state = this.store.getState();
     const { socialEnabled, socialShowAvatars } = state.preferences;
     const astraEnabled = this.config.isFeatureEnabled('astra');
 

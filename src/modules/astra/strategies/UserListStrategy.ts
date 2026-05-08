@@ -3,8 +3,10 @@
  * @description Strategy for user anime/manga list pages.
  */
 
+import { injectable } from 'tsyringe';
 import { ICardEnhancementStrategy } from './ICardEnhancementStrategy';
 
+@injectable()
 export class UserListStrategy implements ICardEnhancementStrategy {
   public readonly name = 'user-list';
 

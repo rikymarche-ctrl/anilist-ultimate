@@ -5,7 +5,8 @@
 
 import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
-import { calendarStore } from '../CalendarStore';
+import { CalendarStore } from '../CalendarStore';
+import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
 import { html, map, when } from '@core/utils/Template';
 import type { CalendarPreferences } from '@core/types';
@@ -21,14 +22,19 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   private activeTab: string = 'layout';
 
   constructor(
-    @inject('SettingsPanelProps') props: SettingsPanelProps
+    @inject('SettingsPanelProps') props: SettingsPanelProps,
+    @inject(TOKENS.CalendarStore) private store: CalendarStore
   ) {
     super(props);
+    // Re-render now that this.store is assigned (BaseComponent constructor calls render BEFORE this assignment)
+    this.element = this.render();
   }
 
   protected render(): HTMLElement {
+    if (!this.store) return this.createElement('div', { class: 'settings-panel-loading' });
+    
     if (!this.activeTab) this.activeTab = 'layout';
-    const prefs = calendarStore.getState().preferences;
+    const prefs = this.store.getState().preferences;
 
     return html`
       <div class="settings-overlay">
@@ -338,7 +344,7 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     this.showSavedFeedback();
     
     // Auto-save immediately
-    calendarStore.savePreferences({ [setting]: value }).then(() => {
+    this.store.savePreferences({ [setting]: value }).then(() => {
       window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
     });
   }
@@ -362,14 +368,14 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     this.showSavedFeedback();
     
     // Auto-save immediately
-    calendarStore.savePreferences({ [setting]: value }).then(() => {
+    this.store.savePreferences({ [setting]: value }).then(() => {
       window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
     });
   }
 
   private async handleReset(): Promise<void> {
     if (confirm('Reset all settings to defaults?')) {
-      await calendarStore.resetPreferences();
+      await this.store.resetPreferences();
       window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
       this.rerender();
       log.success('Settings reset');

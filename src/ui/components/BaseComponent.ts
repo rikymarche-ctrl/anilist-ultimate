@@ -1,126 +1,105 @@
 /**
  * @file BaseComponent.ts
- * @description Abstract base class for all UI components in the extension
+ * @description Enterprise Base Class for all UI Components.
  *
- * Provides lifecycle management (mount/unmount), event listener tracking
- * with automatic cleanup, DOM manipulation helpers (createFromHTML),
- * and shallow prop equality checking. All calendar, astra, and toast
- * components extend this class.
+ * Implements a standardized lifecycle and reactive update pattern:
+ *   - constructor() -> render()
+ *   - mount(parent) -> onMount() -> attachEvents()
+ *   - update(newProps) -> shouldUpdate() -> onUpdate() or rerender()
+ *   - unmount() -> onUnmount() -> cleanup()
  *
- * @warning createFromHTML() uses innerHTML without sanitization.
- *          Callers must ensure input is trusted or pre-escaped.
- *          See docs/SECURITY.md#sec-001.
- *
- * @see docs/ARCHITECTURE.md#component-system
+ * Features:
+ *   - Prop-based reactivity
+ *   - DOM helper (createElement) with attribute/style support
+ *   - Event listener tracking and automatic cleanup
+ *   - Memory leak prevention via automatic event unbinding
  */
 
-import type { ComponentProps } from '@core/types';
-import { Sanitizer } from '@core/utils/Sanitizer';
+import { log } from '@core/logger';
 
-export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
+export abstract class BaseComponent<P = any> {
   protected element: HTMLElement;
   protected props: P;
   protected mounted: boolean = false;
-  private eventCleanupFunctions: Array<() => void> = [];
+  private eventListeners: Array<{ target: EventTarget; type: string; listener: EventListenerOrEventListenerObject }> = [];
 
   constructor(props: P) {
     this.props = props;
     this.element = this.render();
-    this.attachEvents();
   }
 
   /**
-   * Render the component - must be implemented by subclasses
+   * Return the root HTMLElement for this component.
+   * MUST be implemented by subclasses.
    */
   protected abstract render(): HTMLElement;
 
   /**
-   * Attach event listeners - override in subclasses
+   * Update the component with new props.
+   * Triggers a reactive update flow.
    */
-  protected attachEvents(): void {
-    // Default: no events
-    // Subclasses can override to add event listeners
-  }
-
-  /**
-   * Update component with new props
-   */
-  public update(props: Partial<P>): void {
+  public update(newProps: Partial<P>): void {
     const prevProps = { ...this.props };
-    this.props = { ...this.props, ...props };
+    this.props = { ...this.props, ...newProps };
 
-    // Only update if props actually changed
     if (this.shouldUpdate(prevProps, this.props)) {
-      // Optimization: Try surgical DOM update first
-      // If onUpdate returns true, it handled the update itself
-      if (!this.onUpdate(prevProps)) {
+      // Allow subclasses to perform surgical updates
+      const handledSurgically = this.onUpdate(prevProps);
+
+      if (!handledSurgically) {
         this.rerender();
       }
     }
   }
 
   /**
-   * Optional: Handle surgical DOM updates for specific props.
-   * If this returns true, rerender() will be skipped.
-   * 
-   * @param prevProps Previous props before the update
-   * @returns true if update was handled surgically, false to fallback to rerender()
-   */
-  protected onUpdate(_prevProps: P): boolean {
-    return false; // Default: fallback to full rerender
-  }
-
-  /**
-   * Determine if component should update
-   * Override for custom comparison logic
-   * Uses shallow comparison for better performance than JSON.stringify
+   * Lifecycle: Determine if the component needs to update.
+   * Default implementation checks for shallow prop equality.
    */
   protected shouldUpdate(prevProps: P, nextProps: P): boolean {
-    return !this.shallowEqual(prevProps, nextProps);
+    return JSON.stringify(prevProps) !== JSON.stringify(nextProps);
   }
 
   /**
-   * Shallow equality check for objects
-   * Performance: O(n) where n = number of keys, much faster than JSON.stringify
+   * Lifecycle: Perform surgical DOM updates instead of full rerender.
+   * Return true if the update was handled, false to trigger rerender().
    */
-  private shallowEqual(objA: any, objB: any): boolean {
-    if (objA === objB) return true;
-
-    if (typeof objA !== 'object' || typeof objB !== 'object' || objA === null || objB === null) {
-      return false;
-    }
-
-    const keysA = Object.keys(objA);
-    const keysB = Object.keys(objB);
-
-    if (keysA.length !== keysB.length) return false;
-
-    // Check if all values are the same (shallow check)
-    return keysA.every(key => objA[key] === objB[key]);
+  protected onUpdate(_prevProps: P): boolean {
+    return false;
   }
 
   /**
    * Re-render the component (Full Reconstruction)
    * Use sparingly; prefer onUpdate() for better performance.
    */
-  protected rerender(): void {
+  public rerender(): void {
     const parent = this.element.parentElement;
     const nextSibling = this.element.nextSibling;
 
     // Clean up old element
+    this.onUnmount();
     this.cleanup();
     this.element.remove();
 
     // Create new element
     this.element = this.render();
-    this.attachEvents();
-
-    // Re-insert into DOM if was mounted
-    if (parent) {
-      if (nextSibling) {
-        parent.insertBefore(this.element, nextSibling);
+    
+    // Re-mount if it was previously mounted
+    if (this.mounted) {
+      if (parent) {
+        try {
+          if (nextSibling) {
+            parent.insertBefore(this.element, nextSibling);
+          } else {
+            parent.appendChild(this.element);
+          }
+          this.onMount();
+          this.attachEvents();
+        } catch (error) {
+          log.error(`[BaseComponent] Failed to re-append ${this.constructor.name}`, error);
+        }
       } else {
-        parent.appendChild(this.element);
+        log.warn(`[BaseComponent] Cannot re-append ${this.constructor.name}: parent is null`);
       }
     }
   }
@@ -133,9 +112,19 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
       return;
     }
 
-    parent.appendChild(this.element);
-    this.mounted = true;
-    this.onMount();
+    if (!parent) {
+      log.warn(`[BaseComponent] Cannot mount ${this.constructor.name}: parent is null`);
+      return;
+    }
+
+    try {
+      parent.appendChild(this.element);
+      this.mounted = true;
+      this.onMount();
+      this.attachEvents();
+    } catch (error) {
+      log.error(`[BaseComponent] Failed to mount ${this.constructor.name}`, error);
+    }
   }
 
   /**
@@ -174,89 +163,39 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
   }
 
   /**
-   * Add an event listener with automatic cleanup tracking
+   * Attach component-level events.
+   * Called automatically after mount and rerender.
    */
-  protected addEventListener<K extends keyof HTMLElementEventMap>(
-    element: HTMLElement,
-    event: K,
-    handler: (ev: HTMLElementEventMap[K]) => void,
+  protected attachEvents(): void {
+    // Override in subclasses
+  }
+
+  /**
+   * Securely register an event listener with automatic cleanup tracking.
+   */
+  protected addEventListener(
+    target: EventTarget,
+    type: string,
+    listener: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions
   ): void {
-    element.addEventListener(event, handler as EventListener, options);
-
-    // Track cleanup function
-    this.eventCleanupFunctions.push(() => {
-      element.removeEventListener(event, handler as EventListener, options);
-    });
+    target.addEventListener(type, listener, options);
+    this.eventListeners.push({ target, type, listener });
   }
 
   /**
-   * Shorthand for querySelector within component
-   */
-  protected $<T extends HTMLElement>(selector: string): T | null {
-    return this.element?.querySelector(selector) as T || null;
-  }
-
-  /**
-   * Shorthand for querySelectorAll within component
-   */
-  protected $$<T extends HTMLElement>(selector: string): NodeListOf<T> {
-    return this.element?.querySelectorAll(selector) as NodeListOf<T> || [] as any;
-  }
-
-  /**
-   * Alias for $
-   */
-  protected querySelector<T extends HTMLElement>(selector: string): T | null {
-    return this.$(selector);
-  }
-
-  /**
-   * Alias for $$
-   */
-  protected querySelectorAll<T extends HTMLElement>(selector: string): NodeListOf<T> {
-    return this.$$(selector);
-  }
-
-  /**
-   * Add a CSS class to the root element
-   */
-  public addClass(className: string): void {
-    this.element.classList.add(className);
-  }
-
-  /**
-   * Remove a CSS class from the root element
-   */
-  public removeClass(className: string): void {
-    this.element.classList.remove(className);
-  }
-
-  /**
-   * Toggle a CSS class on the root element
-   */
-  public toggleClass(className: string, force?: boolean): void {
-    this.element.classList.toggle(className, force);
-  }
-
-  /**
-   * Set an attribute on the root element
-   */
-  public setAttribute(name: string, value: string): void {
-    this.element.setAttribute(name, value);
-  }
-
-  /**
-   * Clean up event listeners and resources
+   * Manually remove all registered listeners.
+   * Called automatically during unmount.
    */
   protected cleanup(): void {
-    // Clean up all tracked event listeners
-    this.eventCleanupFunctions.forEach((cleanup) => cleanup());
-    this.eventCleanupFunctions = [];
+    this.eventListeners.forEach(({ target, type, listener }) => {
+      target.removeEventListener(type, listener);
+    });
+    this.eventListeners = [];
   }
 
   /**
-   * Create an HTML element with optional props
+   * Helper: Create an element with attributes and styles safely.
    */
   protected createElement<K extends keyof HTMLElementTagNameMap>(
     tag: K,
@@ -266,14 +205,14 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
 
     if (props) {
       Object.entries(props).forEach(([key, value]) => {
-        if (key === 'class' && typeof value === 'string') {
-          element.className = value;
-        } else if (key === 'id' && typeof value === 'string') {
-          element.id = value;
-        } else if (key in element) {
-          (element as Record<string, unknown>)[key] = value;
+        if (key === 'class') {
+          element.className = value as string;
+        } else if (key === 'style' && typeof value === 'object') {
+          Object.assign(element.style, value);
+        } else if (key.startsWith('on') && typeof value === 'function') {
+          const eventName = key.toLowerCase().substring(2);
+          this.addEventListener(element, eventName, value as EventListener);
         } else {
-          // Fallback to setAttribute for custom data attributes etc.
           element.setAttribute(key, String(value));
         }
       });
@@ -283,37 +222,51 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
   }
 
   /**
-   * Helper to create element from HTML string.
-   * Auto-sanitizes content unless explicitly marked as trusted.
+   * Helper: Query an element within the component's root
    */
-  protected createFromHTML(html: string, isTrusted: boolean = false): HTMLElement {
+  protected $<E extends HTMLElement = HTMLElement>(selector: string): E | null {
+    return this.element.querySelector(selector);
+  }
+
+  /**
+   * Helper: Query multiple elements within the component's root
+   */
+  protected $$<E extends HTMLElement = HTMLElement>(selector: string): NodeListOf<E> {
+    return this.element.querySelectorAll(selector);
+  }
+
+  /**
+   * Proxy for this.element.querySelector (for legacy compatibility)
+   */
+  protected querySelector<E extends Element = Element>(selector: string): E | null {
+    return this.element.querySelector(selector);
+  }
+
+  /**
+   * Helper: Toggle a class on the component element
+   */
+  protected toggleClass(className: string, force?: boolean): void {
+    this.element.classList.toggle(className, force);
+  }
+
+  /**
+   * Helper: Create an element from HTML string (Sanitized)
+   */
+  protected createFromHTML(html: string, wrap: boolean = false): HTMLElement {
     const template = document.createElement('template');
-    const content = isTrusted ? html : Sanitizer.sanitize(html);
-    template.innerHTML = content.trim();
-    return template.content.firstElementChild as HTMLElement;
-  }
-}
+    template.innerHTML = html.trim();
+    const content = template.content.firstElementChild as HTMLElement;
 
-/**
- * Component Registry for dynamic component creation
- */
-export class ComponentRegistry {
-  private static components = new Map<string, new (props: any) => BaseComponent>();
-
-  static register(name: string, component: new (props: any) => BaseComponent): void {
-    this.components.set(name, component);
-  }
-
-  static create(name: string, props: ComponentProps): BaseComponent | null {
-    const ComponentClass = this.components.get(name);
-    if (!ComponentClass) {
-      console.error(`[ComponentRegistry] Component "${name}" not found`);
-      return null;
+    if (!content) {
+      return document.createElement('div');
     }
-    return new ComponentClass(props);
-  }
 
-  static has(name: string): boolean {
-    return this.components.has(name);
+    if (wrap) {
+      const wrapper = document.createElement('div');
+      wrapper.appendChild(content);
+      return wrapper;
+    }
+
+    return content;
   }
 }

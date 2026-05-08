@@ -509,6 +509,12 @@
   color: white;
 }
 
+.pill-section:active {
+  transform: translateY(1.5px);
+  background-color: rgba(74, 158, 255, 0.9);
+  transition: transform 0.05s ease;
+}
+
 .pill-section i {
   transition: transform 0.2s ease;
 }

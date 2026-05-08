@@ -25,6 +25,7 @@
 
 import 'reflect-metadata'; // Required for tsyringe
 import { container } from '@core/di/container';
+
 import { ReviewService } from './modules/reviews/ReviewService';
 import { TOKENS } from '@core/di/tokens';
 
@@ -97,11 +98,18 @@ import { AstraScoreForm } from '@/modules/astra/ui/components/AstraScoreForm';
 import { AstraEpisodeJournal } from '@/modules/astra/ui/components/AstraEpisodeJournal';
 import { AstraRadarPreview } from '@/modules/astra/ui/components/AstraRadarPreview';
 import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
+import { AstraStatsHeader } from '@/modules/astra/ui/components/AstraStatsHeader';
+import { AstraFilterBar } from '@/modules/astra/ui/components/AstraFilterBar';
+import { AstraWorkTable } from '@/modules/astra/ui/components/AstraWorkTable';
+import { AstraSettingsView } from '@/modules/astra/ui/components/AstraSettingsView';
 import { PillUIBuilder } from '@/modules/astra/ui/PillUIBuilder';
 import { HomeProgressStrategy } from '@/modules/astra/strategies/HomeProgressStrategy';
 import { UserListStrategy } from '@/modules/astra/strategies/UserListStrategy';
-import { AstraEnhancementService } from '@/modules/astra/services/AstraEnhancementService';
-import { AstraNavigationService } from '@/modules/astra/services/AstraNavigationService';
+import { AstraEnhancementService } from './modules/astra/services/AstraEnhancementService';
+import { AstraNavigationService } from './modules/astra/services/AstraNavigationService';
+import { AstraRoutingService } from './modules/astra/services/AstraRoutingService';
+import { AstraPillManager } from './modules/astra/services/AstraPillManager';
+import { AstraUIBridge } from './modules/astra/services/AstraUIBridge';
 import { AstraStatusSelector } from '@/modules/astra/ui/components/form/AstraStatusSelector';
 import { AstraProgressStepper } from '@/modules/astra/ui/components/form/AstraProgressStepper';
 import { AstraCriteriaList } from '@/modules/astra/ui/components/form/AstraCriteriaList';
@@ -167,12 +175,16 @@ export async function setupDI(isBackground = false): Promise<void> {
 
   container.registerSingleton(TOKENS.ModuleRegistry, ModuleRegistry);
   container.registerSingleton(CacheFactory);
-  container.registerSingleton(TOKENS.CalendarStore, CalendarStore);
+  container.registerSingleton(CalendarStore);
+  container.register(TOKENS.CalendarStore, { useToken: CalendarStore });
 
   // Astra Core
   container.registerSingleton(AstraRepository);
   container.registerSingleton(AstraSyncService);
+  container.registerSingleton(AstraService);
+  container.register(TOKENS.AstraService, { useToken: AstraService });
   container.registerSingleton(TOKENS.AstraStore, AstraDashboardStore);
+  container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
 
   // Native UI Sync Service
   container.registerSingleton(TOKENS.NativeUiSyncService, NativeUiSyncService);
@@ -210,10 +222,17 @@ export async function setupDI(isBackground = false): Promise<void> {
   // ============================================================================
 
   // Calendar Services
-  container.registerSingleton(TOKENS.CalendarService, CalendarService);
-  container.registerSingleton(TOKENS.CalendarDomService, CalendarDomService);
-  container.registerSingleton(TOKENS.CalendarDataService, CalendarDataService);
-  container.registerSingleton(TOKENS.CalendarSocialService, CalendarSocialService);
+  container.registerSingleton(CalendarService);
+  container.register(TOKENS.CalendarService, { useToken: CalendarService });
+  
+  container.registerSingleton(CalendarDomService);
+  container.register(TOKENS.CalendarDomService, { useToken: CalendarDomService });
+  
+  container.registerSingleton(CalendarDataService);
+  container.register(TOKENS.CalendarDataService, { useToken: CalendarDataService });
+  
+  container.registerSingleton(CalendarSocialService);
+  container.register(TOKENS.CalendarSocialService, { useToken: CalendarSocialService });
 
   // Social Services
   container.registerSingleton(TOKENS.SocialService, SocialService);
@@ -233,39 +252,73 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.registerSingleton(TOKENS.NotificationGroupService, NotificationGroupService);
   container.registerSingleton(TOKENS.NotificationFilterService, NotificationFilterService);
 
-  // Astra Services
-  container.registerSingleton(AstraDashboardStore);
-  container.register(TOKENS.AstraStore, { useToken: AstraDashboardStore });
+  // Astra Core
   container.registerSingleton(AstraRepository);
   container.registerSingleton(AstraSyncService);
   container.registerSingleton(AstraService);
   container.register(TOKENS.AstraService, { useToken: AstraService });
-  container.registerSingleton(TOKENS.AstraFilterService, AstraFilterService);
-  container.registerSingleton(TOKENS.AstraStatsService, AstraStatsService);
-  container.registerSingleton(TOKENS.AstraJournalService, AstraJournalService);
+  
+  container.registerSingleton(AstraDashboardStore);
+  container.register(TOKENS.AstraStore, { useToken: AstraDashboardStore });
+  
+  container.registerSingleton(AstraFilterService);
+  container.register(TOKENS.AstraFilterService, { useToken: AstraFilterService });
+  
+  container.registerSingleton(AstraStatsService);
+  container.register(TOKENS.AstraStatsService, { useToken: AstraStatsService });
+  
+  container.registerSingleton(AstraJournalService);
+  container.register(TOKENS.AstraJournalService, { useToken: AstraJournalService });
+  
   container.registerSingleton(AstraRatingService);
   container.register(TOKENS.IAstraRatingService, { useToken: AstraRatingService });
+  
   container.registerSingleton(AstraRatingController);
   container.register(TOKENS.AstraRatingController, { useToken: AstraRatingController });
+  
   container.registerSingleton(AstraRatingHeader);
   container.registerSingleton(AstraScoreForm);
   container.registerSingleton(AstraStatusSelector);
-  container.register(AstraProgressStepper, { useClass: AstraProgressStepper }); // Transient
+  container.register(AstraProgressStepper, { useClass: AstraProgressStepper });
   container.registerSingleton(AstraCriteriaList);
   container.registerSingleton(AstraEpisodeJournal);
   container.registerSingleton(AstraRadarPreview);
-  container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
-  container.registerSingleton(TOKENS.AstraPillBuilder, PillUIBuilder);
-  container.registerSingleton(TOKENS.AstraEnhancementService, AstraEnhancementService);
-  container.registerSingleton(TOKENS.AstraNavigationService, AstraNavigationService);
+  container.registerSingleton(AstraStatsHeader);
+  container.registerSingleton(AstraFilterBar);
+  container.registerSingleton(AstraWorkTable);
+  container.registerSingleton(AstraSettingsView);
+  
+  container.registerSingleton(AstraDashboard);
+  container.register(TOKENS.AstraDashboard, { useToken: AstraDashboard });
+  
+  container.registerSingleton(PillUIBuilder);
+  container.register(TOKENS.AstraPillBuilder, { useToken: PillUIBuilder });
+  
+  container.registerSingleton(AstraEnhancementService);
+  container.register(TOKENS.AstraEnhancementService, { useToken: AstraEnhancementService });
+  
+  container.registerSingleton(AstraNavigationService);
+  container.register(TOKENS.AstraNavigationService, { useToken: AstraNavigationService });
+  
+  container.registerSingleton(AstraUIBridge);
+  container.registerSingleton(AstraRoutingService);
+  container.registerSingleton(AstraPillManager);
+  
+  // Explicitly register AstraModule
+  container.registerSingleton(AstraModule);
   
   // Register Astra Strategies
+  container.registerSingleton(HomeProgressStrategy);
+  container.registerSingleton(UserListStrategy);
+  
   container.register(TOKENS.AstraStrategies, {
-    useValue: [
-      new HomeProgressStrategy(),
-      new UserListStrategy(),
+    useFactory: (c) => [
+      c.resolve(HomeProgressStrategy),
+      c.resolve(UserListStrategy),
     ]
   });
+  console.log('[Setup] Astra strategies registered');
+
   container.registerSingleton(TOKENS.MediaMusicModule, MediaMusicModule);
 
   // ============================================================================
@@ -275,17 +328,13 @@ export async function setupDI(isBackground = false): Promise<void> {
   // Initialize AuthTokenService (CRITICAL: must be first)
   const authTokenService = container.resolve<AuthTokenService>(TOKENS.AuthTokenService);
   await authTokenService.initialize();
-  console.log('[Setup] Auth token service initialized');
 
   // Load configuration
   const config = container.resolve<IConfigManager>(TOKENS.Config);
   await config.load();
-  console.log('[Setup] Configuration loaded');
 
-  // Setup error handler
   const errorHandler = container.resolve<ErrorHandler>(TOKENS.ErrorHandler);
   errorHandler.setupGlobalHandlers();
-  console.log('[Setup] Error handler initialized');
 
   // Start navigation service (Background can use it for path logic, but no DOM listeners)
   const navigationService = container.resolve<NavigationService>(TOKENS.NavigationService);
@@ -414,7 +463,7 @@ export async function setupDI(isBackground = false): Promise<void> {
       description: 'Advanced scoring system (Astra)',
       enabled: true,
       factory: () => container.resolve(AstraModule),
-      pageMatch: (path) => path === '/' || path === '/home' || path.includes('/user/') || path.includes('/astra') || /^\/(anime|manga)\/\d+/.test(path),
+      pageMatch: () => true, // Global module (Navigation & Multi-page enhancements)
     },
     {
       name: 'mediaMetadata',

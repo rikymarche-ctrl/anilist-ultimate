@@ -1,186 +1,123 @@
-/**
- * @file AstraModule.ts
- * @description Orchestrator for the Astra advanced multi-criteria scoring system.
- */
-
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
-import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
-import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { AstraService } from './AstraService';
-import { AstraDashboard } from './ui/AstraDashboard';
 import { AstraRatingController } from './ui/AstraRatingController';
-import { SocialMaskingService } from '@core/services/SocialMaskingService';
 import { AstraEnhancementService } from './services/AstraEnhancementService';
 import { AstraNavigationService } from './services/AstraNavigationService';
+import { AstraPillManager } from './services/AstraPillManager';
+import { AstraUIBridge } from './services/AstraUIBridge';
+import { AstraDashboard } from './ui/AstraDashboard';
 import { PreferencesService } from '@core/services/PreferencesService';
-import type { ToastService } from '@core/services/ToastService';
+import { SocialMaskingService } from '@core/services/SocialMaskingService';
 
 /**
- * Main module for the Astra scoring system.
- * Coordinates data flow, UI injection, and event handling across the AniList interface.
+ * Main module for the Astra advanced scoring system.
+ * Orchestrates navigation, card enhancements, and dashboard state.
  */
 @injectable()
 export class AstraModule extends BaseModule {
+  private service!: AstraService;
+  private ratingModal!: AstraRatingController;
+  private sharedObserver!: SharedGlobalObserver;
+  private maskingService!: SocialMaskingService;
+  private enhancementService!: AstraEnhancementService;
+  private navService!: AstraNavigationService;
+  private pillManager!: AstraPillManager;
+  private preferences!: PreferencesService;
+  private bridge!: AstraUIBridge;
   private intervals: number[] = [];
-  private globalClickListener: ((e: MouseEvent) => void) | null = null;
 
   constructor(
-    @inject(TOKENS.AstraService) private service: AstraService,
-    @inject(TOKENS.AstraDashboard) private dashboard: AstraDashboard,
-    @inject(TOKENS.AstraRatingController) private ratingModal: AstraRatingController,
-    @inject(TOKENS.ApiClient) private apiClient: IApiClient,
-    @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
-    @inject(TOKENS.EventBus) protected eventbus: IEventBus,
-    @inject(TOKENS.SocialMaskingService) private maskingService: SocialMaskingService,
-    @inject(TOKENS.AstraEnhancementService) private enhancementService: AstraEnhancementService,
-    @inject(TOKENS.AstraNavigationService) private navService: AstraNavigationService,
-    @inject(TOKENS.PreferencesService) private preferences: PreferencesService,
-    @inject(TOKENS.ToastService) private toast: ToastService
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus
   ) {
-    super(eventbus);
+    super(eventBus);
   }
 
   /**
-   * Initializes the Astra module, sets up observers, and triggers initial DOM scanning.
+   * Lazy-resolves dependencies to break circular patterns in the ModuleRegistry lifecycle.
    */
-  public async init(): Promise<void> {
-    log.info('[Astra] Module booting...');
-
-    if (this.apiClient.isAuthenticated()) {
-      await this.service.init();
+  private resolveDependencies(): void {
+    this.service = container.resolve(AstraService);
+    this.ratingModal = container.resolve(AstraRatingController);
+    this.sharedObserver = container.resolve(TOKENS.SharedGlobalObserver);
+    this.maskingService = container.resolve(TOKENS.SocialMaskingService);
+    this.enhancementService = container.resolve(AstraEnhancementService);
+    this.navService = container.resolve(AstraNavigationService);
+    this.pillManager = container.resolve(AstraPillManager);
+    this.preferences = container.resolve(TOKENS.PreferencesService);
+    this.bridge = container.resolve(AstraUIBridge);
+    // Initialize Dashboard to start listening for global open events
+    try {
+      container.resolve(AstraDashboard);
+    } catch (e) {
+      log.error('[AstraModule] Failed to resolve AstraDashboard', e);
     }
+  }
 
+  public async init(): Promise<void> {
+    this.resolveDependencies();
+
+    // 0. Initialize Bridge (Static listeners for early clicks)
+    this.bridge.initGlobalListeners();
+
+    log.info('[Astra] Module initializing...');
+    await this.service.init().catch(() => { });
     this.maskingService.sync();
 
-    // 1. Navigation handling
-    this.onPageChange(async (event) => {
-      const path = event?.path || window.location.pathname;
-      if (path.includes('/astra')) this.renderDashboard();
-      this.enhancementService.enhanceCards(path);
-    });
+    // 2. Initial Enhancement Pass
+    this.enhancementService.enhanceCards(window.location.pathname);
 
-    // Final pass for any pre-existing cards
-    setTimeout(() => {
-      this.enhancementService.enhanceCards(window.location.pathname);
-    }, 1000);
+    // 3. Pill Interactions
+    this.pillManager.start();
 
-    // 2. Continuous enhancement via SharedObserver
+    // 4. Navbar Persistence
+    this.setupNavbarPersistence();
+
+    // 5. Background Enhancement Loop (Mutation-based)
     this.sharedObserver.register('astra-enhancer', () => {
       const path = window.location.pathname;
       this.enhancementService.enhanceCards(path);
-      this.navService.injectNavbarButton(() => this.eventbus.emit(EVENT_TYPES.ASTRA_OPEN));
       this.navService.hijackMediaButton((id) => this.ratingModal.open(id));
       this.navService.enhanceBrowseDropdown();
     });
 
-    // 3. Global Interaction Handler
-    this.setupGlobalClickListener();
-
-    // Initial run
-    const currentPath = window.location.pathname;
-    this.enhancementService.enhanceCards(currentPath);
-    this.navService.injectNavbarButton(() => this.eventbus.emit(EVENT_TYPES.ASTRA_OPEN));
-    this.navService.hijackMediaButton((id) => this.ratingModal.open(id));
-
-    // 4. Reactive UI Updates
+    // 6. Reactive Updates
     this.preferences.onChanges(() => {
-      log.debug('[Astra] Settings changed, refreshing pills...');
       this.enhancementService.refreshAllPills();
     });
+
+    // 7. Safety Refresh Interval (Fail-safe for static loads)
+    this.intervals.push(window.setInterval(() => {
+      this.enhancementService.enhanceCards(window.location.pathname);
+      this.navService.injectNavbarButton();
+    }, 3000));
   }
 
-  /**
-   * Sets up a global event listener to handle clicks on dynamically injected Astra pills.
-   * @private
-   */
-  private setupGlobalClickListener(): void {
-    if (this.globalClickListener) return;
+  private setupNavbarPersistence(): void {
+    const inject = () => this.navService.injectNavbarButton();
+    inject();
 
-    this.globalClickListener = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      const section = target?.closest<HTMLElement>('[data-action]');
-      const wrapper = section?.closest<HTMLElement>('.au-pill-wrapper');
+    this.sharedObserver.register('astra-nav-persistence', () => inject());
 
-      if (!section || !wrapper) return;
-
-      const mediaId = parseInt(wrapper.getAttribute('data-au-media-id') || '0', 10);
-      const action = section.getAttribute('data-action');
-      if (!mediaId || !action) return;
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      this.handlePillAction(section, mediaId, action);
-    };
-
-    window.addEventListener('click', this.globalClickListener, { capture: true });
-  }
-
-  /**
-   * Routes pill actions to their respective handlers.
-   * 
-   * @param section The specific pill section clicked.
-   * @param mediaId The AniList media ID associated with the card.
-   * @param action The action type (e.g., 'mark-watched', 'edit-entry').
-   * @private
-   */
-  private async handlePillAction(section: HTMLElement, mediaId: number, action: string): Promise<void> {
-    section.classList.add('au-pill-pressed');
-    setTimeout(() => section.classList.remove('au-pill-pressed'), 300);
-
-    if (action === 'mark-watched') {
-      try {
-        const result = await this.service.incrementProgress(mediaId);
-        if (result) {
-          this.toast.success(`✓ ${result.title} → Ep ${result.progress}`);
-        }
-      } catch (err: any) {
-        this.toast.error(err.message || 'Failed to update progress');
-      }
-    } else if (action === 'edit-entry') {
-      await this.ratingModal.open(mediaId);
-    } else if (action === 'social-activity') {
-      const card = section.closest<HTMLElement>('.au-astra-card');
-      const title = card?.querySelector('.title')?.textContent?.trim() || 'Media';
-      window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-        detail: { mediaId, title, element: card, type: 'ANIME' }
-      }));
+    const nav = document.querySelector('.nav') || document.querySelector('.header');
+    if (nav) {
+      const observer = new MutationObserver(() => inject());
+      observer.observe(nav, { childList: true, subtree: true });
+      this.observers.set('nav-local', observer);
     }
   }
 
-  /**
-   * Renders the Astra dashboard by mounting it to the user profile content area.
-   * @private
-   */
-  private renderDashboard(): void {
-    const container = document.querySelector('.user .content');
-    if (!container) return;
-    container.innerHTML = '';
-    (container as HTMLElement).style.display = 'block';
-    this.dashboard.mount(container as HTMLElement);
-    this.service.syncWithAniList().catch(() => { });
-  }
-
-  /**
-   * Returns the unique module identifier.
-   */
   public getName(): string { return 'astra'; }
 
-  /**
-   * Cleans up resources, observers, and listeners when the module is destroyed.
-   */
   public override async destroy(): Promise<void> {
     this.intervals.forEach(id => window.clearInterval(id));
-    if (this.globalClickListener) {
-      window.removeEventListener('click', this.globalClickListener, { capture: true });
-      this.globalClickListener = null;
-    }
+    this.pillManager.stop();
     this.sharedObserver.unregister('astra-enhancer');
+    this.sharedObserver.unregister('astra-nav-persistence');
     await super.destroy();
   }
 }

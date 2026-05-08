@@ -186,4 +186,16 @@ export class AstraService {
   public calcSeriesOverall(work: AstraWork): number | null {
     return AstraCalculator.calcSeriesOverall(work, this.repository.getSections(), this.repository.getSettings());
   }
+
+  /**
+   * Consolidates raw scores into section-level scores based on current configuration.
+   */
+  public consolidateScores(rawScores: Record<string, number | null>): Record<string, number | null> {
+    const sections = this.getSections();
+    const consolidated: Record<string, number | null> = {};
+    sections.forEach(s => {
+      consolidated[s.id] = this.calcSectionScore(s, rawScores);
+    });
+    return consolidated;
+  }
 }

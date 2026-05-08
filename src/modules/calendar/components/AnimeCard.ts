@@ -13,7 +13,7 @@
 
 import { injectable, inject, container } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
-import { calendarStore } from '../CalendarStore';
+import { CalendarStore } from '../CalendarStore';
 import { TOKENS } from '@core/di/tokens';
 import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { SocialRenderer } from '../../social/SocialRenderer';
@@ -32,9 +32,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private storeUnsubscribe: (() => void) | null = null;
 
   constructor(
-    @inject('AnimeCardProps') props: AnimeCardProps
+    @inject('AnimeCardProps') props: AnimeCardProps,
+    @inject(TOKENS.CalendarStore) private store: CalendarStore
   ) {
     super(props);
+    // Re-render now that this.store is assigned (BaseComponent constructor calls render BEFORE this assignment)
+    this.element = this.render();
   }
 
   private get calendarService(): ICalendarService {
@@ -42,6 +45,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   }
 
   protected render(): HTMLElement {
+    if (!this.store) return this.createElement('div', { class: 'anime-card-loading' });
     // Invalidate cached queries on render
     this.cachedActionPills = null;
 
@@ -91,7 +95,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   protected onMount(): void {
     // subscribeToSelector fires only when the relevant booleans actually change
-    this.storeUnsubscribe = calendarStore.subscribeToSelector(
+    this.storeUnsubscribe = this.store.subscribeToSelector(
       (state: any) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
@@ -196,7 +200,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
    * Always starts fresh (portal was destroyed before this call).
    */
   private syncSocialPortal(): void {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = this.store.getState().preferences;
     const { anime } = this.props;
 
     // Only show portal on home page (BUG-035 fix)
@@ -228,7 +232,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   }
 
   private refreshPillSocialButton(): void {
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = this.store.getState().preferences;
     const showPillSocial = socialEnabled && !socialShowAvatars;
 
     // Use cached query instead of querying every time
@@ -327,7 +331,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   private getCardContent(anime: AnimeEntry, options: CardOptions): HTMLElement {
     const { layoutMode, showTime, showEpisodeNumbers, timeFormat } = options;
-    const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
+    const { socialEnabled, socialShowAvatars } = this.store.getState().preferences;
 
     const showPillSocial = socialEnabled && !socialShowAvatars;
     let socialSection: HTMLElement | null = null;
@@ -478,6 +482,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       this.addEventListener(markWatchedBtn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         e.preventDefault();
+        
+        // Visual feedback
+        const btn = markWatchedBtn as HTMLElement;
+        btn.classList.add('au-pill-pressed');
+        setTimeout(() => btn.classList.remove('au-pill-pressed'), 300);
+        
         this.handleMarkWatched();
       });
     }
@@ -488,6 +498,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       this.addEventListener(editBtn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         e.preventDefault();
+        
+        // Visual feedback
+        const btn = editBtn as HTMLElement;
+        btn.classList.add('au-pill-pressed');
+        setTimeout(() => btn.classList.remove('au-pill-pressed'), 300);
+        
         this.handleEditEntry();
       });
     }
@@ -498,6 +514,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       this.addEventListener(socialBtn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         e.preventDefault();
+        
+        // Visual feedback
+        const btn = socialBtn as HTMLElement;
+        btn.classList.add('au-pill-pressed');
+        setTimeout(() => btn.classList.remove('au-pill-pressed'), 300);
+        
         this.handleSocialActivity();
       });
     }
@@ -511,14 +533,14 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           const remaining = episodesBehind - 1;
           const text = remaining <= 0 ? "You'll be caught up!" :
             (remaining === 1 ? '1 episode will remain' : `${remaining} episodes will remain`);
-          this.showCardTooltip(text, e);
+          this.showCardTooltip(text, e as MouseEvent);
         } else {
           const nextEp = this.props.anime.episode;
-          this.showCardTooltip(`Mark episode ${nextEp} as watched`, e);
+          this.showCardTooltip(`Mark episode ${nextEp} as watched`, e as MouseEvent);
         }
       });
-      this.addEventListener(markWatchedBtn as HTMLElement, 'mousemove', (e) => {
-        this.moveCardTooltip(e);
+      this.addEventListener(markWatchedBtn as HTMLElement, 'mousemove', (e: Event) => {
+        this.moveCardTooltip(e as MouseEvent);
       });
       this.addEventListener(markWatchedBtn as HTMLElement, 'mouseleave', () => {
         this.hideCardTooltip();
@@ -527,10 +549,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     if (editBtn) {
       this.addEventListener(editBtn as HTMLElement, 'mouseenter', (e) => {
-        this.showCardTooltip('Quick edit', e);
+        this.showCardTooltip('Quick edit', e as MouseEvent);
       });
-      this.addEventListener(editBtn as HTMLElement, 'mousemove', (e) => {
-        this.moveCardTooltip(e);
+      this.addEventListener(editBtn as HTMLElement, 'mousemove', (e: Event) => {
+        this.moveCardTooltip(e as MouseEvent);
       });
       this.addEventListener(editBtn as HTMLElement, 'mouseleave', () => {
         this.hideCardTooltip();
@@ -539,10 +561,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     if (socialBtn) {
       this.addEventListener(socialBtn as HTMLElement, 'mouseenter', (e) => {
-        this.showCardTooltip('Social Activity', e);
+        this.showCardTooltip('Social Activity', e as MouseEvent);
       });
-      this.addEventListener(socialBtn as HTMLElement, 'mousemove', (e) => {
-        this.moveCardTooltip(e);
+      this.addEventListener(socialBtn as HTMLElement, 'mousemove', (e: Event) => {
+        this.moveCardTooltip(e as MouseEvent);
       });
       this.addEventListener(socialBtn as HTMLElement, 'mouseleave', () => {
         this.hideCardTooltip();
@@ -600,7 +622,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     if (!tip) {
       tip = document.createElement('div');
       tip.className = 'au-card-tooltip';
-      document.body.appendChild(tip);
+      const target = document.body || document.documentElement;
+      if (target) target.appendChild(tip);
     }
     tip.textContent = text;
     tip.style.display = 'block';

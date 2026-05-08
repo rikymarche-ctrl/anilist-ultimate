@@ -28,6 +28,7 @@ export class AstraRatingHeader extends AstraView {
   }
 
   protected template(state: HeaderState): HTMLElement {
+    if (!state || !state.title) return html`<div></div>`;
     this.state = state;
     const isJournal = state.activeTab === 'journal';
 

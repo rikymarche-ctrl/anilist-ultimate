@@ -72,8 +72,10 @@ export class PillUIBuilder {
       container.style.position = 'relative';
     }
     
-    // Safety: ensure pill is not hidden by container overflow
-    container.style.overflow = 'visible';
+    // Safety: ensure pill is not hidden by container overflow if it's explicitly hidden
+    if (style.overflow === 'hidden') {
+      container.style.overflow = 'visible';
+    }
 
     const wrapper = document.createElement('div');
     wrapper.className = 'au-pill-wrapper';

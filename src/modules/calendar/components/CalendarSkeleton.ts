@@ -1,9 +1,11 @@
-import { BaseComponent } from '@/ui/components/BaseComponent';
+import { injectable } from 'tsyringe';
+import { BaseComponent } from '@ui/components/BaseComponent';
 
 /**
  * @file CalendarSkeleton.ts
  * @description Loading placeholder component that mimics the calendar grid layout
  */
+@injectable()
 export class CalendarSkeleton extends BaseComponent {
   protected render(): HTMLElement {
     const container = this.createElement('div', { 

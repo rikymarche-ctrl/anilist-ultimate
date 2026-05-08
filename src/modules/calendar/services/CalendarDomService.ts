@@ -108,7 +108,9 @@ export class CalendarDomService {
         targetContainer.insertBefore(calendarContainer, sectionHeader.nextSibling);
       } else {
         log.debug('[CalendarDomService] Appending to target container');
-        targetContainer.appendChild(calendarContainer);
+        // Final fallback: if targetContainer is null (shouldn't happen due to check at line 46), use body
+        const target = targetContainer || document.body || document.documentElement;
+        if (target) target.appendChild(calendarContainer);
       }
     }
 
@@ -149,7 +151,9 @@ export class CalendarDomService {
         <i class="fa fa-cog"></i>
       </button>
     `;
-    parentHeader.appendChild(actionsContainer);
+    if (parentHeader) {
+      parentHeader.appendChild(actionsContainer);
+    }
 
     // Hide native view switchers often present in list headers
     parentHeader.querySelectorAll('.view-selector, .grid-icon, .list-icon, [class*="view-selector"]')
@@ -221,8 +225,9 @@ export class CalendarDomService {
       // If AniList didn't render an Airing section (e.g., user has no airing anime), create one
       if (!airing) {
         // Prevent creating multiple artificial sections
-        if (document.querySelector('[data-au-artificial="true"]')) {
-          resolve(document.querySelector('[data-au-artificial="true"] h2') as HTMLElement || null);
+        const existingArtificial = document.querySelector('[data-au-artificial="true"]');
+        if (existingArtificial) {
+          resolve(existingArtificial.querySelector('h2') as HTMLElement || null);
           return;
         }
 
@@ -230,7 +235,7 @@ export class CalendarDomService {
         const homeContainer = document.querySelector('.home');
         if (homeContainer) {
           const newSection = document.createElement('div');
-          newSection.className = 'list-preview-wrap';
+          newSection.className = 'list-preview-wrap au-artificial-section';
           newSection.setAttribute('data-au-artificial', 'true');
           newSection.style.marginBottom = '40px';
           newSection.innerHTML = `<div class="section-header"><h2>Airing</h2></div>`;
@@ -270,6 +275,38 @@ export class CalendarDomService {
 
     // Strategy 4: Closest section
     return headerElement.closest('section') || headerElement.parentElement?.parentElement || null;
+  }
+
+  /**
+   * Aggressively mask native "Airing" sections to prevent duplication with the AU Calendar.
+   */
+  public maskNativeSections(): void {
+    const path = window.location.pathname;
+    if (path !== '/' && path !== '/home') return;
+    
+    const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
+    if (!calendarExists) return;
+
+    const headers = Array.from(document.querySelectorAll('h2, h3, .section-header'));
+    headers.forEach(h => {
+      const text = h.textContent?.trim().toLowerCase() || '';
+      if (text === 'airing' && !h.classList.contains('au-calendar-title') && !h.hasAttribute('data-au-artificial')) {
+        const section = h.closest('section') || h.closest('.list-preview-wrap') || h.closest('.list-preview') || h.parentElement;
+        if (section && !(section as HTMLElement).classList.contains('au-native-airing-hidden')) {
+          const el = section as HTMLElement;
+          // Check if this section ALREADY contains our calendar (don't hide our own)
+          if (el.contains(document.getElementById(CSS_CLASSES.CALENDAR))) return;
+          
+          // AGGRESSIVE HIDING
+          el.style.display = 'none';
+          el.style.visibility = 'hidden';
+          el.style.height = '0';
+          el.style.overflow = 'hidden';
+          el.classList.add('au-native-airing-hidden');
+          log.debug('[CalendarDomService] Native airing section HIDDEN');
+        }
+      }
+    });
   }
 
   public showAuthPrompt(onLoginClick: () => void): void {

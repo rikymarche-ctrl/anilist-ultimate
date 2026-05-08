@@ -269,16 +269,16 @@ export class CalendarStore extends Store<CalendarState> {
   private generateFingerprint(entries: AnimeEntry[]): string {
     if (entries.length === 0) return '';
     const sorted = entries.slice().sort((a, b) => a.mediaId - b.mediaId);
-    
+
     const data = sorted.map(e => {
       // Handle both Date objects (live state) and strings (raw cache data)
-      const time = e.airingAt instanceof Date 
-        ? e.airingAt.getTime() 
+      const time = e.airingAt instanceof Date
+        ? e.airingAt.getTime()
         : new Date(e.airingAt).getTime();
-        
+
       return `${e.mediaId}:${time}`;
     }).join('|');
- 
+
     let hash = 2166136261;
     for (let i = 0; i < data.length; i++) {
       hash ^= data.charCodeAt(i);
@@ -328,20 +328,3 @@ export class CalendarStore extends Store<CalendarState> {
     log.info('[CalendarStore] Schedule cache invalidated');
   }
 }
-
-/**
- * Global singleton instance for non-injectable UI components.
- * Resolved through the centralized DI container to maintain singleton integrity.
- */
-import { container } from 'tsyringe';
-
-let _instance: CalendarStore | null = null;
-export const calendarStore = new Proxy({} as CalendarStore, {
-  get: (_, prop: keyof CalendarStore) => {
-    if (!_instance) {
-      _instance = container.resolve<CalendarStore>(TOKENS.CalendarStore);
-    }
-    const val = _instance[prop];
-    return typeof val === 'function' ? val.bind(_instance) : val;
-  }
-});

@@ -10,8 +10,8 @@
   --astra-text-dim: oklch(0.78 0.008 250);
   --astra-muted: oklch(0.58 0.010 250);
 
-  --astra-accent: #8b5cf6;
-  --astra-accent-rgb: 139, 92, 246;
+  --astra-accent: var(--color-accent, var(--color-blue, #8b5cf6));
+  --astra-accent-rgb: var(--color-accent-rgb, var(--color-blue-rgb, 139, 92, 246));
   --astra-accent-a10: rgba(var(--astra-accent-rgb), 0.1);
   --astra-accent-a20: rgba(var(--astra-accent-rgb), 0.2);
   --astra-accent-a50: rgba(var(--astra-accent-rgb), 0.5);
@@ -72,6 +72,12 @@
 
 .au-astra-card:hover .au-pill-wrapper {
   opacity: 1 !important;
+}
+
+/* Apply blur/overlay ONLY to the image area, not the whole card */
+.cover:hover > .au-pill-wrapper,
+.image:hover > .au-pill-wrapper,
+.img:hover > .au-pill-wrapper {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
 }
@@ -147,6 +153,12 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   color: white;
 }
 
+.pill-section:active {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(0.95);
+  transition: transform 0.05s ease;
+}
+
 .pill-section:not(:first-child) {
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -157,7 +169,8 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
 }
 
 .au-pill-pressed {
-  opacity: 0.6;
+  transform: translateY(1px);
+  opacity: 0.85;
 }
 
 /* ==========================================================================
@@ -170,7 +183,7 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(8px);
-  z-index: var(--z-modal-backdrop);
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;

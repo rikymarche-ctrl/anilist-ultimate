@@ -19,7 +19,7 @@ import { BaseModule } from '@core/modules/BaseModule';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import type { IApiClient } from '@core/interfaces/IApiClient';
-import { calendarStore } from './CalendarStore';
+import { CalendarStore } from './CalendarStore';
 import { CSS_CLASSES } from '@core/constants';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { container } from '@core/di/container';
@@ -61,6 +61,7 @@ export class CalendarModule extends BaseModule {
     @inject(TOKENS.CalendarDomService) private domService: CalendarDomService,
     @inject(TOKENS.CalendarDataService) private dataService: CalendarDataService,
     @inject(TOKENS.CalendarSocialService) private socialService: CalendarSocialService,
+    @inject(TOKENS.CalendarStore) private store: CalendarStore,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.Config) private config: IConfigManager,
     @inject(TOKENS.AuthService) private auth: AuthService,
@@ -77,7 +78,7 @@ export class CalendarModule extends BaseModule {
     try {
       log.group('Calendar Module Initialization');
 
-      await calendarStore.init();
+      await this.store.init();
       log.success('[Calendar] Preferences loaded from storage');
 
       const authenticated = this.apiClient.isAuthenticated();
@@ -105,7 +106,7 @@ export class CalendarModule extends BaseModule {
         const path = event?.path || window.location.pathname;
         if (path === '/' || path === '/home') {
           this.isProcessing = false;
-          setTimeout(() => this.runInjectionFlow(), 500);
+          this.runInjectionFlow();
         }
       });
 
@@ -127,17 +128,17 @@ export class CalendarModule extends BaseModule {
         if (path !== '/' && path !== '/home') return;
         if (Date.now() - this.lastRefreshTime < 2000) return;
 
-        setTimeout(() => this.runInjectionFlow(true), 1500);
+        this.runInjectionFlow(true);
       });
 
       this.subscribe(EVENT_TYPES.PROGRESS_UPDATED, async (payload) => {
         if (payload && payload.mediaId) {
           if (payload.status && payload.status !== MediaListStatus.CURRENT) {
-            calendarStore.removeEntry(payload.mediaId);
+            this.store.removeEntry(payload.mediaId);
             const path = window.location.pathname;
             if (path === '/' || path === '/home') await this.runInjectionFlow(true);
           } else {
-            calendarStore.updateEntry(payload.mediaId, { progress: payload.progress });
+            this.store.updateEntry(payload.mediaId, { progress: payload.progress });
             this.updateCardProgressUI(payload.mediaId, payload.progress);
           }
         }
@@ -173,25 +174,7 @@ export class CalendarModule extends BaseModule {
 
       // 7. Native Airing Section Masking
       this.sharedObserver.register('calendar-native-hider', () => {
-        const path = window.location.pathname;
-        if (path !== '/' && path !== '/home') return;
-        
-        const calendarExists = !!document.querySelector(`#${CSS_CLASSES.CALENDAR}`);
-        if (!calendarExists) return;
-
-        const headers = Array.from(document.querySelectorAll('h2, h3, .section-header'));
-        headers.forEach(h => {
-          const text = h.textContent?.trim().toLowerCase() || '';
-          if (text === 'airing' && !h.classList.contains('au-calendar-title') && !h.hasAttribute('data-au-artificial')) {
-            const section = h.closest('section') || h.closest('.list-preview-wrap') || h.closest('.list-preview') || h.parentElement;
-            if (section && !(section as HTMLElement).classList.contains('au-native-airing-hidden')) {
-              const el = section as HTMLElement;
-              if (el.contains(document.getElementById(CSS_CLASSES.CALENDAR))) return;
-              el.style.display = 'none';
-              el.classList.add('au-native-airing-hidden');
-            }
-          }
-        });
+        this.domService.maskNativeSections();
       }, 800);
 
       log.success('[Calendar] Module initialized successfully');
@@ -313,7 +296,7 @@ export class CalendarModule extends BaseModule {
 
     const episodeEl = card.querySelector('.anime-card__episode');
     if (episodeEl) {
-      const entry = calendarStore.getState().entries.find(e => e.mediaId === mediaId);
+      const entry = this.store.getState().entries.find(e => e.mediaId === mediaId);
       if (entry) {
         const isBehind = newProgress < (entry.episode - 1);
         const behindDot = isBehind ? '<span class="behind-indicator"></span>' : '';
@@ -357,7 +340,7 @@ export class CalendarModule extends BaseModule {
     }
     
     this.domService.cleanup();
-    calendarStore.stopCountdownInterval();
+    this.store.stopCountdownInterval();
 
     // 5. Unregister observers
     this.sharedObserver.unregister('calendar-native-hider');

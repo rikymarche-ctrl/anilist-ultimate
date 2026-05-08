@@ -1,5 +1,6 @@
-import { injectable } from 'tsyringe';
-import { calendarStore } from '@/modules/calendar/CalendarStore';
+import { injectable, inject } from 'tsyringe';
+import { CalendarStore } from '@/modules/calendar/CalendarStore';
+import { TOKENS } from '@core/di/tokens';
 
 /**
  * Global application preferences interface
@@ -19,11 +20,14 @@ export interface AppPreferences {
  */
 @injectable()
 export class PreferencesService {
+  constructor(
+    @inject(TOKENS.CalendarStore) private store: CalendarStore
+  ) {}
   /**
    * Gets the current global preferences
    */
   public getPreferences(): AppPreferences {
-    const state = calendarStore.getState();
+    const state = this.store.getState();
     const prefs = state.preferences;
     
     return {
@@ -44,7 +48,7 @@ export class PreferencesService {
    * @returns Unsubscribe function
    */
   public onChanges(callback: (prefs: AppPreferences) => void): () => void {
-    return calendarStore.subscribeToSelector(
+    return this.store.subscribeToSelector(
       (state: any) => this.mapStateToPrefs(state),
       (curr: AppPreferences) => callback(curr)
     );

@@ -14,7 +14,8 @@ import { injectable, inject } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { container } from '@core/di/container';
 import { AnimeCard } from './AnimeCard';
-import { calendarStore } from '../CalendarStore';
+import { CalendarStore } from '../CalendarStore';
+import { TOKENS } from '@core/di/tokens';
 import { ABBREVIATED_DAYS, DAYS_OF_WEEK } from '@core/constants';
 import type { AnimeEntry, CardOptions } from '@core/types';
 
@@ -31,12 +32,17 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
   private animeCards: AnimeCard[] = [];
 
   constructor(
-    @inject('DayColumnProps') props: DayColumnProps
+    @inject('DayColumnProps') props: DayColumnProps,
+    @inject(TOKENS.CalendarStore) private store: CalendarStore
   ) {
     super(props);
+    // Re-render now that this.store is assigned (BaseComponent constructor calls render BEFORE this assignment)
+    this.element = this.render();
   }
 
   protected render(): HTMLElement {
+    if (!this.store) return this.createElement('div', { class: 'calendar-day-column-loading' });
+    
     const { day, entries, isToday, cardOptions, isExpanded } = this.props;
 
     const column = this.createElement('div', {
@@ -174,7 +180,7 @@ export class DayColumn extends BaseComponent<DayColumnProps> {
    * Toggle expand/collapse for max cards limit - delegates to store
    */
   private toggleExpand(): void {
-    calendarStore.toggleExpandedDay(this.props.day);
+    this.store.toggleExpandedDay(this.props.day);
   }
 
   /**

@@ -148,7 +148,8 @@ export class SocialRenderer {
       });
       bubble.appendChild(btn);
       
-      document.body.appendChild(bubble);
+      const target = document.body || document.documentElement;
+      if (target) target.appendChild(bubble);
 
       bubble.addEventListener('mouseenter', () => {
         bubble?.classList.add('visible');

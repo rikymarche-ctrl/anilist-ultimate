@@ -1,32 +1,41 @@
 /**
  * @file AstraWorkTable.ts
- * @description Main data grid for Astra works
+ * @description Main data grid for Astra works.
+ * Refactored to use DI and secure `html` templates.
  */
 
+import { injectable, inject } from 'tsyringe';
 import { AstraView } from '../base/AstraView';
 import { AstraDashboardStore } from '../../store/AstraDashboardStore';
 import { IDashboardState } from '../../interfaces/IDashboardState';
 import { AstraService } from '../../AstraService';
 import type { AstraWorkSummary } from '../../AstraInterfaces';
 import { AstraRatingController } from '../AstraRatingController';
-import { container, inject, injectable } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
+import { html, map } from '@core/utils/Template';
 
 @injectable()
 export class AstraWorkTable extends AstraView {
   constructor(
     @inject(TOKENS.AstraStore) _store: AstraDashboardStore,
-    @inject(TOKENS.AstraService) private service: AstraService
+    @inject(TOKENS.AstraService) private service: AstraService,
+    @inject(TOKENS.AstraRatingController) private ratingController: AstraRatingController
   ) {
     super({});
+    // Safety re-render after DI assignment
+    this.element = this.render();
   }
 
-  protected template(state: IDashboardState): string {
+  /**
+   * Renders the data grid using safe templates.
+   */
+  protected template(state: IDashboardState): HTMLElement {
+    if (!this.service || !state || !state.filteredWorks) return html`<div></div>`;
     const sections = this.service.getSections();
     const works = state.filteredWorks;
 
     if (works.length === 0) {
-      return `
+      return html`
         <div class="astra-empty-state">
           <i class="fa fa-search"></i>
           <p>No works found matching your filters.</p>
@@ -34,7 +43,7 @@ export class AstraWorkTable extends AstraView {
       `;
     }
 
-    return `
+    return html`
       <div class="astra-table-wrap">
         <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 105px)">
           <div class="astra-grid-header">
@@ -42,31 +51,33 @@ export class AstraWorkTable extends AstraView {
             <div class="astra-col-title">Title</div>
             <div class="astra-col-type">Type</div>
             <div class="astra-col-score">Score</div>
-            ${sections.map(s => `<div class="astra-col-section">${s.name}</div>`).join('')}
+            ${map(sections, s => html`<div class="astra-col-section">${s.name}</div>`)}
             <div class="astra-col-actions">Actions</div>
           </div>
           <div class="astra-grid-body">
-            ${works.map(w => this.renderRow(w, sections)).join('')}
+            ${map(works, w => this.renderRow(w, sections))}
           </div>
         </div>
       </div>
     `;
   }
 
-  private renderRow(work: AstraWorkSummary, sections: any[]): string {
+  /**
+   * Renders a single row for a work entry.
+   */
+  private renderRow(work: AstraWorkSummary, sections: any[]): HTMLElement {
     const total = work.type === 'anime' ? work.episodes : work.chapters;
     let percent = (total && total > 0) ? Math.min(100, Math.round(((work.progress || 0) / total) * 100)) : 0;
     
-    // Fallback for active titles with unknown total
     if (percent === 0 && (work.progress || 0) > 0) percent = 5;
 
     const overallScore = work.currentScore;
     const scoreClass = (overallScore || 0) >= 8 ? 'high' : (overallScore || 0) >= 6 ? 'mid' : 'low';
     
-    return `
+    return html`
       <div class="astra-grid-row" data-media-id="${work.mediaId}" style="--progress-val: ${percent}%">
         <div class="astra-col-cover">
-          <img src="${work.cover}" class="astra-table-cover">
+          <img src="${work.cover}" class="astra-table-cover" loading="lazy">
         </div>
         <div class="astra-col-title">
           <div class="astra-table-title-box">
@@ -83,10 +94,14 @@ export class AstraWorkTable extends AstraView {
         <div class="astra-col-score">
           <div class="astra-table-score-badge ${scoreClass}">${overallScore ? overallScore.toFixed(1) : '-'}</div>
         </div>
-        ${sections.map(s => {
+        ${map(sections, s => {
           const score = work.sectionScores ? work.sectionScores[s.id] : null;
-          return `<div class="astra-col-section" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}">${score ? (score as number).toFixed(1) : '-'}</div>`;
-        }).join('')}
+          return html`
+            <div class="astra-col-section" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}">
+              ${score ? (score as number).toFixed(1) : '-'}
+            </div>
+          `;
+        })}
         <div class="astra-col-actions">
           <button class="astra-icon-btn astra-edit-row" title="Edit Entry">
             <i class="fa fa-pencil-alt"></i>
@@ -99,21 +114,27 @@ export class AstraWorkTable extends AstraView {
     `;
   }
 
+  /**
+   * Binds row actions (edit, external link).
+   */
   protected bindEvents(): void {
-    const modal = container.resolve<AstraRatingController>(TOKENS.AstraRatingController);
-
     this.$$('.astra-grid-row').forEach(row => {
       const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
       
-      // Edit button or click on title
-      row.querySelector('.astra-edit-row')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        modal.open(mediaId);
-      });
+      const editBtn = row.querySelector('.astra-edit-row');
+      if (editBtn) {
+        this.addEventListener(editBtn as HTMLElement, 'click', (e) => {
+          e.stopPropagation();
+          this.ratingController.open(mediaId);
+        });
+      }
 
-      row.querySelector('.astra-table-title')?.addEventListener('click', () => {
-        modal.open(mediaId);
-      });
+      const title = row.querySelector('.astra-table-title');
+      if (title) {
+        this.addEventListener(title as HTMLElement, 'click', () => {
+          this.ratingController.open(mediaId);
+        });
+      }
     });
   }
 }

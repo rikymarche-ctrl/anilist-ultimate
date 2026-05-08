@@ -88,12 +88,11 @@ export class AstraEnhancementService {
       card.classList.add('au-astra-card');
       
       const { socialEnabled, socialShowAvatars } = this.preferences.getPreferences();
-      const isUserListCard = path.includes('/animelist') || path.includes('/mangalist');
+      const isHome = path === '/' || path.startsWith('/home') || path.endsWith('/astra');
+      const isUserList = path.includes('/animelist') || path.includes('/mangalist') || isHome;
 
-      // ROBUST TARGET SELECTION: Find the image container or the best relative ancestor
-      const target = card.querySelector('.cover, .image, .img, .banner-image, .media-preview-card .image, [style*="background-image"]') || card;
-      
-      log.debug(`[AstraEnhancer] Target found for card ${mediaId}:`, target.className);
+      const cover = card.querySelector('.cover, .image, .img, .banner-image');
+      const target = cover || card;
       
       const summaries = this.astraService.getWorks();
       const workSummary = summaries.find(s => s.mediaId === mediaId);
@@ -101,17 +100,16 @@ export class AstraEnhancementService {
 
       const astraFeatureFlag = this.config.isFeatureEnabled('astra');
       
-      log.debug(`[AstraEnhancer] Enhancing card ${mediaId} (Score: ${score}, AstraEnabled: ${astraFeatureFlag})`);
-
       const options = {
         mediaId,
-        isUserListCard: isUserListCard || path === '/' || path === '/home',
+        isUserListCard: isUserList,
         socialEnabled,
         socialShowAvatars,
         score,
         astraEnabled: astraFeatureFlag
       };
 
+      console.log(`[Astra] Injecting pill for ${mediaId} into:`, target.className);
       const wrapper = this.pillBuilder.inject(target as HTMLElement, options);
       
       if (!wrapper) {

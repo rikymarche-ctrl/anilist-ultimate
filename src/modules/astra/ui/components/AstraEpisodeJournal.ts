@@ -21,6 +21,7 @@ export class AstraEpisodeJournal extends AstraView {
   }
 
   protected template(state: AstraRatingState): HTMLElement {
+    if (!state || !state.media) return html`<div></div>`;
     const { work, currentSeasonIdx, media } = state;
     const season = work.seasons[currentSeasonIdx];
     const notes = season.episodeNotes || {};

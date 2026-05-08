@@ -36,6 +36,7 @@ export class AstraCriteriaList extends AstraView {
   }
 
   private sortSectionsForSymmetry(sections: AstraSection[]): AstraSection[] {
+    if (!sections) return [];
     const half = sections.filter(s => !s.subSections || s.subSections.length === 0);
     const full = sections.filter(s => s.subSections && s.subSections.length > 0);
     return [...half, ...full];

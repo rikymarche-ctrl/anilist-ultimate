@@ -48,6 +48,16 @@ export class ToastService {
   public init(): void {
     if (this.container) return;
 
+    if (!document.body) {
+      log.warn('[ToastService] document.body not found, delaying initialization...');
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => this.init());
+      } else {
+        setTimeout(() => this.init(), 100);
+      }
+      return;
+    }
+
     this.container = new ToastContainer({});
     this.container.mount(document.body);
     log.debug('[ToastService] Initialized');

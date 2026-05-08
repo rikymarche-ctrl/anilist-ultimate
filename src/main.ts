@@ -16,11 +16,6 @@
  * @see setup.ts for DI container configuration
  * @see docs/ARCHITECTURE.md for full system architecture
  */
-
-console.log('========================================');
-console.log('ANILIST ULTIMATE - MAIN.TS LOADING');
-console.log('========================================');
-
 import 'reflect-metadata'; // Required for tsyringe
 import { log } from '@core/logger';
 import { APP_VERSION } from '@core/constants';
@@ -46,7 +41,10 @@ function loadFontAwesome(): void {
     link.rel = 'stylesheet';
     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
     link.crossOrigin = 'anonymous';
-    document.head.appendChild(link);
+    const target = document.head || document.documentElement;
+    if (target) {
+      target.appendChild(link);
+    }
   }
 }
 
@@ -72,62 +70,30 @@ function setupDebugExposure(config: IConfigManager, registry: ModuleRegistry): v
  * Initialize the extension
  */
 async function init(): Promise<void> {
-  console.log(`[Anilist Ultimate] Starting v${APP_VERSION}...`);
-  console.log('[DEBUG] Init function called');
-
   try {
-    console.log('[DEBUG] Setting up DI...');
-    // Setup DI container    // Load icons
     loadFontAwesome();
-
-    // Start DI and UI injection
     await setupDI();
-    console.log('[DEBUG] DI setup complete');
 
-    console.log('[DEBUG] Resolving services...');
-    // Resolve services from container
+    // High Priority: Inject Astra Navigation Link immediately
+    try {
+      const navService = container.resolve<any>(TOKENS.AstraNavigationService);
+      navService.injectNavbarButton();
+    } catch (e) {
+      log.error('Astra immediate injection failed', e);
+    }
+
     const config = container.resolve<IConfigManager>(TOKENS.Config);
     const registry = container.resolve<ModuleRegistry>(TOKENS.ModuleRegistry);
-    console.log('[DEBUG] Services resolved');
 
-    // Initialize theme manager
     container.resolve(ThemeManager);
-
-    // Font Awesome now loaded via import at top of file (BUG-010 fix)
-    // loadFontAwesome(); // REMOVED - CDN dependency
-
-    // Setup debug exposure
     setupDebugExposure(config, registry);
 
-    console.log('[DEBUG] Initializing modules...');
-    // Initialize all registered modules
     await registry.initAll();
-    console.log('[DEBUG] All modules initialized!');
-
-    log.success('Extension fully loaded');
-    console.log('========================================');
-    console.log('ANILIST ULTIMATE FULLY LOADED!');
-    console.log('========================================');
+    log.success('Astra Ultimate initialized');
   } catch (error) {
-    console.error('[Anilist Ultimate] Fatal Error:', error);
-    console.error('[DEBUG] Error stack:', error);
+    log.error('Fatal initialization error', error);
   }
 }
-
-/**
- * BUG-010 fix: Font Awesome now bundled locally via npm package
- * CDN loading removed to prevent failures in corporate networks
- * Import '@fortawesome/fontawesome-free/css/all.min.css' at top of file
- */
-// function loadFontAwesome(): void {
-//   if (!document.querySelector('link[href*="fontawesome"]')) {
-//     const link = document.createElement('link');
-//     link.rel = 'stylesheet';
-//     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
-//     link.crossOrigin = 'anonymous';
-//     document.head.appendChild(link);
-//   }
-// }
 
 // Global start
 if (document.readyState === 'loading') {

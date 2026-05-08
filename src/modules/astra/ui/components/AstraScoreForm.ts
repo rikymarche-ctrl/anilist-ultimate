@@ -38,6 +38,7 @@ export class AstraScoreForm extends AstraView {
   }
 
   protected template(state: AstraRatingState): HTMLElement {
+    if (!state || !state.media) return html`<div></div>`;
     const { work, currentSeasonIdx, media } = state;
     const entry = media.mediaListEntry;
     const season = work.seasons[currentSeasonIdx];
@@ -112,8 +113,10 @@ export class AstraScoreForm extends AstraView {
     `;
   }
 
-  protected onMount(_state: AstraRatingState): void {
-    const { work, currentSeasonIdx, media } = _state;
+  protected onMount(): void {
+    const state = this.props as AstraRatingState;
+    if (!state) return;
+    const { work, currentSeasonIdx, media } = state;
     const season = work.seasons[currentSeasonIdx];
 
     this.statusSelector.mount(this.$('#status-selector-mount')!, {
@@ -126,8 +129,8 @@ export class AstraScoreForm extends AstraView {
       label: 'PROGRESS',
       field: 'progress',
       value: work.progress || 0,
-      max: _state.totalCount,
-      aired: _state.airedCount,
+      max: state.totalCount,
+      aired: state.airedCount,
       onValueChange: (val) => this.handleInput('progress', val)
     });
 
@@ -144,6 +147,14 @@ export class AstraScoreForm extends AstraView {
       settings: this.service.getSettings(),
       onScoreChange: (id, val) => this.store?.updateScore(id, val)
     });
+  }
+
+  protected override onUnmount(): void {
+    this.statusSelector.unmount();
+    this.progressStepper.unmount();
+    this.repeatStepper.unmount();
+    this.criteriaList.unmount();
+    super.onUnmount();
   }
 
   private formatScore(val: number | null | undefined): string {

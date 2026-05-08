@@ -3,9 +3,11 @@
  * @description Strategy for home page 'In Progress' and 'Airing' sections.
  */
 
+import { injectable } from 'tsyringe';
 import { log } from '@core/logger';
 import { ICardEnhancementStrategy } from './ICardEnhancementStrategy';
 
+@injectable()
 export class HomeProgressStrategy implements ICardEnhancementStrategy {
   public readonly name = 'home-progress';
 
@@ -22,8 +24,10 @@ export class HomeProgressStrategy implements ICardEnhancementStrategy {
       '.media-preview',
       '.list-preview-item',
       '.media-preview-card-wrap',
+      '.media-preview-card .cover',
       '[class*="media-card"]',
-      '[class*="MediaCard"]'
+      '[class*="MediaCard"]',
+      '[class*="media-preview"]'
     ];
     return Array.from(document.querySelectorAll(selectors.join(', '))) as HTMLElement[];
   }
