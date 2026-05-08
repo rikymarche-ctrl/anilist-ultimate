@@ -3,7 +3,7 @@
  * @description Encapsulates AstraWork state with automatic change tracking (dirty checking).
  */
 
-import { AstraWork } from '../AstraService';
+import type { AstraWork } from '../AstraInterfaces';
 
 export class AstraRatingState {
   private _isDirty: boolean = false;

@@ -4,11 +4,11 @@
  */
 
 import { AstraView } from '../base/AstraView';
-import { AstraService, AstraSettings } from '../../AstraService';
+import { AstraService } from '../../AstraService';
+import type { AstraSettings } from '../../AstraInterfaces';
 import { ToastService } from '@core/services/ToastService';
 import { container } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
-import { IApiClient } from '@core/interfaces/IApiClient';
 
 export class AstraSettingsView extends AstraView {
   constructor(private service: AstraService) {
@@ -186,7 +186,7 @@ export class AstraSettingsView extends AstraView {
         if (!setting) return;
 
         const isActive = toggle.classList.toggle('active');
-        this.service.updateSettings({ [String(setting)]: isActive });
+        this.service.updateSettings({ [setting]: isActive });
         toast.info(`Updated: ${setting}`);
       });
     });
@@ -387,8 +387,7 @@ export class AstraSettingsView extends AstraView {
       toast.info('Syncing with AniList... This may take a while.');
       
       try {
-        const apiClient = container.resolve<IApiClient>(TOKENS.ApiClient);
-        const result = await this.service.syncWithAniList(apiClient);
+        const result = await this.service.syncWithAniList();
         toast.success(`Sync complete! Added: ${result.added}, Updated: ${result.updated}`);
       } catch (err) {
         toast.error('Sync failed. Check console for details.');

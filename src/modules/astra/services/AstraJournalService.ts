@@ -5,7 +5,8 @@
 
 import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
-import { AstraService, AstraWork, AstraSeason, AstraEpisodeNote } from '../AstraService';
+import { AstraService } from '../AstraService';
+import type { AstraWork, AstraSeason, AstraEpisodeNote } from '../AstraInterfaces';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 
@@ -24,6 +25,7 @@ export class AstraJournalService {
       if (!data) return;
       const { mediaId, episode, notes } = data;
       // Find the current season for this media
+      if (!this.astraService) return;
       const work = await this.astraService.getFullWork(mediaId);
       if (!work) return;
       
@@ -45,6 +47,7 @@ export class AstraJournalService {
    * Save a note for a specific episode
    */
   public async saveEpisodeNote(mediaId: number, seasonIdx: number, episode: number, data: Partial<AstraEpisodeNote>): Promise<void> {
+    if (!this.astraService) return;
     const work = await this.astraService.getFullWork(mediaId);
     if (!work || !work.seasons[seasonIdx]) return;
 

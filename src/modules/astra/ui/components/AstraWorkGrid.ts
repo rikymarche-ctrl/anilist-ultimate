@@ -5,8 +5,9 @@
  */
 
 import { BaseComponent } from '@ui/components/BaseComponent';
-import { AstraWorkSummary } from '../../AstraService';
+import type { AstraWorkSummary } from '../../AstraInterfaces';
 import { getStatusLabel } from '@core/utils/UIHelpers';
+import { html } from '@core/utils/Template';
 
 /**
  * Enterprise-grade work grid with high-performance rendering logic.
@@ -21,7 +22,7 @@ export class AstraWorkGrid extends BaseComponent {
   }
 
   protected render(): HTMLElement {
-    const element = this.createFromHTML(`
+    const element = html`
       <div class="astra-work-grid-container">
         <div class="astra-work-grid-header">
           <div class="col-cover"></div>
@@ -36,7 +37,7 @@ export class AstraWorkGrid extends BaseComponent {
         </div>
         <div id="astra-grid-sentinel" style="height: 20px;"></div>
       </div>
-    `);
+    `;
 
     this.setupInfiniteScroll(element);
     return element;
@@ -61,7 +62,7 @@ export class AstraWorkGrid extends BaseComponent {
   private createRow(work: AstraWorkSummary): HTMLElement {
     const score = work.currentScore;
 
-    const row = this.createFromHTML(`
+    const row = html`
       <div class="astra-work-row" data-id="${work.mediaId}">
         <div class="col-cover">
           <img src="${work.cover}" loading="lazy" alt="${work.title}">
@@ -87,7 +88,7 @@ export class AstraWorkGrid extends BaseComponent {
           </button>
         </div>
       </div>
-    `);
+    `;
 
     row.querySelector('.action-edit')?.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('astra-open-rating', { 

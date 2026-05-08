@@ -1,44 +1,39 @@
 /**
  * @file CommentTooltip.ts
- * @description Hoverable tooltip component displaying user notes with markdown
- *
- * Renders a fixed-position tooltip on the right side of the viewport
- * when a comment icon is hovered. Features auto-hide timer (2s),
- * markdown-to-HTML parsing, and hover-persistence (stays visible
- * while either icon or tooltip is hovered).
- *
- * @security Username is escaped with escapeHtml() before insertion (BUG-003 fixed).
- *
- * @see CommentService.ts for data fetching
- * @see docs/MODULES.md#6-hover-comments-module
+ * @description Hoverable tooltip component displaying user notes with secure templates
  */
 
+import { injectable } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
-import { escapeHtml } from '@core/utils/Template';
-import { UserComment } from '../social/CommentService';
+import { html } from '@core/utils/Template';
 
-interface CommentTooltipProps {
-  onRefresh: () => void;
+export interface UserComment {
+  username: string;
+  notes: string;
+  mediaId: number;
+  timestamp: number;
 }
 
-export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
+@injectable()
+export class CommentTooltip extends BaseComponent<{ onRefresh?: () => void }> {
   private currentComment: UserComment | null = null;
   private currentTarget: HTMLElement | null = null;
   private hideTimer: number | null = null;
   private hoverStates = { icon: false, tooltip: false };
 
+  constructor() {
+    super({});
+  }
+
   protected render(): HTMLElement {
-    const tooltip = this.createElement('div', { id: 'anilist-tooltip' });
-
-    // Initial empty state
-    tooltip.innerHTML = `
-      <div class="tooltip-header">
-        <span class="tooltip-user">Loading...</span>
+    return html`
+      <div id="anilist-tooltip" class="au-comment-tooltip">
+        <div class="tooltip-header">
+          <span class="tooltip-user">Loading...</span>
+        </div>
+        <div class="tooltip-content body-text">...</div>
       </div>
-      <div class="tooltip-content body-text">...</div>
     `;
-
-    return tooltip;
   }
 
   public show(element: HTMLElement, comment: UserComment): void {
@@ -46,7 +41,6 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     this.currentTarget = element;
     this.updateContent();
 
-    // Clear any pending hide timer
     if (this.hideTimer) {
       clearTimeout(this.hideTimer);
       this.hideTimer = null;
@@ -64,13 +58,8 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     this.currentTarget = null;
   }
 
-  public scheduleHide(): void {
-    // Clear any existing timer
-    if (this.hideTimer) {
-      clearTimeout(this.hideTimer);
-    }
-
-    // Hide after 2 seconds if not hovering icon or tooltip
+  private scheduleHide(): void {
+    if (this.hideTimer) clearTimeout(this.hideTimer);
     this.hideTimer = window.setTimeout(() => {
       if (!this.hoverStates.icon && !this.hoverStates.tooltip) {
         this.hide();
@@ -90,13 +79,17 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     const { username, notes } = this.currentComment;
     const formattedNotes = this.formatNotes(notes);
 
-    // Simplified header without timestamp and refresh button
-    this.element.innerHTML = `
-      <div class="tooltip-header">
-        <span class="tooltip-user">${escapeHtml(username)}</span>
+    this.element.innerHTML = '';
+    this.element.appendChild(html`
+      <div style="display: contents;">
+        <div class="tooltip-header">
+          <span class="tooltip-user">${username}</span>
+        </div>
+        <div class="tooltip-content body-text">
+          ${formattedNotes || html`<span class="no-comment">No notes for this series.</span>`}
+        </div>
       </div>
-      <div class="tooltip-content body-text">${formattedNotes || '<span class="no-comment">No notes for this series.</span>'}</div>
-    `;
+    `);
   }
 
   private updatePosition(target: HTMLElement): void {
@@ -104,15 +97,11 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     const tooltipHeight = this.element.offsetHeight || 500;
     const viewportHeight = window.innerHeight;
 
-    // Calculate vertical position
-    let top = Math.max(rect.top, 100); // Don't go too high
-
-    // Prevent tooltip from going off-screen at the bottom
+    let top = Math.max(rect.top, 100);
     if (top + tooltipHeight > viewportHeight - 20) {
       top = Math.max(viewportHeight - tooltipHeight - 20, 20);
     }
 
-    // Position tooltip in the right column (fixed position)
     this.element.style.position = 'fixed';
     this.element.style.right = '6px';
     this.element.style.top = `${top}px`;
@@ -120,25 +109,29 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
     this.element.style.transform = 'none';
   }
 
-  private formatNotes(notes: string): string {
+  private formatNotes(notes: string): HTMLElement | string {
     if (!notes) return '';
 
-    // Simple markdown parsing (similar to legacy but optimized)
-    return notes
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-      .replace(/\*(.*?)\*/g, '<i>$1</i>')
-      .replace(/__(.*?)__/g, '<b>$1</b>')
-      .replace(/_(.*?)_/g, '<i>$1</i>')
-      .replace(/~~(.*?)~~/g, '<del>$1</del>')
-      .replace(/\n/g, '<br>');
+    const container = document.createElement('div');
+    const lines = notes.split('\n');
+    
+    lines.forEach((line, index) => {
+      const span = document.createElement('span');
+      // Simple text content is safe
+      span.textContent = line;
+      container.appendChild(span);
+      
+      if (index < lines.length - 1) {
+        container.appendChild(document.createElement('br'));
+      }
+    });
+
+    return container;
   }
 
   protected attachEvents(): void {
-    // Keep tooltip visible when mouse is inside
     this.addEventListener(this.element, 'mouseenter', () => {
       this.hoverStates.tooltip = true;
-      // Clear any pending hide timer
       if (this.hideTimer) {
         clearTimeout(this.hideTimer);
         this.hideTimer = null;
@@ -150,7 +143,6 @@ export class CommentTooltip extends BaseComponent<CommentTooltipProps> {
       this.scheduleHide();
     });
 
-    // BUG-020: Re-position on window resize if visible
     window.addEventListener('resize', () => {
       if (this.element.classList.contains('visible') && this.currentTarget) {
         this.updatePosition(this.currentTarget);

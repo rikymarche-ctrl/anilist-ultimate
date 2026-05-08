@@ -100,6 +100,8 @@ export interface CalendarPreferences {
   socialEnabled: boolean;
   socialShowAvatars: boolean;
   showEmptyToday: boolean;
+  autoUpdateProgress: boolean;
+  compactMode: boolean;
 }
 
 // ============================================================================

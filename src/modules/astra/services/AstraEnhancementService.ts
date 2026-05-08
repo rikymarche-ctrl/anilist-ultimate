@@ -3,14 +3,14 @@
  * @description Dedicated service for media card enhancements and pill injections.
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, delay } from 'tsyringe';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import { PillUIBuilder } from '../ui/PillUIBuilder';
 import { ICardEnhancementStrategy } from '../strategies/ICardEnhancementStrategy';
 import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import { AstraService } from '../AstraService';
-import { AstraPreferencesService } from './AstraPreferencesService';
+import { PreferencesService } from '@core/services/PreferencesService';
 
 /**
  * Service responsible for scanning the AniList DOM and injecting Astra action pills.
@@ -21,9 +21,9 @@ export class AstraEnhancementService {
   constructor(
     @inject(TOKENS.AstraPillBuilder) private pillBuilder: PillUIBuilder,
     @inject(TOKENS.AstraStrategies) private strategies: ICardEnhancementStrategy[],
-    @inject(TOKENS.AstraService) private astraService: AstraService,
+    @inject(delay(() => AstraService)) private astraService: AstraService,
     @inject(TOKENS.Config) private config: IConfigManager,
-    @inject(TOKENS.AstraPreferencesService) private preferences: AstraPreferencesService
+    @inject(TOKENS.PreferencesService) private preferences: PreferencesService
   ) { }
 
   /**
@@ -57,10 +57,6 @@ export class AstraEnhancementService {
    */
   private processCard(card: HTMLElement, path: string): void {
     try {
-      if (card.querySelector('.au-pill-wrapper') || card.hasAttribute('data-astra-processed')) {
-        return;
-      }
-
       // 1. Try to find the media link (prioritize card itself if it's an 'a' tag)
       let link = '';
       if (card.tagName.toLowerCase() === 'a') {
@@ -76,6 +72,18 @@ export class AstraEnhancementService {
       if (!match) return;
 
       const mediaId = parseInt(match[2], 10);
+
+      // Check for existing pill and see if it matches current media
+      const existingWrapper = card.querySelector('.au-pill-wrapper');
+      if (existingWrapper) {
+        const existingId = parseInt(existingWrapper.getAttribute('data-au-media-id') || '0', 10);
+        if (existingId === mediaId) {
+          return; // Already processed for THIS media
+        } else {
+          existingWrapper.remove(); // Stale pill from reused element
+        }
+      }
+
       card.setAttribute('data-astra-processed', 'true');
       card.classList.add('au-astra-card');
       
@@ -83,22 +91,34 @@ export class AstraEnhancementService {
       const isUserListCard = path.includes('/animelist') || path.includes('/mangalist');
 
       // ROBUST TARGET SELECTION: Find the image container or the best relative ancestor
-      const target = card.querySelector('.cover, .image, .img, .banner-image, [style*="background-image"]') || card;
+      const target = card.querySelector('.cover, .image, .img, .banner-image, .media-preview-card .image, [style*="background-image"]') || card;
+      
+      log.debug(`[AstraEnhancer] Target found for card ${mediaId}:`, target.className);
       
       const summaries = this.astraService.getWorks();
       const workSummary = summaries.find(s => s.mediaId === mediaId);
       const score = workSummary ? workSummary.currentScore : null;
 
-      this.pillBuilder.inject(target as HTMLElement, {
+      const astraFeatureFlag = this.config.isFeatureEnabled('astra');
+      
+      log.debug(`[AstraEnhancer] Enhancing card ${mediaId} (Score: ${score}, AstraEnabled: ${astraFeatureFlag})`);
+
+      const options = {
         mediaId,
         isUserListCard: isUserListCard || path === '/' || path === '/home',
         socialEnabled,
         socialShowAvatars,
         score,
-        astraEnabled: this.config.isFeatureEnabled('astra')
-      });
+        astraEnabled: astraFeatureFlag
+      };
+
+      const wrapper = this.pillBuilder.inject(target as HTMLElement, options);
+      
+      if (!wrapper) {
+        log.warn(`[AstraEnhancer] Failed to inject pill for media ${mediaId}`);
+      }
     } catch (error) {
-      log.error('[AstraEnhancementService] Failed to process card', error);
+      log.error(`[AstraEnhancer] Error processing card`, error);
     }
   }
 

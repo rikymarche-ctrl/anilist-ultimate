@@ -4,7 +4,7 @@
  * Prevents state fragmentation and ensures data integrity during re-renders.
  */
 
-import { AstraWork } from '../../AstraService';
+import type { AstraWork } from '../../AstraInterfaces';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 
 export interface AstraRatingState {

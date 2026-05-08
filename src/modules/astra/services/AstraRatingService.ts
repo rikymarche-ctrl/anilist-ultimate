@@ -7,7 +7,8 @@
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
-import { AstraService, AstraWork } from '../AstraService';
+import { AstraService } from '../AstraService';
+import type { AstraWork } from '../AstraInterfaces';
 import { IAstraRatingService, IRatingInitialData } from '../interfaces/IAstraRatingService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ISyncQueueService } from '@core/interfaces/ISyncQueueService';

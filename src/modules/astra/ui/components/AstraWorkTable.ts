@@ -4,8 +4,10 @@
  */
 
 import { AstraView } from '../base/AstraView';
-import { AstraStore, DashboardState } from '../../store/AstraStore';
-import { AstraService, AstraWorkSummary } from '../../AstraService';
+import { AstraDashboardStore } from '../../store/AstraDashboardStore';
+import { IDashboardState } from '../../interfaces/IDashboardState';
+import { AstraService } from '../../AstraService';
+import type { AstraWorkSummary } from '../../AstraInterfaces';
 import { AstraRatingController } from '../AstraRatingController';
 import { container, inject, injectable } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
@@ -13,13 +15,13 @@ import { TOKENS } from '@core/di/tokens';
 @injectable()
 export class AstraWorkTable extends AstraView {
   constructor(
-    @inject(TOKENS.AstraStore) _store: AstraStore,
+    @inject(TOKENS.AstraStore) _store: AstraDashboardStore,
     @inject(TOKENS.AstraService) private service: AstraService
   ) {
     super({});
   }
 
-  protected template(state: DashboardState): string {
+  protected template(state: IDashboardState): string {
     const sections = this.service.getSections();
     const works = state.filteredWorks;
 

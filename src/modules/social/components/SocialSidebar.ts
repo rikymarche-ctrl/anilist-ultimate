@@ -1,21 +1,6 @@
 /**
  * @file SocialSidebar.ts
- * @description Fixed sidebar displaying detailed friend activity for a specific media
- *
- * Features:
- *   - Multiple filter types (self, following, custom lists, best friends)
- *   - Status sub-filters (watching, completed, dropped, etc.)
- *   - Real-time search across user names and notes
- *   - Infinite scroll pagination
- *   - Best friend toggle per-user
- *   - Score display with user's preferred format
- *
- * @warning User notes rendered via innerHTML without sanitization.
- *          See docs/SECURITY.md#sec-001.
- *
- * @see SocialService.ts for data fetching
- * @see SocialActivityModule.ts for mounting
- * @see docs/MODULES.md#9-social-activity-module
+ * @description Fixed sidebar displaying detailed friend activity for a specific media.
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -27,12 +12,18 @@ import { getStatusLabel } from '@core/utils/UIHelpers';
 import { CustomListService } from '../CustomListService';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
+import { html } from '@core/utils/Template';
+import { Sanitizer } from '@core/utils/Sanitizer';
 
+/**
+ * Enterprise-grade sidebar for social activity.
+ * Hardened against XSS and optimized for performance via event delegation.
+ */
 @injectable()
 export class SocialSidebar extends BaseComponent {
   private currentMediaId: number | null = null;
   private currentFilter: SocialFilter = 'self';
-  private currentCustomList: string | null = null; // New: track selected custom list
+  private currentCustomList: string | null = null;
   private currentStatus: MediaListStatus | 'all' = 'all';
   private searchQuery: string = '';
   private currentPage = 1;
@@ -50,210 +41,216 @@ export class SocialSidebar extends BaseComponent {
     super({});
   }
 
+  /**
+   * Renders the base sidebar structure using secure templates.
+   */
   protected render(): HTMLElement {
-    const sidebar = this.createElement('div', {
-      class: 'au-social-sidebar',
-      id: 'au-social-sidebar'
-    });
-
-    sidebar.innerHTML = `
-      <div class="au-social-header">
-        <h3 class="au-social-title">Social Activity</h3>
-        <div class="au-social-close" title="Close">
-          <i class="fa fa-times"></i>
-        </div>
-      </div>
-      <div class="au-social-tabs">
-        <div class="au-filter active" data-type="self">Self</div>
-        <div class="au-filter" data-type="following">Following</div>
-        <div class="au-filter au-filter-dropdown" data-type="custom-lists">
-          <span class="au-filter-label">Custom Lists</span>
-          <i class="fa fa-caret-down"></i>
-          <div class="au-filter-dropdown-menu" style="display: none;">
-            <!-- Will be populated dynamically -->
+    return html`
+      <div class="au-social-sidebar" id="au-social-sidebar">
+        <div class="au-social-header">
+          <h3 class="au-social-title">Social Activity</h3>
+          <div class="au-social-close" title="Close" id="au-social-close">
+            <i class="fa fa-times"></i>
           </div>
         </div>
-        <div class="au-filter" data-type="global">Global</div>
-      </div>
-      <div class="au-status-tabs">
-        <div class="au-status-filter active" data-status="all">All</div>
-        <div class="au-status-filter" data-status="${MediaListStatus.CURRENT}">Watching</div>
-        <div class="au-status-filter" data-status="${MediaListStatus.PLANNING}">Plans</div>
-        <div class="au-status-filter" data-status="${MediaListStatus.COMPLETED}">Completed</div>
-        <div class="au-status-filter" data-status="${MediaListStatus.PAUSED}">Paused</div>
-        <div class="au-status-filter" data-status="${MediaListStatus.DROPPED}">Dropped</div>
-      </div>
-      <div class="au-social-search-wrapper">
-        <div class="au-social-search-inner">
-          <i class="fa fa-search au-social-search-icon"></i>
-          <input type="text" class="au-social-search-input" placeholder="Search friends or notes..." />
+        <div class="au-social-tabs">
+          <div class="au-filter active" data-type="self">Self</div>
+          <div class="au-filter" data-type="following">Following</div>
+          <div class="au-filter au-filter-dropdown" data-type="custom-lists" id="au-custom-lists-trigger">
+            <span class="au-filter-label">Custom Lists</span>
+            <i class="fa fa-caret-down"></i>
+            <div class="au-filter-dropdown-menu" style="display: none;" id="au-custom-lists-menu"></div>
+          </div>
+          <div class="au-filter" data-type="global">Global</div>
+        </div>
+        <div class="au-status-tabs">
+          <div class="au-status-filter active" data-status="all">All</div>
+          <div class="au-status-filter" data-status="${MediaListStatus.CURRENT}">Watching</div>
+          <div class="au-status-filter" data-status="${MediaListStatus.PLANNING}">Plans</div>
+          <div class="au-status-filter" data-status="${MediaListStatus.COMPLETED}">Completed</div>
+          <div class="au-status-filter" data-status="${MediaListStatus.PAUSED}">Paused</div>
+          <div class="au-status-filter" data-status="${MediaListStatus.DROPPED}">Dropped</div>
+        </div>
+        <div class="au-social-search-wrapper">
+          <div class="au-social-search-inner">
+            <i class="fa fa-search au-social-search-icon"></i>
+            <input type="text" class="au-social-search-input" id="au-social-search" placeholder="Search friends or notes..." />
+          </div>
+        </div>
+        <div class="au-social-content" id="au-social-content">
+          <div class="au-social-empty">Select an anime to see activity</div>
         </div>
       </div>
-      <div class="au-social-content">
-        <div class="au-social-empty">Select an anime to see activity</div>
-      </div>
     `;
-
-    return sidebar;
   }
 
+  /**
+   * Attaches events using a mix of direct binding and delegation.
+   */
   protected attachEvents(): void {
-    // Initialize custom lists (async)
-    this.populateCustomListsDropdown().catch(e => {
-      log.error('[SocialSidebar] Failed to populate custom lists', e);
-    });
-
-    // Listen for open events
+    // 1. External Events
     window.addEventListener('au-open-social-sidebar', ((e: CustomEvent) => {
       const { mediaId, title, element, type } = e.detail;
       this.open(mediaId, title, element, type);
     }) as EventListener);
 
-    // Close button
-    const closeBtn = this.querySelector('.au-social-close');
-    if (closeBtn) {
-      this.addEventListener(closeBtn as HTMLElement, 'click', () => this.close());
-    }
+    // 2. Navigation & Actions
+    this.$('#au-social-close')?.addEventListener('click', () => this.close());
 
-    // Filter clicks (non-dropdown)
-    const filters = this.querySelectorAll('.au-filter:not(.au-filter-dropdown)');
-    filters.forEach(filter => {
-      this.addEventListener(filter as HTMLElement, 'click', () => {
+    this.$$('.au-filter:not(.au-filter-dropdown)').forEach(filter => {
+      filter.addEventListener('click', () => {
         const type = filter.getAttribute('data-type') as SocialFilter;
         this.setFilter(type);
       });
     });
 
-    // Custom Lists dropdown toggle
-    const customListsFilter = this.querySelector('.au-filter-dropdown');
-    if (customListsFilter) {
-      this.addEventListener(customListsFilter as HTMLElement, 'click', (e) => {
+    const dropdownTrigger = this.$('#au-custom-lists-trigger');
+    const dropdownMenu = this.$('#au-custom-lists-menu');
+    if (dropdownTrigger && dropdownMenu) {
+      dropdownTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
-        const menu = customListsFilter.querySelector('.au-filter-dropdown-menu') as HTMLElement;
-        const isOpen = menu.style.display === 'block';
-
-        // Close all other dropdowns
-        this.querySelectorAll('.au-filter-dropdown-menu').forEach(m => {
-          (m as HTMLElement).style.display = 'none';
-        });
-
-        menu.style.display = isOpen ? 'none' : 'block';
+        const isOpen = dropdownMenu.style.display === 'block';
+        dropdownMenu.style.display = isOpen ? 'none' : 'block';
       });
     }
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', () => {
-      this.querySelectorAll('.au-filter-dropdown-menu').forEach(menu => {
-        (menu as HTMLElement).style.display = 'none';
-      });
+      if (dropdownMenu) dropdownMenu.style.display = 'none';
     });
 
-    // Status Filter clicks
-    const statusFilters = this.querySelectorAll('.au-status-filter');
-    statusFilters.forEach(filter => {
-      this.addEventListener(filter as HTMLElement, 'click', () => {
+    this.$$('.au-status-filter').forEach(filter => {
+      filter.addEventListener('click', () => {
         const status = filter.getAttribute('data-status')!;
         this.setStatus(status);
       });
     });
 
-    // Search Input
-    const searchInput = this.querySelector('.au-social-search-input') as HTMLInputElement;
+    // 3. Search & Scroll
+    const searchInput = this.$('#au-social-search') as HTMLInputElement;
     if (searchInput) {
-      this.addEventListener(searchInput, 'input', (e) => {
+      searchInput.addEventListener('input', (e) => {
         this.searchQuery = (e.target as HTMLInputElement).value.toLowerCase();
         this.refreshEntries();
       });
     }
 
-    // Infinite scroll
-    const content = this.querySelector('.au-social-content');
+    const content = this.$('#au-social-content');
     if (content) {
-      this.addEventListener(content as HTMLElement, 'scroll', () => {
+      content.addEventListener('scroll', () => {
         const distanceToBottom = content.scrollHeight - content.scrollTop - content.clientHeight;
         if (distanceToBottom < 100 && this.hasNextPage && !this.isLoading && this.currentMediaId) {
           this.loadData(this.currentMediaId, this.currentPage + 1);
         }
       });
+
+      // EVENT DELEGATION for activity rows
+      content.addEventListener('click', (e) => this.handleContentClick(e));
     }
 
-    // Close on escape
+    // 4. Keyboard
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.element.classList.contains('active')) {
         this.close();
       }
     });
+
+    // Initialize custom lists
+    this.populateCustomListsDropdown().catch(() => {});
+  }
+
+  /**
+   * Handles all clicks inside the social content area via delegation.
+   * @private
+   */
+  private async handleContentClick(e: MouseEvent): Promise<void> {
+    const target = e.target as HTMLElement;
+    
+    // Star toggle
+    const starBtn = target.closest('.au-bf-toggle');
+    if (starBtn) {
+      e.stopPropagation();
+      const row = starBtn.closest('.au-friend-row') as HTMLElement;
+      const userId = parseInt(row.dataset.userId || '0');
+      const userName = row.dataset.userName || '';
+      
+      const isNowBf = !this.customListService.isUserInList('Best Friends', userId);
+      await this.customListService.toggleUserInList('Best Friends', {
+        id: userId,
+        name: userName,
+        avatar: row.querySelector('img')?.src || ''
+      }, isNowBf);
+
+      // Update all instances of this star
+      this.$$(`.au-friend-row[data-user-id="${userId}"] .au-bf-toggle`).forEach(star => {
+        star.className = `fa ${isNowBf ? 'fa-star' : 'fa-star-o'} au-bf-toggle`;
+      });
+
+      if (this.currentFilter === 'friends' && !isNowBf) {
+        (row as any).style.opacity = '0';
+        setTimeout(() => row.remove(), 300);
+      }
+      return;
+    }
+
+    // Row deep linking
+    const row = target.closest('.au-friend-row') as HTMLElement;
+    if (row) {
+      const userName = row.dataset.userName;
+      if (target.closest('.au-friend-avatar-link') || target.hasAttribute('data-profile-link')) {
+        window.open(`/user/${userName}`, '_blank');
+      } else {
+        const encodedTitle = encodeURIComponent(this.currentAnimeTitle);
+        window.open(`/user/${userName}/animelist?search=${encodedTitle}`, '_blank');
+      }
+    }
   }
 
   private async populateCustomListsDropdown(): Promise<void> {
-    log.debug('[SocialSidebar] Populating custom lists dropdown');
     await this.customListService.init();
     const lists = this.customListService.getLists();
-    log.debug('[SocialSidebar] Lists loaded:', Object.keys(lists));
-
-    const menu = this.querySelector('.au-filter-dropdown-menu');
-
-    if (!menu) {
-      log.warn('[SocialSidebar] Dropdown menu not found');
-      return;
-    }
+    const menu = this.$('#au-custom-lists-menu');
+    if (!menu) return;
 
     const listNames = Object.keys(lists);
     if (listNames.length === 0) {
-      log.info('[SocialSidebar] No custom lists found');
-      menu.innerHTML = '<div class="au-dropdown-item au-dropdown-empty">No lists created yet</div>';
+      menu.appendChild(html`<div class="au-dropdown-item au-dropdown-empty">No lists found</div>`);
       return;
     }
 
-    log.info('[SocialSidebar] Populating with', listNames.length, 'lists');
-    menu.innerHTML = listNames.map(name => `
-      <div class="au-dropdown-item" data-list-name="${name}">
-        <i class="fa fa-list-ul"></i> ${name}
-      </div>
-    `).join('');
-
-    // Attach click events to dropdown items
-    menu.querySelectorAll('.au-dropdown-item:not(.au-dropdown-empty)').forEach(item => {
+    menu.innerHTML = '';
+    listNames.forEach(name => {
+      const item = html`
+        <div class="au-dropdown-item" data-list-name="${name}">
+          <i class="fa fa-list-ul"></i> ${name}
+        </div>
+      `;
       item.addEventListener('click', (e) => {
         e.stopPropagation();
-        const listName = item.getAttribute('data-list-name');
-        if (listName) {
-          this.setCustomListFilter(listName);
-        }
+        this.setCustomListFilter(name);
       });
+      menu.appendChild(item);
     });
   }
 
   private setCustomListFilter(listName: string): void {
-    this.currentFilter = 'following'; // We fetch "following" but filter locally
+    this.currentFilter = 'following';
     this.currentCustomList = listName;
     this.currentPage = 1;
     this.hasNextPage = true;
 
-    // Update UI - set Custom Lists as active
-    this.querySelectorAll('.au-filter').forEach(f => {
-      f.classList.remove('active');
-    });
-    const customListsFilter = this.querySelector('.au-filter-dropdown');
-    if (customListsFilter) {
-      customListsFilter.classList.add('active');
-      const label = customListsFilter.querySelector('.au-filter-label');
-      if (label) label.textContent = listName;
-    }
+    this.$$('.au-filter').forEach(f => f.classList.remove('active'));
+    this.$('#au-custom-lists-trigger')?.classList.add('active');
+    const label = this.$('#au-custom-lists-trigger .au-filter-label');
+    if (label) label.textContent = listName;
 
-    // Close dropdown
-    const menu = this.querySelector('.au-filter-dropdown-menu') as HTMLElement;
+    const menu = this.$('#au-custom-lists-menu');
     if (menu) menu.style.display = 'none';
 
-    if (this.currentMediaId) {
-      this.loadData(this.currentMediaId, 1);
-    }
+    if (this.currentMediaId) this.loadData(this.currentMediaId, 1);
   }
 
   public open(mediaId: number, title: string, anchor?: HTMLElement, type: MediaType = 'ANIME'): void {
-    if (this.currentMediaId === mediaId && this.element.classList.contains('active')) {
-      return;
-    }
+    if (this.currentMediaId === mediaId && this.element.classList.contains('active')) return;
 
     this.currentMediaId = mediaId;
     this.currentAnimeTitle = title;
@@ -261,10 +258,10 @@ export class SocialSidebar extends BaseComponent {
     this.currentPage = 1;
     this.hasNextPage = true;
 
-    this.querySelector('.au-social-title')!.textContent = title;
+    const titleEl = this.$('.au-social-title');
+    if (titleEl) titleEl.textContent = title;
     this.element.classList.add('active');
 
-    // Handle highlighting
     if (this.currentAnchor) this.currentAnchor.classList.remove('au-anime-active');
     if (anchor) {
       this.currentAnchor = anchor;
@@ -287,24 +284,18 @@ export class SocialSidebar extends BaseComponent {
     if (this.currentFilter === type && !this.currentCustomList) return;
 
     this.currentFilter = type;
-    this.currentCustomList = null; // Reset custom list when switching to standard filter
+    this.currentCustomList = null;
     this.currentPage = 1;
     this.hasNextPage = true;
 
-    this.querySelectorAll('.au-filter').forEach(f => {
+    this.$$('.au-filter').forEach(f => {
       f.classList.toggle('active', f.getAttribute('data-type') === type);
     });
 
-    // Reset Custom Lists dropdown label
-    const customListsFilter = this.querySelector('.au-filter-dropdown');
-    if (customListsFilter) {
-      const label = customListsFilter.querySelector('.au-filter-label');
-      if (label) label.textContent = 'Custom Lists';
-    }
+    const label = this.$('#au-custom-lists-trigger .au-filter-label');
+    if (label) label.textContent = 'Custom Lists';
 
-    if (this.currentMediaId) {
-      this.loadData(this.currentMediaId, 1);
-    }
+    if (this.currentMediaId) this.loadData(this.currentMediaId, 1);
   }
 
   private setStatus(status: string): void {
@@ -315,37 +306,35 @@ export class SocialSidebar extends BaseComponent {
     this.currentPage = 1;
     this.hasNextPage = true;
 
-    this.querySelectorAll('.au-status-filter').forEach(f => {
+    this.$$('.au-status-filter').forEach(f => {
       f.classList.toggle('active', f.getAttribute('data-status') === status);
     });
 
-    if (this.currentMediaId) {
-      this.loadData(this.currentMediaId, 1);
-    }
+    if (this.currentMediaId) this.loadData(this.currentMediaId, 1);
   }
 
   private async loadData(mediaId: number, page: number): Promise<void> {
     if (this.isLoading) return;
 
-    const content = this.querySelector('.au-social-content')!;
+    const content = this.$('#au-social-content')!;
     if (page === 1) {
-      content.innerHTML = `
+      content.innerHTML = '';
+      content.appendChild(html`
         <div class="au-social-loading">
           <i class="fa fa-spinner fa-spin"></i>
           <span>Retrieving activities...</span>
-        </div>`;
+        </div>`);
     } else {
-      const loader = document.createElement('div');
-      loader.className = 'au-social-loading';
-      loader.id = 'au-social-more-loader';
-      loader.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+      const loader = html`
+        <div class="au-social-loading" id="au-social-more-loader">
+          <i class="fa fa-spinner fa-spin"></i>
+        </div>`;
       content.appendChild(loader);
     }
 
     this.isLoading = true;
 
     try {
-      // For "friends" and "custom lists" filters, we fetch "following" and filter locally
       const fetchFilter = (this.currentFilter === 'friends' || this.currentCustomList) ? 'following' : this.currentFilter;
       const { nodes, hasNextPage } = await this.socialService.getDetailedActivity(
         mediaId,
@@ -354,37 +343,11 @@ export class SocialSidebar extends BaseComponent {
         this.currentStatus
       );
 
-      let processedNodes = nodes;
-
-      // Filter by Best Friends (legacy)
-      if (this.currentFilter === 'friends') {
-        processedNodes = nodes.filter((node: SocialActivityDetailed) => this.customListService.isUserInList('Best Friends', node.user.id));
-
-        if (processedNodes.length === 0 && hasNextPage && page < 5) {
-          this.isLoading = false;
-          return this.loadData(mediaId, page + 1);
-        }
-      }
-
-      // Filter by Custom List
-      if (this.currentCustomList) {
-        const listUsers = this.customListService.getList(this.currentCustomList);
-        const userIds = new Set(listUsers.map((u: any) => u.id));
-        processedNodes = nodes.filter((node: SocialActivityDetailed) => userIds.has(node.user.id));
-
-        if (processedNodes.length === 0 && hasNextPage && page < 5) {
-          this.isLoading = false;
-          return this.loadData(mediaId, page + 1);
-        }
-      }
-
       this.currentPage = page;
       this.hasNextPage = hasNextPage;
       this.isLoading = false;
 
-      // Remove loader
-      const moreLoader = this.querySelector('#au-social-more-loader');
-      if (moreLoader) moreLoader.remove();
+      this.$('#au-social-more-loader')?.remove();
 
       this.lastLoadedNodes = page === 1 ? nodes : [...this.lastLoadedNodes, ...nodes];
       this.refreshEntries();
@@ -393,13 +356,23 @@ export class SocialSidebar extends BaseComponent {
       log.error('[SocialSidebar] Load failed', e);
       this.isLoading = false;
       if (page === 1) {
-        content.innerHTML = `<div class="au-social-empty">Failed to load activity. Is it available for this anime?</div>`;
+        content.innerHTML = '';
+        content.appendChild(html`<div class="au-social-empty">Failed to load activity. Is it available for this anime?</div>`);
       }
     }
   }
 
   private refreshEntries(): void {
     let filtered = this.lastLoadedNodes;
+
+    // Local filtering for Friends/Custom Lists
+    if (this.currentFilter === 'friends') {
+      filtered = filtered.filter(node => this.customListService.isUserInList('Best Friends', node.user.id));
+    } else if (this.currentCustomList) {
+      const listUsers = this.customListService.getList(this.currentCustomList);
+      const userIds = new Set(listUsers.map((u: any) => u.id));
+      filtered = filtered.filter(node => userIds.has(node.user.id));
+    }
 
     if (this.searchQuery) {
       filtered = filtered.filter(node =>
@@ -408,133 +381,60 @@ export class SocialSidebar extends BaseComponent {
       );
     }
 
-    this.renderEntries(filtered, true); // Always re-render full list for local search
+    this.renderEntries(filtered);
   }
 
-  private renderEntries(nodes: SocialActivityDetailed[], replace: boolean): void {
-    const content = this.querySelector('.au-social-content')!;
+  /**
+   * Renders activity rows using secure templates.
+   * @private
+   */
+  private renderEntries(nodes: SocialActivityDetailed[]): void {
+    const content = this.$('#au-social-content')!;
+    content.innerHTML = '';
 
-    if (nodes.length === 0 && replace) {
-      content.innerHTML = `<div class="au-social-empty">No activity found for this filter.</div>`;
+    if (nodes.length === 0) {
+      content.appendChild(html`<div class="au-social-empty">No activity found.</div>`);
       return;
     }
 
-    const html = nodes.map((node, i) => {
+    nodes.forEach((node, i) => {
       const format = node.user.mediaListOptions?.scoreFormat || 'POINT_100';
       const formattedScore = ScoreFormatter.format(node.score, format);
       const scoreColor = ScoreFormatter.getColor(node.score);
-
       const isMalSync = node.notes && (node.notes.includes('malSync::') || node.notes.includes('autotrack'));
-      const statusColor = this.getStatusColor(node.status);
       const relativeTime = this.timeAgo(node.updatedAt * 1000);
-
-      const scoreHtml = node.score > 0
-        ? `<span class="au-score-badge" style="color:${scoreColor}; border: 1px solid ${scoreColor}40; background:${scoreColor}15">${formattedScore}</span>`
-        : '';
-
-      const notesHtml = (node.notes && !isMalSync)
-        ? `<div class="au-friend-note">"${node.notes}"</div>`
-        : '';
-
       const isBf = this.customListService.isUserInList('Best Friends', node.user.id);
-      const starIcon = isBf ? 'fa-star' : 'fa-star-o';
-
-      // Staggered animation delay
-      const animationDelay = replace ? `style="animation-delay: ${i * 0.06}s"` : '';
-
-      return `
-        <div class="au-friend-row" data-user-id="${node.user.id}" data-user-name="${node.user.name}" ${animationDelay}>
-          <a href="/user/${node.user.name}" target="_blank" class="au-friend-avatar-link">
+      
+      const row = html`
+        <div class="au-friend-row" data-user-id="${node.user.id}" data-user-name="${node.user.name}" style="animation-delay: ${i * 0.05}s">
+          <div class="au-friend-avatar-link">
             <img src="${node.user.avatar.medium}" alt="${node.user.name}">
-          </a>
+          </div>
           <div class="au-friend-info">
             <div class="au-friend-header">
-              <span class="au-friend-name" data-profile-link="/user/${node.user.name}">${node.user.name}</span>
-              <i class="fa ${starIcon} au-bf-toggle" title="${isBf ? 'Remove from Best Friends' : 'Add to Best Friends'}"></i>
+              <span class="au-friend-name" data-profile-link="true">${node.user.name}</span>
+              <i class="fa ${isBf ? 'fa-star' : 'fa-star-o'} au-bf-toggle" title="Toggle Best Friend"></i>
             </div>
-            <div class="au-friend-status" style="color:${statusColor}">
-              ${this.formatStatus(node)} ${scoreHtml}
+            <div class="au-friend-status au-status--${node.status.toLowerCase()}">
+              ${this.formatStatus(node)}
+              ${node.score > 0 ? html`
+                <span class="au-score-badge" style="color:${scoreColor}; border-color: ${scoreColor}40; background:${scoreColor}15">
+                  ${formattedScore}
+                </span>
+              ` : ''}
             </div>
             <div class="au-friend-date">${relativeTime}</div>
-            ${notesHtml}
+            ${node.notes && !isMalSync ? html`<div class="au-friend-note">"${Sanitizer.escape(node.notes)}"</div>` : ''}
           </div>
         </div>
       `;
-    }).join('');
-
-    if (replace) {
-      content.innerHTML = html;
-    } else {
-      content.insertAdjacentHTML('beforeend', html);
-    }
-
-    // Attach star toggle events
-    content.querySelectorAll('.au-bf-toggle').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-
-        const row = (e.target as HTMLElement).closest('.au-friend-row') as HTMLElement;
-        const userId = parseInt(row.getAttribute('data-user-id') || '0');
-        const userName = row.getAttribute('data-user-name') || '';
-
-        const isNowBf = !this.customListService.isUserInList('Best Friends', userId);
-        await this.customListService.toggleUserInList('Best Friends', {
-          id: userId,
-          name: userName,
-          avatar: row.querySelector('img')?.src || ''
-        }, isNowBf);
-
-        // Update UI immediately (all instances in sidebar)
-        content.querySelectorAll(`.au-friend-row[data-user-id="${userId}"] .au-bf-toggle`).forEach(star => {
-          star.className = `fa ${isNowBf ? 'fa-star' : 'fa-star-o'} au-bf-toggle`;
-        });
-
-        // If we are on the friends tab and just removed someone, remove row
-        if (this.currentFilter === 'friends' && !isNowBf) {
-          row.style.opacity = '0';
-          setTimeout(() => row.remove(), 300);
-        }
-      });
+      content.appendChild(row);
     });
-
-    // Attach row background click (Deep Linking)
-    content.querySelectorAll('.au-friend-row').forEach(row => {
-      row.addEventListener('click', (e) => {
-        const target = e.target as HTMLElement;
-        const userName = row.getAttribute('data-user-name');
-
-        // If clicking name/avatar specifically, stay with profile
-        if (target.closest('.au-friend-avatar-link') || target.hasAttribute('data-profile-link')) {
-          window.open(`/user/${userName}`, '_blank');
-          return;
-        }
-
-        // Otherwise fallback to user list filtered by anime
-        const encodedTitle = encodeURIComponent(this.currentAnimeTitle);
-        window.open(`/user/${userName}/animelist?search=${encodedTitle}`, '_blank');
-      });
-    });
-  }
-
-  private getStatusColor(status: string): string {
-    switch (status) {
-      case MediaListStatus.CURRENT: return '#3db4f2';
-      case MediaListStatus.COMPLETED: return '#68d639';
-      case MediaListStatus.PAUSED: return '#e89e3a';
-      case MediaListStatus.DROPPED: return '#f14242';
-      default: return '#9195a3';
-    }
   }
 
   private formatStatus(node: SocialActivityDetailed): string {
     const label = getStatusLabel(node.status, this.currentMediaType);
-    
-    if (node.status === MediaListStatus.CURRENT) {
-      return `${label} Ep ${node.progress}`;
-    }
-    
-    return label;
+    return node.status === MediaListStatus.CURRENT ? `${label} Ep ${node.progress}` : label;
   }
 
   private timeAgo(timestamp: number): string {

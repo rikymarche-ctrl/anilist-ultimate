@@ -3,7 +3,7 @@
  * @description Contract for the business logic responsible for filtering and sorting Astra data.
  */
 
-import { AstraWorkSummary } from '../AstraService';
+import type { AstraWorkSummary } from '../AstraInterfaces';
 import { IDashboardFilters, AstraSortType } from './IDashboardState';
 
 /**

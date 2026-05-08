@@ -1,82 +1,93 @@
 /**
  * @file SocialRenderer.ts
- * @description Static utility class for rendering social avatars and action buttons
- *
- * Creates avatar stack elements with +N overflow badge, profile click
- * handlers, and "View Social" buttons. Used by SocialEnhancerModule
- * to inject social overlays onto native AniList media cards.
- *
- * @see SocialEnhancerModule.ts for the integration layer
- * @see docs/MODULES.md#10-social-enhancer-module
+ * @description Service for rendering social avatars and action buttons on media cards.
  */
 
-import { calendarStore } from '../calendar/CalendarStore';
+import { injectable, inject } from 'tsyringe';
+import { TOKENS } from '@core/di/tokens';
+import { PreferencesService } from '@core/services/PreferencesService';
 import { FriendActivity, MediaType } from '@core/types';
+import { html } from '@core/utils/Template';
 
+/**
+ * Service responsible for creating and attaching social UI elements to the AniList interface.
+ */
+@injectable()
 export class SocialRenderer {
-  /**
-   * Creates the avatar stack HTML for a list of friend activities
-   * Uses IMG tags instead of background-image for screen reader accessibility
-   */
-  public static getAvatarsHTML(activities: FriendActivity[], max: number = 3): string {
-    const { socialShowAvatars } = calendarStore.getState().preferences;
-    if (!socialShowAvatars || !activities || activities.length === 0) return '';
+  constructor(
+    @inject(TOKENS.PreferencesService) private preferences: PreferencesService
+  ) {}
 
-    // Render up to 50 for the stack effect
+  /**
+   * Creates the avatar stack element for a list of friend activities.
+   */
+  public getAvatarsElement(activities: FriendActivity[], max: number = 3): HTMLElement | null {
+    if (!this.preferences.getPreferences().socialShowAvatars || !activities || activities.length === 0) {
+      return null;
+    }
+
     const totalToRender = Math.min(activities.length, 50);
-    let html = '<div class="au-social-stack">';
+    const container = html`<div class="au-social-stack"></div>`;
 
     for (let i = 0; i < totalToRender; i++) {
       const user = activities[i].user;
       const extraClass = i >= max ? 'au-social-avatar-extra' : '';
       const zIndex = 50 - i;
 
-      // Use IMG tag for accessibility - screen readers can read alt text
-      html += `<img
-        src="${user.avatar.medium}"
-        alt="${user.name}'s avatar"
-        class="friend-avatar ${extraClass}"
-        data-user-name="${user.name}"
-        style="z-index:${zIndex}"
-        loading="lazy"
-        role="img"
-        aria-label="${user.name}"
-      />`;
+      const img = html`
+        <img
+          src="${user.avatar.medium}"
+          alt="${user.name}'s avatar"
+          class="friend-avatar ${extraClass}"
+          data-user-name="${user.name}"
+          style="z-index:${zIndex}"
+          loading="lazy"
+          role="img"
+          aria-label="${user.name}"
+        />
+      `;
+      
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.open(`/user/${user.name}`, '_blank');
+      });
+      
+      container.appendChild(img);
     }
 
-    // Show +X badge if there are more than max visible avatars
     if (activities.length > max) {
       const extraCount = Math.min(activities.length - max, 50 - max);
-      html += `<div class="friend-avatar extra-count" style="z-index:5" role="presentation" aria-hidden="true">+${extraCount}</div>`;
+      container.appendChild(html`
+        <div class="friend-avatar extra-count" style="z-index:5" role="presentation" aria-hidden="true">
+          +${extraCount}
+        </div>
+      `);
     }
 
-    html += '</div>';
-    return html;
+    return container;
   }
 
   /**
-   * Creates a social activity trigger button
+   * Creates a social activity trigger button.
    */
-  public static getSocialButtonHTML(): string {
-    return `
+  public getSocialButton(onClick: () => void): HTMLElement {
+    const btn = html`
       <div class="au-social-button" data-action="social-activity" title="View Social Activity">
         <i class="fa fa-users"></i>
       </div>
     `;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick();
+    });
+    return btn;
   }
 
   /**
-   * Injects the social UI into a native AniList card
-   * @param card - The card element to inject into
-   * @param mediaId - The media ID
-   * @param activities - Friend activities to display
-   * @param signal - Optional AbortSignal for cleanup (recommended to prevent memory leaks)
-   */
-  /**
-   * Creates a social bubble portal attached to a card
+   * Attaches a social bubble portal to a card.
    * @returns AbortController for cleanup
    */
-  public static attachPortal(
+  public attachPortal(
     card: HTMLElement,
     mediaId: number,
     title: string,
@@ -98,7 +109,6 @@ export class SocialRenderer {
     const positionAndShow = () => {
       if (!bubble) return;
       
-      // Use absolute positioning relative to document to scroll WITH the page
       bubble.style.position = 'absolute';
       bubble.style.left = '-9999px';
       bubble.style.top = '-9999px';
@@ -106,17 +116,13 @@ export class SocialRenderer {
       bubble.style.zIndex = '3000';
       bubble.classList.add('visible');
 
-      // Force reflow
       void bubble.offsetHeight;
 
       const cardRect = card.getBoundingClientRect();
       const bubbleHeight = bubble.offsetHeight;
       const cardCenterX = cardRect.left + (cardRect.width / 2);
 
-      // Position above card
-      let top = cardRect.top - bubbleHeight - 3; // 3px gap
-      
-      // Prevent from going off-screen vertically
+      let top = cardRect.top - bubbleHeight - 3;
       const padding = 10;
       if (top + window.scrollY < padding) {
         top = cardRect.bottom + 3;
@@ -130,15 +136,20 @@ export class SocialRenderer {
     const createBubble = () => {
       if (bubble) return;
       
-      bubble = document.createElement('div');
-      bubble.className = 'au-social-bubble-portal';
-      bubble.innerHTML = `
-        ${this.getAvatarsHTML(activities)}
-        ${this.getSocialButtonHTML()}
-      `;
+      bubble = html`<div class="au-social-bubble-portal"></div>`;
+      
+      const avatars = this.getAvatarsElement(activities);
+      if (avatars) bubble.appendChild(avatars);
+      
+      const btn = this.getSocialButton(() => {
+        window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
+          detail: { mediaId, title, element: card, type: mediaType }
+        }));
+      });
+      bubble.appendChild(btn);
+      
       document.body.appendChild(bubble);
 
-      // Hover on bubble itself keeps it visible
       bubble.addEventListener('mouseenter', () => {
         bubble?.classList.add('visible');
       }, { signal });
@@ -146,33 +157,11 @@ export class SocialRenderer {
       bubble.addEventListener('mouseleave', () => {
         bubble?.classList.remove('visible');
       }, { signal });
-
-      // Handle avatar clicks
-      bubble.querySelectorAll('.friend-avatar').forEach(avatar => {
-        avatar.addEventListener('click', (e) => {
-          const userName = (avatar as HTMLElement).getAttribute('data-user-name');
-          if (userName) {
-            e.stopPropagation();
-            window.open(`/user/${userName}`, '_blank');
-          }
-        }, { signal });
-      });
-
-      // Handle social button click
-      const socialBtn = bubble.querySelector('[data-action="social-activity"]');
-      if (socialBtn) {
-        socialBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-            detail: { mediaId, title, element: card, type: mediaType }
-          }));
-        }, { signal });
-      }
     };
 
     card.addEventListener('mouseenter', () => {
-      const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
-      if (!socialEnabled || !socialShowAvatars) return;
+      const prefs = this.preferences.getPreferences();
+      if (!prefs.socialEnabled || !prefs.socialShowAvatars) return;
 
       createBubble();
       positionAndShow();
@@ -185,10 +174,7 @@ export class SocialRenderer {
       }
     }, { signal });
 
-    // Cleanup on signal abort
-    signal.addEventListener('abort', () => {
-      destroyBubble();
-    });
+    signal.addEventListener('abort', () => destroyBubble());
 
     return abortController;
   }

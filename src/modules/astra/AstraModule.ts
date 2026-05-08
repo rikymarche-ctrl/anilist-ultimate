@@ -17,7 +17,7 @@ import { AstraRatingController } from './ui/AstraRatingController';
 import { SocialMaskingService } from '@core/services/SocialMaskingService';
 import { AstraEnhancementService } from './services/AstraEnhancementService';
 import { AstraNavigationService } from './services/AstraNavigationService';
-import { AstraPreferencesService } from './services/AstraPreferencesService';
+import { PreferencesService } from '@core/services/PreferencesService';
 import type { ToastService } from '@core/services/ToastService';
 
 /**
@@ -39,7 +39,7 @@ export class AstraModule extends BaseModule {
     @inject(TOKENS.SocialMaskingService) private maskingService: SocialMaskingService,
     @inject(TOKENS.AstraEnhancementService) private enhancementService: AstraEnhancementService,
     @inject(TOKENS.AstraNavigationService) private navService: AstraNavigationService,
-    @inject(TOKENS.AstraPreferencesService) private preferences: AstraPreferencesService,
+    @inject(TOKENS.PreferencesService) private preferences: PreferencesService,
     @inject(TOKENS.ToastService) private toast: ToastService
   ) {
     super(eventbus);
@@ -64,6 +64,11 @@ export class AstraModule extends BaseModule {
       this.enhancementService.enhanceCards(path);
     });
 
+    // Final pass for any pre-existing cards
+    setTimeout(() => {
+      this.enhancementService.enhanceCards(window.location.pathname);
+    }, 1000);
+
     // 2. Continuous enhancement via SharedObserver
     this.sharedObserver.register('astra-enhancer', () => {
       const path = window.location.pathname;
@@ -87,11 +92,6 @@ export class AstraModule extends BaseModule {
       log.debug('[Astra] Settings changed, refreshing pills...');
       this.enhancementService.refreshAllPills();
     });
-
-    // Cleanup interval for navbar redundancy
-    this.intervals.push(window.setInterval(() => {
-      this.navService.injectNavbarButton(() => this.eventbus.emit(EVENT_TYPES.ASTRA_OPEN));
-    }, 5000));
   }
 
   /**
@@ -163,7 +163,7 @@ export class AstraModule extends BaseModule {
     container.innerHTML = '';
     (container as HTMLElement).style.display = 'block';
     this.dashboard.mount(container as HTMLElement);
-    this.service.syncWithAniList(this.apiClient).catch(() => { });
+    this.service.syncWithAniList().catch(() => { });
   }
 
   /**

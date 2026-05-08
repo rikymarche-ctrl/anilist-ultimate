@@ -191,17 +191,31 @@ export abstract class BaseComponent<P extends ComponentProps = ComponentProps> {
   }
 
   /**
-   * Query selector within component
+   * Shorthand for querySelector within component
    */
-  protected querySelector<T extends Element = Element>(selector: string): T | null {
-    return this.element.querySelector<T>(selector);
+  protected $<T extends HTMLElement>(selector: string): T | null {
+    return this.element?.querySelector(selector) as T || null;
   }
 
   /**
-   * Query selector all within component
+   * Shorthand for querySelectorAll within component
    */
-  protected querySelectorAll<T extends Element = Element>(selector: string): NodeListOf<T> {
-    return this.element.querySelectorAll<T>(selector);
+  protected $$<T extends HTMLElement>(selector: string): NodeListOf<T> {
+    return this.element?.querySelectorAll(selector) as NodeListOf<T> || [] as any;
+  }
+
+  /**
+   * Alias for $
+   */
+  protected querySelector<T extends HTMLElement>(selector: string): T | null {
+    return this.$(selector);
+  }
+
+  /**
+   * Alias for $$
+   */
+  protected querySelectorAll<T extends HTMLElement>(selector: string): NodeListOf<T> {
+    return this.$$(selector);
   }
 
   /**

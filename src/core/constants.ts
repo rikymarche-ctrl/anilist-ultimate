@@ -122,6 +122,8 @@ export const DEFAULT_CALENDAR_PREFERENCES = {
   socialEnabled: true,
   socialShowAvatars: true,
   showEmptyToday: true,
+  autoUpdateProgress: true,
+  compactMode: false,
 };
 
 // ============================================================================

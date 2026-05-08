@@ -13,11 +13,11 @@ import { CommentTooltip } from './CommentTooltip';
 import { StorageManager } from '@core/storage/StorageManager';
 import type { IStorageService } from '@core/interfaces/IStorageService';
 import type { GraphQLBatcher } from '@core/api/GraphQLBatcher';
+import { html } from '@core/utils/Template';
 import '../../styles/hover-comments.css';
 
 @injectable()
 export class HoverCommentsModule extends BaseModule {
-  private tooltip: CommentTooltip;
   private pollingInterval: any = null;
   private processedMediaId: number | null = null;
   private isProcessing = false;
@@ -31,12 +31,10 @@ export class HoverCommentsModule extends BaseModule {
     @inject(TOKENS.Logger) private logger: ILogger,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus,
     @inject(TOKENS.GraphQLBatcher) private batcher: GraphQLBatcher,
-    @inject(TOKENS.LocalStorage) private storage: IStorageService
+    @inject(TOKENS.LocalStorage) private storage: IStorageService,
+    @inject(CommentTooltip) private tooltip: CommentTooltip
   ) {
     super(eventBus);
-    this.tooltip = new CommentTooltip({
-      onRefresh: () => window.location.reload(),
-    });
   }
 
   public async init(): Promise<void> {
@@ -194,9 +192,12 @@ export class HoverCommentsModule extends BaseModule {
     const anchor = link.closest('.activity-entry, .user-status-row, .following-list-item') as HTMLElement || link;
     anchor.style.position = 'relative';
 
-    const iconContainer = document.createElement('div');
-    iconContainer.className = 'comment-icon-ghost';
-    iconContainer.innerHTML = `<span class="anilist-comment-icon">${this.ICON_SVG}</span>`;
+    const iconContainer = html`
+      <div class="comment-icon-ghost">
+        <span class="anilist-comment-icon">${this.ICON_SVG}</span>
+      </div>
+    `;
+    
     anchor.appendChild(iconContainer);
 
     const icon = iconContainer.querySelector('.anilist-comment-icon') as HTMLElement;

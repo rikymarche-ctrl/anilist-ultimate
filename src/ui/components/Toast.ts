@@ -11,7 +11,7 @@
  */
 
 import { BaseComponent } from './BaseComponent';
-import { escapeHtml } from '@core/utils/Template';
+import { html } from '@core/utils/Template';
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
 
@@ -33,42 +33,36 @@ export class Toast extends BaseComponent<ToastProps> {
   private remaining?: number;
 
   protected render(): HTMLElement {
-    const { type, title, message, duration } = this.props;
-
-    const toast = this.createElement('div', {
-      class: `au-toast au-toast--${type}`,
-      'data-toast-id': this.props.id
-    });
-
+    const { type, title, message, duration, mediaId } = this.props;
     const iconClass = this.getIconClass(type);
 
-    toast.innerHTML = `
-      <div class="au-toast__icon">
-        <i class="${iconClass}"></i>
-      </div>
-      <div class="au-toast__content">
-        <div class="au-toast__body">
-          ${title ? `<span class="au-toast__title">${escapeHtml(title)}</span>` : ''}
-          <div class="au-toast__message">${escapeHtml(message)}</div>
+    return html`
+      <div class="au-toast au-toast--${type}" data-toast-id="${this.props.id}">
+        <div class="au-toast__icon">
+          <i class="${iconClass}"></i>
         </div>
-        ${this.props.mediaId ? `
-          <div class="au-toast__actions">
-            <div class="au-toast__note-field">
-              <input type="text" class="au-toast__note-input" placeholder="Quick Note..." />
-              <button class="au-toast__note-save" title="Save Note">
-                <i class="fa fa-paper-plane"></i>
-              </button>
-            </div>
+        <div class="au-toast__content">
+          <div class="au-toast__body">
+            ${title ? html`<span class="au-toast__title">${title}</span>` : ''}
+            <div class="au-toast__message">${message}</div>
           </div>
-        ` : ''}
+          ${mediaId ? html`
+            <div class="au-toast__actions">
+              <div class="au-toast__note-field">
+                <input type="text" class="au-toast__note-input" id="toast-note-${this.props.id}" placeholder="Quick Note..." />
+                <button class="au-toast__note-save" id="toast-save-${this.props.id}" title="Save Note">
+                  <i class="fa fa-paper-plane"></i>
+                </button>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+        <button class="au-toast__close" aria-label="Close" id="toast-close-${this.props.id}">
+          <i class="fa fa-times"></i>
+        </button>
+        ${duration ? html`<div class="au-toast__progress"></div>` : ''}
       </div>
-      <button class="au-toast__close" aria-label="Close">
-        <i class="fa fa-times"></i>
-      </button>
-      ${duration ? '<div class="au-toast__progress"></div>' : ''}
     `;
-
-    return toast;
   }
 
   private getIconClass(type: ToastType): string {
@@ -81,7 +75,7 @@ export class Toast extends BaseComponent<ToastProps> {
   }
 
   protected attachEvents(): void {
-    const closeBtn = this.querySelector('.au-toast__close');
+    const closeBtn = this.$(`#toast-close-${this.props.id}`);
     if (closeBtn) {
       this.addEventListener(closeBtn as HTMLElement, 'click', () => {
         this.dismiss();
@@ -98,8 +92,8 @@ export class Toast extends BaseComponent<ToastProps> {
 
     // Note input events
     if (this.props.mediaId) {
-      const input = this.querySelector('.au-toast__note-input') as HTMLInputElement;
-      const saveBtn = this.querySelector('.au-toast__note-save');
+      const input = this.$(`#toast-note-${this.props.id}`) as HTMLInputElement;
+      const saveBtn = this.$(`#toast-save-${this.props.id}`);
 
       if (input && saveBtn) {
         const handleSave = async () => {

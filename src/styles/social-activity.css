@@ -26,12 +26,12 @@
   /* Position above card with 3px gap */
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(14, 22, 33, 0.95);
-  backdrop-filter: blur(16px);
+  background: var(--au-bg-glass);
+  backdrop-filter: var(--au-blur, blur(20px));
   padding: 12px 16px;
   border-radius: 24px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--au-shadow-lg);
+  border: 1px solid var(--au-border);
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -58,12 +58,12 @@
   visibility: hidden;
   transition: opacity 0.2s ease, visibility 0.2s ease;
   z-index: 10000 !important;
-  background: rgba(14, 22, 33, 0.95);
-  backdrop-filter: blur(16px);
+  background: var(--au-bg-glass);
+  backdrop-filter: var(--au-blur, blur(20px));
   padding: 12px 16px;
   border-radius: 24px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--au-shadow-lg);
+  border: 1px solid var(--au-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -567,9 +567,9 @@
   line-height: 1.5;
   margin-top: 10px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--au-primary-rgb), 0.05);
   border-radius: 12px;
-  border-left: 3px solid #e0c56e;
+  border-left: 3px solid var(--au-warning);
   font-family: inherit;
   font-style: italic;
 }

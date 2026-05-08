@@ -1,11 +1,14 @@
+import { injectable } from 'tsyringe';
 import { AstraView } from '../base/AstraView';
-import { AstraEpisodeNote } from '../../AstraService';
+import type { AstraEpisodeNote } from '../../AstraInterfaces';
 import { AstraRatingStore, AstraRatingState } from '../state/AstraRatingStore';
+import { html } from '@core/utils/Template';
 
 /**
  * Component for tracking per-episode notes.
  * Connects to AstraRatingStore for state synchronization.
  */
+@injectable()
 export class AstraEpisodeJournal extends AstraView {
   private store: AstraRatingStore | null = null;
 
@@ -17,7 +20,7 @@ export class AstraEpisodeJournal extends AstraView {
     this.store = store;
   }
 
-  protected template(state: AstraRatingState): string {
+  protected template(state: AstraRatingState): HTMLElement {
     const { work, currentSeasonIdx, media } = state;
     const season = work.seasons[currentSeasonIdx];
     const notes = season.episodeNotes || {};
@@ -26,7 +29,7 @@ export class AstraEpisodeJournal extends AstraView {
     const total = media.episodes;
     const airedCount = media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : (media.status === 'FINISHED' ? media.episodes : (media.episodes || 0));
 
-    return `
+    return html`
       <div class="astra-journal-view">
         <div class="astra-journal-header">
            <h3>Season Journal</h3>
@@ -40,9 +43,13 @@ export class AstraEpisodeJournal extends AstraView {
     `;
   }
 
-  private renderEpisodes(progress: number, total: number | null, notes: Record<number, AstraEpisodeNote>, airedCount: number | null): string {
+  private renderEpisodes(progress: number, total: number | null, notes: Record<number, AstraEpisodeNote>, airedCount: number | null): HTMLElement[] {
     const visibleCount = total || Math.max(progress, airedCount || 0, Object.keys(notes).length);
-    let html = '';
+    const rows: HTMLElement[] = [];
+
+    if (visibleCount === 0) {
+      return [html`<div class="astra-empty-state">No episodes available to track.</div>` as any];
+    }
 
     for (let i = 1; i <= visibleCount; i++) {
       const note = notes[i]?.text || '';
@@ -51,13 +58,13 @@ export class AstraEpisodeJournal extends AstraView {
       const isNotAired = !hasAired;
       const isLocked = hasAired && !isWatched;
 
-      html += `
+      rows.push(html`
         <div class="astra-ep-row ${isLocked ? 'astra-ep-row--locked' : ''} ${isNotAired ? 'astra-ep-row--not-aired' : ''}" data-ep="${i}">
           <div class="astra-ep-num">
             <span class="astra-label-xs">EP</span>
             <span class="astra-ep-digit">${i}</span>
-            ${isNotAired ? '<span class="astra-ep-badge">NA</span>' : ''}
-            ${isLocked ? '<span class="astra-ep-badge"><i class="fa fa-lock"></i></span>' : ''}
+            ${isNotAired ? html`<span class="astra-ep-badge">NA</span>` : ''}
+            ${isLocked ? html`<span class="astra-ep-badge"><i class="fa fa-lock"></i></span>` : ''}
           </div>
           <div class="astra-ep-body">
             <textarea class="astra-ep-textarea" data-ep="${i}" 
@@ -65,10 +72,10 @@ export class AstraEpisodeJournal extends AstraView {
               ${isLocked || isNotAired ? 'disabled' : ''}>${note}</textarea>
           </div>
         </div>
-      `;
+      `);
     }
 
-    return html || '<div class="astra-empty-state">No episodes available to track.</div>';
+    return rows;
   }
 
   protected bindEvents(): void {

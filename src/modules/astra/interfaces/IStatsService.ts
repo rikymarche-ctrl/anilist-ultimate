@@ -3,7 +3,7 @@
  * @description Contract for calculating analytical insights from Astra data.
  */
 
-import { AstraWorkSummary } from '../AstraService';
+import type { AstraWorkSummary } from '../AstraInterfaces';
 import { IDashboardStats } from './IDashboardState';
 
 /**

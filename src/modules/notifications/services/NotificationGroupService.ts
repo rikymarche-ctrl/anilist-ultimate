@@ -15,7 +15,7 @@
 import { injectable, inject } from 'tsyringe';
 import type { ActivityDetails, NotificationFetchService } from './NotificationFetchService';
 import { TOKENS } from '@core/di/tokens';
-import { escapeHtml } from '@core/utils/Template';
+import { html } from '@core/utils/Template';
 
 export interface NotificationGroup {
   user: string;
@@ -52,40 +52,52 @@ export class NotificationGroupService {
   /**
    * Generate smart notification text based on types
    */
-  public generateGroupText(group: NotificationGroup): string {
+  public generateGroupText(group: NotificationGroup): HTMLElement {
     const types = Array.from(group.types.keys());
     const isSingleType = types.length === 1;
     const count = group.count;
-    const countSpan = `<span class="au-activity-count" style="cursor: pointer; font-weight: 700;">${count}</span>`;
+    const countSpan = html`<span class="au-activity-count" style="cursor: pointer; font-weight: 700;">${count}</span>`;
+
+    const content = html`<span class="au-notification-text"></span>`;
 
     if (isSingleType) {
       const type = types[0];
       switch (type) {
         case 'activity_like':
-          return `liked <b>${countSpan}</b> of your activities`;
+          content.append('liked ', countSpan, ' of your activities');
+          break;
         case 'message':
-          return `sent you <b>${countSpan}</b> messages`;
+          content.append('sent you ', countSpan, ' messages');
+          break;
         case 'thread_like':
-          return `liked <b>${countSpan}</b> of your forum threads`;
+          content.append('liked ', countSpan, ' of your forum threads');
+          break;
         case 'activity_reply':
-          return `replied <b>${countSpan}</b> times to your activity`;
+          content.append('replied ', countSpan, ' times to your activity');
+          break;
         case 'follow':
-          return `and <b>${countSpan}</b> others followed you`;
+          content.append('and ', countSpan, ' others followed you');
+          break;
         case 'watched':
-          return `watched <b>${countSpan}</b> episodes`;
+          content.append('watched ', countSpan, ' episodes');
+          break;
         case 'read':
-          return `read <b>${countSpan}</b> chapters`;
+          content.append('read ', countSpan, ' chapters');
+          break;
         default:
-          return `interacted <b>${countSpan}</b> times`;
+          content.append('interacted ', countSpan, ' times');
+          break;
       }
     } else {
       // Mixed types: check if mostly likes
       const likeCount = (group.types.get('activity_like') || 0) + (group.types.get('reply_like') || 0);
       if (likeCount > (count / 2)) {
-          return `liked and interacted <b>${countSpan}</b> times`;
+          content.append('liked and interacted ', countSpan, ' times');
+      } else {
+          content.append('interacted with you ', countSpan, ' times');
       }
-      return `interacted with you <b>${countSpan}</b> times`;
     }
+    return content;
   }
 
   /**
@@ -128,42 +140,27 @@ export class NotificationGroupService {
 
     if (!textElement) textElement = clone;
 
-    const originalHTML = textElement.innerHTML;
     const originalText = textElement.textContent || '';
-    let newContentHTML = '';
+    let newContent: HTMLElement | null = null;
 
     // Handle Media Activity (Airing/Watched/Read)
     if (activityData.mediaId) {
-      const patterns = [
-        /liked your activity\.?/i,
-        /liked your activity\s*/i,
-        /liked your\s+/i
-      ];
+      const mediaUrl = `/anime/${activityData.mediaId}`;
+      const action = activityData.status?.replace(/_/g, ' ').toLowerCase() || 'watched';
+      const isLike = originalText.toLowerCase().includes('liked');
 
-      let matched = false;
-      for (const pattern of patterns) {
-        if (pattern.test(originalHTML)) {
-          // XSS PROTECTION: Escape mediaTitle from API data
-          const mediaTitleSafe = escapeHtml(activityData.mediaTitle || '');
-          const mediaLink = `<a href="/anime/${activityData.mediaId}" class="title au-title">${mediaTitleSafe}</a>`;
-          const action = activityData.status?.replace(/_/g, ' ').toLowerCase() || 'watched';
-          newContentHTML = `liked: ${action} ${mediaLink}`;
-          matched = true;
-          break;
-        }
-      }
-
-      if (!matched) {
-        // Not a like, but we have media details (likely a "watched/read" grouped item)
-        const mediaTitleSafe = escapeHtml(activityData.mediaTitle || '');
-        const mediaLink = `<a href="/anime/${activityData.mediaId}" class="title au-title">${mediaTitleSafe}</a>`;
-        const action = activityData.status?.replace(/_/g, ' ').toLowerCase() || 'watched';
-        newContentHTML = `${action} ${mediaLink}`;
-      }
+      newContent = html`
+        <span class="au-notification-content">
+          ${isLike ? 'liked: ' : ''}${action} 
+          <a href="${mediaUrl}" class="title au-title" style="pointer-events: auto; cursor: pointer;">${activityData.mediaTitle || ''}</a>
+        </span>
+      `;
     }
     // Handle Text/Message/Reply Activity
     else if (activityData.text) {
-      const isReply = originalHTML.toLowerCase().includes('replied');
+      const isReply = originalText.toLowerCase().includes('replied');
+      const isMessage = originalText.toLowerCase().includes('message');
+      const isLike = originalText.toLowerCase().includes('liked');
 
       // Extract reply text from DOM if possible
       let replyText = '';
@@ -172,33 +169,37 @@ export class NotificationGroupService {
         replyText = parts[parts.length - 1].trim().replace(/^["']|["']$/g, '');
       }
 
-      const contentTruncated = escapeHtml(activityData.text.substring(0, 30) + (activityData.text.length > 30 ? '...' : ''));
+      const contentTruncated = activityData.text.substring(0, 30) + (activityData.text.length > 30 ? '...' : '');
 
       if (isReply && replyText) {
-        const replyTruncated = escapeHtml(replyText.substring(0, 40) + (replyText.length > 40 ? '...' : ''));
-        newContentHTML = `replied to <i>"${contentTruncated}"</i> with <b>"${replyTruncated}"</b>`;
+        const replyTruncated = replyText.substring(0, 40) + (replyText.length > 40 ? '...' : '');
+        newContent = html`
+          <span class="au-notification-content">
+            replied to <i>"${contentTruncated}"</i> with <b>"${replyTruncated}"</b>
+          </span>
+        `;
       } else if (isReply) {
-        newContentHTML = `replied to <i>"${contentTruncated}"</i>`;
-      } else if (!activityData.status) {
-        // Simple Like or Message
-        const label = originalHTML.toLowerCase().includes('message') ? 'sent: ' : 'liked: ';
-        newContentHTML = (hidePrefix ? '' : label) + `<i>"${contentTruncated}"</i>`;
+        newContent = html`
+          <span class="au-notification-content">
+            replied to <i>"${contentTruncated}"</i>
+          </span>
+        `;
       } else {
-        newContentHTML = (hidePrefix ? '' : 'wrote: ') + `<i>"${contentTruncated}"</i>`;
+        const label = isMessage ? 'sent: ' : (isLike ? 'liked: ' : 'wrote: ');
+        newContent = html`
+          <span class="au-notification-content">
+            ${hidePrefix ? '' : label}<i>"${contentTruncated}"</i>
+          </span>
+        `;
       }
     }
 
     // Apply changes if we have a new format
-    if (newContentHTML) {
+    if (newContent) {
       const timeEl = textElement.querySelector('.time');
-      const timeHTML = timeEl ? timeEl.outerHTML : '';
-      textElement.innerHTML = `${timeHTML}<span class="au-notification-content">${newContentHTML}</span>`;
-
-      // Restore pointer events for links
-      textElement.querySelectorAll('a').forEach(link => {
-        link.style.pointerEvents = 'auto';
-        link.style.cursor = 'pointer';
-      });
+      textElement.innerHTML = ''; // Clear but we will restore time if needed
+      if (timeEl) textElement.appendChild(timeEl);
+      textElement.appendChild(newContent);
     }
   }
 

@@ -10,7 +10,7 @@
  * @see docs/MODULES.md#5-astra-module-advanced-scoring
  */
 
-import { AstraSection } from '../AstraService';
+import type { AstraSection } from '../AstraInterfaces';
 
 export class AstraRadarChart {
   /**

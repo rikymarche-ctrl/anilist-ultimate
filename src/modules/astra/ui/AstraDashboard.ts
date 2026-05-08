@@ -6,7 +6,8 @@
 import { injectable, singleton, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraView } from './base/AstraView';
-import { AstraStore, DashboardState } from '../store/AstraStore';
+import { AstraDashboardStore } from '../store/AstraDashboardStore';
+import { IDashboardState } from '../interfaces/IDashboardState';
 import { AstraService } from '../AstraService';
 import { AstraStatsHeader } from './components/AstraStatsHeader';
 import { AstraFilterBar } from './components/AstraFilterBar';
@@ -29,7 +30,7 @@ export class AstraDashboard extends AstraView {
   private settingsView: AstraSettingsView;
 
   constructor(
-    @inject(TOKENS.AstraStore) private store: AstraStore,
+    @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {
@@ -69,6 +70,7 @@ export class AstraDashboard extends AstraView {
     
     // Subscribe to store updates
     const unsubscribe = this.store.subscribe((state) => {
+      this.activeTab = state.activeTab;
       this.refreshComponents(state);
     });
 
@@ -114,7 +116,7 @@ export class AstraDashboard extends AstraView {
           <div class="astra-nav-spacer"></div>
           <button class="astra-modal-close"><i class="fa-solid fa-xmark"></i></button>
         </nav>
-
+ 
         <div class="astra-modal-main">
           <div id="astra-dashboard-content">
              <!-- Sub-components will be mounted here -->
@@ -154,10 +156,13 @@ export class AstraDashboard extends AstraView {
     }
   }
 
-  private refreshComponents(state: DashboardState): void {
+  private refreshComponents(state: IDashboardState): void {
     if (this.activeTab === 'dashboard') {
       this.statsHeader.update(state.stats);
+      this.filterBar.update(state); // Update filters too to keep search input in sync
       this.workTable.update(state);
+    } else {
+      this.renderContainer(); // Simple way to switch view when activeTab changes in state
     }
   }
 

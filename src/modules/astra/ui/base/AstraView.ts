@@ -10,26 +10,30 @@ export abstract class AstraView extends BaseComponent {
   protected parent: HTMLElement | null = null;
 
   /**
-   * Return the HTML template for this component
+   * Return the HTML template or element for this component
    */
-  protected abstract template(state?: any): string;
+  protected abstract template(state?: any): string | HTMLElement;
 
   /**
    * Mount the component to a parent element
    */
   public mount(parent: HTMLElement, state?: any): void {
     this.parent = parent;
-    const html = this.template(state);
+    const templateResult = this.template(state);
     
-    // Create temporary container to parse HTML
-    const container = document.createElement('div');
-    container.innerHTML = html.trim();
-    const newElement = container.firstElementChild as HTMLElement;
+    let newElement: HTMLElement;
+    if (typeof templateResult === 'string') {
+      const container = document.createElement('div');
+      container.innerHTML = templateResult.trim();
+      newElement = container.firstElementChild as HTMLElement;
+    } else {
+      newElement = templateResult;
+    }
     
     if (newElement) {
       this.element = newElement;
       parent.appendChild(this.element);
-      this.onMount();
+      this.onMount(state);
       this.bindEvents();
     }
   }
@@ -56,15 +60,21 @@ export abstract class AstraView extends BaseComponent {
     this.onUnmount();
     this.cleanup(); // Clean up listeners before re-rendering
     
-    const html = this.template(state);
-    const container = document.createElement('div');
-    container.innerHTML = html.trim();
-    const newElement = container.firstElementChild as HTMLElement;
+    const templateResult = this.template(state);
+    let newElement: HTMLElement;
+    
+    if (typeof templateResult === 'string') {
+      const container = document.createElement('div');
+      container.innerHTML = templateResult.trim();
+      newElement = container.firstElementChild as HTMLElement;
+    } else {
+      newElement = templateResult;
+    }
     
     if (newElement) {
       this.element = newElement;
       this.parent.replaceChild(this.element, oldElement);
-      this.onMount();
+      this.onMount(state);
       this.bindEvents();
     }
   }
@@ -79,7 +89,7 @@ export abstract class AstraView extends BaseComponent {
   /**
    * Lifecycle hook: Called after element is added to DOM
    */
-  protected onMount(): void {}
+  protected onMount(_state?: any): void {}
 
   /**
    * Lifecycle hook: Called before element is removed from DOM

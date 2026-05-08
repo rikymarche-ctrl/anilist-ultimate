@@ -11,6 +11,7 @@ import type { ILogger } from '@core/interfaces/ILogger';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { localStorage } from '@core/storage/StorageManager';
+import { html } from '@core/utils/Template';
 
 interface MediaInfo {
   idMal: number | null;
@@ -160,12 +161,13 @@ export class MediaMetadataModule extends BaseModule {
       const score = (info as any).malScore || await this.fetchMalScore(info.idMal, type);
       const malUrl = `https://myanimelist.net/${type.toLowerCase()}/${info.idMal}`;
 
-      const malSection = document.createElement('div');
-      malSection.className = 'data-set au-mal-score';
-      malSection.style.marginBottom = '14px';
-      malSection.innerHTML = `
-        <div class="type" style="font-size: 1.2rem; color: var(--color-text-light); padding-bottom: 5px; font-weight: 500;">MAL Score</div>
-        <div class="value" style="font-size: 1.2rem;"><a href="${malUrl}" target="_blank" style="color: rgb(140, 153, 169); font-weight: 400;">${score || 'N/A'}</a></div>
+      const malSection = html`
+        <div class="data-set au-mal-score" style="margin-bottom: 14px;">
+          <div class="type" style="font-size: 1.2rem; color: var(--color-text-light); padding-bottom: 5px; font-weight: 500;">MAL Score</div>
+          <div class="value" style="font-size: 1.2rem;">
+            <a href="${malUrl}" target="_blank" style="color: rgb(140, 153, 169); font-weight: 400;">${score || 'N/A'}</a>
+          </div>
+        </div>
       `;
 
       // Inject after Mean Score
@@ -210,13 +212,16 @@ export class MediaMetadataModule extends BaseModule {
 
       redditBtn.style.setProperty('--link-color', 'rgb(255, 69, 0)');
 
-      redditBtn.innerHTML = `
-        <div class="icon-wrap" ${dataAttr ? dataAttr : ''} style="background: rgb(255, 69, 0); width: 25px; height: 25px; display: flex !important; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0;">
-          <i class="fab fa-reddit-alien" style="color: white; font-size: 16px;"></i>
+      const redditInner = html`
+        <div style="display: contents;">
+          <div class="icon-wrap" ${dataAttr ? dataAttr : ''} style="background: rgb(255, 69, 0); width: 25px; height: 25px; display: flex !important; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0;">
+            <i class="fab fa-reddit-alien" style="color: white; font-size: 16px;"></i>
+          </div>
+          <span class="name" ${dataAttr ? dataAttr : ''} style="font-size: 1.4rem; font-weight: 700; color: var(--color-text);">Reddit</span>
         </div>
-        <span class="name" ${dataAttr ? dataAttr : ''} style="font-size: 1.4rem; font-weight: 700; color: var(--color-text);">Reddit</span>
       `;
-
+      
+      redditBtn.appendChild(redditInner);
       externalLinksWrap.appendChild(redditBtn);
     }
   }

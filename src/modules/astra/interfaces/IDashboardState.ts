@@ -4,7 +4,7 @@
  * Includes search parameters, active filters, and calculated view data.
  */
 
-import { AstraWorkSummary } from '../AstraService';
+import type { AstraWorkSummary } from '../AstraInterfaces';
 import { MediaListStatus } from '@/api/AnilistTypes';
 
 /**
@@ -24,10 +24,10 @@ export type AstraSortType =
 export interface IDashboardFilters {
   search: string;
   type: 'all' | 'anime' | 'manga' | 'novel';
-  status: 'all' | MediaListStatus;
+  ratingStatus: 'all' | 'rated' | 'unrated';
+  anilistStatus: 'all' | MediaListStatus;
   country: 'all' | string;
   isGrouped: boolean;
-  anilistStatus: 'all' | 'synced' | 'local-only';
 }
 
 /**

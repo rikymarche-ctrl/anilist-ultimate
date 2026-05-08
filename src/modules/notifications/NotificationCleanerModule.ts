@@ -35,6 +35,7 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import { NotificationFetchService } from './services/NotificationFetchService';
 import { NotificationGroupService, NotificationGroup } from './services/NotificationGroupService';
 import { NotificationFilterService } from './services/NotificationFilterService';
+import { html } from '@core/utils/Template';
 import '../../styles/notification-cleaner.css';
 
 @injectable()
@@ -401,7 +402,7 @@ export class NotificationCleanerModule extends BaseModule {
     const vn = (template.tagName === 'A' ? document.createElement('div') : template.cloneNode(true)) as HTMLElement;
     if (template.tagName === 'A') {
       vn.className = template.className;
-      vn.innerHTML = template.innerHTML;
+      vn.append(...Array.from(template.childNodes).map(c => c.cloneNode(true)));
     }
     vn.classList.add('au-virtual-notification');
 
@@ -418,13 +419,16 @@ export class NotificationCleanerModule extends BaseModule {
     this.groupService.injectUserLink(vn, group.user);
     const textEl = vn.querySelector('.details, .text, .content') || vn;
     const userLink = textEl.querySelector('a[href*="/user/"]');
-    const newActionText = this.groupService.generateGroupText(group);
+    const newActionContent = this.groupService.generateGroupText(group);
 
+    textEl.innerHTML = '';
+    const wrapper = html`<span class="au-notification-content"></span>`;
     if (userLink) {
-      textEl.innerHTML = `<span class="au-notification-content">${userLink.outerHTML} ${newActionText}</span>`;
-    } else {
-      textEl.innerHTML = `<span class="au-notification-content">${newActionText}</span>`;
+      wrapper.appendChild(userLink);
+      wrapper.append(' ');
     }
+    wrapper.appendChild(newActionContent);
+    textEl.appendChild(wrapper);
 
     vn.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('a')) return;
@@ -467,7 +471,7 @@ export class NotificationCleanerModule extends BaseModule {
       const clone = (notif.tagName === 'A' ? document.createElement('div') : notif.cloneNode(true)) as HTMLElement;
       if (notif.tagName === 'A') {
         clone.className = notif.className;
-        clone.innerHTML = notif.innerHTML;
+        clone.append(...Array.from(notif.childNodes).map(c => c.cloneNode(true)));
       }
       clone.classList.add('au-sub-notification');
       clone.setAttribute('data-au-processed', 'true');

@@ -1,6 +1,7 @@
-import { injectable, singleton, inject } from 'tsyringe';
+import { injectable, singleton, inject, delay } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
-import { AstraService, AstraWork } from '../AstraService';
+import { AstraService } from '../AstraService';
+import type { AstraWork } from '../AstraInterfaces';
 import { AstraView } from './base/AstraView';
 import type { IAstraRatingService } from '../interfaces/IAstraRatingService';
 import { AstraScoreForm } from './components/AstraScoreForm';
@@ -14,10 +15,11 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { ToastService } from '@core/services/ToastService';
 import { AstraRatingStore } from './state/AstraRatingStore';
+import { html } from '@core/utils/Template';
 
 /**
  * Enterprise implementation of the Rating Modal Controller.
- * Refactored to use AstraRatingStore for state management.
+ * Refactored to use DI for sub-components and secure templates.
  */
 @injectable()
 @singleton()
@@ -26,24 +28,17 @@ export class AstraRatingController extends AstraView {
   private store: AstraRatingStore | null = null;
   private isSaving: boolean = false;
 
-  // Sub-components
-  private header: AstraRatingHeader;
-  private scoreForm: AstraScoreForm;
-  private journalView: AstraEpisodeJournal;
-  private radarPreview: AstraRadarPreview;
-
   constructor(
-    @inject(TOKENS.AstraService) private service: AstraService,
+    @inject(delay(() => AstraService)) private service: AstraService,
     @inject(TOKENS.IAstraRatingService) private ratingService: IAstraRatingService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(TOKENS.ToastService) private toast: ToastService
+    @inject(TOKENS.ToastService) private toast: ToastService,
+    @inject(AstraRatingHeader) private header: AstraRatingHeader,
+    @inject(AstraScoreForm) private scoreForm: AstraScoreForm,
+    @inject(AstraEpisodeJournal) private journalView: AstraEpisodeJournal,
+    @inject(AstraRadarPreview) private radarPreview: AstraRadarPreview
   ) {
     super({});
-    this.header = new AstraRatingHeader({});
-    this.scoreForm = new AstraScoreForm(this.service, this.eventBus);
-    this.journalView = new AstraEpisodeJournal();
-    this.radarPreview = new AstraRadarPreview({});
-
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN_MODAL, (detail: any) => this.open(detail.mediaId));
   }
 
@@ -60,9 +55,9 @@ export class AstraRatingController extends AstraView {
 
     const { media, allCustomLists } = data;
     const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
+
     const work = await this.service.getFullWork(mediaId) || this.createDefaultWork(media, mediaType);
 
-    // Calculate Progress metadata
     const totalCount = media.episodes || null;
     let airedCount: number | null = null;
     if (media.nextAiringEpisode) {
@@ -71,7 +66,6 @@ export class AstraRatingController extends AstraView {
       airedCount = totalCount;
     }
 
-    // Initialize Store
     this.store = new AstraRatingStore({
       work,
       media,
@@ -144,12 +138,12 @@ export class AstraRatingController extends AstraView {
     }, 350);
   }
 
-  protected template(): string {
+  protected template(): HTMLElement {
     const state = this.store?.getState();
     const activeTab = state?.activeTab || 'rating';
     const isDirty = state?.isDirty || false;
 
-    return `
+    return html`
       <div class="astra-modal astra-modal--rating">
         <nav class="astra-modal-nav">
           <div class="astra-nav-item astra-nav-item--ghost"></div>
@@ -223,7 +217,6 @@ export class AstraRatingController extends AstraView {
       const season = state.work.seasons[state.currentSeasonIdx];
       const consolidated = this.consolidateScores(season.scores);
 
-      // Update section labels and radar
       this.scoreForm.updateSectionScores(consolidated);
 
       const radarTarget = formMount.querySelector('.astra-radar-mount');
@@ -271,7 +264,7 @@ export class AstraRatingController extends AstraView {
       this.$$('.astra-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === state.activeTab));
       this.$('#sidebar-save-btn')?.classList.toggle('hidden', state.activeTab !== 'journal');
       this.renderTabContent();
-      this.header.update({ ...this.header.getState(), activeTab: state.activeTab });
+      this.header.update({ ...this.header.getState()!, activeTab: state.activeTab });
     } else if (type === 'dirty-change') {
       const saveBtn = this.$('#sidebar-save-btn');
       if (saveBtn) {
@@ -288,9 +281,7 @@ export class AstraRatingController extends AstraView {
       const overall = this.service.calcSeasonScore(season);
       this.updateOverallScore(overall);
     } else if (type === 'season-update' || type === 'state-change') {
-      // Avoid full re-render for notes to preserve focus
       if (payload.field === 'notes') return;
-
       this.renderHeader();
       this.renderTabContent();
     }
@@ -302,7 +293,7 @@ export class AstraRatingController extends AstraView {
 
     this.isSaving = true;
     this.store?.setSaving(true);
-    const saveBtn = this.$('#astra-save-btn') as HTMLButtonElement;
+    const saveBtn = document.getElementById('astra-save-btn') as HTMLButtonElement;
     const originalHTML = saveBtn?.innerHTML || '';
 
     if (saveBtn) {

@@ -3,7 +3,7 @@
  * @description Indestructible parser for extracting structured Astra data.
  * Uses fuzzy matching and robust regex to survive browser/rendering variations.
  */
-import type { AstraSection, AstraWork } from '../AstraService';
+import type { AstraSection, AstraWork } from '../AstraInterfaces';
 
 export interface ParsedAstraReport {
   overallScore?: number;
@@ -79,7 +79,7 @@ export class AstraParser {
           } else if (currentSectionId) {
             // Sub-section
             const section = sections.find(s => s.id === currentSectionId);
-            const sub = section?.subSections?.find(ss => ss.name.toLowerCase() === rawName.toLowerCase());
+            const sub = section?.subSections?.find((ss: any) => ss.name.toLowerCase() === rawName.toLowerCase());
             if (sub) {
               report.subSectionScores[`${currentSectionId}_${sub.id}`] = score;
             }
@@ -154,5 +154,67 @@ export class AstraParser {
     }
 
     return changed;
+  }
+
+  /**
+   * Generates a string representation of the Astra data.
+   */
+  public static serialize(work: AstraWork, sections: AstraSection[]): string {
+    const season = work.seasons[work.seasons.length - 1];
+    if (!season) return '';
+
+    let text = '\n\n─── 🌌 ASTRA REVIEW 🌌 ───\n';
+    
+    // Breakdown
+    text += '📊 BREAKDOWN:\n';
+    for (const section of sections) {
+      const score = season.scores[section.id];
+      if (score !== null) {
+        text += `• ${section.name}: ${score}/10\n`;
+        if (section.subSections) {
+          for (const sub of section.subSections) {
+            const subScore = season.scores[`${section.id}_${sub.id}`];
+            if (subScore !== null) {
+              text += `  └ ${sub.name}: ${subScore}/10\n`;
+            }
+          }
+        }
+      }
+    }
+
+    // Journal
+    if (season.episodeNotes && Object.keys(season.episodeNotes).length > 0) {
+      text += '\n📔 JOURNAL:\n';
+      const episodes = Object.keys(season.episodeNotes).map(Number).sort((a, b) => a - b);
+      for (const ep of episodes) {
+        const note = season.episodeNotes[ep];
+        if (note.text) text += `Ep ${ep}: ${note.text}\n`;
+      }
+    }
+
+    // Notes
+    if (season.notes) {
+      text += `\n📝 NOTES:\nRating: ${season.notes}\n`;
+    }
+
+    text += '──────────────────────────';
+    return text;
+  }
+
+  /**
+   * Injects or replaces the Astra block within a text.
+   */
+  public static inject(text: string, work: AstraWork, sections: AstraSection[]): string {
+    const serialized = this.serialize(work, sections);
+    const marker = '─── 🌌 ASTRA REVIEW 🌌 ───';
+    
+    if (text.includes(marker)) {
+      // Replace existing
+      const regex = /─── 🌌 ASTRA REVIEW 🌌 ───[\s\S]*?──────────────────────────/;
+      return text.replace(regex, serialized);
+    } else {
+      // Append new
+      return (text.trim() + '\n' + serialized).trim();
+    }
   }
 }

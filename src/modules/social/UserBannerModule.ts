@@ -13,6 +13,7 @@ import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver'
 import { CustomListService, CustomListUser } from './CustomListService';
 import { SocialService } from './SocialService';
 import { ToastService } from '@core/services/ToastService';
+import { html } from '@core/utils/Template';
 
 @injectable()
 export class UserBannerModule extends BaseModule {
@@ -86,11 +87,11 @@ export class UserBannerModule extends BaseModule {
     const followBtn = actions.querySelector('.nav-btn');
     if (!followBtn) return;
 
-    const btn = document.createElement('div');
-    btn.className = 'nav-btn au-banner-list-btn';
-    btn.setAttribute('data-v-b1e442a6', ''); // Match AniList scoped styles
-    btn.innerHTML = '<span>Add to List</span>';
-    btn.title = 'Manage Custom Lists';
+    const btn = html`
+      <div class="nav-btn au-banner-list-btn" data-v-b1e442a6="" title="Manage Custom Lists">
+        <span>Add to List</span>
+      </div>
+    `;
     
     // Insert after follow button container
     followBtn.parentNode?.insertBefore(btn, followBtn.nextSibling);
@@ -169,23 +170,27 @@ export class UserBannerModule extends BaseModule {
     const lists = this.listService.getLists();
     const listNames = Object.keys(lists);
 
-    this.popover.innerHTML = `
-      <div class="au-popover-header">
-        <span>Add to List</span>
-      </div>
-      <div class="au-popover-content">
-        ${listNames.map(name => {
-          const isActive = this.listService.isUserInList(name, this.currentUser!.id);
-          return `
-            <div class="au-popover-item ${isActive ? 'active' : ''}" data-list="${name}">
-              <div class="au-popover-checkbox"></div>
-              <span class="au-popover-name">${name}</span>
-            </div>
-          `;
-        }).join('')}
-        ${listNames.length === 0 ? '<div class="au-popover-empty">No custom lists found. Create one in AU Settings.</div>' : ''}
+    const content = html`
+      <div style="display: contents;">
+        <div class="au-popover-header">
+          <span>Add to List</span>
+        </div>
+        <div class="au-popover-content">
+          ${listNames.map(name => {
+            const isActive = this.listService.isUserInList(name, this.currentUser!.id);
+            return html`
+              <div class="au-popover-item ${isActive ? 'active' : ''}" data-list="${name}">
+                <div class="au-popover-checkbox"></div>
+                <span class="au-popover-name">${name}</span>
+              </div>
+            `;
+          })}
+          ${listNames.length === 0 ? html`<div class="au-popover-empty">No custom lists found. Create one in AU Settings.</div>` : ''}
+        </div>
       </div>
     `;
+
+    this.popover.appendChild(content);
 
     document.body.appendChild(this.popover);
 

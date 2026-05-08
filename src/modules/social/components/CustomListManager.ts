@@ -18,6 +18,7 @@ import { CustomListService, CustomListUser } from '../CustomListService';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import { MSG, type AuthLoginResponse } from '@shared/messages';
+import { html } from '@core/utils/Template';
 
 @injectable()
 export class CustomListManager extends BaseComponent<Record<string, never>> {
@@ -35,15 +36,15 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
   }
 
   protected render(): HTMLElement {
-    const container = this.createElement('div', { class: 'au-custom-lists-manager' });
+    const container = html`<div class="au-custom-lists-manager"></div>`;
 
     // Show loading state initially
-    container.innerHTML = `
+    container.appendChild(html`
       <div class="au-cl-loading-overlay">
         <i class="fa fa-spinner fa-spin au-cl-loading-spinner"></i>
         <span>Loading...</span>
       </div>
-    `;
+    `);
 
     // Initialize lists and render - Defer to ensure constructor properties are available
     setTimeout(() => this.initializeAndRender(container), 0);
@@ -59,49 +60,52 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
 
   private renderInitial(container: HTMLElement): void {
     const lists = this.listService.getLists();
+    
+    container.innerHTML = '';
+    container.appendChild(html`
+      <div style="display: contents;">
+        <div class="au-cl-info">
+          <h3><i class="fa fa-info-circle"></i> Custom User Lists</h3>
+          <p>Create and manage personalized groups of users to filter activities.
+          <b>Important:</b> This feature requires you to be authenticated with <b>Anilist Ultimate</b>.</p>
+        </div>
 
-    container.innerHTML = `
-      <div class="au-cl-info">
-        <h3><i class="fa fa-info-circle"></i> Custom User Lists</h3>
-        <p>Create and manage personalized groups of users to filter activities.
-        <b>Important:</b> This feature requires you to be authenticated with <b>Anilist Ultimate</b>.</p>
-      </div>
+        <div class="au-cl-header">
+          <button class="au-cl-add-list-btn" title="Create new list">
+            <i class="fa fa-plus"></i> New List
+          </button>
+        </div>
 
-      <div class="au-cl-header">
-        <button class="au-cl-add-list-btn" title="Create new list">
-          <i class="fa fa-plus"></i> New List
-        </button>
-      </div>
-
-      <div class="au-cl-lists-overview">
-        ${Object.keys(lists).map(name => {
-      const userCount = lists[name].length;
-      return `
-            <div class="au-cl-list-card" data-list="${name}">
-              <div class="au-cl-list-info">
-                <h4 class="au-cl-list-name">${name}</h4>
-                <p class="au-cl-list-count">${userCount} user${userCount !== 1 ? 's' : ''}</p>
+        <div class="au-cl-lists-overview">
+          ${Object.keys(lists).map(name => {
+            const userCount = lists[name].length;
+            return html`
+              <div class="au-cl-list-card" data-list="${name}">
+                <div class="au-cl-list-info">
+                  <h4 class="au-cl-list-name">${name}</h4>
+                  <p class="au-cl-list-count">${userCount} user${userCount !== 1 ? 's' : ''}</p>
+                </div>
+                <div class="au-cl-list-actions">
+                  <button class="au-cl-manage-btn" data-list="${name}" title="Manage users">
+                    <i class="fa fa-users"></i> Manage
+                  </button>
+                  <button class="au-cl-delete-btn" data-list="${name}" title="Delete list">
+                    <i class="fa fa-trash"></i>
+                  </button>
+                </div>
               </div>
-              <div class="au-cl-list-actions">
-                <button class="au-cl-manage-btn" data-list="${name}" title="Manage users">
-                  <i class="fa fa-users"></i> Manage
-                </button>
-                <button class="au-cl-delete-btn" data-list="${name}" title="Delete list">
-                  <i class="fa fa-trash"></i>
-                </button>
-              </div>
-            </div>
-          `;
-    }).join('')}
-      </div>
+            `;
+          })}
+        </div>
 
-      <div class="au-cl-content" style="display: none;">
-        <div class="au-cl-loading-overlay">
-          <i class="fa fa-spinner fa-spin au-cl-loading-spinner"></i>
-          <span>Retrieving your following list from AniList...</span>
+        <div class="au-cl-content" style="display: none;">
+          <div class="au-cl-loading-overlay">
+            <i class="fa fa-spinner fa-spin au-cl-loading-spinner"></i>
+            <span>Retrieving your following list from AniList...</span>
+          </div>
         </div>
       </div>
-    `;
+    `);
   }
 
   private async loadData(): Promise<void> {
@@ -126,19 +130,20 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     } catch (e) {
       log.error('[CustomListManager] Failed to load data', e);
       const content = this.element.querySelector('.au-cl-content')!;
-      content.innerHTML = `
+      content.innerHTML = '';
+      content.appendChild(html`
         <div class="au-cl-empty">
           <i class="fa fa-exclamation-triangle" style="font-size: 24px; color: #e85d75; margin-bottom: 15px; display: block;"></i>
           <p>Failed to load your following list.</p>
-          <p style="font-size: 13px; margin-top: 10px; color: #8fa0b1; line-height: 1.6;">
+          <div style="font-size: 13px; margin-top: 10px; color: #8fa0b1; line-height: 1.6;">
             Questa funzione richiede l'autenticazione con <b>Anilist Ultimate</b>.<br>
             Per favore, clicca sull'icona dell'estensione e premi <b>Login</b>.<br>
             <button class="au-cl-login-btn" style="margin-top: 15px; background: rgb(var(--color-blue)); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
               Login con Anilist Ultimate
             </button>
-          </p>
+          </div>
         </div>
-      `;
+      `);
 
       content.querySelector('.au-cl-login-btn')?.addEventListener('click', async () => {
         try {
@@ -172,16 +177,19 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     if (content) content.style.display = 'block';
 
     // Add back button and search
-    header.innerHTML = `
-      <button class="au-cl-back-btn" title="Back to lists">
-        <i class="fa fa-arrow-left"></i> Back
-      </button>
-      <div class="au-cl-search-container">
-        <i class="fa fa-search au-cl-search-icon"></i>
-        <input type="text" class="au-cl-search-input" placeholder="Search users..." />
+    header.innerHTML = '';
+    header.appendChild(html`
+      <div style="display: contents;">
+        <button class="au-cl-back-btn" title="Back to lists">
+          <i class="fa fa-arrow-left"></i> Back
+        </button>
+        <div class="au-cl-search-container">
+          <i class="fa fa-search au-cl-search-icon"></i>
+          <input type="text" class="au-cl-search-input" placeholder="Search users..." />
+        </div>
+        <span class="au-cl-current-list">Managing: <b>${listName}</b></span>
       </div>
-      <span class="au-cl-current-list">Managing: <b>${listName}</b></span>
-    `;
+    `);
 
     // Attach back button event
     header.querySelector('.au-cl-back-btn')?.addEventListener('click', () => {
@@ -224,20 +232,21 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     const listService = this.listService;
     const currentListName = this.currentListName;
 
-    content.innerHTML = `
+    content.innerHTML = '';
+    content.appendChild(html`
       <div class="au-cl-grid">
         ${filtered.map(user => {
-      const isActive = listService.isUserInList(currentListName, user.id);
-      return `
+          const isActive = listService.isUserInList(currentListName, user.id);
+          return html`
             <div class="au-cl-user-card ${isActive ? 'active' : ''}" data-user-id="${user.id}">
               <div class="au-cl-avatar" style="background-image: url('${user.avatar}')"></div>
               <div class="au-cl-name">${user.name}</div>
               <div class="au-cl-checkbox"></div>
             </div>
           `;
-    }).join('')}
+        })}
       </div>
-    `;
+    `);
 
     this.attachGridEvents(content);
   }

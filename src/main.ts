@@ -32,6 +32,7 @@ import type { ModuleRegistry } from '@core/modules/ModuleRegistry';
 import { setupDI } from './setup';
 
 // Styles
+import './styles/tokens.css';
 import './styles/main.css';
 import './styles/toast.css';
 import './styles/social-activity.css';

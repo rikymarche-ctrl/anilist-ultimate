@@ -3,7 +3,9 @@
  * @description Specialized header component for the Astra Rating Modal
  */
 
+import { injectable } from 'tsyringe';
 import { AstraView } from '../base/AstraView';
+import { html } from '@core/utils/Template';
 
 interface HeaderState {
   mediaId: number;
@@ -17,6 +19,7 @@ interface HeaderState {
   activeTab?: string;
 }
 
+@injectable()
 export class AstraRatingHeader extends AstraView {
   protected state: HeaderState | null = null;
 
@@ -24,11 +27,11 @@ export class AstraRatingHeader extends AstraView {
     return this.state;
   }
 
-  protected template(state: HeaderState): string {
+  protected template(state: HeaderState): HTMLElement {
     this.state = state;
     const isJournal = state.activeTab === 'journal';
 
-    return `
+    return html`
       <header class="astra-modal-header astra-rating-header">
         <div class="astra-header-main">
           <div class="astra-header-left">
@@ -40,7 +43,7 @@ export class AstraRatingHeader extends AstraView {
           </div>
 
           <div class="astra-header-actions">
-            ${!isJournal ? `
+            ${!isJournal ? html`
             <div class="astra-control-group">
                <button class="astra-finale-pill astra-override-pill ${state.manualOverride ? 'active' : ''}" 
                  id="header-override-btn" 
@@ -49,7 +52,7 @@ export class AstraRatingHeader extends AstraView {
                  <span>OVERRIDE</span>
                </button>
 
-               ${state.showFinale && !state.manualOverride ? `
+               ${state.showFinale && !state.manualOverride ? html`
                <button class="astra-finale-pill ${state.isSeriesFinale ? 'active' : ''}" 
                  id="header-finale-btn" 
                  title="Toggle Series Finale">

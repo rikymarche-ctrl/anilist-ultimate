@@ -4,7 +4,7 @@
  * Handles data fetching, AniList synchronization, and local persistence coordination.
  */
 
-import { AstraWork } from '../AstraService';
+import type { AstraWork } from '../AstraInterfaces';
 import { MediaWithViewerResponse } from '@/api/AnilistTypes';
 
 /**

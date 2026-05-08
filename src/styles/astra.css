@@ -112,7 +112,7 @@
   border-radius: 0;
   transition: all 0.2s ease;
   color: var(--astra-text-dim);
-  padding: 0 12px;
+  padding: 0;
   min-width: 0;
   /* Allow shrinking below content size */
 }
@@ -151,8 +151,9 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Separator visibility managed by component logic and calendar.css */
 .pill-separator {
-  display: none !important;
+  opacity: 0.6;
 }
 
 .au-pill-pressed {

@@ -34,6 +34,7 @@ export const TOKENS = {
   NavigationService: Symbol.for('NavigationService'),
   SharedGlobalObserver: Symbol.for('SharedGlobalObserver'),
   NativeUiSyncService: Symbol.for('NativeUiSyncService'),
+  PreferencesService: Symbol.for('PreferencesService'),
 
   // API Layer
   ApiClient: Symbol.for('IApiClient'),
@@ -55,6 +56,7 @@ export const TOKENS = {
 
   // Social Module Services
   SocialService: Symbol.for('SocialService'),
+  SocialRenderer: Symbol.for('SocialRenderer'),
   CustomListService: Symbol.for('CustomListService'),
   SocialMaskingService: Symbol.for('SocialMaskingService'),
   CommentService: Symbol.for('CommentService'),
@@ -90,7 +92,6 @@ export const TOKENS = {
   IAstraRatingService: Symbol.for('IAstraRatingService'),
   AstraEnhancementService: Symbol.for('AstraEnhancementService'),
   AstraNavigationService: Symbol.for('AstraNavigationService'),
-  AstraPreferencesService: Symbol.for('AstraPreferencesService'),
   MediaMusicModule: Symbol.for('MediaMusicModule'),
 
   // Sync Queue

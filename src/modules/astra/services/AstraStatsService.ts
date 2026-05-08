@@ -4,7 +4,7 @@
  */
 
 import { injectable } from 'tsyringe';
-import { AstraWorkSummary } from '../AstraService';
+import type { AstraWorkSummary } from '../AstraInterfaces';
 import { IStatsService } from '../interfaces/IStatsService';
 import { IDashboardStats } from '../interfaces/IDashboardState';
 import { MediaListStatus } from '@/api/AnilistTypes';

@@ -1,0 +1,56 @@
+/**
+ * @file tokens.css
+ * @description Master design tokens and global CSS variables
+ */
+
+:root {
+  /* Core Palette */
+  --au-primary: #4a9eff;
+  --au-primary-rgb: 74, 158, 255;
+  --au-primary-hover: #308ce6;
+  
+  --au-success: #4dff88;
+  --au-success-rgb: 77, 255, 136;
+  
+  --au-warning: #ffb84d;
+  --au-warning-rgb: 255, 184, 77;
+  
+  --au-error: #ff4d4d;
+  --au-error-rgb: 255, 77, 77;
+  
+  --au-muted: #9195a3;
+  --au-text: #edf1f5;
+  --au-text-dim: #9195a3;
+  
+  /* Backgrounds & Glass */
+  --au-bg-dark: #0e1621;
+  --au-bg-darker: #0b1119;
+  --au-bg-glass: rgba(14, 22, 33, 0.95);
+  --au-bg-glass-heavy: rgba(11, 17, 25, 0.98);
+  
+  --au-border: rgba(255, 255, 255, 0.1);
+  --au-border-focus: rgba(74, 158, 255, 0.4);
+  
+  /* Astra Specific */
+  --astra-accent: var(--au-primary);
+  --astra-border: var(--au-border);
+  --astra-muted: var(--au-muted);
+  --astra-accent-a10: rgba(var(--au-primary-rgb), 0.1);
+  --astra-accent-a20: rgba(var(--au-primary-rgb), 0.2);
+  
+  /* Animations */
+  --au-transition-fast: 0.2s ease;
+  --au-transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Elevations */
+  --au-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --au-shadow-md: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --au-shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.7);
+}
+
+/* Status Specific (AniList standard) */
+.au-status--current { --status-color: #3db4f2; }
+.au-status--completed { --status-color: #68d639; }
+.au-status--paused { --status-color: #e89e3a; }
+.au-status--dropped { --status-color: #f14242; }
+.au-status--planning { --status-color: #9195a3; }

@@ -100,13 +100,16 @@ export class ForumEnhancerModule extends BaseModule {
 
     titleEl.setAttribute('data-au-enhanced', 'true');
     
-    // Create link wrapper
     const a = document.createElement('a');
     a.href = mediaHref;
-    a.className = 'au-title-link';
-    a.innerHTML = titleEl.innerHTML;
+    a.style.color = 'inherit';
+    a.style.textDecoration = 'none';
+
+    // Move all children to the link
+    while (titleEl.firstChild) {
+      a.appendChild(titleEl.firstChild);
+    }
     
-    titleEl.innerHTML = '';
     titleEl.appendChild(a);
     log.info(`[ForumEnhancer] Linked thread title to ${mediaHref}`);
   }
@@ -141,7 +144,11 @@ export class ForumEnhancerModule extends BaseModule {
     const linkedTitle = document.querySelector('.au-title-link');
     if (linkedTitle && linkedTitle.parentNode) {
       const h1 = linkedTitle.parentNode as HTMLElement;
-      h1.innerHTML = linkedTitle.innerHTML;
+      // Move children back to h1
+      while (linkedTitle.firstChild) {
+        h1.appendChild(linkedTitle.firstChild);
+      }
+      linkedTitle.remove();
       h1.removeAttribute('data-au-enhanced');
     }
 

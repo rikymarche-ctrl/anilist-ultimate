@@ -17,6 +17,7 @@ import { calendarStore } from '../CalendarStore';
 import { TOKENS } from '@core/di/tokens';
 import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { SocialRenderer } from '../../social/SocialRenderer';
+import { html } from '@core/utils/Template';
 import type { AnimeEntry, CardOptions } from '@core/types';
 
 interface AnimeCardProps {
@@ -73,7 +74,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         card.classList.add('anime-card--is-behind');
       }
 
-      card.innerHTML = this.getCardHTML(anime, options);
+      const content = this.getCardContent(anime, options);
+      card.appendChild(content);
       return card;
     } catch (error: unknown) {
       console.error('[AnimeCard] Render failed', error);
@@ -126,8 +128,11 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       const { episodeStr, isBehind } = this.getEpisodeString(anime);
       const episodeEl = this.element.querySelector('.anime-card__episode');
       if (episodeEl) {
-        const behindDotHTML = isBehind ? `<span class="behind-indicator"></span>` : '';
-        episodeEl.innerHTML = `${behindDotHTML}Ep ${episodeStr}`;
+        episodeEl.innerHTML = '';
+        if (isBehind) {
+          episodeEl.appendChild(html`<span class="behind-indicator"></span>`);
+        }
+        episodeEl.append(`Ep ${episodeStr}`);
       }
 
       // Update behind class
@@ -182,6 +187,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     }
   }
 
+  private get socialRenderer(): SocialRenderer {
+    return container.resolve<SocialRenderer>(TOKENS.SocialRenderer);
+  }
+
   /**
    * Synchronize the social portal based on current preferences.
    * Always starts fresh (portal was destroyed before this call).
@@ -195,7 +204,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     if (socialEnabled && socialShowAvatars && isHomePage) {
       if (!this.socialPortalController) {
-        this.socialPortalController = SocialRenderer.attachPortal(
+        this.socialPortalController = this.socialRenderer.attachPortal(
           this.element,
           anime.mediaId,
           anime.cleanTitle,
@@ -288,135 +297,141 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   }
 
   /**
-   * Render action pill HTML (mark watched, edit, optional social)
+   * Render action pill (mark watched, edit, optional social)
    */
-  private renderActionPillHTML(socialSectionHTML: string, compact: boolean = false): string {
+  private renderActionPill(socialSection: HTMLElement | null, compact: boolean = false): HTMLElement {
     const compactClass = compact ? ' action-pill--compact' : '';
-    return `
+    const pill = html`
       <div class="action-pill${compactClass}" role="toolbar" aria-label="Anime actions">
         <button type="button" class="pill-section" data-action="mark-watched" aria-label="Mark episode as watched">
           <i class="fa fa-plus" aria-hidden="true"></i>
         </button>
-        ${this.props.options.astraEnabled ? `
-          <div class="pill-separator" aria-hidden="true"></div>
-          <button type="button" class="pill-section" data-action="edit-entry" aria-label="Edit entry">
-            <i class="fa fa-pencil" aria-hidden="true"></i>
-          </button>
-        ` : ''}
-        ${socialSectionHTML}
       </div>
     `;
+
+    if (this.props.options.astraEnabled) {
+      pill.appendChild(html`<div class="pill-separator" aria-hidden="true"></div>`);
+      pill.appendChild(html`
+        <button type="button" class="pill-section" data-action="edit-entry" aria-label="Edit entry">
+          <i class="fa fa-pencil" aria-hidden="true"></i>
+        </button>
+      `);
+    }
+
+    if (socialSection) {
+      pill.appendChild(socialSection);
+    }
+
+    return pill;
   }
 
-  private getCardHTML(anime: AnimeEntry, options: CardOptions): string {
+  private getCardContent(anime: AnimeEntry, options: CardOptions): HTMLElement {
     const { layoutMode, showTime, showEpisodeNumbers, timeFormat } = options;
     const { socialEnabled, socialShowAvatars } = calendarStore.getState().preferences;
 
     const showPillSocial = socialEnabled && !socialShowAvatars;
-    const socialSectionHTML = showPillSocial ? `
-      <div class="pill-separator"></div>
-      <div class="pill-section" data-action="social-activity">
-        <i class="fa fa-users"></i>
-      </div>
-    ` : '';
+    let socialSection: HTMLElement | null = null;
+    
+    if (showPillSocial) {
+      const container = document.createElement('div');
+      container.style.display = 'contents';
+      container.appendChild(html`<div class="pill-separator"></div>`);
+      container.appendChild(html`
+        <div class="pill-section" data-action="social-activity">
+          <i class="fa fa-users"></i>
+        </div>
+      `);
+      socialSection = container;
+    }
 
     // Calculate episode string
     const { episodeStr, isBehind } = this.getEpisodeString(anime);
-    const behindDotHTML = isBehind ? `<span class="behind-indicator"></span>` : '';
 
     // Common elements
-    const titleHTML = `<h3 class="anime-card__title">${anime.cleanTitle}</h3>`;
-    const episodeHTML = showEpisodeNumbers
-      ? `<span class="anime-card__episode">${behindDotHTML}Ep ${episodeStr}</span>`
-      : '';
-    const timeHTML = showTime ? this.getTimeHTML(anime, timeFormat) : '';
+    const title = html`<h3 class="anime-card__title">${anime.cleanTitle}</h3>`;
+    
+    let episode: HTMLElement | null = null;
+    if (showEpisodeNumbers) {
+      episode = html`<span class="anime-card__episode"></span>`;
+      if (isBehind) {
+        episode.appendChild(html`<span class="behind-indicator"></span>`);
+      }
+      episode.append(`Ep ${episodeStr}`);
+    }
+
+    const time = showTime ? this.getTimeElement(anime, timeFormat) : null;
 
     // Layout-specific structure
     if (layoutMode === 'compact') {
-      // Compact mode: MINIMAL - Only text, NO images
-      return `
-        <div class="anime-card__compact-content">
-          ${titleHTML}
-          <div class="anime-card__meta">
-            ${episodeHTML}
-            ${timeHTML}
+      return html`
+        <div style="display: contents;">
+          <div class="anime-card__compact-content">
+            ${title}
+            <div class="anime-card__meta">
+              ${episode}
+              ${time}
+            </div>
           </div>
-        </div>
-        <div class="anime-card__action anime-card__action--compact">
-          ${this.renderActionPillHTML(socialSectionHTML, true)}
+          <div class="anime-card__action anime-card__action--compact">
+            ${this.renderActionPill(socialSection, true)}
+          </div>
         </div>
       `;
     }
 
     if (layoutMode === 'extended') {
-      // Extended mode: Vertical card with full-width cover
-      const coverHTML = `
-        <div class="anime-card__cover">
+      return html`
+        <div class="anime-card__extended-layout">
+          <div class="anime-card__cover">
+            <img
+              src="${anime.coverImage}"
+              alt="${anime.cleanTitle}"
+              loading="lazy"
+              class="anime-card__image"
+            />
+          </div>
+          <div class="anime-card__content">
+            ${title}
+            <div class="anime-card__details">
+              <div class="anime-card__meta-row">
+                ${episode}
+                ${time}
+              </div>
+            </div>
+          </div>
+          <div class="anime-card__action anime-card__action--extended">
+            ${this.renderActionPill(socialSection)}
+          </div>
+        </div>
+      `;
+    }
+
+    return html`
+      <div class="anime-card__container">
+        <div class="anime-card__image-container">
           <img
             src="${anime.coverImage}"
             alt="${anime.cleanTitle}"
             loading="lazy"
             class="anime-card__image"
           />
+          <div class="anime-card__image-overlay"></div>
         </div>
-      `;
-
-      return `
-        <div class="anime-card__extended-layout">
-          ${coverHTML}
-          <div class="anime-card__content">
-            ${titleHTML}
-            <div class="anime-card__details">
-              <div class="anime-card__meta-row">
-                ${episodeHTML}
-                ${timeHTML}
-              </div>
-            </div>
-          </div>
-          <div class="anime-card__action anime-card__action--extended">
-            ${this.renderActionPillHTML(socialSectionHTML)}
+        <div class="anime-card__content">
+          ${title}
+          <div class="anime-card__meta">
+            ${episode}
+            ${time}
           </div>
         </div>
-      `;
-    }
-
-    // Standard layout: action pill is a SIBLING of image-container (not inside),
-    // so it is not clipped by the image-container's overflow:hidden.
-    // It stays within the card bounds and is positioned over the image area.
-    const standardActionHTML = `
-      <div class="anime-card__action anime-card__action--standard">
-        ${this.renderActionPillHTML(socialSectionHTML)}
-      </div>
-    `;
-
-    const cardContentHTML = `
-      <div class="anime-card__image-container">
-        <img
-          src="${anime.coverImage}"
-          alt="${anime.cleanTitle}"
-          loading="lazy"
-          class="anime-card__image"
-        />
-        <div class="anime-card__image-overlay"></div>
-      </div>
-      <div class="anime-card__content">
-        ${titleHTML}
-        <div class="anime-card__meta">
-          ${episodeHTML}
-          ${timeHTML}
+        <div class="anime-card__action anime-card__action--standard">
+          ${this.renderActionPill(socialSection)}
         </div>
-      </div>
-      ${standardActionHTML}
-    `;
-
-    return `
-      <div class="anime-card__container">
-        ${cardContentHTML}
       </div>
     `;
   }
 
-  private getTimeHTML(anime: AnimeEntry, timeFormat: 'release' | 'countdown'): string {
+  private getTimeElement(anime: AnimeEntry, timeFormat: 'release' | 'countdown'): HTMLElement {
     let timeText: string;
 
     if (timeFormat === 'countdown') {
@@ -425,7 +440,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       timeText = this.calendarService.formatAiringTime(anime.airingAt);
     }
 
-    return `<span class="anime-card__time">${timeText}</span>`;
+    return html`<span class="anime-card__time">${timeText}</span>`;
   }
 
   protected attachEvents(): void {

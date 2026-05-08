@@ -4,7 +4,7 @@
  */
 
 import { injectable } from 'tsyringe';
-import { AstraWorkSummary } from '../AstraService';
+import type { AstraWorkSummary } from '../AstraInterfaces';
 import { IFilterService } from '../interfaces/IFilterService';
 import { IDashboardFilters, AstraSortType } from '../interfaces/IDashboardState';
 
@@ -24,17 +24,24 @@ export class AstraFilterService implements IFilterService {
       result = result.filter(w => w.type === filters.type);
     }
 
-    // 2. Status Filter
-    if (filters.status !== 'all') {
-      result = result.filter(w => w.status === filters.status);
+    // 2. Rating Status Filter
+    if (filters.ratingStatus !== 'all') {
+      result = result.filter(w => 
+        filters.ratingStatus === 'rated' ? (w.currentScore !== null) : (w.currentScore === null)
+      );
     }
 
-    // 3. Country Filter
+    // 3. AniList Status Filter
+    if (filters.anilistStatus !== 'all') {
+      result = result.filter(w => w.status === filters.anilistStatus);
+    }
+
+    // 4. Country Filter
     if (filters.country !== 'all') {
       result = result.filter(w => w.country === filters.country);
     }
 
-    // 4. Search (if query exists)
+    // 5. Search (if query exists)
     if (filters.search && filters.search.trim() !== '') {
       result = this.search(result, filters.search);
     }
