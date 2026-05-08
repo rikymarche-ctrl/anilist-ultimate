@@ -106,7 +106,7 @@ export class AstraScoreForm extends AstraView {
             </div>
           </div>
           <div class="astra-footer-right">
-            <button class="astra-btn astra-btn--primary astra-btn--full" id="astra-save-btn"><i class="fa fa-save"></i> SAVE ENTRY</button>
+            <button class="astra-btn astra-btn--primary astra-btn--full" id="astra-save-btn"><i class="fa fa-refresh"></i> SYNC TO ANILIST</button>
           </div>
         </div>
       </div>

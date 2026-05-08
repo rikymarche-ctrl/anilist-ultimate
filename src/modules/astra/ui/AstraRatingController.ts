@@ -72,6 +72,32 @@ export class AstraRatingController extends AstraView {
 
     const work = await this.service.getFullWork(mediaId) || this.createDefaultWork(media, mediaType);
 
+    // AUTO-SYNC: Merge latest AniList data into local work immediately on open
+    if (media.mediaListEntry) {
+      const { AstraParser } = await import('../utils/AstraParser');
+      const sections = this.service.getSections();
+      const parsed = AstraParser.parse(media.mediaListEntry.notes || '', sections);
+      
+      let changed = false;
+      if (parsed) {
+        changed = AstraParser.merge(work, parsed);
+      } else {
+        // Plain text sync
+        const aniListNotes = media.mediaListEntry.notes || '';
+        if (work.notes !== aniListNotes) {
+          work.notes = aniListNotes;
+          const season = work.seasons[work.seasons.length - 1];
+          if (season) season.notes = aniListNotes;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        log.info(`[AstraRatingController] Auto-synced notes/scores from AniList for ${mediaId}`);
+        await this.service.saveWork(work, true); // Save locally, skip background sync
+      }
+    }
+
     const totalCount = media.episodes || null;
     let airedCount: number | null = null;
     if (media.nextAiringEpisode) {
@@ -134,6 +160,13 @@ export class AstraRatingController extends AstraView {
     }
 
     this.mount(this.overlay);
+    
+    // Click outside to close
+    this.overlay.addEventListener('click', (e) => {
+      if (e.target === this.overlay) {
+        this.close();
+      }
+    });
 
     requestAnimationFrame(() => {
       this.overlay?.classList.add('astra-modal-overlay--open');
@@ -147,8 +180,8 @@ export class AstraRatingController extends AstraView {
     if (!this.overlay || !this.store) return;
 
     if (this.store.getState().isDirty && !this.isSaving) {
-      log.info('[AstraRatingController] Auto-saving before close');
-      await this.save(false);
+      log.info('[AstraRatingController] Auto-saving (local only) before close');
+      await this.save(false, true);
     }
 
     this.overlay.classList.add('astra-modal-overlay--closing');
@@ -167,7 +200,6 @@ export class AstraRatingController extends AstraView {
   protected template(): HTMLElement {
     const state = this.store?.getState();
     const activeTab = state?.activeTab || 'rating';
-    const isDirty = state?.isDirty || false;
 
     return html`
       <div class="astra-modal astra-modal--rating">
@@ -180,9 +212,6 @@ export class AstraRatingController extends AstraView {
             <i class="fa fa-book"></i> <span>Journal</span>
           </div>
           <div style="flex: 1;"></div>
-          <div class="astra-nav-item astra-nav-save ${when(isDirty, 'dirty')} ${when(activeTab !== 'journal', 'hidden')}" id="sidebar-save-btn">
-            <i class="fa fa-check"></i> <span>Save</span>
-          </div>
         </nav>
         <div class="astra-modal-right-container">
           <div id="astra-header-mount"></div>
@@ -283,11 +312,6 @@ export class AstraRatingController extends AstraView {
       });
     });
 
-    const saveBtn = this.$('#sidebar-save-btn');
-    if (saveBtn) {
-      this.addEventListener(saveBtn, 'click', () => this.save(true));
-    }
-
     this.eventBus.on('astra-store-updated', (payload: any) => this.handleStoreUpdate(payload));
     this.eventBus.on('astra-save-request', () => this.save(true));
   }
@@ -297,15 +321,10 @@ export class AstraRatingController extends AstraView {
 
     if (type === 'tab-change') {
       this.$$('.astra-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === state.activeTab));
-      this.$('#sidebar-save-btn')?.classList.toggle('hidden', state.activeTab !== 'journal');
       this.renderTabContent();
       this.header.update({ ...this.header.getState()!, activeTab: state.activeTab });
     } else if (type === 'dirty-change') {
-      const saveBtn = this.$('#sidebar-save-btn');
-      if (saveBtn) {
-        saveBtn.classList.toggle('dirty', state.isDirty);
-        saveBtn.classList.toggle('hidden', state.activeTab !== 'journal');
-      }
+      // Sidebar save removed, no action needed
     } else if (type === 'score-update' || type === 'override-change') {
       const season = state.work.seasons[state.currentSeasonIdx];
       const consolidated = this.service.consolidateScores(season.scores);
@@ -319,6 +338,8 @@ export class AstraRatingController extends AstraView {
       if (payload.field === 'notes') return;
       this.renderHeader();
       this.renderTabContent();
+    } else if (type === 'journal-update') {
+      // Do not re-render tab to avoid focus loss
     }
   }
 
@@ -326,8 +347,9 @@ export class AstraRatingController extends AstraView {
    * Persists the current state to the backend and synchronizes with AniList.
    * 
    * @param shouldClose Whether to close the modal after a successful save
+   * @param skipSync Whether to skip syncing with AniList (local save only)
    */
-  private async save(shouldClose: boolean): Promise<void> {
+  private async save(shouldClose: boolean, skipSync: boolean = false): Promise<void> {
     const state = this.store?.getState();
     if (this.isSaving || !state || !this.overlay) return;
 
@@ -338,7 +360,7 @@ export class AstraRatingController extends AstraView {
 
     if (saveBtn) {
       saveBtn.disabled = true;
-      saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+      saveBtn.innerHTML = '<i class="fa fa-refresh fa-spin"></i> Syncing...';
     }
 
     try {
@@ -356,13 +378,14 @@ export class AstraRatingController extends AstraView {
         notes: season.notes,
         customLists: entry?.customLists ? Object.keys(entry.customLists).filter(k => entry.customLists[k]) : [],
         startedAt: entry?.startedAt,
-        completedAt: entry?.completedAt
+        completedAt: entry?.completedAt,
+        skipSync
       });
 
       this.store?.setDirty(false);
 
       if (saveBtn) {
-        saveBtn.innerHTML = '<i class="fa fa-check"></i> Saved!';
+        saveBtn.innerHTML = '<i class="fa fa-check"></i> Synced!';
         saveBtn.classList.add('astra-save-success');
       }
 

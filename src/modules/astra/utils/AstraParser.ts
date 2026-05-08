@@ -12,6 +12,7 @@ export interface ParsedAstraReport {
   generalNotes?: string;
   ratingNotes?: string;
   journal: Record<number, string>;
+  cleanText?: string;
 }
 
 export class AstraParser {
@@ -29,7 +30,7 @@ export class AstraParser {
 
     // Normalize text: remove \r and split by \n
     const lines = text.replace(/\r/g, '').split('\n').map(l => l.trim());
-    
+
     let mode: 'breakdown' | 'journal' | 'notes' | null = null;
     let currentSectionId: string | null = null;
     let generalNotesLines: string[] = [];
@@ -51,7 +52,7 @@ export class AstraParser {
         if (match) report.overallScore = parseFloat(match[0]);
         continue;
       }
-      
+
       // Skip decorative lines
       if (line.includes('───') || line.includes('🌌')) continue;
 
@@ -63,7 +64,7 @@ export class AstraParser {
         if (match) {
           const rawName = match[1].trim();
           const score = parseFloat(match[2]);
-          
+
           if (isNaN(score)) continue;
 
           // Is it a sub-section? (Detected by indentation-like symbols like ├, └, or starting with spaces)
@@ -85,7 +86,7 @@ export class AstraParser {
             }
           }
         }
-      } 
+      }
       else if (mode === 'journal') {
         // Ep [Number]: [Text]
         const match = line.match(/Ep\s*(\d+):\s*(.*)/i);
@@ -93,7 +94,7 @@ export class AstraParser {
           const ep = parseInt(match[1]);
           report.journal[ep] = match[2].trim();
         }
-      } 
+      }
       else if (mode === 'notes') {
         // Rating: [Text] OR just lines of text
         if (upperLine.startsWith('RATING:')) {
@@ -108,10 +109,24 @@ export class AstraParser {
       report.generalNotes = generalNotesLines.join('\n').trim();
     }
 
+    // Extract clean text (everything outside the block)
+    const marker = '[ ASTRA REVIEW ]';
+    const markerEnd = '──────────────────';
+    const startIdxMarker = text.indexOf('─── ' + marker);
+    const endIdxMarker = text.indexOf(markerEnd);
+
+    if (startIdxMarker !== -1 && endIdxMarker !== -1) {
+      const before = text.substring(0, startIdxMarker).trim();
+      const after = text.substring(endIdxMarker + markerEnd.length).trim();
+      report.cleanText = (before + '\n' + after).trim();
+    } else {
+      report.cleanText = text.trim();
+    }
+
     // Validation
-    const hasData = Object.keys(report.sectionScores).length > 0 || 
-                    Object.keys(report.journal).length > 0 || 
-                    !!report.overallScore;
+    const hasData = Object.keys(report.sectionScores).length > 0 ||
+      Object.keys(report.journal).length > 0 ||
+      !!report.overallScore;
 
     return hasData ? report : null;
   }
@@ -120,12 +135,14 @@ export class AstraParser {
     let changed = false;
     const season = work.seasons[work.seasons.length - 1];
 
-    if (parsed.generalNotes && work.notes !== parsed.generalNotes) {
+    if (parsed.generalNotes !== undefined && work.notes !== parsed.generalNotes) {
       work.notes = parsed.generalNotes;
+      season.notes = parsed.generalNotes;
       changed = true;
-    }
-    if (parsed.ratingNotes && season.notes !== parsed.ratingNotes) {
-      season.notes = parsed.ratingNotes;
+    } else if (parsed.generalNotes === undefined && parsed.cleanText !== undefined && work.notes !== parsed.cleanText) {
+      // If no notes inside the block, use the clean text outside
+      work.notes = parsed.cleanText;
+      season.notes = parsed.cleanText;
       changed = true;
     }
 
@@ -163,58 +180,95 @@ export class AstraParser {
     const season = work.seasons[work.seasons.length - 1];
     if (!season) return '';
 
-    let text = '\n\n─── 🌌 ASTRA REVIEW 🌌 ───\n';
-    
-    // Breakdown
-    text += '📊 BREAKDOWN:\n';
+    let breakdownText = '';
+    let hasScores = false;
+
     for (const section of sections) {
       const score = season.scores[section.id];
-      if (score !== null) {
-        text += `• ${section.name}: ${score}/10\n`;
+      if (score !== null && score > 0) {
+        if (!hasScores) {
+          breakdownText += 'BREAKDOWN:\n';
+          hasScores = true;
+        }
+        breakdownText += `• ${section.name}: ${score}/10\n`;
         if (section.subSections) {
           for (const sub of section.subSections) {
             const subScore = season.scores[`${section.id}_${sub.id}`];
-            if (subScore !== null) {
-              text += `  └ ${sub.name}: ${subScore}/10\n`;
+            if (subScore !== null && subScore > 0) {
+              breakdownText += `  └ ${sub.name}: ${subScore}/10\n`;
             }
           }
         }
       }
     }
 
-    // Journal
+    let journalText = '';
+    let hasJournal = false;
     if (season.episodeNotes && Object.keys(season.episodeNotes).length > 0) {
-      text += '\n📔 JOURNAL:\n';
       const episodes = Object.keys(season.episodeNotes).map(Number).sort((a, b) => a - b);
       for (const ep of episodes) {
         const note = season.episodeNotes[ep];
-        if (note.text) text += `Ep ${ep}: ${note.text}\n`;
+        if (note.text && note.text.trim()) {
+          if (!hasJournal) {
+            journalText += '\nJOURNAL:\n';
+            hasJournal = true;
+          }
+          journalText += `Ep ${ep}: ${note.text}\n`;
+        }
       }
     }
 
-    // Notes
-    if (season.notes) {
-      text += `\n📝 NOTES:\nRating: ${season.notes}\n`;
+    // Only return the block if we have actual data
+    if (!hasScores && !hasJournal && !season.notes?.trim()) {
+      return '';
     }
 
-    text += '──────────────────────────';
+    let text = '\n\n─── [ ASTRA REVIEW ] ───\n';
+    text += breakdownText;
+    text += journalText;
+
+    // Notes
+    if (season.notes?.trim()) {
+      text += `\nNOTES:\nRating: ${season.notes.trim()}\n`;
+    }
+
+    text += '──────────────────';
     return text;
   }
 
   /**
-   * Injects or replaces the Astra block within a text.
+   * @param text The current text on AniList.
+   * @param work The local Astra work.
+   * @param sections Configured sections.
+   * @param moveNotesIntoBlock If true, removes the notes from the 'clean' part and keeps them only in the block.
    */
-  public static inject(text: string, work: AstraWork, sections: AstraSection[]): string {
+  public static inject(text: string, work: AstraWork, sections: AstraSection[], moveNotesIntoBlock: boolean = false): string {
     const serialized = this.serialize(work, sections);
-    const marker = '─── 🌌 ASTRA REVIEW 🌌 ───';
-    
-    if (text.includes(marker)) {
-      // Replace existing
-      const regex = /─── 🌌 ASTRA REVIEW 🌌 ───[\s\S]*?──────────────────────────/;
-      return text.replace(regex, serialized);
-    } else {
-      // Append new
-      return (text.trim() + '\n' + serialized).trim();
+    const markerFull = '─── [ ASTRA REVIEW ] ───';
+    const markerEnd = '──────────────────';
+
+    let cleanText = text;
+    const startIdx = text.indexOf(markerFull);
+    const endIdx = text.indexOf(markerEnd);
+
+    if (startIdx !== -1 && endIdx !== -1) {
+      // Extract part before and after the block
+      const before = text.substring(0, startIdx).trim();
+      const after = text.substring(endIdx + markerEnd.length).trim();
+      cleanText = (before + '\n' + after).trim();
     }
+
+    if (moveNotesIntoBlock) {
+      // Find where work.notes might be in the clean text and remove it
+      const season = work.seasons[work.seasons.length - 1];
+      const notesToStrip = season?.notes?.trim();
+      if (notesToStrip && cleanText.includes(notesToStrip)) {
+        cleanText = cleanText.replace(notesToStrip, '').trim();
+      }
+    }
+
+    if (serialized === '') return cleanText;
+
+    return (cleanText + '\n\n' + serialized).trim();
   }
 }

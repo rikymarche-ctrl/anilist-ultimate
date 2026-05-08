@@ -103,12 +103,19 @@ export class AstraSyncService {
               full.chapters = entry.media.chapters ?? undefined;
               full.progress = entry.progress;
               full.duration = entry.media.duration ?? undefined;
-              full.notes = entry.notes || '';
-
               if (entry.notes) {
                 const parsed = AstraParser.parse(entry.notes, sections);
-                if (parsed && AstraParser.merge(full, parsed)) {
-                  changed = true;
+                if (parsed) {
+                  if (AstraParser.merge(full, parsed)) {
+                    changed = true;
+                  }
+                } else {
+                  if (full.notes !== entry.notes) {
+                    full.notes = entry.notes || '';
+                    const season = full.seasons[full.seasons.length - 1];
+                    if (season) season.notes = entry.notes || '';
+                    changed = true;
+                  }
                 }
               }
 

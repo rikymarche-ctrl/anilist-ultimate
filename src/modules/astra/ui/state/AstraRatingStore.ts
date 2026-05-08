@@ -60,7 +60,7 @@ export class AstraRatingStore {
     if (!season.episodeNotes) season.episodeNotes = {};
     season.episodeNotes[episode] = { text };
     this.setDirty(true);
-    this.notify();
+    this.notify('journal-update', 'episodeNotes');
   }
 
   public setTab(tab: 'rating' | 'journal'): void {

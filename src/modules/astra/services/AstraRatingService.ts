@@ -20,7 +20,7 @@ export class AstraRatingService implements IAstraRatingService {
     @inject(TOKENS.AstraService) private astraService: AstraService,
     @inject(TOKENS.ApiClient) private api: IApiClient,
     @inject(TOKENS.SyncQueue) private syncQueue: ISyncQueueService
-  ) {}
+  ) { }
 
   /**
    * Fetches initial data from AniList using GQL.
@@ -70,14 +70,28 @@ export class AstraRatingService implements IAstraRatingService {
     customLists?: string[];
     startedAt?: any;
     completedAt?: any;
+    skipSync?: boolean;
   }): Promise<void> {
     log.debug(`[AstraRatingService] Saving work ${work.mediaId}...`);
 
     try {
       // 1. Local Persistence (Atomic & Critical)
-      await this.astraService.saveWork(work);
+      // Always skip background sync because we handle it here
+      await this.astraService.saveWork(work, true);
 
       // 2. Prepare Mutation Payload
+      const settings = this.astraService.getSettings();
+      let notesToSync = extra.notes || work.notes;
+
+      // If Astra Review is enabled, the notes are ALREADY inside the block.
+      // To avoid duplication, we move them inside and preserve existing comments.
+      if (settings.appendAstraToComment) {
+        const { AstraParser } = await import('../utils/AstraParser');
+        // We inject into an empty string to get ONLY the block, 
+        // effectively moving the notes INTO the block and out of the main field.
+        notesToSync = AstraParser.inject('', work, this.astraService.getSections());
+      }
+
       const payload = {
         mediaId: work.mediaId,
         status: work.status,
@@ -86,11 +100,16 @@ export class AstraRatingService implements IAstraRatingService {
         repeat: extra.repeat || 0,
         private: extra.private ?? false,
         hidden: extra.hidden ?? false,
-        notes: extra.notes || work.notes,
+        notes: notesToSync,
         lists: extra.customLists || work.customLists,
         startedAt: extra.startedAt,
         completedAt: extra.completedAt
       };
+
+      if (extra.skipSync) {
+        log.info(`[AstraRatingService] Local save only (skipSync) for ${work.mediaId}`);
+        return;
+      }
 
       // 3. Attempt Immediate AniList Sync
       try {
@@ -109,15 +128,15 @@ export class AstraRatingService implements IAstraRatingService {
             completedAt:$completedAt
           ) { id }
         }`;
-        
+
         await this.api.mutate(GQL_SAVE, payload);
         log.success(`[AstraRatingService] Sync completed for ${work.mediaId}`);
       } catch (syncErr) {
         log.warn(`[AstraRatingService] Network sync failed for ${work.mediaId}. Enqueueing mutation.`, syncErr);
-        
+
         // 4. Persistence Fallback: Enqueue for background sync
         await this.syncQueue.enqueue('ASTRA_SAVE', payload);
-        
+
         // We don't re-throw here because local save succeeded and background sync is guaranteed.
         // However, we might want to notify the UI that it's "Saved offline".
       }

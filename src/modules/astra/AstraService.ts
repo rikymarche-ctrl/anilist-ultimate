@@ -58,10 +58,12 @@ export class AstraService {
   /**
    * Save or update a work.
    */
-  public async saveWork(work: Partial<AstraWork> & { mediaId: number }): Promise<AstraWork> {
+  public async saveWork(work: Partial<AstraWork> & { mediaId: number }, skipAnilist: boolean = false): Promise<AstraWork> {
     const saved = await this.repository.saveWork(work);
     // Auto-sync with AniList notes (background)
-    this.syncToAnilistNotes(saved.mediaId, saved);
+    if (!skipAnilist) {
+      this.syncToAnilistNotes(saved.mediaId, saved);
+    }
     return saved;
   }
 
@@ -122,7 +124,8 @@ export class AstraService {
    * Synchronize Astra data into AniList notes for persistence across devices.
    */
   private async syncToAnilistNotes(mediaId: number, work: AstraWork): Promise<void> {
-    if (!this.api.isAuthenticated()) return;
+    const settings = this.getSettings();
+    if (!this.api.isAuthenticated() || !settings.appendAstraToComment) return;
 
     try {
       const sections = this.repository.getSections();

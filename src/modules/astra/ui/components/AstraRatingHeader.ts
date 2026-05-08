@@ -66,10 +66,6 @@ export class AstraRatingHeader extends AstraView {
           </div>
           
           <div style="flex: 1;"></div>
-          
-          <button class="astra-header-close" id="header-close-btn" title="Close">
-            <i class="fa fa-times"></i>
-          </button>
         </div>
       </header>
     `;
@@ -85,10 +81,6 @@ export class AstraRatingHeader extends AstraView {
 
     this.$('#header-finale-btn')?.addEventListener('click', () => {
       this.state?.onFinaleToggle();
-    });
-
-    this.$('#header-close-btn')?.addEventListener('click', () => {
-      this.state?.onClose();
     });
   }
 }
