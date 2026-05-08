@@ -1,13 +1,6 @@
 /**
  * @file SettingsPanel.ts
  * @description Modal settings panel for calendar preferences and authentication
- *
- * Provides tabbed UI for layout options (mode, time format, alignment),
- * social toggles, authentication status, and logout. Preferences are
- * persisted via CalendarStore on change.
- *
- * @see CalendarStore.ts for preference persistence
- * @see docs/MODULES.md#1-calendar-module
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -47,8 +40,8 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
             ${this.renderDisplayTab(prefs)}
             ${this.renderWeekTab(prefs)}
             ${this.renderSocialTab(prefs)}
+            ${this.renderSystemTab(prefs)}
           </div>
-          ${this.renderFooter()}
         </div>
       </div>
     `;
@@ -57,7 +50,12 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   private renderHeader(): HTMLElement {
     return html`
       <div class="settings-panel__header">
-        <h2>Calendar Settings</h2>
+        <div class="settings-panel__title-area">
+          <h2>Calendar Settings</h2>
+          <span class="settings-panel__saved-indicator">
+            <i class="fa fa-check"></i> All changes saved
+          </span>
+        </div>
         <button class="settings-panel__close" aria-label="Close">
           <i class="fa fa-times"></i>
         </button>
@@ -70,7 +68,8 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
       { id: 'layout', label: 'Layout' },
       { id: 'display', label: 'Display' },
       { id: 'week', label: 'Week' },
-      { id: 'social', label: 'Social' }
+      { id: 'social', label: 'Social' },
+      { id: 'system', label: 'System' }
     ];
 
     return html`
@@ -222,12 +221,29 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     `;
   }
 
-
-  private renderFooter(): HTMLElement {
+  private renderSystemTab(_prefs: CalendarPreferences): HTMLElement {
     return html`
-      <div class="settings-panel__footer">
-        <button class="settings-panel__reset">Reset to Defaults</button>
-        <button class="settings-panel__save">Save & Close</button>
+      <div 
+        class="settings-tab-content ${this.activeTab === 'system' ? 'settings-tab-content--active' : ''}" 
+        data-tab-content="system"
+      >
+        <div class="settings-section">
+          <label class="settings-field__label">Storage & Sync</label>
+          <div class="settings-field">
+            <button class="settings-field__button" onclick="window.location.reload()">
+              <i class="fa fa-sync"></i> Force Page Reload
+            </button>
+            <span class="settings-field__hint">Useful if changes are not reflecting due to SPA state.</span>
+          </div>
+        </div>
+
+        <div class="settings-danger-zone">
+          <p class="settings-danger-zone__title">Danger Zone</p>
+          <button class="settings-panel__reset-link">
+            <i class="fa fa-undo"></i> Reset all calendar settings
+          </button>
+          <span class="settings-field__hint">This will restore all preferences to their default values. This action cannot be undone.</span>
+        </div>
       </div>
     `;
   }
@@ -241,9 +257,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
     // Settings changes
     this.setupSettingEvents();
-
-    // Footer actions
-    this.setupFooterEvents();
   }
 
   private setupModalEvents(): void {
@@ -286,16 +299,13 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     sliders.forEach((slider) => {
       this.addEventListener(slider, 'input', () => this.handleSliderChange(slider));
     });
+
+    // Reset link
+    const resetBtn = this.element.querySelector('.settings-panel__reset-link');
+    if (resetBtn) {
+      this.addEventListener(resetBtn as HTMLElement, 'click', () => this.handleReset());
+    }
   }
-
-  private setupFooterEvents(): void {
-    const resetBtn = this.element.querySelector('.settings-panel__reset');
-    this.addEventListener(resetBtn as HTMLElement, 'click', () => this.handleReset());
-
-    const saveBtn = this.element.querySelector('.settings-panel__save');
-    this.addEventListener(saveBtn as HTMLElement, 'click', () => this.handleSave());
-  }
-
 
   private switchTab(tabName: string): void {
     this.activeTab = tabName;
@@ -309,10 +319,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     this.element.querySelectorAll('.settings-tab-content').forEach(content => {
       content.classList.toggle('settings-tab-content--active', content.getAttribute('data-tab-content') === tabName);
     });
-
-    // Toggle footer visibility (not needed anymore without Account tab, but kept for future tabs)
-    const footer = this.element.querySelector('.settings-panel__footer');
-    if (footer) footer.classList.remove('settings-panel__footer--hidden');
   }
 
   private handleSettingChange(element: HTMLInputElement | HTMLSelectElement): void {
@@ -328,6 +334,8 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
     }
 
     this.pendingChanges[setting] = value;
+    
+    this.showSavedFeedback();
     
     // Auto-save immediately
     calendarStore.savePreferences({ [setting]: value }).then(() => {
@@ -351,6 +359,8 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
 
     (this.pendingChanges as any)[setting] = value;
     
+    this.showSavedFeedback();
+    
     // Auto-save immediately
     calendarStore.savePreferences({ [setting]: value }).then(() => {
       window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
@@ -360,17 +370,21 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
   private async handleReset(): Promise<void> {
     if (confirm('Reset all settings to defaults?')) {
       await calendarStore.resetPreferences();
+      window.dispatchEvent(new CustomEvent('calendar-preferences-updated'));
       this.rerender();
       log.success('Settings reset');
     }
   }
 
-  private async handleSave(): Promise<void> {
-    // Settings are now auto-saved on change, just close
-    log.success('Settings closed');
-    this.close();
+  private showSavedFeedback(): void {
+    const indicator = this.element.querySelector('.settings-panel__saved-indicator') as HTMLElement;
+    if (indicator) {
+      indicator.classList.add('settings-panel__saved-indicator--visible');
+      setTimeout(() => {
+        indicator.classList.remove('settings-panel__saved-indicator--visible');
+      }, 2000);
+    }
   }
-
 
   private toggleTimeFormatVisibility(showTime: boolean): void {
     const el = this.element.querySelector('#time-format-field') as HTMLElement;
@@ -406,7 +420,6 @@ export class SettingsPanel extends BaseComponent<SettingsPanelProps> {
       slider.style.setProperty('--slider-progress', `${percentage}%`);
     });
   }
-
 
   protected onUnmount(): void {
     document.body.style.overflow = '';

@@ -240,6 +240,13 @@ export class CalendarGrid extends BaseComponent<CalendarGridProps> {
     }
   }
 
+  /**
+   * Force a full re-render of the grid
+   */
+  public refresh(): void {
+    this.rerender();
+  }
+
   public showLoading(): void { }
   public hideLoading(): void { }
 

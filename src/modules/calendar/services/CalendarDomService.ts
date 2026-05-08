@@ -296,6 +296,16 @@ export class CalendarDomService {
   }
 
   public getGrid(): CalendarGrid | null { return this.calendarGrid; }
+  
+  /**
+   * Force the current grid instance to refresh itself
+   */
+  public refreshGrid(): void {
+    if (this.calendarGrid) {
+      log.info('[CalendarDomService] Manually refreshing grid instance');
+      this.calendarGrid.refresh();
+    }
+  }
 
   public cleanup(): void {
     this.calendarGrid?.unmount();

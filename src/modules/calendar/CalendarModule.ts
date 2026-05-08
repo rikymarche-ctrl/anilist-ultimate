@@ -52,6 +52,9 @@ export class CalendarModule extends BaseModule {
 
   /** Timeout reference for the processing guard safety valve */
   private processingTimeout: number | null = null;
+  
+  /** Tracked preference listener for cleanup */
+  private preferencesListener: (() => void) | null = null;
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
@@ -146,6 +149,15 @@ export class CalendarModule extends BaseModule {
           await this.runInjectionFlow(true);
         }
       });
+
+      // 5b. Settings Reactivity
+      this.preferencesListener = () => {
+        const path = window.location.pathname;
+        if (path === '/' || path === '/home') {
+          this.domService.refreshGrid();
+        }
+      };
+      window.addEventListener('calendar-preferences-updated', this.preferencesListener);
 
       // 6. Persistence Polling (Robustness for SPA misses)
       this.intervals.push(window.setInterval(() => {
@@ -339,6 +351,11 @@ export class CalendarModule extends BaseModule {
     }
 
     // 4. Component cleanup
+    if (this.preferencesListener) {
+      window.removeEventListener('calendar-preferences-updated', this.preferencesListener);
+      this.preferencesListener = null;
+    }
+    
     this.domService.cleanup();
     calendarStore.stopCountdownInterval();
 

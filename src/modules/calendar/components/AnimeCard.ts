@@ -28,8 +28,8 @@ interface AnimeCardProps {
 @injectable()
 export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private socialPortalController: AbortController | null = null;
-  /** Cached DOM queries for performance - invalidated on render */
   private cachedActionPills: NodeListOf<HTMLElement> | null = null;
+  private storeUnsubscribe: (() => void) | null = null;
 
   constructor(
     @inject('AnimeCardProps') props: AnimeCardProps
@@ -91,7 +91,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   protected onMount(): void {
     // subscribeToSelector fires only when the relevant booleans actually change
-    calendarStore.subscribeToSelector(
+    this.storeUnsubscribe = calendarStore.subscribeToSelector(
       (state: any) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
@@ -435,7 +435,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     let timeText: string;
 
     if (timeFormat === 'countdown') {
-      timeText = this.calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
+      const secondsRemaining = Math.max(0, Math.floor((anime.airingAt.getTime() - Date.now()) / 1000));
+      timeText = this.calendarService.formatTimeUntilAiring(secondsRemaining);
     } else {
       timeText = this.calendarService.formatAiringTime(anime.airingAt);
     }
@@ -628,7 +629,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const { anime } = this.props;
 
     if (timeFormat === 'countdown') {
-      timeElement.textContent = this.calendarService.formatTimeUntilAiring(anime.timeUntilAiring);
+      const secondsRemaining = Math.max(0, Math.floor((anime.airingAt.getTime() - Date.now()) / 1000));
+      timeElement.textContent = this.calendarService.formatTimeUntilAiring(secondsRemaining);
     } else {
       timeElement.textContent = this.calendarService.formatAiringTime(anime.airingAt);
     }
@@ -654,5 +656,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   protected onUnmount(): void {
     // Use destroySocialPortal to ensure complete cleanup (removes bubble + aborts listeners)
     this.destroySocialPortal();
+
+    if (this.storeUnsubscribe) {
+      this.storeUnsubscribe();
+      this.storeUnsubscribe = null;
+    }
   }
 }
