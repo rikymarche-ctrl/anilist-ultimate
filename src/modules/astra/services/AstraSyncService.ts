@@ -6,17 +6,21 @@
 import { injectable, inject } from 'tsyringe';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
+import { container } from 'tsyringe';
+import { EVENT_TYPES } from '@core/events/EventTypes';
+import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { MediaListCollectionResponse } from '@/api/AnilistTypes';
 import { AstraRepository } from '../store/AstraRepository';
-import { AstraParser } from '../utils/AstraParser';
+import type { IAstraParser } from '../interfaces/IAstraParser';
 import type { AstraWork } from '../AstraInterfaces';
 
 @injectable()
 export class AstraSyncService {
   constructor(
     @inject(TOKENS.ApiClient) private api: IApiClient,
-    @inject(AstraRepository) private repository: AstraRepository
+    @inject(AstraRepository) private repository: AstraRepository,
+    @inject(TOKENS.AstraParserService) private parser: IAstraParser
   ) {}
 
   /**
@@ -24,6 +28,7 @@ export class AstraSyncService {
    */
   public async syncWithAniList(): Promise<{ added: number; updated: number }> {
     await this.repository.init();
+    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
 
     try {
       const viewer = await this.api.getCurrentUser();
@@ -104,9 +109,9 @@ export class AstraSyncService {
               full.progress = entry.progress;
               full.duration = entry.media.duration ?? undefined;
               if (entry.notes) {
-                const parsed = AstraParser.parse(entry.notes, sections);
+                const parsed = this.parser.parse(entry.notes, sections);
                 if (parsed) {
-                  if (AstraParser.merge(full, parsed)) {
+                  if (this.parser.merge(full, parsed)) {
                     changed = true;
                   }
                 } else {
@@ -149,8 +154,8 @@ export class AstraSyncService {
               };
 
               if (entry.notes) {
-                const parsed = AstraParser.parse(entry.notes, sections);
-                if (parsed) AstraParser.merge(newWork, parsed);
+                const parsed = this.parser.parse(entry.notes, sections);
+                if (parsed) this.parser.merge(newWork, parsed);
               }
 
               if (entry.score > 0) {
@@ -169,6 +174,7 @@ export class AstraSyncService {
       await processResult(mangaRes);
 
       log.info(`[AstraSyncService] Sync complete: +${addedCount} added, ~${updatedCount} updated`);
+      eventBus.emit(EVENT_TYPES.ASTRA_SYNC_COMPLETE, { added: addedCount, updated: updatedCount });
       return { added: addedCount, updated: updatedCount };
     } catch (error) {
       log.error('[AstraSyncService] Sync failed', error);

@@ -32,6 +32,22 @@ export const DEFAULT_SETTINGS: AstraSettings = {
 };
 
 /**
+ * Metadata markers for parsing and injection
+ */
+export const ASTRA_MARKERS = {
+  HEADER: '─── [ ASTRA REVIEW ] ───',
+  FOOTER: '──────────────────',
+  ANCHOR: 'Astra Review',
+  LABELS: {
+    BREAKDOWN: 'BREAKDOWN:',
+    JOURNAL: 'JOURNAL:',
+    NOTES: 'NOTES:',
+    RATING: 'Rating:',
+    OVERALL: 'OVERALL SCORE:'
+  }
+};
+
+/**
  * Generate a cryptographically random UUID v4
  */
 export function generateUUID(): string {

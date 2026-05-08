@@ -21,15 +21,22 @@ export interface IRatingInitialData {
  */
 export interface IAstraRatingService {
   /**
-   * Fetches necessary data from AniList for a specific work.
-   * @param mediaId The AniList media ID.
+   * Fetches data for a media entry (notes, score, etc).
+   */
+  getMediaRatingData(mediaId: number): Promise<IRatingInitialData | null>;
+
+  /**
+   * Alias for getMediaRatingData for backward compatibility.
    */
   fetchInitialData(mediaId: number): Promise<IRatingInitialData | null>;
 
   /**
-   * Saves a work locally and syncs it with AniList.
-   * @param work The AstraWork object to persist.
-   * @param extra Optional extra fields like progress, scores, etc.
+   * Increments or sets progress for a media entry.
+   */
+  updateProgress(mediaId: number, progress?: number): Promise<{ mediaId: number; progress: number; title: string }>;
+
+  /**
+   * Saves work locally and pushes to AniList.
    */
   saveAndSync(work: AstraWork, extra: {
     overallScore: number;

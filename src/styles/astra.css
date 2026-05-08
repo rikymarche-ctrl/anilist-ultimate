@@ -75,9 +75,9 @@
 }
 
 /* Apply blur/overlay ONLY to the image area, not the whole card */
-.cover:hover > .au-pill-wrapper,
-.image:hover > .au-pill-wrapper,
-.img:hover > .au-pill-wrapper {
+.cover:hover>.au-pill-wrapper,
+.image:hover>.au-pill-wrapper,
+.img:hover>.au-pill-wrapper {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
 }
@@ -285,17 +285,100 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   justify-content: center;
   width: 48px;
   height: 48px;
+  transition: all 0.3s ease;
 }
 
 .astra-nav-brand svg {
   width: 32px;
   height: 32px;
-  transition: opacity 0.2s, transform 0.2s;
+  transition: opacity 0.2s, transform 0.2s, color 0.2s;
 }
 
 .astra-nav-brand:hover svg {
-  opacity: 0.8;
   transform: scale(1.05);
+}
+
+/* Back button specific styling */
+.astra-nav-brand--back {
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.astra-nav-brand--back svg {
+  transform: rotate(-90deg);
+  color: var(--astra-muted);
+}
+
+.astra-nav-brand--back:hover svg {
+  color: var(--astra-accent);
+  transform: rotate(-90deg) scale(1.1);
+}
+
+.astra-nav-brand {
+  position: relative;
+  /* For tooltip positioning */
+}
+
+.astra-nav-brand span {
+  position: absolute;
+  left: 62px;
+  background: var(--astra-bg-elev-2);
+  color: var(--astra-text);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-10px);
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  border: 1px solid var(--astra-border-soft);
+}
+
+.astra-nav-brand span::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid var(--astra-bg-elev-2);
+}
+
+.astra-nav-brand:hover span {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+/* Entry Highlight Animation (Premium Lighting) */
+@keyframes astra-pulse-highlight {
+  0% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(var(--astra-accent-rgb), 0);
+    border-color: var(--astra-border-soft);
+  }
+  15% {
+    background-color: var(--astra-accent-a10);
+    box-shadow: 0 0 40px 5px rgba(var(--astra-accent-rgb), 0.5);
+    border-color: var(--astra-accent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(var(--astra-accent-rgb), 0);
+    border-color: var(--astra-border-soft);
+  }
+}
+
+.astra-row-focus-pulse {
+  animation: astra-pulse-highlight 3.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  position: relative;
+  z-index: 10;
 }
 
 .astra-nav-item {
@@ -597,7 +680,8 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   resize: none;
   outline: none;
   transition: all 0.2s ease;
-  box-sizing: border-box; /* Previene l'overflow */
+  box-sizing: border-box;
+  /* Previene l'overflow */
 }
 
 .astra-ep-textarea:focus {
@@ -1149,7 +1233,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-size: 13px;
   outline: none;
   width: 100%;
-  box-sizing: border-box; /* Previene l'overflow */
+  box-sizing: border-box;
+  /* Previene l'overflow */
 }
 
 /* Dropdown Logic */
@@ -1256,7 +1341,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background: var(--astra-muted);
   border-radius: 50%;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .astra-toggle.active {
@@ -1273,6 +1358,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .astra-toggle:hover {
   border-color: var(--astra-muted);
 }
+
 .astra-toggle.active:hover {
   border-color: var(--astra-accent);
 }
@@ -2128,6 +2214,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
 /* Redundant stepper definition consolidated in line 2054 */
 
 .astra-unit {

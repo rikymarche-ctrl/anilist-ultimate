@@ -4,20 +4,22 @@
  * Isolates AniList API interactions and persistence logic from UI controllers.
  */
 
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, delay } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
+import { container } from 'tsyringe';
 import { AstraService } from '../AstraService';
 import type { AstraWork } from '../AstraInterfaces';
 import { IAstraRatingService, IRatingInitialData } from '../interfaces/IAstraRatingService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ISyncQueueService } from '@core/interfaces/ISyncQueueService';
 import { MediaWithViewerResponse } from '@/api/AnilistTypes';
+import type { IAstraParser } from '../interfaces/IAstraParser';
 
 @injectable()
 export class AstraRatingService implements IAstraRatingService {
   constructor(
-    @inject(TOKENS.AstraService) private astraService: AstraService,
+    @inject(delay(() => AstraService)) private astraService: AstraService,
     @inject(TOKENS.ApiClient) private api: IApiClient,
     @inject(TOKENS.SyncQueue) private syncQueue: ISyncQueueService
   ) { }
@@ -25,7 +27,7 @@ export class AstraRatingService implements IAstraRatingService {
   /**
    * Fetches initial data from AniList using GQL.
    */
-  public async fetchInitialData(mediaId: number): Promise<IRatingInitialData | null> {
+  public async getMediaRatingData(mediaId: number): Promise<IRatingInitialData | null> {
     const GQL = `query($id: Int) {
       Viewer { mediaListOptions { animeList { customLists } } }
       Media(id: $id) {
@@ -53,6 +55,45 @@ export class AstraRatingService implements IAstraRatingService {
     } catch (err) {
       log.error('[AstraRatingService] Failed to fetch initial data', err);
       return null;
+    }
+  }
+
+  public async fetchInitialData(mediaId: number): Promise<IRatingInitialData | null> {
+    return this.getMediaRatingData(mediaId);
+  }
+
+  public async updateProgress(mediaId: number, progress?: number): Promise<{ mediaId: number; progress: number; title: string }> {
+    try {
+      const userId = await this.api.getCurrentUserId();
+      if (!userId) throw new Error('Not logged in');
+
+      const data = await this.api.query<any>(`
+        query ($mediaId: Int, $userId: Int) {
+          MediaList(mediaId: $mediaId, userId: $userId) {
+            id progress status media { id title { userPreferred } }
+          }
+        }
+      `, { mediaId, userId });
+
+      if (!data?.MediaList) throw new Error('Entry not found');
+
+      const entry = data.MediaList;
+      const newProgress = progress ?? (entry.progress || 0) + 1;
+
+      await this.api.mutate(`
+        mutation ($id: Int, $progress: Int) {
+          SaveMediaListEntry(id: $id, progress: $progress) { id progress }
+        }
+      `, { id: entry.id, progress: newProgress });
+
+      return {
+        mediaId: entry.media.id,
+        progress: newProgress,
+        title: entry.media.title.userPreferred
+      };
+    } catch (err) {
+      log.error('[AstraRatingService] Failed to update progress', err);
+      throw err;
     }
   }
 
@@ -86,10 +127,12 @@ export class AstraRatingService implements IAstraRatingService {
       // If Astra Review is enabled, the notes are ALREADY inside the block.
       // To avoid duplication, we move them inside and preserve existing comments.
       if (settings.appendAstraToComment) {
-        const { AstraParser } = await import('../utils/AstraParser');
-        // We inject into an empty string to get ONLY the block, 
-        // effectively moving the notes INTO the block and out of the main field.
-        notesToSync = AstraParser.inject('', work, this.astraService.getSections());
+        // Use the parser directly since we have it injected in serialize/inject
+        const parser = container.resolve<IAstraParser>(TOKENS.AstraParserService);
+        const sections = this.astraService.getSections();
+        const currentData = await this.getMediaRatingData(work.mediaId);
+        const currentNotes = currentData?.media?.mediaListEntry?.notes || '';
+        notesToSync = parser.inject(currentNotes, work, sections, true);
       }
 
       const payload = {

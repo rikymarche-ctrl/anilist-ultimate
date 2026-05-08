@@ -60,6 +60,7 @@ export class AstraDashboardStore {
 
     this.eventBus.on(EVENT_TYPES.ASTRA_DATA_UPDATED, () => this.updateFilteredList());
     this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, () => this.updateFilteredList());
+    this.eventBus.on(EVENT_TYPES.ASTRA_SYNC_COMPLETE, () => this.updateFilteredList());
   }
 
   private async init(): Promise<void> {

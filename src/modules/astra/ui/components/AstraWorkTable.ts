@@ -68,12 +68,12 @@ export class AstraWorkTable extends AstraView {
   private renderRow(work: AstraWorkSummary, sections: any[]): HTMLElement {
     const total = work.type === 'anime' ? work.episodes : work.chapters;
     let percent = (total && total > 0) ? Math.min(100, Math.round(((work.progress || 0) / total) * 100)) : 0;
-    
+
     if (percent === 0 && (work.progress || 0) > 0) percent = 5;
 
     const overallScore = work.currentScore;
     const scoreClass = (overallScore || 0) >= 8 ? 'high' : (overallScore || 0) >= 6 ? 'mid' : 'low';
-    
+
     return html`
       <div class="astra-grid-row" data-media-id="${work.mediaId}" style="--progress-val: ${percent}%">
         <div class="astra-col-cover">
@@ -95,13 +95,13 @@ export class AstraWorkTable extends AstraView {
           <div class="astra-table-score-badge ${scoreClass}">${overallScore ? overallScore.toFixed(1) : '-'}</div>
         </div>
         ${map(sections, s => {
-          const score = work.sectionScores ? work.sectionScores[s.id] : null;
-          return html`
+      const score = work.sectionScores ? work.sectionScores[s.id] : null;
+      return html`
             <div class="astra-col-section" style="color: ${score ? 'var(--astra-accent)' : 'var(--astra-muted)'}">
               ${score ? (score as number).toFixed(1) : '-'}
             </div>
           `;
-        })}
+    })}
         <div class="astra-col-actions">
           <button class="astra-icon-btn astra-edit-row" title="Edit Entry">
             <i class="fa fa-pencil-alt"></i>
@@ -120,7 +120,7 @@ export class AstraWorkTable extends AstraView {
   protected bindEvents(): void {
     this.$$('.astra-grid-row').forEach(row => {
       const mediaId = parseInt(row.getAttribute('data-media-id') || '0');
-      
+
       const editBtn = row.querySelector('.astra-edit-row');
       if (editBtn) {
         this.addEventListener(editBtn as HTMLElement, 'click', (e) => {
@@ -136,5 +136,22 @@ export class AstraWorkTable extends AstraView {
         });
       }
     });
+  }
+
+  /**
+   * Focuses and highlights a specific entry in the table.
+   * 
+   * @param mediaId AniList media ID to focus
+   */
+  public focusEntry(mediaId: number): void {
+    const row = this.$(`.astra-grid-row[data-media-id="${mediaId}"]`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.remove('astra-row-focus-pulse');
+      // Force reflow for animation restart
+      void (row as HTMLElement).offsetWidth; 
+      row.classList.add('astra-row-focus-pulse');
+      setTimeout(() => row.classList.remove('astra-row-focus-pulse'), 4000);
+    }
   }
 }

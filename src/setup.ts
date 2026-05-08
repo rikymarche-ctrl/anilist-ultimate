@@ -113,6 +113,8 @@ import { AstraUIBridge } from './modules/astra/services/AstraUIBridge';
 import { AstraStatusSelector } from '@/modules/astra/ui/components/form/AstraStatusSelector';
 import { AstraProgressStepper } from '@/modules/astra/ui/components/form/AstraProgressStepper';
 import { AstraCriteriaList } from '@/modules/astra/ui/components/form/AstraCriteriaList';
+import { AstraParserService } from '@/modules/astra/services/AstraParserService';
+import { AstraSyncManager } from '@/modules/astra/services/AstraSyncManager';
 import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
 
@@ -272,6 +274,12 @@ export async function setupDI(isBackground = false): Promise<void> {
   
   container.registerSingleton(AstraRatingService);
   container.register(TOKENS.IAstraRatingService, { useToken: AstraRatingService });
+  
+  container.registerSingleton(AstraParserService);
+  container.register(TOKENS.AstraParserService, { useToken: AstraParserService });
+
+  container.registerSingleton(AstraSyncManager);
+  container.register(TOKENS.AstraSyncManager, { useToken: AstraSyncManager });
   
   container.registerSingleton(AstraRatingController);
   container.register(TOKENS.AstraRatingController, { useToken: AstraRatingController });

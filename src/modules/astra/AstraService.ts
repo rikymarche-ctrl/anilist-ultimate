@@ -17,6 +17,8 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import { AstraRepository } from './store/AstraRepository';
 import { AstraSyncService } from './services/AstraSyncService';
+import { AstraSyncManager } from './services/AstraSyncManager';
+import type { IAstraRatingService } from './interfaces/IAstraRatingService';
 import { AstraCalculator } from './utils/AstraCalculator';
 
 import { 
@@ -34,7 +36,9 @@ export class AstraService {
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.ApiClient) private api: IApiClient,
     @inject(AstraRepository) private repository: AstraRepository,
-    @inject(AstraSyncService) private syncService: AstraSyncService
+    @inject(AstraSyncService) private syncService: AstraSyncService,
+    @inject(TOKENS.AstraSyncManager) private syncManager: AstraSyncManager,
+    @inject(TOKENS.IAstraRatingService) private ratingService: IAstraRatingService
   ) {}
 
   public async init(): Promise<void> {
@@ -79,41 +83,15 @@ export class AstraService {
    */
   public async incrementProgress(mediaId: number): Promise<{ mediaId: number; progress: number; title: string } | null> {
     try {
-      const userId = await this.api.getCurrentUserId();
-      if (!userId) throw new Error('Not logged in');
-
-      const data = await this.api.query<any>(`
-        query ($mediaId: Int, $userId: Int) {
-          MediaList(mediaId: $mediaId, userId: $userId) {
-            id progress status media { id title { romaji } }
-          }
-        }
-      `, { mediaId, userId });
-
-      if (!data?.MediaList) throw new Error('Entry not found');
-
-      const entry = data.MediaList;
-      const newProgress = (entry.progress || 0) + 1;
-
-      await this.api.mutate(`
-        mutation ($id: Int, $progress: Int) {
-          SaveMediaListEntry(id: $id, progress: $progress) { id progress }
-        }
-      `, { id: entry.id, progress: newProgress });
+      const result = await this.ratingService.updateProgress(mediaId);
       
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
-        mediaId: entry.media.id,
-        progress: newProgress,
-        previousProgress: entry.progress,
-        userId,
-        status: entry.status
+        mediaId: result.mediaId,
+        progress: result.progress,
+        title: result.title
       });
 
-      return { 
-        mediaId: entry.media.id, 
-        progress: newProgress, 
-        title: entry.media.title.romaji 
-      };
+      return result;
     } catch (err) {
       log.error('[AstraService] Failed to increment progress', err);
       throw err;
@@ -126,35 +104,7 @@ export class AstraService {
   private async syncToAnilistNotes(mediaId: number, work: AstraWork): Promise<void> {
     const settings = this.getSettings();
     if (!this.api.isAuthenticated() || !settings.appendAstraToComment) return;
-
-    try {
-      const sections = this.repository.getSections();
-      
-      // We need to fetch the current list entry ID first
-      const userId = await this.api.getCurrentUserId();
-      const data = await this.api.query<any>(`
-        query($mediaId: Int, $userId: Int) {
-          MediaList(mediaId: $mediaId, userId: $userId) { id notes }
-        }
-      `, { mediaId, userId });
-
-      if (!data?.MediaList) return;
-
-      const currentNotes = data.MediaList.notes || '';
-      const { AstraParser } = await import('./utils/AstraParser');
-      const updatedNotes = AstraParser.inject(currentNotes, work, sections);
-
-      if (updatedNotes !== currentNotes) {
-        await this.api.mutate(`
-          mutation($id: Int, $notes: String) {
-            SaveMediaListEntry(id: $id, notes: $notes) { id notes }
-          }
-        `, { id: data.MediaList.id, notes: updatedNotes });
-        log.debug(`[AstraService] Synced notes for media ${mediaId} to AniList`);
-      }
-    } catch (e) {
-      log.error(`[AstraService] Failed to sync notes to AniList for media ${mediaId}`, e);
-    }
+    await this.syncManager.push(mediaId, work);
   }
 
   public hasFinaleSection(): boolean {

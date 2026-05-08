@@ -21,6 +21,7 @@ import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { ToastService } from '@core/services/ToastService';
 import { AstraRatingStore } from './state/AstraRatingStore';
+import { AstraSyncManager } from '../services/AstraSyncManager';
 import { html, when } from '@core/utils/Template';
 
 /**
@@ -40,6 +41,7 @@ export class AstraRatingController extends AstraView {
     @inject(TOKENS.IAstraRatingService) private ratingService: IAstraRatingService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.ToastService) private toast: ToastService,
+    @inject(TOKENS.AstraSyncManager) private syncManager: AstraSyncManager,
     @inject(AstraRatingHeader) private header: AstraRatingHeader,
     @inject(AstraScoreForm) private scoreForm: AstraScoreForm,
     @inject(AstraEpisodeJournal) private journalView: AstraEpisodeJournal,
@@ -74,28 +76,7 @@ export class AstraRatingController extends AstraView {
 
     // AUTO-SYNC: Merge latest AniList data into local work immediately on open
     if (media.mediaListEntry) {
-      const { AstraParser } = await import('../utils/AstraParser');
-      const sections = this.service.getSections();
-      const parsed = AstraParser.parse(media.mediaListEntry.notes || '', sections);
-      
-      let changed = false;
-      if (parsed) {
-        changed = AstraParser.merge(work, parsed);
-      } else {
-        // Plain text sync
-        const aniListNotes = media.mediaListEntry.notes || '';
-        if (work.notes !== aniListNotes) {
-          work.notes = aniListNotes;
-          const season = work.seasons[work.seasons.length - 1];
-          if (season) season.notes = aniListNotes;
-          changed = true;
-        }
-      }
-
-      if (changed) {
-        log.info(`[AstraRatingController] Auto-synced notes/scores from AniList for ${mediaId}`);
-        await this.service.saveWork(work, true); // Save locally, skip background sync
-      }
+      await this.syncManager.pull(mediaId, work);
     }
 
     const totalCount = media.episodes || null;
@@ -180,8 +161,8 @@ export class AstraRatingController extends AstraView {
     if (!this.overlay || !this.store) return;
 
     if (this.store.getState().isDirty && !this.isSaving) {
-      log.info('[AstraRatingController] Auto-saving (local only) before close');
-      await this.save(false, true);
+      log.info('[AstraRatingController] Auto-saving and syncing before close');
+      await this.save(false, false); // Perform full sync
     }
 
     this.overlay.classList.add('astra-modal-overlay--closing');
@@ -204,7 +185,12 @@ export class AstraRatingController extends AstraView {
     return html`
       <div class="astra-modal astra-modal--rating">
         <nav class="astra-modal-nav">
-          <div class="astra-nav-item astra-nav-item--ghost"></div>
+          <div class="astra-nav-brand astra-nav-brand--back" id="astra-back-to-dashboard">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
+            </svg>
+            <span>Dashboard</span>
+          </div>
           <div class="astra-nav-item ${when(activeTab === 'rating', 'active')}" data-tab="rating">
             <i class="fa fa-sliders"></i> <span>Rating</span>
           </div>
@@ -312,6 +298,13 @@ export class AstraRatingController extends AstraView {
       });
     });
 
+    this.$('#astra-back-to-dashboard')?.addEventListener('click', async () => {
+      const state = this.store?.getState();
+      const mediaId = state?.work.mediaId;
+      await this.close();
+      this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN, { mediaId });
+    });
+
     this.eventBus.on('astra-store-updated', (payload: any) => this.handleStoreUpdate(payload));
     this.eventBus.on('astra-save-request', () => this.save(true));
   }
@@ -335,7 +328,14 @@ export class AstraRatingController extends AstraView {
       const overall = this.service.calcSeasonScore(season);
       this.updateOverallScore(overall);
     } else if (type === 'season-update' || type === 'state-change') {
-      if (payload.field === 'notes') return;
+      if (payload.field === 'notes') {
+        // Sync the textarea value if it differs from the store (e.g. from a pull)
+        const notesArea = document.getElementById('astra-general-notes') as HTMLTextAreaElement;
+        if (notesArea && notesArea.value !== state.work.seasons[state.currentSeasonIdx].notes) {
+          notesArea.value = state.work.seasons[state.currentSeasonIdx].notes || '';
+        }
+        return;
+      }
       this.renderHeader();
       this.renderTabContent();
     } else if (type === 'journal-update') {

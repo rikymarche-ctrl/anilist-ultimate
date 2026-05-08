@@ -90,6 +90,8 @@ export const TOKENS = {
   AstraFilterService: Symbol.for('IFilterService'),
   AstraStatsService: Symbol.for('IStatsService'),
   IAstraRatingService: Symbol.for('IAstraRatingService'),
+  AstraParserService: Symbol.for('IAstraParserService'),
+  AstraSyncManager: Symbol.for('AstraSyncManager'),
   AstraEnhancementService: Symbol.for('AstraEnhancementService'),
   AstraNavigationService: Symbol.for('AstraNavigationService'),
   MediaMusicModule: Symbol.for('MediaMusicModule'),

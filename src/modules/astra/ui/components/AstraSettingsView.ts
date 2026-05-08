@@ -333,6 +333,8 @@ export class AstraSettingsView extends AstraView {
         try {
           const result = await this.service.syncWithAniList();
           this.toast.success(`Sync complete! Added: ${result.added}, Updated: ${result.updated}`);
+          // Force a small delay to let the user see the success before any potential re-renders
+          setTimeout(() => this.update(), 500);
         } catch (err) {
           this.toast.error('Sync failed. Check console for details.');
         } finally {

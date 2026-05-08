@@ -126,6 +126,7 @@ export const EVENT_TYPES = {
   ASTRA_OPEN_MODAL: 'astra:open-modal',
   ASTRA_DATA_UPDATED: 'astra:data-updated',
   ASTRA_SAVE_NOTE: 'astra:save-note',
+  ASTRA_SYNC_COMPLETE: 'astra:sync-complete',
 } as const;
 
 /**
@@ -354,8 +355,9 @@ export interface AppEventMap {
   [EVENT_TYPES.USER_LOGGED_OUT]: undefined;
   [EVENT_TYPES.AUTH_STATE_CHANGED]: { isAuthenticated: boolean; userId?: number; timestamp: Date };
 
-  [EVENT_TYPES.ASTRA_OPEN]: undefined;
+  [EVENT_TYPES.ASTRA_OPEN]: { mediaId?: number };
   [EVENT_TYPES.ASTRA_OPEN_MODAL]: { mediaId: number };
   [EVENT_TYPES.ASTRA_DATA_UPDATED]: { mediaId?: number; timestamp: Date };
   [EVENT_TYPES.ASTRA_SAVE_NOTE]: AstraSaveNoteEvent;
+  [EVENT_TYPES.ASTRA_SYNC_COMPLETE]: { added: number; updated: number };
 }

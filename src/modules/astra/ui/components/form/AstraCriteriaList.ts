@@ -63,7 +63,9 @@ export class AstraCriteriaList extends AstraView {
               <i class="fa fa-chevron-down astra-accordion-icon"></i>
               <span class="astra-score-group-title">${section.name} ${this.renderWeightTag(effectiveWeight)}</span>
             </div>
-            <span class="astra-group-avg" id="avg-${section.id}">—</span>
+            <span class="astra-group-avg" id="avg-${section.id}" style="color: ${AstraRadarChart.getScoreColor(this.calcSectionAvg(section, season))}">
+              ${this.formatScore(this.calcSectionAvg(section, season)) || '—'}
+            </span>
           </div>
           <div class="astra-sub-sections">
             ${section.subSections!.map(sub => this.renderSubSectionInput(section.id, sub, season.scores[`${section.id}_${sub.id}`], !!season.manualOverride))}
@@ -80,7 +82,9 @@ export class AstraCriteriaList extends AstraView {
           <div class="astra-label-left">
             <span class="astra-score-group-title">${section.name} ${this.renderWeightTag(effectiveWeight)}</span>
           </div>
-          <span class="astra-group-avg" id="avg-${section.id}">—</span>
+          <span class="astra-group-avg" id="avg-${section.id}" style="color: ${AstraRadarChart.getScoreColor(value ?? null)}">
+            ${this.formatScore(value) || '—'}
+          </span>
         </div>
         <div class="astra-main-section" style="padding: 12px;">
           <input type="range" class="astra-slider" data-id="${section.id}" min="0" max="10" step="0.1" value="${value || 0}" ${season.manualOverride ? 'disabled' : ''}>
@@ -115,6 +119,20 @@ export class AstraCriteriaList extends AstraView {
 
   private renderWeightTag(weight: number): HTMLElement {
     return html`<small class="astra-weight-tag">w${weight.toFixed(weight % 1 === 0 ? 0 : 1)}</small>`;
+  }
+
+  private calcSectionAvg(section: AstraSection, season: AstraSeason): number | null {
+    if (!section.subSections || section.subSections.length === 0) return season.scores[section.id] ?? null;
+    let sum = 0;
+    let count = 0;
+    section.subSections.forEach(sub => {
+      const val = season.scores[`${section.id}_${sub.id}`];
+      if (val !== null && val !== undefined) {
+        sum += val;
+        count++;
+      }
+    });
+    return count > 0 ? sum / count : null;
   }
 
   protected bindEvents(): void {

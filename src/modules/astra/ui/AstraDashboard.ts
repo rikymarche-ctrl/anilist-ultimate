@@ -17,6 +17,7 @@ import { AstraSettingsView } from './components/AstraSettingsView';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { html, when } from '@core/utils/Template';
+import { log } from '@core/logger';
 
 @injectable()
 @singleton()
@@ -24,7 +25,6 @@ export class AstraDashboard extends AstraView {
   private overlay: HTMLElement | null = null;
   private activeTab: 'dashboard' | 'settings' = 'dashboard';
   private isOpening = false;
-  private _unsubscribe: (() => void) | null = null;
 
   constructor(
     @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
@@ -42,14 +42,29 @@ export class AstraDashboard extends AstraView {
     this.element = this.render();
 
     // Listen for global open event
-    this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, () => this.open());
+    this.eventBus.on(EVENT_TYPES.ASTRA_OPEN, (payload) => this.open(payload));
+
+    // Persistent subscription: survives rerenders and open/close cycles
+    this.store.subscribe((state) => {
+      const tabChanged = this.activeTab !== state.activeTab;
+      this.activeTab = state.activeTab;
+
+      if (this.mounted) {
+        if (tabChanged) {
+          log.info(`[AstraDashboard] Tab changed to ${this.activeTab}, rerendering...`);
+          this.rerender();
+        } else {
+          this.refreshComponents(state);
+        }
+      }
+    });
   }
 
   /**
    * Opens the dashboard overlay and initializes data.
    */
-  public async open(): Promise<void> {
-    console.log('[AstraDashboard] open() called');
+  public async open(payload?: { mediaId?: number }): Promise<void> {
+    console.log('[AstraDashboard] open() called', payload);
     if (this.overlay || this.isOpening) {
       console.log('[AstraDashboard] Already open or opening, skipping');
       return;
@@ -66,36 +81,27 @@ export class AstraDashboard extends AstraView {
       target.appendChild(this.overlay);
       if (document.body) document.body.style.overflow = 'hidden';
     }
-
+ 
     this.mount(this.overlay);
-
+ 
     requestAnimationFrame(() => {
       this.overlay?.classList.add('astra-modal-overlay--open');
+      
+      // If a mediaId was provided, focus it after a short delay to allow rendering
+      if (payload?.mediaId) {
+        setTimeout(() => this.workTable.focusEntry(payload.mediaId!), 500);
+      }
     });
     } finally {
       this.isOpening = false;
     }
   }
 
-  /**
-   * Orchestrates mounting of the dashboard and store subscription.
-   */
   public mount(parent: HTMLElement): void {
-    this.parent = parent;
-    this.renderContainer();
-    
-    // Subscribe to store updates
-    this._unsubscribe = this.store.subscribe((state) => {
-      this.activeTab = state.activeTab;
-      this.refreshComponents(state);
-    });
+    super.mount(parent);
   }
 
   protected override onUnmount(): void {
-    if (this._unsubscribe) {
-      this._unsubscribe();
-      this._unsubscribe = null;
-    }
     this.statsHeader.unmount();
     this.filterBar.unmount();
     this.workTable.unmount();
@@ -150,18 +156,6 @@ export class AstraDashboard extends AstraView {
     `;
   }
 
-  private renderContainer(): void {
-    if (!this.overlay) return;
-    
-    const root = this.template();
-    this.element = root;
-    this.overlay.innerHTML = '';
-    this.overlay.appendChild(this.element);
-    
-    this.bindEvents();
-    this.onMount();
-  }
-
   /**
    * Renders the active tab content.
    */
@@ -195,15 +189,13 @@ export class AstraDashboard extends AstraView {
   }
 
   /**
-   * Refreshes sub-components when store state changes.
+   * Refreshes sub-components when store state changes (data-only).
    */
   private refreshComponents(state: IDashboardState): void {
     if (this.activeTab === 'dashboard') {
       this.statsHeader.update(state.stats);
       this.filterBar.update(state);
       this.workTable.update(state);
-    } else {
-      this.renderContainer();
     }
   }
 

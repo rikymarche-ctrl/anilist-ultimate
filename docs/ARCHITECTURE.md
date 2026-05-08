@@ -22,6 +22,17 @@
 - [6. API Layer](#6-api-layer)
 - [7. Build System](#7-build-system)
 - [8. Data Flow Diagrams](#8-data-flow-diagrams)
+- [9. Astra Module Architecture](#9-astra-module-architecture)
+
+---
+
+## 9. Astra Module Architecture
+
+The Astra module is a complex subsystem that handles multi-criteria scoring and bidirectional synchronization with AniList.
+
+- **Detailed Diagrams**: See [DIAGRAMS.md](file:///c:/Users/ricca/Documenti/Anilist/anilist-ultimate-v2/docs/astra/DIAGRAMS.md) for sequence and flow charts.
+- **Sync Strategy**: Uses a "Top-Block-Bottom" decomposition to preserve user notes on AniList while injecting Astra metadata.
+- **State Management**: Managed via `AstraDashboardStore` (Global) and `AstraRatingStore` (Session-specific).
 
 ---
 

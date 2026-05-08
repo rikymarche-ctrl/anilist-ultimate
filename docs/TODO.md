@@ -44,11 +44,6 @@
 
 - [ ] **Setup Git Pubblico**: Configurare il repository ufficiale e archiviare i vecchi branch sperimentali.
 
-
-
-
-
-
 manca il l animazione di outro
 
 nel quick edit manca il tasto A girato per andare nella dashboard
@@ -58,3 +53,8 @@ muovere il toggle finale dentro il campo piuttosto che a destra di override
 nel jounral i campi delle note fanno acnora il cazzo che vogliono
 
 cambiare la X col comportamento default, se clicchi fuoris i chiude, autosave
+
+
+![1778274459709](image/TODO/1778274459709.png)
+
+non diventa rossa e il counter non riparte, per farlo bisogna refreshare la pagina
