@@ -14,6 +14,7 @@ import { AstraScoreForm } from './components/AstraScoreForm';
 import { AstraEpisodeJournal } from './components/AstraEpisodeJournal';
 import { AstraRadarPreview } from './components/AstraRadarPreview';
 import { AstraRatingHeader } from './components/AstraRatingHeader';
+import { AstraOverlayService } from '../services/AstraOverlayService';
 import { AstraRadarChart } from './AstraRadarChart';
 import { MediaListStatus } from '@/api/AnilistTypes';
 import { log } from '@core/logger';
@@ -45,7 +46,8 @@ export class AstraRatingController extends AstraView {
     @inject(AstraRatingHeader) private header: AstraRatingHeader,
     @inject(AstraScoreForm) private scoreForm: AstraScoreForm,
     @inject(AstraEpisodeJournal) private journalView: AstraEpisodeJournal,
-    @inject(AstraRadarPreview) private radarPreview: AstraRadarPreview
+    @inject(AstraRadarPreview) private radarPreview: AstraRadarPreview,
+    @inject(AstraOverlayService) private overlayService: AstraOverlayService
   ) {
     super({});
     this.eventBus.on(EVENT_TYPES.ASTRA_OPEN_MODAL, (detail: any) => this.open(detail.mediaId));
@@ -57,59 +59,68 @@ export class AstraRatingController extends AstraView {
    * @param mediaId AniList media ID
    */
   public async open(mediaId: number): Promise<void> {
-    if (this.overlay || this.isOpening) return;
+    if (this.overlayService.isActive('rating') || this.isOpening) return;
     this.isOpening = true;
 
     try {
       log.info(`[AstraRatingController] Opening modal for mediaId: ${mediaId}`);
 
-    const data = await this.ratingService.fetchInitialData(mediaId);
-    if (!data) {
-      this.toast.error('Failed to load AniList data.');
-      return;
-    }
-
-    const { media, allCustomLists } = data;
-    const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
-
-    const work = await this.service.getFullWork(mediaId) || this.createDefaultWork(media, mediaType);
-
-    // AUTO-SYNC: Merge latest AniList data into local work immediately on open
-    if (media.mediaListEntry) {
-      await this.syncManager.pull(mediaId, work);
-    }
-
-    const totalCount = media.episodes || null;
-    let airedCount: number | null = null;
-    if (media.nextAiringEpisode) {
-      airedCount = media.nextAiringEpisode.episode - 1;
-    } else if (media.status === 'FINISHED') {
-      airedCount = totalCount;
-    }
-
-    this.store = new AstraRatingStore({
-      work,
-      media,
-      allCustomLists,
-      currentSeasonIdx: work.seasons.length - 1,
-      activeTab: 'rating',
-      airedCount,
-      totalCount
-    }, this.eventBus);
-
-    this.scoreForm.connect(this.store);
-    this.scoreForm.resetState();
-    this.journalView.connect(this.store);
-
-    this.renderContainer();
-
-    const escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        this.close();
-        document.removeEventListener('keydown', escHandler);
+      const data = await this.ratingService.fetchInitialData(mediaId);
+      if (!data) {
+        this.toast.error('Failed to load AniList data.');
+        return;
       }
-    };
+
+      const { media, allCustomLists } = data;
+      const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
+
+      const work = await this.service.getFullWork(mediaId) || this.createDefaultWork(media, mediaType);
+
+      // AUTO-SYNC: Merge latest AniList data into local work immediately on open
+      if (media.mediaListEntry) {
+        await this.syncManager.pull(mediaId, work);
+      }
+
+      const totalCount = media.episodes || null;
+      let airedCount: number | null = null;
+      if (media.nextAiringEpisode) {
+        airedCount = media.nextAiringEpisode.episode - 1;
+      } else if (media.status === 'FINISHED') {
+        airedCount = totalCount;
+      }
+
+      this.store = new AstraRatingStore({
+        work,
+        media,
+        allCustomLists,
+        currentSeasonIdx: work.seasons.length - 1,
+        activeTab: 'rating',
+        airedCount,
+        totalCount,
+        manualOverride: !!work.seasons[work.seasons.length - 1].manualOverride,
+        isSeriesFinale: !!work.seasons[work.seasons.length - 1].isSeriesFinale,
+        showFinale: work.status === 'COMPLETED' || (!!totalCount && (work.progress || 0) >= totalCount)
+      }, this.eventBus);
+
+      this.header.connect(this.store);
+      this.scoreForm.connect(this.store);
+      this.scoreForm.resetState();
+      this.journalView.connect(this.store);
+
+      this.overlay = this.overlayService.create('rating');
+      this.mount(this.overlay);
+      this.overlayService.show('rating');
+
+      const escHandler = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          this.close();
+          document.removeEventListener('keydown', escHandler);
+        }
+      };
       this.addEventListener(document.body, 'keydown', escHandler as any);
+    } catch (error) {
+      log.error('[AstraRatingController] Failed to open rating modal', error);
+      this.toast.error('Failed to open Astra.');
     } finally {
       this.isOpening = false;
     }
@@ -131,48 +142,22 @@ export class AstraRatingController extends AstraView {
     };
   }
 
-  private renderContainer(): void {
-    this.overlay = document.createElement('div');
-    this.overlay.className = 'astra-modal-overlay';
-    const target = document.body || document.documentElement;
-    if (target) {
-      target.appendChild(this.overlay);
-      if (document.body) document.body.style.overflow = 'hidden';
-    }
-
-    this.mount(this.overlay);
-    
-    // Click outside to close
-    this.overlay.addEventListener('click', (e) => {
-      if (e.target === this.overlay) {
-        this.close();
-      }
-    });
-
-    requestAnimationFrame(() => {
-      this.overlay?.classList.add('astra-modal-overlay--open');
-    });
-  }
-
   /**
-   * Closes the modal and triggers auto-save if necessary.
+   * Closes the modal and triggers a full sync.
    */
   public async close(): Promise<void> {
-    if (!this.overlay || !this.store) return;
+    if (!this.overlayService.isActive('rating')) return;
 
-    if (this.store.getState().isDirty && !this.isSaving) {
+    if (this.store?.getState().isDirty && !this.isSaving) {
       log.info('[AstraRatingController] Auto-saving and syncing before close');
-      await this.save(false, false); // Perform full sync
+      await this.save(false, false);
     }
 
-    this.overlay.classList.add('astra-modal-overlay--closing');
-    setTimeout(() => {
+    this.overlayService.hide('rating', () => {
       this.unmount();
-      this.overlay?.remove();
       this.overlay = null;
-      document.body.style.overflow = '';
       this.store = null;
-    }, 350);
+    });
   }
 
   /**
@@ -236,14 +221,8 @@ export class AstraRatingController extends AstraView {
       manualOverride: !!season.manualOverride,
       isSeriesFinale: !!season.isSeriesFinale,
       showFinale: this.service.getSettings().enableSeriesFinale && this.service.hasFinaleSection(),
-      onOverrideToggle: (active: boolean) => {
-        this.store?.updateSeason({ manualOverride: active });
-        this.eventBus.emit('astra-store-updated', { state: this.store?.getState(), type: 'override-change' });
-      },
-      onFinaleToggle: () => {
-        const current = !!this.store?.getState().work.seasons[state.currentSeasonIdx].isSeriesFinale;
-        this.store?.updateSeason({ isSeriesFinale: !current });
-      },
+      onOverrideToggle: (active: boolean) => this.store?.setManualOverride(active),
+      onFinaleToggle: () => this.store?.toggleSeriesFinale(),
       onClose: () => this.close(),
       activeTab: state.activeTab
     });

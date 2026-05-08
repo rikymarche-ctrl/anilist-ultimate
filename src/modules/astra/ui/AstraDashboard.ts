@@ -14,6 +14,7 @@ import { AstraStatsHeader } from './components/AstraStatsHeader';
 import { AstraFilterBar } from './components/AstraFilterBar';
 import { AstraWorkTable } from './components/AstraWorkTable';
 import { AstraSettingsView } from './components/AstraSettingsView';
+import { AstraOverlayService } from '../services/AstraOverlayService';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import { html, when } from '@core/utils/Template';
@@ -33,7 +34,8 @@ export class AstraDashboard extends AstraView {
     @inject(AstraStatsHeader) private statsHeader: AstraStatsHeader,
     @inject(AstraFilterBar) private filterBar: AstraFilterBar,
     @inject(AstraWorkTable) private workTable: AstraWorkTable,
-    @inject(AstraSettingsView) private settingsView: AstraSettingsView
+    @inject(AstraSettingsView) private settingsView: AstraSettingsView,
+    @inject(AstraOverlayService) private overlayService: AstraOverlayService
   ) {
     super({});
     
@@ -64,9 +66,8 @@ export class AstraDashboard extends AstraView {
    * Opens the dashboard overlay and initializes data.
    */
   public async open(payload?: { mediaId?: number }): Promise<void> {
-    console.log('[AstraDashboard] open() called', payload);
-    if (this.overlay || this.isOpening) {
-      console.log('[AstraDashboard] Already open or opening, skipping');
+    log.info('[AstraDashboard] open() called', payload);
+    if (this.overlayService.isActive('dashboard') || this.isOpening) {
       return;
     }
     
@@ -74,24 +75,14 @@ export class AstraDashboard extends AstraView {
     try {
       await this.service.init();
     
-    this.overlay = document.createElement('div');
-    this.overlay.className = 'astra-modal-overlay';
-    const target = document.body || document.documentElement;
-    if (target) {
-      target.appendChild(this.overlay);
-      if (document.body) document.body.style.overflow = 'hidden';
-    }
- 
-    this.mount(this.overlay);
- 
-    requestAnimationFrame(() => {
-      this.overlay?.classList.add('astra-modal-overlay--open');
-      
+      this.overlay = this.overlayService.create('dashboard');
+      this.mount(this.overlay);
+      this.overlayService.show('dashboard');
+
       // If a mediaId was provided, focus it after a short delay to allow rendering
       if (payload?.mediaId) {
         setTimeout(() => this.workTable.focusEntry(payload.mediaId!), 500);
       }
-    });
     } finally {
       this.isOpening = false;
     }
@@ -113,15 +104,10 @@ export class AstraDashboard extends AstraView {
    * Closes the dashboard with a fade-out animation.
    */
   public close(): void {
-    if (!this.overlay) return;
-    
-    this.overlay.classList.add('astra-modal-overlay--closing');
-    setTimeout(() => {
+    this.overlayService.hide('dashboard', () => {
       this.unmount();
-      this.overlay?.remove();
       this.overlay = null;
-      document.body.style.overflow = '';
-    }, 350);
+    });
   }
 
   /**

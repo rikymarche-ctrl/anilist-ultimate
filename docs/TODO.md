@@ -1,60 +1,25 @@
-# 🚀 Astra Ultimate - Project Roadmap & TODO
+# Astra Ultimate V2 - TODO List
 
----
+## 🚀 High Priority (Current Phase)
+- [ ] **Virtual Scrolling**: Implement true windowed rendering for the Dashboard WorkTable to eliminate lag with 1000+ entries.
+- [ ] **Deep Integration Testing**: Validate the full sync loop (AniList -> Astra -> Local -> AniList) with edge cases (deleted entries, network failures).
+- [ ] **Final UI Polish**: Audit all tooltips, hover states, and micro-animations for consistent premium feel.
 
-## ✅ Enterprise Refactoring (COMPLETED)
-
-- [X] **Atomic Storage & Lazy Loading**: Split monolithic JSON into manifest + media keys.
-- [X] **Performance Optimization**: Fixed "Rerender Suicide" in AnimeCards and grid.
-- [X] **API Decoupling**: Implemented `SyncQueueService` for background, non-blocking AniList sync.
-- [X] **Infrastructure Cleanup**: Removed all "v2", "legacy", and migration debt.
-- [X] **Smart Journal Sync**: Replaces existing Astra notes instead of appending duplicates.
-
----
-
-## 📊 Astra Dashboard
-
-*Il centro di controllo dell'esperienza Astra.*
-
-- [X] **Infrastruttura Caching**: Sistema centralizzato O(1) completato.
-- [ ] **Sorting Avanzato**: Implementare nel `AstraFilterService` il sorting reale per `Completed Date`, `Data di modifica`, `Start`, ecc. (Logica pronta, serve UI binding).
-- [ ] **Astra Wrapped**: Integrare lo sfondo fluido (Opus) per il recap stagionale.
-- [ ] **Dynamic UI (Scrolling)**: Header collassabile durante lo scroll della grid per massimizzare lo spazio.
-- [ ] **Bulk Editor**: Strumento per editing massivo di tag e liste personalizzate.
-
-## 📓 Astra Ratings & Journal
-
-*Sistema di annotazione e valutazione avanzata.*
-
-- [ ] **Multi-Format Support**: Verificare piena compatibilità del Journal per Manga (Chapters) e Novel (Volumes).
-- [ ] **Optional Comments**: Opzione nelle impostazioni per disabilitare il sync automatico dei commenti su AniList.
-- [ ] **Sistema Lodi**: Implementare un sistema per assegnare "lodi" o premi speciali a opere eccezionali.
+## ✨ Planned Features
+- [ ] **Astra Stats v2**: Detailed visualization of scoring trends, genre distribution, and rating history.
+- [ ] **Multi-Format Support**: Verify full compatibility of Journal for Manga (Chapters) and Novel (Volumes).
+- [ ] **Optional Comments**: Settings toggle to disable automatic sync of Astra summaries to AniList comments.
+- [ ] **Special Awards**: System to assign custom "accolades" or awards to exceptional works.
 
 ## 🛠️ Fixes & UX Improvements
+- [x] Fix Dashboard navigation listener "freeze" after tab switch.
+- [x] Refactor Modal/Dashboard to use shared `AstraOverlayService`.
+- [x] Implement "Premium Lighting" focus effect.
+- [ ] Improve search debounce logic for ultra-large lists.
+- [ ] Add "Export to JSON" for manual data backups.
 
-- [ ] **Riprogettazione Flussi Iniezione**: Studiare tutte le combinazioni (Calendar ON/OFF, Astra ON/OFF) per decidere il comportamento ideale della Pillola/Capsula in ogni scenario (Home, Liste, Calendar).
-- [ ] **Fix Astra Dashboard**: Risolvere il blocco totale della dashboard nato con l'apertura del nuovo branch (probabile conflitto DI o Storage).
-- [ ] **Slider Arrows Bug**: Le freccette degli slider rimangono visibili anche senza contenuto.
-- [ ] **QuickEdit Cleanup**: Risolvere immagine sfocata e bug del "doppio hover".
-- [ ] **Modal UX**: Verificare che il tasto "Save" chiuda sempre la modale dopo aver accodato la richiesta.
-- [ ] **Theme Adaptation**: Audit finale per compatibilità con i temi Dark/Contrast di AniList.
-- [ ] **SharedGlobalObserver Audit**: Verificare l'impatto prestazionale dello scansionamento globale rispetto a MutationObservers mirati.
-
-## 📈 Project Management
-
-- [ ] **Setup Git Pubblico**: Configurare il repository ufficiale e archiviare i vecchi branch sperimentali.
-
-manca il l animazione di outro
-
-nel quick edit manca il tasto A girato per andare nella dashboard
-
-muovere il toggle finale dentro il campo piuttosto che a destra di override
-
-nel jounral i campi delle note fanno acnora il cazzo che vogliono
-
-cambiare la X col comportamento default, se clicchi fuoris i chiude, autosave
-
-
-![1778274459709](image/TODO/1778274459709.png)
-
-non diventa rossa e il counter non riparte, per farlo bisogna refreshare la pagina
+## 🏗️ Architecture & Technical Debt
+- [x] Decompose `AstraWorkTable` into atomic renderers.
+- [x] Centralize modal state in `AstraRatingStore`.
+- [ ] Add unit tests for `AstraParserService` merge logic.
+- [ ] Implement robust error boundary for Astra UI injection.

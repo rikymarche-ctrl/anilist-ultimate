@@ -17,9 +17,13 @@ export interface AstraRatingState {
   isSaving: boolean;
   airedCount: number | null;
   totalCount: number | null;
+  manualOverride: boolean;
+  isSeriesFinale: boolean;
+  showFinale: boolean;
 }
 
 export class AstraRatingStore {
+  private listeners: ((state: AstraRatingState) => void)[] = [];
   private state: AstraRatingState;
 
   constructor(initialData: Omit<AstraRatingState, 'isDirty' | 'isSaving'>, private eventBus: IEventBus) {
@@ -30,8 +34,28 @@ export class AstraRatingStore {
     };
   }
 
+  public subscribe(listener: (state: AstraRatingState) => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
+  }
+
   public getState(): AstraRatingState {
     return { ...this.state };
+  }
+
+  public setManualOverride(active: boolean): void {
+    if (this.state.manualOverride === active) return;
+    this.state.manualOverride = active;
+    this.setDirty(true);
+    this.notify('state-change');
+  }
+
+  public toggleSeriesFinale(): void {
+    this.state.isSeriesFinale = !this.state.isSeriesFinale;
+    this.setDirty(true);
+    this.notify('state-change');
   }
 
   public updateWork(patch: Partial<AstraWork>): void {
@@ -88,6 +112,8 @@ export class AstraRatingStore {
   }
 
   private notify(type: string = 'state-change', field?: string): void {
-    this.eventBus.emit('astra-store-updated', { state: this.getState(), type, field });
+    const state = this.getState();
+    this.listeners.forEach(l => l(state));
+    this.eventBus.emit('astra-store-updated', { state, type, field });
   }
 }

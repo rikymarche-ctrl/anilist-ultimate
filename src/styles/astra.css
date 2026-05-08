@@ -4552,6 +4552,25 @@ body.au-astra-enabled .section-header .friend-activity-button {
   letter-spacing: 0.05em;
 }
 
+.astra-grid-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 80px 80px var(--astra-dynamic-cols) 100px;
+  align-items: stretch;
+  background: var(--astra-bg-elev-1);
+  border-bottom: 1px solid var(--astra-border-soft);
+  transition: all 0.2s ease;
+  min-height: 80px;
+  /* Performance: skip rendering off-screen */
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 80px;
+}
+
+.astra-grid-row > div {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+}
+
 .astra-work-grid-body {
   flex: 1;
   overflow-y: auto;
