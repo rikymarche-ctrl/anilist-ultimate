@@ -208,7 +208,8 @@ export class AstraScoreForm extends AstraView {
       });
     });
 
-    document.addEventListener('click', () => this.$$('.astra-dropdown').forEach(d => d.classList.remove('active')));
+    // Managed listener: removed on unmount to avoid stacking document listeners on re-mount.
+    this.addEventListener(document, 'click', () => this.$$('.astra-dropdown').forEach(d => d.classList.remove('active')));
     this.$('#astra-save-btn')?.addEventListener('click', () => this.eventBus.emit('astra-save-request'));
   }
 

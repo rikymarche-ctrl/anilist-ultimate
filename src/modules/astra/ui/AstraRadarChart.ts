@@ -11,6 +11,7 @@
  */
 
 import type { AstraSection } from '../AstraInterfaces';
+import { escapeHtml } from '@core/utils/Template';
 
 export class AstraRadarChart {
   /**
@@ -77,7 +78,7 @@ export class AstraRadarChart {
 
         return `
           <div class="astra-radar-label-abs" style="left: ${lx}%; top: ${ly}%; transform: ${transform};">
-            <div class="astra-radar-label-name">${s.name}</div>
+            <div class="astra-radar-label-name">${escapeHtml(s.name)}</div>
             <div class="astra-radar-label-val" style="color: ${color}">
               ${v == null ? '—' : formattedVal}
             </div>

@@ -180,14 +180,6 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.registerSingleton(CalendarStore);
   container.register(TOKENS.CalendarStore, { useToken: CalendarStore });
 
-  // Astra Core
-  container.registerSingleton(AstraRepository);
-  container.registerSingleton(AstraSyncService);
-  container.registerSingleton(AstraService);
-  container.register(TOKENS.AstraService, { useToken: AstraService });
-  container.registerSingleton(TOKENS.AstraStore, AstraDashboardStore);
-  container.registerSingleton(TOKENS.AstraDashboard, AstraDashboard);
-
   // Native UI Sync Service
   container.registerSingleton(TOKENS.NativeUiSyncService, NativeUiSyncService);
   container.registerSingleton(TOKENS.PreferencesService, PreferencesService);

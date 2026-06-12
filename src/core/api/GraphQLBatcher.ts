@@ -1,7 +1,7 @@
 /**
  * @file GraphQLBatcher.ts
  * @description Advanced batched GraphQL execution engine
- * 
+ *
  * PERFORMANCE: Combines multiple queries/mutations into single requests via aliases.
  * ARCHITECTURE: Delegates execution to IApiClient to respect rate limits and auth.
  */
@@ -24,33 +24,41 @@ export class GraphQLBatcher {
   private queryQueue: Map<string, PendingRequest<any>> = new Map();
   private mutationQueue: Map<string, PendingRequest<any>> = new Map();
   private batchTimeout: ReturnType<typeof setTimeout> | null = null;
-  
+
   private readonly BATCH_WINDOW_MS = 50;
   private readonly MAX_BATCH_SIZE = 25;
 
-  constructor(
-    @inject(TOKENS.ApiClient) private api: IApiClient
-  ) {}
+  constructor(@inject(TOKENS.ApiClient) private api: IApiClient) {}
 
   /**
    * Queue a query for batching
    */
-  public async query<T = unknown>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+  public async query<T = unknown>(
+    query: string,
+    variables: Record<string, unknown> = {}
+  ): Promise<T> {
     return this.enqueue(query, variables, 'query');
   }
 
   /**
    * Queue a mutation for batching
    */
-  public async mutate<T = unknown>(mutation: string, variables: Record<string, unknown> = {}): Promise<T> {
+  public async mutate<T = unknown>(
+    mutation: string,
+    variables: Record<string, unknown> = {}
+  ): Promise<T> {
     return this.enqueue(mutation, variables, 'mutation');
   }
 
-  private enqueue<T>(query: string, variables: Record<string, unknown>, type: 'query' | 'mutation'): Promise<T> {
+  private enqueue<T>(
+    query: string,
+    variables: Record<string, unknown>,
+    type: 'query' | 'mutation'
+  ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const id = `req_${Math.random().toString(36).substring(2, 11)}`;
       const queue = type === 'query' ? this.queryQueue : this.mutationQueue;
-      
+
       queue.set(id, { query, variables, resolve, reject, type });
 
       if (queue.size >= this.MAX_BATCH_SIZE) {
@@ -81,7 +89,7 @@ export class GraphQLBatcher {
 
     try {
       const { combinedQuery, aliasMap } = this.combine(requests, type);
-      
+
       // Delegate to ApiClient for rate limiting and auth
       // Use queryRaw to handle partial errors (e.g. some activities not found)
       const response = await this.api.queryRaw<Record<string, any>>(combinedQuery);
@@ -93,7 +101,7 @@ export class GraphQLBatcher {
         const result = data ? data[alias!] : undefined;
 
         // Check if this specific alias had an error
-        const aliasError = errors?.find(err => err.path?.includes(alias));
+        const aliasError = errors?.find((err) => err.path?.includes(alias));
 
         if (result !== undefined && result !== null) {
           req.resolve(result);
@@ -121,10 +129,10 @@ export class GraphQLBatcher {
 
       // Robust extraction of fields between outer braces
       let fields = req.query.trim();
-      
+
       // Remove operation header if present (e.g., "query { ... }" -> "{ ... }")
       fields = fields.replace(/^(query|mutation)\s*(\([^)]*\))?\s*\{/, '{');
-      
+
       // Strip outer braces to get selection set
       const selection = fields.substring(fields.indexOf('{') + 1, fields.lastIndexOf('}')).trim();
 
@@ -145,40 +153,41 @@ export class GraphQLBatcher {
   /**
    * Formats a value for GraphQL injection.
    * Handles strings, numbers, booleans, arrays, and nested objects.
-   * 
+   *
    * @param val The value to format
    * @returns GraphQL-compatible string representation
    */
   private format(val: any): string {
     if (val === null || val === undefined) return 'null';
-    
+
     if (typeof val === 'string') {
-      // Basic heuristic: if it looks like a variable reference, don't quote it
-      // (Though batcher inlines everything, so this is just for safety)
-      if (val.startsWith('$')) return val;
-      
-      // Escape backslashes and double quotes
+      // SECURITY: always quote and fully escape. There is NO "$"-passthrough —
+      // a value starting with "$" is user data, not a GraphQL variable reference,
+      // and must never be injected raw into the query (GraphQL injection).
       const escaped = val
         .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"');
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
       return `"${escaped}"`;
     }
-    
+
     if (typeof val === 'number' || typeof val === 'boolean') {
       return String(val);
     }
-    
+
     if (Array.isArray(val)) {
-      return `[${val.map(v => this.format(v)).join(', ')}]`;
+      return `[${val.map((v) => this.format(v)).join(', ')}]`;
     }
-    
+
     if (typeof val === 'object') {
       const entries = Object.entries(val)
         .map(([k, v]) => `${k}: ${this.format(v)}`)
         .join(', ');
       return `{ ${entries} }`;
     }
-    
+
     return String(val);
   }
 }

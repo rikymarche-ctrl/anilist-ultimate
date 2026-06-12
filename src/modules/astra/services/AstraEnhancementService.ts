@@ -24,11 +24,11 @@ export class AstraEnhancementService {
     @inject(delay(() => AstraService)) private astraService: AstraService,
     @inject(TOKENS.Config) private config: IConfigManager,
     @inject(TOKENS.PreferencesService) private preferences: PreferencesService
-  ) { }
+  ) {}
 
   /**
    * Scans the current page and enhances matching media cards using registered strategies.
-   * 
+   *
    * @param path The current URL path to match against strategies.
    */
   public enhanceCards(path: string): void {
@@ -36,10 +36,12 @@ export class AstraEnhancementService {
       if (strategy.canHandle(path)) {
         const cards = strategy.getCards();
         if (cards.length > 0) {
-          log.debug(`[AstraEnhancementService] Strategy "${strategy.name}" found ${cards.length} cards`);
+          log.debug(
+            `[AstraEnhancementService] Strategy "${strategy.name}" found ${cards.length} cards`
+          );
         }
-        
-        cards.forEach(card => {
+
+        cards.forEach((card) => {
           if (strategy.shouldEnhanceCard(card)) {
             this.processCard(card, path);
           }
@@ -50,7 +52,7 @@ export class AstraEnhancementService {
 
   /**
    * Processes a single card element and injects the secure Astra action pill.
-   * 
+   *
    * @param card The native HTMLElement of the AniList media card.
    * @param path The current URL path for context-aware injection logic.
    * @private
@@ -86,32 +88,32 @@ export class AstraEnhancementService {
 
       card.setAttribute('data-astra-processed', 'true');
       card.classList.add('au-astra-card');
-      
+
       const { socialEnabled, socialShowAvatars } = this.preferences.getPreferences();
       const isHome = path === '/' || path.startsWith('/home') || path.endsWith('/astra');
       const isUserList = path.includes('/animelist') || path.includes('/mangalist') || isHome;
 
       const cover = card.querySelector('.cover, .image, .img, .banner-image');
       const target = cover || card;
-      
+
       const summaries = this.astraService.getWorks();
-      const workSummary = summaries.find(s => s.mediaId === mediaId);
+      const workSummary = summaries.find((s) => s.mediaId === mediaId);
       const score = workSummary ? workSummary.currentScore : null;
 
       const astraFeatureFlag = this.config.isFeatureEnabled('astra');
-      
+
       const options = {
         mediaId,
         isUserListCard: isUserList,
         socialEnabled,
         socialShowAvatars,
         score,
-        astraEnabled: astraFeatureFlag
+        astraEnabled: astraFeatureFlag,
       };
 
-      console.log(`[Astra] Injecting pill for ${mediaId} into:`, target.className);
+      log.debug(`[Astra] Injecting pill for ${mediaId} into:`, target.className);
       const wrapper = this.pillBuilder.inject(target as HTMLElement, options);
-      
+
       if (!wrapper) {
         log.warn(`[AstraEnhancer] Failed to inject pill for media ${mediaId}`);
       }
@@ -132,11 +134,11 @@ export class AstraEnhancementService {
     const path = window.location.pathname;
     const isUserListCard = path.includes('/animelist') || path.includes('/mangalist');
 
-    wrappers.forEach(wrapper => {
+    wrappers.forEach((wrapper) => {
       const mediaId = parseInt(wrapper.getAttribute('data-au-media-id') || '0', 10);
       if (!mediaId) return;
 
-      const workSummary = summaries.find(s => s.mediaId === mediaId);
+      const workSummary = summaries.find((s) => s.mediaId === mediaId);
       const score = workSummary ? workSummary.currentScore : null;
 
       const pill = this.pillBuilder.build({
@@ -145,7 +147,7 @@ export class AstraEnhancementService {
         socialEnabled,
         socialShowAvatars,
         score,
-        astraEnabled
+        astraEnabled,
       });
 
       (wrapper as HTMLElement).innerHTML = '';

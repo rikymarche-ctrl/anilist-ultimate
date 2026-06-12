@@ -60,7 +60,10 @@ export class EventBus implements IEventBus {
   /**
    * Subscribe to an event
    */
-  on<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): EventSubscription;
+  on<K extends keyof AppEventMap>(
+    event: K,
+    handler: EventHandler<AppEventMap[K]>
+  ): EventSubscription;
   on(event: string, handler: EventHandler<any>): EventSubscription;
   on(event: string, handler: EventHandler<any>): EventSubscription {
     if (!this.handlers.has(event)) {
@@ -82,7 +85,10 @@ export class EventBus implements IEventBus {
   /**
    * Subscribe to an event once (auto-unsubscribe after first emit)
    */
-  once<K extends keyof AppEventMap>(event: K, handler: EventHandler<AppEventMap[K]>): EventSubscription;
+  once<K extends keyof AppEventMap>(
+    event: K,
+    handler: EventHandler<AppEventMap[K]>
+  ): EventSubscription;
   once(event: string, handler: EventHandler<any>): EventSubscription;
   once(event: string, handler: EventHandler<any>): EventSubscription {
     const wrapper: EventHandler<any> = (data) => {
@@ -92,7 +98,6 @@ export class EventBus implements IEventBus {
 
     return this.on(event, wrapper);
   }
-
 
   /**
    * Unsubscribe from an event
@@ -105,7 +110,9 @@ export class EventBus implements IEventBus {
       handlers.delete(handler);
 
       if (this.debugMode) {
-        console.log(`[EventBus] Unsubscribed from "${event}" (${this.listenerCount(event)} listeners)`);
+        console.log(
+          `[EventBus] Unsubscribed from "${event}" (${this.listenerCount(event)} listeners)`
+        );
       }
 
       // Clean up empty handler sets
@@ -134,29 +141,42 @@ export class EventBus implements IEventBus {
       return;
     }
 
-    // Call handlers asynchronously to avoid blocking
-    // Note: Handlers are executed in parallel, errors are caught and logged
-    handlers.forEach((handler) => {
-      // Wrap in Promise.resolve to handle both sync and async handlers
-      Promise.resolve(handler(data)).catch((error) => {
-        // Log error with full context
-        log.error(`[EventBus] Handler error for event "${event}"`, {
-          event,
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined
-        });
-
-        // Emit error event for centralized error handling (avoid infinite loop)
-        if (event !== 'error:occurred') {
-          this.emit('error:occurred', {
-            error: error instanceof Error ? error : new Error(String(error)),
-            context: `EventBus handler for ${event}`,
-            severity: 'high' as const,
-            timestamp: new Date()
-          });
+    // Note: errors are caught and logged. A throwing handler must NOT crash the
+    // emit or prevent the remaining handlers from running. Snapshot the set so
+    // unsubscribes during emit (e.g. once()) don't skip handlers.
+    [...handlers].forEach((handler) => {
+      try {
+        const result = handler(data);
+        // Async handlers: catch their rejections too.
+        if (result instanceof Promise) {
+          result.catch((error) => this.handleHandlerError(event, error));
         }
-      });
+      } catch (error) {
+        // Synchronous handler throw.
+        this.handleHandlerError(event, error);
+      }
     });
+  }
+
+  /**
+   * Centralized handling of an error thrown/rejected by an event handler.
+   */
+  private handleHandlerError(event: string, error: unknown): void {
+    log.error(`[EventBus] Handler error for event "${event}"`, {
+      event,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    // Emit error event for centralized error handling (avoid infinite loop).
+    if (event !== 'error:occurred') {
+      this.emit('error:occurred', {
+        error: error instanceof Error ? error : new Error(String(error)),
+        context: `EventBus handler for ${event}`,
+        severity: 'high' as const,
+        timestamp: new Date(),
+      });
+    }
   }
 
   /**

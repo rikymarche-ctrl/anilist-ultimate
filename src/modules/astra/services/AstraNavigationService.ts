@@ -1,14 +1,13 @@
 import { injectable, inject } from 'tsyringe';
 import { AstraRoutingService } from './AstraRoutingService';
+import { log } from '@core/logger';
 
 /**
  * Service responsible for Astra-related modifications to AniList's navigation and global UI.
  */
 @injectable()
 export class AstraNavigationService {
-  constructor(
-    @inject(AstraRoutingService) private routing: AstraRoutingService
-  ) { }
+  constructor(@inject(AstraRoutingService) private routing: AstraRoutingService) {}
 
   /**
    * Injects the global Astra dashboard link into the AniList navbar.
@@ -29,7 +28,7 @@ export class AstraNavigationService {
       if (existing && existing.parentElement === linksContainer) return true;
       if (existing) existing.remove();
 
-      console.log('[Astra] Injecting indestructible link into:', linksContainer.className);
+      log.debug('[Astra] Injecting navbar link into:', linksContainer.className);
       const astraLink = this.createAstraLink(linksContainer as HTMLElement);
 
       const forumLink = linksContainer.querySelector('a[href*="/forum"]');
@@ -55,7 +54,7 @@ export class AstraNavigationService {
     // Inherit Vue attributes
     const sibling = container?.querySelector('.link') || document.querySelector('.nav .link');
     if (sibling) {
-      const dataV = sibling.getAttributeNames().find(n => n.startsWith('data-v-'));
+      const dataV = sibling.getAttributeNames().find((n) => n.startsWith('data-v-'));
       if (dataV) astraLink.setAttribute(dataV, '');
     }
 
@@ -68,7 +67,7 @@ export class AstraNavigationService {
     const handleClick = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
-      console.log('[Astra] Navbar click intercepted!');
+      log.debug('[Astra] Navbar click intercepted');
       this.routing.navigateToDashboard();
     };
 
@@ -173,11 +172,15 @@ export class AstraNavigationService {
 
     if (btn && !btn.hasAttribute('data-astra-hijacked')) {
       btn.setAttribute('data-astra-hijacked', 'true');
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        onOpen(mediaId);
-      }, { capture: true });
+      btn.addEventListener(
+        'click',
+        (e) => {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          onOpen(mediaId);
+        },
+        { capture: true }
+      );
     }
   }
 

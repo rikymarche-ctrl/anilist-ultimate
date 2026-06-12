@@ -1,7 +1,7 @@
 /**
  * @file AstraRepository.ts
  * @description Centralized data store and repository for Astra scoring data.
- * 
+ *
  * Manages persistence (via chrome.storage.local), LRU caching for full work data,
  * and manifest (summaries) indexing.
  */
@@ -12,12 +12,12 @@ import { TOKENS } from '@core/di/tokens';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IStorageService } from '@core/interfaces/IStorageService';
-import type { 
-  AstraWork, 
-  AstraWorkSummary, 
-  AstraSection, 
-  AstraSettings, 
-  AstraSeason 
+import type {
+  AstraWork,
+  AstraWorkSummary,
+  AstraSection,
+  AstraSettings,
+  AstraSeason,
 } from '../AstraInterfaces';
 import { DEFAULT_SECTIONS, DEFAULT_SETTINGS, generateUUID } from '../utils/AstraConstants';
 import { AstraCalculator } from '../utils/AstraCalculator';
@@ -55,7 +55,7 @@ export class AstraRepository {
       const [manifest, sections, settings] = await Promise.all([
         this.storage.get<AstraWorkSummary[]>(this.MANIFEST_KEY),
         this.storage.get<AstraSection[]>(this.SECTIONS_KEY),
-        this.storage.get<AstraSettings>(this.SETTINGS_KEY)
+        this.storage.get<AstraSettings>(this.SETTINGS_KEY),
       ]);
 
       // Defensive check: handle corrupted object format
@@ -63,8 +63,14 @@ export class AstraRepository {
         log.warn('[AstraRepository] Manifest corrupted. Attempting recovery...');
         const anyManifest = manifest as any;
         this.summaries = Array.isArray(anyManifest.summaries) ? anyManifest.summaries : [];
-        this.sections = Array.isArray(anyManifest.sections) ? anyManifest.sections : (sections || [...DEFAULT_SECTIONS]);
-        this.settings = anyManifest.settings ? { ...DEFAULT_SETTINGS, ...anyManifest.settings } : (settings ? { ...DEFAULT_SETTINGS, ...settings } : DEFAULT_SETTINGS);
+        this.sections = Array.isArray(anyManifest.sections)
+          ? anyManifest.sections
+          : sections || [...DEFAULT_SECTIONS];
+        this.settings = anyManifest.settings
+          ? { ...DEFAULT_SETTINGS, ...anyManifest.settings }
+          : settings
+            ? { ...DEFAULT_SETTINGS, ...settings }
+            : DEFAULT_SETTINGS;
       } else {
         this.summaries = manifest || [];
         this.sections = sections || [...DEFAULT_SECTIONS];
@@ -72,7 +78,9 @@ export class AstraRepository {
       }
 
       this.isInitialized = true;
-      log.success(`[AstraRepository] Initialization complete. Loaded ${this.summaries.length} summaries.`);
+      log.success(
+        `[AstraRepository] Initialization complete. Loaded ${this.summaries.length} summaries.`
+      );
       this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED);
     } catch (error) {
       log.error('[AstraRepository] Initialization failed', error);
@@ -98,7 +106,7 @@ export class AstraRepository {
 
     const key = `${this.WORK_PREFIX}${mediaId}`;
     const fullWork = await this.storage.get<AstraWork>(key);
-    
+
     if (fullWork) {
       if (this.fullWorkCache.size >= this.MAX_CACHE_SIZE) {
         const firstKey = this.fullWorkCache.keys().next().value;
@@ -114,11 +122,14 @@ export class AstraRepository {
   /**
    * Saves or updates a work and updates the manifest.
    */
-  public async saveWork(work: Partial<AstraWork> & { mediaId: number }): Promise<AstraWork> {
+  public async saveWork(
+    work: Partial<AstraWork> & { mediaId: number },
+    skipPersist = false
+  ): Promise<AstraWork> {
     await this.init();
 
     let fullWork = await this.getFullWork(work.mediaId);
-    
+
     if (fullWork) {
       fullWork = { ...fullWork, ...work, updatedAt: Date.now() };
     } else {
@@ -131,7 +142,7 @@ export class AstraRepository {
         seasons: [this.createDefaultSeason()],
         notes: '',
         updatedAt: Date.now(),
-        ...work
+        ...work,
       } as AstraWork;
     }
 
@@ -139,7 +150,7 @@ export class AstraRepository {
     this.fullWorkCache.set(fullWork.mediaId, fullWork);
 
     const summary = this.createSummary(fullWork);
-    const existingIdx = this.summaries.findIndex(s => s.mediaId === fullWork!.mediaId);
+    const existingIdx = this.summaries.findIndex((s) => s.mediaId === fullWork!.mediaId);
 
     if (existingIdx >= 0) {
       this.summaries[existingIdx] = summary;
@@ -147,7 +158,9 @@ export class AstraRepository {
       this.summaries.unshift(summary);
     }
 
-    await this.persist();
+    // During bulk sync, callers defer the (expensive) manifest write and call
+    // persist() once at the end to avoid O(n²) re-serialization of the manifest.
+    if (!skipPersist) await this.persist();
     return fullWork;
   }
 
@@ -156,25 +169,21 @@ export class AstraRepository {
    */
   public async deleteWork(mediaId: number): Promise<void> {
     await this.init();
-    this.summaries = this.summaries.filter(s => s.mediaId !== mediaId);
+    this.summaries = this.summaries.filter((s) => s.mediaId !== mediaId);
     this.fullWorkCache.delete(mediaId);
-    await Promise.all([
-      this.storage.remove(`${this.WORK_PREFIX}${mediaId}`),
-      this.persist()
-    ]);
+    await Promise.all([this.storage.remove(`${this.WORK_PREFIX}${mediaId}`), this.persist()]);
   }
 
   /**
    * Helper to create a summary from a full work
    */
   public createSummary(work: AstraWork): AstraWorkSummary {
-    const latestSeason = work.seasons && work.seasons.length > 0 
-      ? work.seasons[work.seasons.length - 1] 
-      : null;
+    const latestSeason =
+      work.seasons && work.seasons.length > 0 ? work.seasons[work.seasons.length - 1] : null;
 
     const sectionScores: Record<string, number | null> = {};
     if (latestSeason) {
-      this.sections.forEach(s => {
+      this.sections.forEach((s) => {
         sectionScores[s.id] = AstraCalculator.calcSectionScore(s, latestSeason.scores);
       });
     }
@@ -192,21 +201,24 @@ export class AstraRepository {
       country: work.country,
       updatedAt: work.updatedAt,
       genres: work.genres,
-      currentScore: latestSeason ? (latestSeason.legacyScore || AstraCalculator.calcSeasonScore(latestSeason, this.sections, this.settings)) : null,
-      sectionScores
+      currentScore: latestSeason
+        ? latestSeason.legacyScore ||
+          AstraCalculator.calcSeasonScore(latestSeason, this.sections, this.settings)
+        : null,
+      sectionScores,
     };
   }
 
   public createDefaultSeason(label = 'Season 1'): AstraSeason {
     const scores: Record<string, number | null> = {};
-    this.sections.forEach(s => scores[s.id] = null);
+    this.sections.forEach((s) => (scores[s.id] = null));
 
     return {
       id: `s_${generateUUID()}`,
       label,
       scores,
       skip: [],
-      episodeNotes: {}
+      episodeNotes: {},
     };
   }
 
@@ -214,14 +226,21 @@ export class AstraRepository {
     await Promise.all([
       this.storage.set(this.MANIFEST_KEY, this.summaries),
       this.storage.set(this.SECTIONS_KEY, this.sections),
-      this.storage.set(this.SETTINGS_KEY, this.settings)
+      this.storage.set(this.SETTINGS_KEY, this.settings),
     ]);
     this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { timestamp: new Date() });
   }
 
-  public getSections(): AstraSection[] { return this.sections; }
-  public getSettings(): AstraSettings { return this.settings; }
-  
+  public getSections(): AstraSection[] {
+    // Defensive copy: callers must not mutate the internal array structure.
+    // Mutations go through addSection/removeSection/updateSection* methods.
+    return [...this.sections];
+  }
+  public getSettings(): AstraSettings {
+    // Defensive copy so callers cannot mutate persisted settings in place.
+    return { ...this.settings };
+  }
+
   public async updateSettings(settings: Partial<AstraSettings>): Promise<void> {
     this.settings = { ...this.settings, ...settings };
     await this.persist();
@@ -239,12 +258,12 @@ export class AstraRepository {
   }
 
   public async removeSection(id: string): Promise<void> {
-    this.sections = this.sections.filter(s => s.id !== id);
+    this.sections = this.sections.filter((s) => s.id !== id);
     await this.persist();
   }
 
   public async updateSectionWeight(id: string, weight: number): Promise<void> {
-    const section = this.sections.find(s => s.id === id);
+    const section = this.sections.find((s) => s.id === id);
     if (section) {
       section.weight = weight;
       await this.persist();
@@ -252,7 +271,7 @@ export class AstraRepository {
   }
 
   public async updateSectionName(id: string, name: string): Promise<void> {
-    const section = this.sections.find(s => s.id === id);
+    const section = this.sections.find((s) => s.id === id);
     if (section) {
       section.name = name;
       await this.persist();
@@ -260,7 +279,7 @@ export class AstraRepository {
   }
 
   public async addSubSection(sectionId: string, name: string): Promise<void> {
-    const section = this.sections.find(s => s.id === sectionId);
+    const section = this.sections.find((s) => s.id === sectionId);
     if (section) {
       if (!section.subSections) section.subSections = [];
       const id = name.toLowerCase().replace(/\s+/g, '_');
@@ -270,25 +289,29 @@ export class AstraRepository {
   }
 
   public async removeSubSection(sectionId: string, subId: string): Promise<void> {
-    const section = this.sections.find(s => s.id === sectionId);
+    const section = this.sections.find((s) => s.id === sectionId);
     if (section && section.subSections) {
-      section.subSections = section.subSections.filter(s => s.id !== subId);
+      section.subSections = section.subSections.filter((s) => s.id !== subId);
       await this.persist();
     }
   }
 
   public async updateSubSectionName(sectionId: string, subId: string, name: string): Promise<void> {
-    const section = this.sections.find(s => s.id === sectionId);
-    const sub = section?.subSections?.find(s => s.id === subId);
+    const section = this.sections.find((s) => s.id === sectionId);
+    const sub = section?.subSections?.find((s) => s.id === subId);
     if (sub) {
       sub.name = name;
       await this.persist();
     }
   }
 
-  public async updateSubSectionWeight(sectionId: string, subId: string, weight: number): Promise<void> {
-    const section = this.sections.find(s => s.id === sectionId);
-    const sub = section?.subSections?.find(s => s.id === subId);
+  public async updateSubSectionWeight(
+    sectionId: string,
+    subId: string,
+    weight: number
+  ): Promise<void> {
+    const section = this.sections.find((s) => s.id === sectionId);
+    const sub = section?.subSections?.find((s) => s.id === subId);
     if (sub) {
       sub.weight = weight;
       await this.persist();
@@ -300,12 +323,17 @@ export class AstraRepository {
     this.sections = [...DEFAULT_SECTIONS];
     this.settings = { ...DEFAULT_SETTINGS };
     this.fullWorkCache.clear();
-    
-    // Clear all storage
-    const keys = await this.storage.get<string[]>(null as any) || [];
-    const astraKeys = Object.keys(keys).filter(k => k.startsWith('au_astra_'));
-    await Promise.all(astraKeys.map(k => this.storage.remove(k)));
-    
+
+    // Clear all Astra storage entries directly via chrome.storage.local.
+    // Note: keys are stored with StorageManager's prefix, so we match on the
+    // raw stored key containing 'au_astra_' (the previous storage.get(null)
+    // approach was broken: it threw internally and removed nothing).
+    const all = await chrome.storage.local.get(null);
+    const astraKeys = Object.keys(all).filter((k) => k.includes('au_astra_'));
+    if (astraKeys.length > 0) {
+      await chrome.storage.local.remove(astraKeys);
+    }
+
     await this.persist();
   }
 
@@ -314,7 +342,7 @@ export class AstraRepository {
       manifest: this.summaries,
       sections: this.sections,
       settings: this.settings,
-      works: {}
+      works: {},
     };
 
     for (const summary of this.summaries) {

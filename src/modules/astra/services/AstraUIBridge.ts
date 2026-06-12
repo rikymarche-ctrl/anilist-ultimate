@@ -10,12 +10,10 @@ import { log } from '@core/logger';
  */
 @injectable()
 export class AstraUIBridge {
-  constructor(
-    @inject(TOKENS.EventBus) private eventBus: IEventBus
-  ) { }
+  constructor(@inject(TOKENS.EventBus) private eventBus: IEventBus) {}
 
   /**
-   * Initializes global window listeners. 
+   * Initializes global window listeners.
    * This is the "Fail-Safe" for SPA navigation.
    */
   public initGlobalListeners(): void {
@@ -23,19 +21,23 @@ export class AstraUIBridge {
 
     // Catch-all for native custom events
     window.addEventListener('astra:open', () => {
-      console.log('[AstraBridge] Native astra:open intercepted');
+      log.debug('[AstraBridge] Native astra:open intercepted');
       this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN);
     });
 
     // Nuclear Interceptor: Catch ANY click on an astra-nav element
-    document.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.au-astra-nav')) {
-        console.log('[AstraBridge] Global click intercept!');
-        e.preventDefault();
-        this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN);
-      }
-    }, { capture: true });
+    document.addEventListener(
+      'click',
+      (e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('.au-astra-nav')) {
+          log.debug('[AstraBridge] Global click intercept!');
+          e.preventDefault();
+          this.eventBus.emit(EVENT_TYPES.ASTRA_OPEN);
+        }
+      },
+      { capture: true }
+    );
   }
 
   /**

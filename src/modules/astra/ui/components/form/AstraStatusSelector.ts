@@ -72,7 +72,9 @@ export class AstraStatusSelector extends AstraView {
       });
     });
 
-    document.addEventListener('click', () => {
+    // Managed listener: BaseComponent removes it on unmount (prevents accumulation
+    // of document listeners every time this singleton component is re-mounted).
+    this.addEventListener(document, 'click', () => {
       this.$('.astra-dropdown')?.classList.remove('active');
     });
   }

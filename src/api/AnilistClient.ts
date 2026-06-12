@@ -133,7 +133,11 @@ export class AnilistClient implements IApiClient {
   /**
    * Execute a GraphQL query with rate limiting
    */
-  public async query<T>(query: string, variables: Record<string, unknown> = {}, silent: boolean = false): Promise<T> {
+  public async query<T>(
+    query: string,
+    variables: Record<string, unknown> = {},
+    silent: boolean = false
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       this.queue.push({
         query,
@@ -200,7 +204,9 @@ export class AnilistClient implements IApiClient {
         this.handleRateLimit(item, error);
       } else if (item.retries < API_CONFIG.RETRY_ATTEMPTS) {
         const delay = Math.pow(2, item.retries) * 1000; // Exponential backoff: 1s, 2s, 4s...
-        log.warn(`Request failed, retry ${item.retries + 1}/${API_CONFIG.RETRY_ATTEMPTS} in ${delay}ms`);
+        log.warn(
+          `Request failed, retry ${item.retries + 1}/${API_CONFIG.RETRY_ATTEMPTS} in ${delay}ms`
+        );
 
         item.retries++;
         setTimeout(() => {
@@ -215,7 +221,7 @@ export class AnilistClient implements IApiClient {
 
         // Try to extract detailed GraphQL error message
         if (isApiError(error) && error.response?.errors && error.response.errors.length > 0) {
-          errorMessage = error.response.errors.map(e => e.message).join(' | ');
+          errorMessage = error.response.errors.map((e) => e.message).join(' | ');
         } else if (isApiError(error) && error.message) {
           errorMessage = error.message;
         } else if (error instanceof Error) {
@@ -235,7 +241,6 @@ export class AnilistClient implements IApiClient {
         }
         item.reject(apiError);
       }
-
     } finally {
       this.activeRequests--;
 
@@ -249,7 +254,10 @@ export class AnilistClient implements IApiClient {
   /**
    * Execute a GraphQL query and return the raw response (data + errors)
    */
-  public async queryRaw<T>(query: string, variables: Record<string, unknown> = {}): Promise<{ data: T; errors?: any[] }> {
+  public async queryRaw<T>(
+    query: string,
+    variables: Record<string, unknown> = {}
+  ): Promise<{ data: T; errors?: any[] }> {
     return new Promise((resolve, reject) => {
       this.queue.push({
         query,
@@ -296,7 +304,13 @@ export class AnilistClient implements IApiClient {
       if (statusCode === 401 || statusCode === 403) {
         log.error('Authentication error - token may be invalid');
         this.clearQueue();
-        throw new ApiError('Authentication required', statusCode, 'GraphQL', 0, error instanceof Error ? error : undefined);
+        throw new ApiError(
+          'Authentication required',
+          statusCode,
+          'GraphQL',
+          0,
+          error instanceof Error ? error : undefined
+        );
       }
 
       throw error;
@@ -315,10 +329,7 @@ export class AnilistClient implements IApiClient {
       );
     }
     if (error instanceof Error) {
-      return (
-        error.message.includes('rate limit') ||
-        error.message.includes('Too Many Requests')
-      );
+      return error.message.includes('rate limit') || error.message.includes('Too Many Requests');
     }
     return false;
   }
@@ -336,7 +347,7 @@ export class AnilistClient implements IApiClient {
         context: 'Anilist API Rate Limit',
         statusCode: 429,
         timestamp: new Date(),
-        severity: 'medium'
+        severity: 'medium',
       });
     }
 
@@ -403,8 +414,18 @@ export class AnilistClient implements IApiClient {
    * Clear the request queue
    */
   public clearQueue(): void {
+    // Reject all pending promises so awaiting callers don't hang forever
+    // (e.g. on 401/403 or invalidated extension context).
+    const pending = this.queue;
     this.queue = [];
-    log.info('Request queue cleared');
+    pending.forEach((item) => {
+      try {
+        item.reject(new ApiError('Request queue cleared', undefined, 'GraphQL', item.retries));
+      } catch {
+        /* ignore individual rejection failures */
+      }
+    });
+    log.info(`Request queue cleared (${pending.length} pending request(s) rejected)`);
   }
 
   /**
@@ -430,4 +451,3 @@ export class AnilistClient implements IApiClient {
  * To use AnilistClient:
  *   constructor(@inject(TOKENS.ApiClient) private apiClient: IApiClient) {}
  */
-

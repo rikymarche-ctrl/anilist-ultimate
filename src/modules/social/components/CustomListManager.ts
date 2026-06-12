@@ -60,14 +60,17 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
 
   private renderInitial(container: HTMLElement): void {
     const lists = this.listService.getLists();
-    
+
     container.innerHTML = '';
     container.appendChild(html`
       <div style="display: contents;">
         <div class="au-cl-info">
           <h3><i class="fa fa-info-circle"></i> Custom User Lists</h3>
-          <p>Create and manage personalized groups of users to filter activities.
-          <b>Important:</b> This feature requires you to be authenticated with <b>Anilist Ultimate</b>.</p>
+          <p>
+            Create and manage personalized groups of users to filter activities.
+            <b>Important:</b> This feature requires you to be authenticated with
+            <b>Anilist Ultimate</b>.
+          </p>
         </div>
 
         <div class="au-cl-header">
@@ -77,7 +80,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
         </div>
 
         <div class="au-cl-lists-overview">
-          ${Object.keys(lists).map(name => {
+          ${Object.keys(lists).map((name) => {
             const userCount = lists[name].length;
             return html`
               <div class="au-cl-list-card" data-list="${name}">
@@ -119,10 +122,10 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
       await listService.init();
       const followings = await socialService.getAllFollowings();
 
-      this.allFollowings = followings.map(f => ({
+      this.allFollowings = followings.map((f) => ({
         id: f.id,
         name: f.name,
-        avatar: f.avatar.medium
+        avatar: f.avatar.medium,
       }));
 
       this.isLoading = false;
@@ -133,12 +136,18 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
       content.innerHTML = '';
       content.appendChild(html`
         <div class="au-cl-empty">
-          <i class="fa fa-exclamation-triangle" style="font-size: 24px; color: #e85d75; margin-bottom: 15px; display: block;"></i>
+          <i
+            class="fa fa-exclamation-triangle"
+            style="font-size: 24px; color: #e85d75; margin-bottom: 15px; display: block;"
+          ></i>
           <p>Failed to load your following list.</p>
           <div style="font-size: 13px; margin-top: 10px; color: #8fa0b1; line-height: 1.6;">
-            Questa funzione richiede l'autenticazione con <b>Anilist Ultimate</b>.<br>
-            Per favore, clicca sull'icona dell'estensione e premi <b>Login</b>.<br>
-            <button class="au-cl-login-btn" style="margin-top: 15px; background: rgb(var(--color-blue)); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+            Questa funzione richiede l'autenticazione con <b>Anilist Ultimate</b>.<br />
+            Per favore, clicca sull'icona dell'estensione e premi <b>Login</b>.<br />
+            <button
+              class="au-cl-login-btn"
+              style="margin-top: 15px; background: rgb(var(--color-blue)); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;"
+            >
               Login con Anilist Ultimate
             </button>
           </div>
@@ -147,9 +156,9 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
 
       content.querySelector('.au-cl-login-btn')?.addEventListener('click', async () => {
         try {
-          const response = await chrome.runtime.sendMessage({
+          const response = (await chrome.runtime.sendMessage({
             type: MSG.AUTH_LOGIN,
-          }) as AuthLoginResponse;
+          })) as AuthLoginResponse;
 
           if (response.success) {
             log.success('Logged in successfully');
@@ -221,11 +230,19 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
 
     let filtered = this.allFollowings;
     if (this.searchQuery) {
-      filtered = filtered.filter(u => u.name.toLowerCase().includes(this.searchQuery.toLowerCase()));
+      filtered = filtered.filter((u) =>
+        u.name.toLowerCase().includes(this.searchQuery.toLowerCase())
+      );
     }
 
     if (filtered.length === 0) {
-      content.innerHTML = `<div class="au-cl-empty">No users found${this.searchQuery ? ` matching "${this.searchQuery}"` : ''}</div>`;
+      // Use the auto-escaping `html` tag so a user-typed search query cannot inject markup.
+      content.innerHTML = '';
+      content.appendChild(
+        html`<div class="au-cl-empty">
+          No users found${this.searchQuery ? ` matching "${this.searchQuery}"` : ''}
+        </div>`
+      );
       return;
     }
 
@@ -235,7 +252,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     content.innerHTML = '';
     content.appendChild(html`
       <div class="au-cl-grid">
-        ${filtered.map(user => {
+        ${filtered.map((user) => {
           const isActive = listService.isUserInList(currentListName, user.id);
           return html`
             <div class="au-cl-user-card ${isActive ? 'active' : ''}" data-user-id="${user.id}">
@@ -265,7 +282,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     }
 
     // Manage buttons
-    this.element.querySelectorAll('.au-cl-manage-btn').forEach(btn => {
+    this.element.querySelectorAll('.au-cl-manage-btn').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const listName = btn.getAttribute('data-list');
@@ -280,7 +297,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     });
 
     // Delete buttons (on list cards)
-    this.element.querySelectorAll('.au-cl-delete-btn').forEach(btn => {
+    this.element.querySelectorAll('.au-cl-delete-btn').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const listName = btn.getAttribute('data-list');
@@ -301,14 +318,14 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
   }
 
   private attachGridEvents(container: HTMLElement): void {
-    container.querySelectorAll('.au-cl-user-card').forEach(card => {
+    container.querySelectorAll('.au-cl-user-card').forEach((card) => {
       // Avatar click - go to profile
       const avatar = card.querySelector('.au-cl-avatar');
       if (avatar) {
         avatar.addEventListener('click', (e) => {
           e.stopPropagation(); // Don't trigger card toggle
           const userId = parseInt(card.getAttribute('data-user-id') || '0');
-          const user = this.allFollowings.find(u => u.id === userId);
+          const user = this.allFollowings.find((u) => u.id === userId);
           if (user) {
             window.open(`https://anilist.co/user/${user.name}/`, '_blank');
           }
@@ -319,7 +336,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
       // Card click - toggle selection
       card.addEventListener('click', async () => {
         const userId = parseInt(card.getAttribute('data-user-id') || '0');
-        const user = this.allFollowings.find(u => u.id === userId);
+        const user = this.allFollowings.find((u) => u.id === userId);
         if (!user) return;
 
         const isCurrentlyActive = card.classList.contains('active');

@@ -23,7 +23,7 @@ export class HoverCommentsModule extends BaseModule {
   private isProcessing = false;
   private readonly ICON_SVG = `<svg class="au-comment-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M256 32C114.6 32 0 125.1 0 240c0 67.6 39.1 127.9 100.1 163.8c-3.1 13.1-13.8 37.7-35 53.7c-6.3 4.8-3.1 14.7 4.8 15c66.2 3.3 115.1-34.7 140.3-54.9c14.7 1.5 29.8 2.4 45.8 2.4c141.4 0 256-93.1 256-208S397.4 32 256 32z"/></svg>`;
 
-  private notesCache: Record<string, { notes: string, timestamp: number }> = {};
+  private notesCache: Record<string, { notes: string; timestamp: number }> = {};
   private readonly CACHE_KEY = 'hover_comments_cache';
 
   constructor(
@@ -51,7 +51,9 @@ export class HoverCommentsModule extends BaseModule {
     if (this.isMediaPage()) this.startPolling();
   }
 
-  public getName(): string { return 'hoverComments'; }
+  public getName(): string {
+    return 'hoverComments';
+  }
 
   private fullReset(): void {
     this.stopPolling();
@@ -110,10 +112,12 @@ export class HoverCommentsModule extends BaseModule {
     const followingSection = this.findFollowingSection();
     if (!followingSection) return;
 
-    const userLinks = Array.from(followingSection.querySelectorAll<HTMLAnchorElement>('a[href^="/user/"]'));
+    const userLinks = Array.from(
+      followingSection.querySelectorAll<HTMLAnchorElement>('a[href^="/user/"]')
+    );
     const usernamesToFetch: string[] = [];
 
-    userLinks.forEach(link => {
+    userLinks.forEach((link) => {
       const username = this.extractUsername(link);
       if (!username) return;
       const cacheKey = this.getCacheKey(username, mediaId);
@@ -127,7 +131,7 @@ export class HoverCommentsModule extends BaseModule {
     if (usernamesToFetch.length === 0) return;
 
     const notes = await this.fetchBatchNotes(usernamesToFetch, mediaId);
-    userLinks.forEach(link => {
+    userLinks.forEach((link) => {
       const username = this.extractUsername(link);
       if (username && notes[username]) {
         this.injectIcon(link, username, mediaId, notes[username]);
@@ -135,19 +139,25 @@ export class HoverCommentsModule extends BaseModule {
     });
   }
 
-  private async fetchBatchNotes(usernames: string[], mediaId: number): Promise<Record<string, string>> {
+  private async fetchBatchNotes(
+    usernames: string[],
+    mediaId: number
+  ): Promise<Record<string, string>> {
     const results: Record<string, string> = {};
-    
-    const fetchPromises = usernames.map(async username => {
+
+    const fetchPromises = usernames.map(async (username) => {
       try {
-        const query = `{ MediaList(userName: "${username}", mediaId: ${mediaId}) { notes } }`;
-        const data = await this.batcher.query<any>(query);
+        // Use GraphQL variables (not string interpolation) to prevent injection.
+        const query = `query ($userName: String, $mediaId: Int) { MediaList(userName: $userName, mediaId: $mediaId) { notes } }`;
+        const data = await this.batcher.query<any>(query, { userName: username, mediaId });
         if (data?.notes) {
           const cacheKey = this.getCacheKey(username, mediaId);
           this.notesCache[cacheKey] = { notes: data.notes, timestamp: Date.now() };
           results[username] = data.notes;
         }
-      } catch (e) {}
+      } catch (e) {
+        this.logger.debug('[HoverComments] note fetch failed', e);
+      }
     });
 
     await Promise.all(fetchPromises);
@@ -159,14 +169,18 @@ export class HoverCommentsModule extends BaseModule {
     try {
       const stored = await this.storage.get<Record<string, any>>(this.CACHE_KEY);
       if (stored) this.notesCache = stored;
-    } catch (e) {}
+    } catch (e) {
+      this.logger.debug('[HoverComments] cache op failed', e);
+    }
   }
 
   private async saveCache(): Promise<void> {
     if (StorageManager.isContextDead()) return;
     try {
       await this.storage.set(this.CACHE_KEY, this.notesCache);
-    } catch (e) {}
+    } catch (e) {
+      this.logger.debug('[HoverComments] cache op failed', e);
+    }
   }
 
   private getCacheKey(username: string, mediaId: number): string {
@@ -177,8 +191,12 @@ export class HoverCommentsModule extends BaseModule {
     const followingSection = this.findFollowingSection();
     if (!followingSection) return;
 
-    const userLinks = Array.from(followingSection.querySelectorAll<HTMLAnchorElement>('a[href^="/user/"]:not([data-au-comment-injected])'));
-    userLinks.forEach(link => {
+    const userLinks = Array.from(
+      followingSection.querySelectorAll<HTMLAnchorElement>(
+        'a[href^="/user/"]:not([data-au-comment-injected])'
+      )
+    );
+    userLinks.forEach((link) => {
       const username = this.extractUsername(link);
       const cacheKey = username ? this.getCacheKey(username, mediaId) : null;
       if (username && cacheKey && this.notesCache[cacheKey]) {
@@ -187,9 +205,16 @@ export class HoverCommentsModule extends BaseModule {
     });
   }
 
-  private injectIcon(link: HTMLAnchorElement, username: string, mediaId: number, notes: string): void {
+  private injectIcon(
+    link: HTMLAnchorElement,
+    username: string,
+    mediaId: number,
+    notes: string
+  ): void {
     if (link.hasAttribute('data-au-comment-injected')) return;
-    const anchor = link.closest('.activity-entry, .user-status-row, .following-list-item') as HTMLElement || link;
+    const anchor =
+      (link.closest('.activity-entry, .user-status-row, .following-list-item') as HTMLElement) ||
+      link;
     anchor.style.position = 'relative';
 
     const iconContainer = html`
@@ -197,7 +222,7 @@ export class HoverCommentsModule extends BaseModule {
         <span class="anilist-comment-icon">${this.ICON_SVG}</span>
       </div>
     `;
-    
+
     anchor.appendChild(iconContainer);
 
     const icon = iconContainer.querySelector('.anilist-comment-icon') as HTMLElement;

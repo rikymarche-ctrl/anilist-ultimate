@@ -125,7 +125,8 @@ export class AstraSyncService {
               }
 
               if (changed) {
-                await this.repository.saveWork(full);
+                // Defer manifest persist; flushed once after the full sync.
+                await this.repository.saveWork(full, true);
                 updatedCount++;
               }
             } else {
@@ -163,7 +164,7 @@ export class AstraSyncService {
                 newWork.seasons[0].legacyScore = normalized;
               }
 
-              await this.repository.saveWork(newWork);
+              await this.repository.saveWork(newWork, true);
               addedCount++;
             }
           }
@@ -172,6 +173,9 @@ export class AstraSyncService {
 
       await processResult(animeRes);
       await processResult(mangaRes);
+
+      // Flush the manifest once for the whole sync (avoids O(n²) re-writes).
+      await this.repository.persist();
 
       log.info(`[AstraSyncService] Sync complete: +${addedCount} added, ~${updatedCount} updated`);
       eventBus.emit(EVENT_TYPES.ASTRA_SYNC_COMPLETE, { added: addedCount, updated: updatedCount });
