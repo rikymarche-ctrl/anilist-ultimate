@@ -11,9 +11,9 @@ const mockCalendarStore = {
   getState: vi.fn(() => ({
     entries: [
       { mediaId: 1, title: 'Anime 1', progress: 10 },
-      { mediaId: 2, title: 'Anime 2', progress: 5 }
+      { mediaId: 2, title: 'Anime 2', progress: 5 },
     ],
-    loading: false
+    loading: false,
   })),
   loadEntriesFromCache: vi.fn(),
   saveEntriesToCache: vi.fn(),
@@ -63,7 +63,10 @@ describe('CalendarDataService', () => {
       expect(mockCalendarStore.setEntries).toHaveBeenCalledWith(mockEntries);
       expect(mockCalendarStore.setLoading).toHaveBeenCalledWith(false);
       expect(mockToastService.success).not.toHaveBeenCalled();
-      expect(mockEventBus.emit).toHaveBeenCalledWith(EVENT_TYPES.CALENDAR_LOADED, expect.any(Object));
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        EVENT_TYPES.CALENDAR_LOADED,
+        expect.any(Object)
+      );
     });
 
     it('should handle errors during load', async () => {
@@ -86,8 +89,15 @@ describe('CalendarDataService', () => {
       expect(result).toBe(11); // 10 + 1 from mockState
       expect(mockCalendarService.updateProgress).toHaveBeenCalledWith(1, 11);
       expect(mockCalendarStore.updateEntry).toHaveBeenCalledWith(1, { progress: 11 });
-      expect(mockToastService.success).toHaveBeenCalledWith(expect.stringContaining('Anime 1'));
-      expect(mockEventBus.emit).toHaveBeenCalledWith(EVENT_TYPES.PROGRESS_UPDATED, expect.any(Object));
+      // The service now passes a metadata object as a second argument.
+      expect(mockToastService.success).toHaveBeenCalledWith(
+        expect.stringContaining('Anime 1'),
+        expect.anything()
+      );
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        EVENT_TYPES.PROGRESS_UPDATED,
+        expect.any(Object)
+      );
     });
 
     it('should throw error if entry not found', async () => {

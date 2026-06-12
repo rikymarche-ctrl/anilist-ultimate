@@ -1,16 +1,18 @@
 /**
  * @file AstraFilterService.test.ts
  * @description Unit tests for the AstraFilterService logic.
+ * (Relocated from /tests so vitest's `src/**` include actually runs it.)
  */
-
-import { AstraFilterService } from '../src/modules/astra/services/AstraFilterService';
-import { AstraWork } from '../src/modules/astra/AstraService';
-import { IDashboardFilters } from '../src/modules/astra/interfaces/IDashboardState';
-import { MediaListStatus } from '../src/api/AnilistTypes';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { AstraFilterService } from './AstraFilterService';
+import type { IDashboardFilters } from '../interfaces/IDashboardState';
+import { MediaListStatus } from '@/api/AnilistTypes';
 
 describe('AstraFilterService', () => {
   let service: AstraFilterService;
-  let mockWorks: AstraWork[];
+  // Typed as any: the service consumes AstraWorkSummary; these fixtures only
+  // populate the fields the filter/sort/search logic actually reads.
+  let mockWorks: any[];
 
   beforeEach(() => {
     service = new AstraFilterService();
@@ -22,7 +24,7 @@ describe('AstraFilterService', () => {
         status: MediaListStatus.COMPLETED,
         updatedAt: 1000,
         anilistUrl: 'https://anilist.co/anime/1',
-        seasons: [{ legacyScore: 10 }]
+        seasons: [{ legacyScore: 10 }],
       },
       {
         mediaId: 2,
@@ -31,31 +33,35 @@ describe('AstraFilterService', () => {
         status: MediaListStatus.CURRENT,
         updatedAt: 2000,
         anilistUrl: 'https://anilist.co/manga/2',
-        seasons: [{ legacyScore: 9 }]
-      }
+        seasons: [{ legacyScore: 9 }],
+      },
     ] as any;
   });
 
-  test('should filter by media type', () => {
-    const filters: Partial<IDashboardFilters> = { type: 'anime', status: 'all', anilistStatus: 'all' };
+  it('filters by media type', () => {
+    const filters: Partial<IDashboardFilters> = {
+      type: 'anime',
+      ratingStatus: 'all',
+      anilistStatus: 'all',
+    } as any;
     const result = service.filter(mockWorks, filters as any);
     expect(result.length).toBe(1);
     expect(result[0].title).toBe('Cowboy Bebop');
   });
 
-  test('should perform fuzzy search on title', () => {
+  it('performs a fuzzy search on the title', () => {
     const result = service.search(mockWorks, 'ber');
     expect(result.length).toBe(1);
     expect(result[0].title).toBe('Berserk');
   });
 
-  test('should sort by updatedAt descending', () => {
+  it('sorts by updatedAt descending', () => {
     const sorted = service.sort(mockWorks, 'updated-desc');
     expect(sorted[0].mediaId).toBe(2);
     expect(sorted[1].mediaId).toBe(1);
   });
 
-  test('should sort by score descending', () => {
+  it('sorts by score descending', () => {
     const sorted = service.sort(mockWorks, 'score-desc');
     expect(sorted[0].mediaId).toBe(1); // 10 vs 9
   });
