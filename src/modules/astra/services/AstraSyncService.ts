@@ -6,7 +6,6 @@
 import { injectable, inject } from 'tsyringe';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
-import { container } from 'tsyringe';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IApiClient } from '@core/interfaces/IApiClient';
@@ -20,7 +19,8 @@ export class AstraSyncService {
   constructor(
     @inject(TOKENS.ApiClient) private api: IApiClient,
     @inject(AstraRepository) private repository: AstraRepository,
-    @inject(TOKENS.AstraParserService) private parser: IAstraParser
+    @inject(TOKENS.AstraParserService) private parser: IAstraParser,
+    @inject(TOKENS.EventBus) private eventBus: IEventBus
   ) {}
 
   /**
@@ -28,7 +28,6 @@ export class AstraSyncService {
    */
   public async syncWithAniList(): Promise<{ added: number; updated: number }> {
     await this.repository.init();
-    const eventBus = container.resolve<IEventBus>(TOKENS.EventBus);
 
     try {
       const viewer = await this.api.getCurrentUser();
@@ -178,7 +177,10 @@ export class AstraSyncService {
       await this.repository.persist();
 
       log.info(`[AstraSyncService] Sync complete: +${addedCount} added, ~${updatedCount} updated`);
-      eventBus.emit(EVENT_TYPES.ASTRA_SYNC_COMPLETE, { added: addedCount, updated: updatedCount });
+      this.eventBus.emit(EVENT_TYPES.ASTRA_SYNC_COMPLETE, {
+        added: addedCount,
+        updated: updatedCount,
+      });
       return { added: addedCount, updated: updatedCount };
     } catch (error) {
       log.error('[AstraSyncService] Sync failed', error);

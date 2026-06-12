@@ -63,10 +63,11 @@ describe('when', () => {
 
 describe('map', () => {
   it('maps items via the callback', () => {
-    expect(map([1, 2, 3], (x) => x * 2)).toEqual([2, 4, 6]);
+    // map's callback returns string | TemplateResult.
+    expect(map([1, 2, 3], (x) => String(x * 2))).toEqual(['2', '4', '6']);
   });
 
   it('passes the index to the callback', () => {
-    expect(map(['a', 'b'], (_, i) => i)).toEqual([0, 1]);
+    expect(map(['a', 'b'], (_, i) => String(i))).toEqual(['0', '1']);
   });
 });
