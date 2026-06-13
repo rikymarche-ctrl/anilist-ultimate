@@ -35,6 +35,8 @@ import { container } from './di/container';
 export class ThemeManager {
   private observer: MutationObserver | null = null;
   private lastTheme: string | null = null;
+  /** Bound resize handler kept so it can be removed in destroy(). */
+  private readonly resizeHandler = (): void => this.detectAndApply();
 
   /**
    * Constructor with DI support
@@ -85,7 +87,7 @@ export class ThemeManager {
     });
 
     // Listen for resize as a secondary trigger for theme re-evaluation
-    window.addEventListener('resize', () => this.detectAndApply());
+    window.addEventListener('resize', this.resizeHandler);
   }
 
   /**
@@ -182,5 +184,6 @@ export class ThemeManager {
       this.observer.disconnect();
       this.observer = null;
     }
+    window.removeEventListener('resize', this.resizeHandler);
   }
 }
