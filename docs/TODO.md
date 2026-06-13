@@ -32,11 +32,13 @@
 - [X] **SyncQueue cross-context**: race read-modify-write risolto con "reconcile by id" pattern — re-legge la coda a fine `process()` per mergerae removals/updates vs stato concorrente.
 - [X] **`destroy()` cleanup** (ThemeManager, CommentTooltip, SocialSidebar, CustomListModule): listener globali gestiti su mount/destroy con handler named + removeEventListener.
 
-### 🔶 Da fare — refactor secondari (non-blocking per caricamento)
-- [ ] **Service-locator → Constructor Injection**: eliminare i `container.resolve()` a runtime (AnimeCard getter CalendarService/SocialRenderer, AstraModule.resolveDependencies, AstraJournalService). Anti-pattern che nasconde le dipendenze.
-- [ ] **`AstraService` god-facade**: ~30 metodi pass-through verso il repository. Far dipendere i consumer direttamente dal repository. **Nota**: già valutato; ritenuto un Facade pattern intenzionale, non splittato.
-- [ ] **Dipendenze circolari**: rimuovere i workaround `delay()` / `resolveDependencies` lazy ridisegnando i confini dei moduli.
-- [ ] **`IConfigManager` duplicata**: definita due volte (core/interfaces + inline). Tenerne una.
+### ✅ Refactor secondari (COMPLETATI 2026-06-13)
+- [X] **`IConfigManager` duplicata**: era già stata unificata in una sessione precedente (solo `core/interfaces/IConfigManager.ts` la definisce).
+- [X] **Service-locator → Constructor Injection (AnimeCard)**: `CalendarService`, `SocialRenderer` e `AstraRatingController` ora iniettati via constructor (con `delay()` per evitare import circolari) invece di `container.resolve()` nei getter. 110/110 test verdi, tsc pulito.
+
+### ⏸️ Lasciati intenzionalmente (rischio > beneficio a questo punto)
+- [ ] **`AstraModule.resolveDependencies()`**: lazy-resolve esplicitamente documentato per rompere pattern circolari nel lifecycle del ModuleRegistry, incluso un `try/catch` di degradazione graceful per `AstraDashboard`. Convertirlo a constructor injection rimuoverebbe quella rete di sicurezza proprio prima del test manuale — stessa categoria di rischio della decisione già presa sul god-facade.
+- [ ] **`AstraService` god-facade**: ~30 metodi pass-through verso il repository. **Nota**: già valutato; ritenuto un Facade pattern intenzionale, non splittato.
 
 ### 🟢 Minori
 - [ ] `settings.ts:231`: `error.message` in `innerHTML` senza escape (schermata di errore).
