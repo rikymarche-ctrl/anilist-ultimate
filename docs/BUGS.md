@@ -6,6 +6,18 @@
 
 ---
 
+## ✅ Resolved in the 2026-06-13 code review & hardening
+
+GraphQL injection (GraphQLBatcher `$`-passthrough + HoverComments), XSS (AstraRadarChart
+section names, CustomListManager search), `AnilistClient.clearQueue` hung callers, MV3
+cold-start race in `background.ts`, `AstraRepository.factoryReset` no-op storage scan,
+SyncQueue read-modify-write race (intra- and cross-context), `EventBus.emit` cascading
+failure on a throwing listener, and the O(n²) Astra sync. All remaining SECURITY.md audit
+items (SEC-005/006/007/008/010/012/013/015) are also closed. Most are now guarded by unit
+tests — see `CHANGELOG.md`, `docs/SECURITY.md`, `docs/TESTING.md`.
+
+---
+
 ## Summary
 
 | Severity        | Count        |

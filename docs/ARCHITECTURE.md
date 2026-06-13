@@ -1,5 +1,19 @@
 # Anilist Ultimate - Architecture Documentation
 
+> **Update 2026-06-13 (code review & hardening).** The architecture is unchanged in
+> shape; these layers were tightened:
+> - **State management:** all stores build on the shared reactive `Store<T>` base
+>   (`CalendarStore`, `AstraDashboardStore`) — one store pattern.
+> - **Event Bus:** `emit()` isolates synchronous handler throws (a throwing listener
+>   no longer aborts the rest).
+> - **Dependency Injection:** removed runtime `container.resolve()` service-locator
+>   calls in favor of constructor injection (`AstraSyncService`, `AstraRatingService`);
+>   single `IConfigManager` definition; de-duplicated Astra registrations in `setup.ts`.
+> - **Navigation:** `stop()` restores the monkey-patched `history` methods.
+> - **Sync queue:** `process()` reconciles by id (cross-context safe) and an async
+>   mutex serializes read-modify-write within a context.
+> - **Testing:** a Vitest unit suite now covers the core (see `docs/TESTING.md`).
+
 ## Table of Contents
 
 - [1. System Overview](#1-system-overview)

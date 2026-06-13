@@ -23,7 +23,16 @@ A second review pass resolved the remaining injection/XSS findings and hardened 
 - **Dead/bypassable code removed:** `Sanitizer.sanitize()` / `formatMultiline()` deleted (unused; `sanitize()` was bypassable, e.g. `java\tscript:`). Only `Sanitizer.escape()` remains, now unit-tested.
 - **Regression guards:** the XSS/injection fixes are now locked by unit tests (`GraphQLBatcher`, `Template`, `Sanitizer`, `AstraParserService`). 109 tests across 12 files; `tsc --noEmit` clean.
 
-> Items SEC-005 (Font Awesome CDN), SEC-006 (history patching — `stop()` still does not restore), SEC-007 (Astra import validation), SEC-008/012 (debug exposure), SEC-010 (cache size limits — partially addressed via `LRUCacheWithTTL`), SEC-015 (CSP) remain **OPEN** and are tracked in the recommendations table.
+> **Hardening sweep (2026-06-13): all remaining actionable items RESOLVED.**
+> - SEC-005 — Font Awesome bundled locally (no runtime CDN).
+> - SEC-006 — `NavigationService.stop()` restores the patched `history.pushState/replaceState`.
+> - SEC-007 — `importJSON()` validates shape (arrays/objects + numeric mediaId) before writing to storage.
+> - SEC-008 / SEC-012 — `DEBUG.ENABLED` and the `window.AnilistUltimate` debug object are gated behind `import.meta.env.DEV`.
+> - SEC-010 — HoverComments notes cache capped (`MAX_CACHE_ENTRIES=500`, oldest-pruned); `ActivityService` already uses the LRU-backed `ICacheService`.
+> - SEC-013 — notification cloning moves child nodes instead of re-parsing `innerHTML`.
+> - SEC-015 — explicit `content_security_policy` declared in the manifest.
+>
+> Remaining (non-actionable / accepted): SEC-011 (OAuth client id is public by design, kept in env), SEC-014 (inline styles — cosmetic), SEC-016 (regex — assessed not ReDoS-vulnerable), SEC-017 (3s polling — minor perf). **No critical or high severity items remain open.**
 
 ---
 
