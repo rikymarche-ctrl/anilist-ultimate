@@ -31,6 +31,12 @@ export default defineConfig({
     // glyph escapes (Private Use Area codepoints) - some become empty strings,
     // others become raw multi-byte UTF-8. Keep CSS unminified to preserve them.
     cssMinify: false,
+    // This is a Chrome MV3 extension, so target modern Chrome. Without this,
+    // esbuild "lowers" Font Awesome's `:is(.fa,...):before` selector for legacy
+    // browsers and mangles it into `.fa):before` (stray paren), invalidating the
+    // whole rule so NO icon glyph is ever emitted. `:is()` is native since
+    // Chrome 88, so a modern target leaves the selector intact.
+    cssTarget: 'chrome120',
     terserOptions: {
       compress: {
         drop_console: false, // TEMPORANEO: mantengo i log per debug
