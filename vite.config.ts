@@ -4,6 +4,10 @@ import manifest from './public/manifest.json';
 import { resolve } from 'path';
 
 export default defineConfig({
+  // Relative base so emitted CSS/asset URLs (e.g. Font Awesome woff2) resolve
+  // against chrome-extension://<id>/ instead of the host page's origin
+  // when injected by a content script.
+  base: '',
   plugins: [crx({ manifest })],
   resolve: {
     alias: {
