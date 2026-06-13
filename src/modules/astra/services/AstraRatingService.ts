@@ -7,7 +7,6 @@
 import { injectable, inject, delay } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { log } from '@core/logger';
-import { container } from 'tsyringe';
 import { AstraService } from '../AstraService';
 import type { AstraWork } from '../AstraInterfaces';
 import { IAstraRatingService, IRatingInitialData } from '../interfaces/IAstraRatingService';
@@ -21,8 +20,9 @@ export class AstraRatingService implements IAstraRatingService {
   constructor(
     @inject(delay(() => AstraService)) private astraService: AstraService,
     @inject(TOKENS.ApiClient) private api: IApiClient,
-    @inject(TOKENS.SyncQueue) private syncQueue: ISyncQueueService
-  ) { }
+    @inject(TOKENS.SyncQueue) private syncQueue: ISyncQueueService,
+    @inject(TOKENS.AstraParserService) private parser: IAstraParser
+  ) {}
 
   /**
    * Fetches initial data from AniList using GQL.
@@ -124,15 +124,15 @@ export class AstraRatingService implements IAstraRatingService {
       const settings = this.astraService.getSettings();
       let notesToSync = extra.notes || work.notes;
 
-      // If Astra Review is enabled, the notes are ALREADY inside the block.
-      // To avoid duplication, we move them inside and preserve existing comments.
+      // Policy: when "append Astra to comment" is enabled, embed the Astra block
+      // into the AniList notes (preserving the user's surrounding text), moving the
+      // plain notes inside the block. This is intentionally distinct from
+      // AstraSyncManager.push(), which always embeds the block for background syncs.
       if (settings.appendAstraToComment) {
-        // Use the parser directly since we have it injected in serialize/inject
-        const parser = container.resolve<IAstraParser>(TOKENS.AstraParserService);
         const sections = this.astraService.getSections();
         const currentData = await this.getMediaRatingData(work.mediaId);
         const currentNotes = currentData?.media?.mediaListEntry?.notes || '';
-        notesToSync = parser.inject(currentNotes, work, sections, true);
+        notesToSync = this.parser.inject(currentNotes, work, sections, true);
       }
 
       const payload = {
