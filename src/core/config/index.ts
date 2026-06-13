@@ -3,7 +3,8 @@
  * Barrel export for configuration management
  */
 
-export { ConfigManager, type IConfigManager } from './ConfigManager';
+export { ConfigManager } from './ConfigManager';
+export type { IConfigManager } from '@core/interfaces/IConfigManager';
 export { DEFAULT_CONFIG } from './defaults';
 export type {
   AppConfig,
