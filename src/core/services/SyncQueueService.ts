@@ -25,9 +25,10 @@ export class SyncQueueService implements ISyncQueueService {
    * concurrent enqueue() / process() calls cannot interleave and clobber each
    * other (e.g. rapid saves + the post-enqueue process cycle).
    *
-   * NOTE: this guards races within a single context. Cross-context coordination
-   * (service worker vs content script sharing the same storage key) would require
-   * routing all queue writes through a single owner via messaging.
+   * NOTE: this guards races within a single context. Cross-context safety
+   * (service worker vs content script sharing the same storage key) is handled by
+   * process() reconciling against the latest queue rather than overwriting it, so
+   * concurrently enqueued items are preserved instead of clobbered.
    */
   private opLock: Promise<void> = Promise.resolve();
 
@@ -119,72 +120,91 @@ export class SyncQueueService implements ISyncQueueService {
     this.processing = true;
     this.logger.info(`[SyncQueue] Starting sync cycle for ${queue.length} mutations`);
 
-    const remaining: QueuedMutation[] = [];
+    // Reconcile-by-id instead of overwriting the queue: we record which mutations
+    // were synced/dropped (removeIds) and which were updated with new retry state
+    // (updatedById), then merge against the LATEST queue at the end. This preserves
+    // items enqueued concurrently — including from another context (service worker
+    // vs content script sharing the same storage key) — instead of clobbering them.
+    const removeIds = new Set<string>();
+    const updatedById = new Map<string, QueuedMutation>();
     let stopProcessing = false;
+    let pendingAfter = false;
 
-    for (const mutation of queue) {
-      // If a previous mutation in this loop hit a critical error, skip the rest
-      if (stopProcessing) {
-        remaining.push(mutation);
-        continue;
-      }
-
-      try {
-        // Exponential backoff check
-        if (mutation.lastAttempt && mutation.retries > 0) {
-          const waitTime = Math.pow(2, mutation.retries) * 1000 * 60; // 2, 4, 8... minutes
-          if (Date.now() - mutation.lastAttempt < waitTime) {
-            remaining.push(mutation);
-            continue;
-          }
-        }
-
-        // Add execution timeout (10s)
-        await Promise.race([
-          this.executeMutation(mutation),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Mutation Timeout')), 10000)
-          ),
-        ]);
-
-        this.logger.success(`[SyncQueue] Synced ${mutation.type} (ID: ${mutation.id})`);
-      } catch (error: any) {
-        const isRateLimit = error.message?.includes('rate limit') || error.statusCode === 429;
-        const isAuthError = error.statusCode === 401 || error.statusCode === 403;
-
-        mutation.retries++;
-        mutation.lastAttempt = Date.now();
-        mutation.error = error.message;
-
-        if (isRateLimit || isAuthError) {
-          this.logger.error(
-            `[SyncQueue] Critical API error (${error.statusCode}). Suspending queue.`,
-            error
-          );
-          remaining.push(mutation);
-          stopProcessing = true; // ATOMIC BREAK: stop processing current queue
+    try {
+      for (const mutation of queue) {
+        // If a previous mutation in this loop hit a critical error, skip the rest.
+        if (stopProcessing) {
+          pendingAfter = true;
           continue;
         }
 
-        if (mutation.retries < 10) {
-          this.logger.warn(
-            `[SyncQueue] Mutation failed, attempt ${mutation.retries}/10. Retrying later.`,
-            error
-          );
-          remaining.push(mutation);
-        } else {
-          this.logger.error(
-            `[SyncQueue] Mutation ${mutation.id} permanently failed. Dropping.`,
-            error
-          );
+        try {
+          // Exponential backoff check
+          if (mutation.lastAttempt && mutation.retries > 0) {
+            const waitTime = Math.pow(2, mutation.retries) * 1000 * 60; // 2, 4, 8... minutes
+            if (Date.now() - mutation.lastAttempt < waitTime) {
+              pendingAfter = true;
+              continue;
+            }
+          }
+
+          // Add execution timeout (10s)
+          await Promise.race([
+            this.executeMutation(mutation),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Mutation Timeout')), 10000)
+            ),
+          ]);
+
+          this.logger.success(`[SyncQueue] Synced ${mutation.type} (ID: ${mutation.id})`);
+          removeIds.add(mutation.id);
+        } catch (error: any) {
+          const isRateLimit = error.message?.includes('rate limit') || error.statusCode === 429;
+          const isAuthError = error.statusCode === 401 || error.statusCode === 403;
+
+          mutation.retries++;
+          mutation.lastAttempt = Date.now();
+          mutation.error = error.message;
+
+          if (isRateLimit || isAuthError) {
+            this.logger.error(
+              `[SyncQueue] Critical API error (${error.statusCode}). Suspending queue.`,
+              error
+            );
+            updatedById.set(mutation.id, mutation); // persist the incremented retry
+            stopProcessing = true; // ATOMIC BREAK: stop processing current queue
+            pendingAfter = true;
+            continue;
+          }
+
+          if (mutation.retries < 10) {
+            this.logger.warn(
+              `[SyncQueue] Mutation failed, attempt ${mutation.retries}/10. Retrying later.`,
+              error
+            );
+            updatedById.set(mutation.id, mutation);
+            pendingAfter = true;
+          } else {
+            this.logger.error(
+              `[SyncQueue] Mutation ${mutation.id} permanently failed. Dropping.`,
+              error
+            );
+            removeIds.add(mutation.id);
+          }
         }
       }
+
+      // Merge against the current queue (re-read) so concurrent enqueues survive.
+      const current = await this.getQueue();
+      const reconciled = current
+        .filter((m) => !removeIds.has(m.id))
+        .map((m) => updatedById.get(m.id) ?? m);
+      await this.saveQueue(reconciled);
+    } finally {
+      this.processing = false;
     }
 
-    await this.saveQueue(remaining);
-    this.processing = false;
-
-    if (remaining.length > 0 && !stopProcessing) {
+    if (pendingAfter && !stopProcessing) {
       // If there are still items but no critical error, schedule another pass later
       setTimeout(() => this.process(), 60000 * 5); // Retry every 5 mins
     }

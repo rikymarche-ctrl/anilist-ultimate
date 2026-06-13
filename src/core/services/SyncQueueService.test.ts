@@ -131,4 +131,27 @@ describe('SyncQueueService', () => {
     expect(mutate).not.toHaveBeenCalled();
     expect(await service.getQueue()).toHaveLength(1);
   });
+
+  it('preserves an item written concurrently by another context (reconcile, not overwrite)', async () => {
+    const storage = makeStorage();
+    // Simulate a second context (e.g. content script) enqueuing into the shared
+    // storage key WHILE the service worker is processing the current item.
+    const mutate = vi.fn(async () => {
+      const current = storage.data.get('sync_queue_v1') || [];
+      storage.data.set('sync_queue_v1', [
+        ...current,
+        { id: 'concurrent', type: 'ASTRA_SAVE', payload: { mediaId: 999 }, retries: 0 },
+      ]);
+      return { id: 1 };
+    });
+    const api = { getQueueStatus: () => ({ isRateLimited: false }), mutate } as any;
+    const service = new SyncQueueService(storage, makeLogger(), api);
+
+    await service.enqueue('ASTRA_SAVE', { mediaId: 7, score: 50 });
+    await service.process();
+
+    const queue = await service.getQueue();
+    // The processed item (7) is removed; the concurrently-added item (999) survives.
+    expect(queue.map((m) => m.payload.mediaId)).toEqual([999]);
+  });
 });
