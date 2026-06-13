@@ -143,7 +143,8 @@ export class CommentTooltip extends BaseComponent<{ onRefresh?: () => void }> {
       this.scheduleHide();
     });
 
-    window.addEventListener('resize', () => {
+    // Managed listener: BaseComponent removes it on unmount/destroy.
+    this.addEventListener(window, 'resize', () => {
       if (this.element.classList.contains('visible') && this.currentTarget) {
         this.updatePosition(this.currentTarget);
       }
