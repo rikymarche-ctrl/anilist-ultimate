@@ -57,5 +57,8 @@
       "matches": ["https://anilist.co/*"]
     }
   ],
-  "options_page": "settings.html"
+  "options_page": "settings.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
 }

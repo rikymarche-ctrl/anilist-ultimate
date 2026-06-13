@@ -35,6 +35,9 @@ export class NavigationService {
   private currentPath: string;
   private observer: MutationObserver | null = null;
   private isActive = false;
+  /** Originals of the monkey-patched history methods, restored in stop() (SEC-006). */
+  private originalPushState: typeof history.pushState | null = null;
+  private originalReplaceState: typeof history.replaceState | null = null;
 
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
@@ -85,6 +88,16 @@ export class NavigationService {
 
     window.removeEventListener('popstate', this.handlePopState);
 
+    // SEC-006: restore the original history methods we monkey-patched.
+    if (this.originalPushState) {
+      history.pushState = this.originalPushState;
+      this.originalPushState = null;
+    }
+    if (this.originalReplaceState) {
+      history.replaceState = this.originalReplaceState;
+      this.originalReplaceState = null;
+    }
+
     this.logger.info('[Navigation] Navigation watcher stopped');
   }
 
@@ -130,16 +143,16 @@ export class NavigationService {
    * Intercept pushState and replaceState for immediate detection
    */
   private interceptHistoryMethods(): void {
-    const originalPushState = history.pushState.bind(history);
-    const originalReplaceState = history.replaceState.bind(history);
+    this.originalPushState = history.pushState.bind(history);
+    this.originalReplaceState = history.replaceState.bind(history);
 
     history.pushState = (...args) => {
-      originalPushState(...args);
+      this.originalPushState!(...args);
       this.checkPathChange();
     };
 
     history.replaceState = (...args) => {
-      originalReplaceState(...args);
+      this.originalReplaceState!(...args);
       this.checkPathChange();
     };
   }

@@ -356,11 +356,23 @@ export class AstraRepository {
   public async importJSON(json: string): Promise<boolean> {
     try {
       const data = JSON.parse(json);
-      if (!data.manifest || !data.sections || !data.settings) return false;
+
+      // SEC-007: validate the shape before writing anything to storage, so a
+      // malformed import cannot corrupt the Astra data store.
+      if (!data || typeof data !== 'object') return false;
+      if (!Array.isArray(data.manifest) || !Array.isArray(data.sections)) return false;
+      if (typeof data.settings !== 'object' || data.settings === null) return false;
+      if (!data.manifest.every((s: any) => s && typeof s.mediaId === 'number')) return false;
+      if (data.works !== undefined) {
+        if (typeof data.works !== 'object' || data.works === null) return false;
+        if (!Object.values(data.works).every((w: any) => w && typeof w.mediaId === 'number')) {
+          return false;
+        }
+      }
 
       this.summaries = data.manifest;
       this.sections = data.sections;
-      this.settings = data.settings;
+      this.settings = { ...DEFAULT_SETTINGS, ...data.settings };
 
       await this.persist();
 

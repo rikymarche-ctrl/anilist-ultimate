@@ -217,7 +217,7 @@ export const PERFORMANCE = {
 // ============================================================================
 
 export const DEBUG = {
-  ENABLED: true, // Set to false in production build
+  ENABLED: import.meta.env.DEV, // SEC-008: debug/logging enabled only in dev builds
   LOG_PREFIX: '[Anilist Ultimate]',
   LOG_STYLES: {
     info: 'color: #4A9EFF; font-weight: bold',

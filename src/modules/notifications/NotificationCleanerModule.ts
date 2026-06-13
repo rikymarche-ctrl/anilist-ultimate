@@ -410,7 +410,9 @@ export class NotificationCleanerModule extends BaseModule {
       if (link.getAttribute('href')?.includes('/activity/')) {
         const span = document.createElement('span');
         span.className = link.className;
-        span.innerHTML = link.innerHTML;
+        // SEC-013: move the already-rendered child nodes instead of re-parsing
+        // innerHTML, so no markup is re-evaluated.
+        while (link.firstChild) span.appendChild(link.firstChild);
         link.parentNode?.replaceChild(span, link);
       }
     });

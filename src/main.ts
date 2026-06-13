@@ -33,20 +33,10 @@ import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
 import './styles/astra.css';
-// BUG-010 & Audit 2.1 Fix: Font Awesome loaded via CDN to ensure correct path resolution in content scripts.
-// Local bundling often fails due to relative path breakage when injected into the host page.
-function loadFontAwesome(): void {
-  if (!document.querySelector('link[href*="fontawesome"]')) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';
-    link.crossOrigin = 'anonymous';
-    const target = document.head || document.documentElement;
-    if (target) {
-      target.appendChild(link);
-    }
-  }
-}
+// SEC-005: Font Awesome is bundled locally instead of loaded from a runtime CDN
+// (removes the supply-chain + privacy + availability risk). crxjs emits the CSS
+// and its font files as web-accessible resources.
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 /**
  * Initialize the global debug object
@@ -71,7 +61,6 @@ function setupDebugExposure(config: IConfigManager, registry: ModuleRegistry): v
  */
 async function init(): Promise<void> {
   try {
-    loadFontAwesome();
     await setupDI();
 
     // High Priority: Inject Astra Navigation Link immediately
@@ -86,7 +75,10 @@ async function init(): Promise<void> {
     const registry = container.resolve<ModuleRegistry>(TOKENS.ModuleRegistry);
 
     container.resolve(ThemeManager);
-    setupDebugExposure(config, registry);
+    // SEC-008/012: only expose internals on window in dev builds, never in production.
+    if (import.meta.env.DEV) {
+      setupDebugExposure(config, registry);
+    }
 
     await registry.initAll();
     log.success('Astra Ultimate initialized');
