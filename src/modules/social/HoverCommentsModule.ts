@@ -25,6 +25,8 @@ export class HoverCommentsModule extends BaseModule {
 
   private notesCache: Record<string, { notes: string; timestamp: number }> = {};
   private readonly CACHE_KEY = 'hover_comments_cache';
+  /** SEC-010: cap the persisted notes cache to avoid unbounded growth over a session. */
+  private readonly MAX_CACHE_ENTRIES = 500;
 
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
@@ -177,10 +179,19 @@ export class HoverCommentsModule extends BaseModule {
   private async saveCache(): Promise<void> {
     if (StorageManager.isContextDead()) return;
     try {
+      this.pruneCache();
       await this.storage.set(this.CACHE_KEY, this.notesCache);
     } catch (e) {
       this.logger.debug('[HoverComments] cache op failed', e);
     }
+  }
+
+  /** SEC-010: keep only the most recent MAX_CACHE_ENTRIES notes by timestamp. */
+  private pruneCache(): void {
+    const entries = Object.entries(this.notesCache);
+    if (entries.length <= this.MAX_CACHE_ENTRIES) return;
+    entries.sort((a, b) => b[1].timestamp - a[1].timestamp);
+    this.notesCache = Object.fromEntries(entries.slice(0, this.MAX_CACHE_ENTRIES));
   }
 
   private getCacheKey(username: string, mediaId: number): string {
