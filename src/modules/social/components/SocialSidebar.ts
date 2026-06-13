@@ -89,7 +89,8 @@ export class SocialSidebar extends BaseComponent {
    */
   protected attachEvents(): void {
     // 1. External Events
-    window.addEventListener('au-open-social-sidebar', ((e: CustomEvent) => {
+    // Managed listeners: BaseComponent removes them on unmount/destroy.
+    this.addEventListener(window, 'au-open-social-sidebar', ((e: CustomEvent) => {
       const { mediaId, title, element, type } = e.detail;
       this.open(mediaId, title, element, type);
     }) as EventListener);
@@ -114,7 +115,7 @@ export class SocialSidebar extends BaseComponent {
       });
     }
 
-    document.addEventListener('click', () => {
+    this.addEventListener(document, 'click', () => {
       if (dropdownMenu) dropdownMenu.style.display = 'none';
     });
 
@@ -148,11 +149,11 @@ export class SocialSidebar extends BaseComponent {
     }
 
     // 4. Keyboard
-    window.addEventListener('keydown', (e) => {
+    this.addEventListener(window, 'keydown', ((e: KeyboardEvent) => {
       if (e.key === 'Escape' && this.element.classList.contains('active')) {
         this.close();
       }
-    });
+    }) as EventListener);
 
     // Initialize custom lists
     this.populateCustomListsDropdown().catch(() => {});

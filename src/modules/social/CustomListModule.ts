@@ -29,6 +29,8 @@ import { CustomListManager } from './components/CustomListManager';
 export class CustomListModule extends BaseModule {
   private managerInstance: CustomListManager | null = null;
   private isManagerActive = false;
+  /** Bound router handler kept so destroy() can remove the global listeners. */
+  private readonly routingHandler = (): void => this.handleRouting();
 
   constructor(
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
@@ -58,8 +60,8 @@ export class CustomListModule extends BaseModule {
     });
 
     // 4. Listen for popstate and hashchange
-    window.addEventListener('popstate', () => this.handleRouting());
-    window.addEventListener('hashchange', () => this.handleRouting());
+    window.addEventListener('popstate', this.routingHandler);
+    window.addEventListener('hashchange', this.routingHandler);
   }
 
   /**
@@ -185,6 +187,8 @@ export class CustomListModule extends BaseModule {
   public override async destroy(): Promise<void> {
     // BUG-007 fix: Unregister from SharedGlobalObserver
     this.sharedObserver.unregister('customList');
+    window.removeEventListener('popstate', this.routingHandler);
+    window.removeEventListener('hashchange', this.routingHandler);
 
     super.destroy();
     this.deactivateManager();
