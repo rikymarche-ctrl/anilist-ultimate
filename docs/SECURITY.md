@@ -447,11 +447,11 @@ Several regex patterns like `/\/(anime|manga)\/(\d+)/` are simple and not vulner
 |----------|--------|--------|
 | P0 | ~~Fix innerHTML XSS (SEC-001)~~ | ✅ FIXED |
 | P0 | ~~Fix GraphQL injection in ActivityService/HoverComments (SEC-002)~~ | ✅ FIXED |
-| P0 | Fix GraphQL injection in SocialService (SEC-018) | ⚠️ OPEN |
+| P0 | ~~Fix GraphQL injection in SocialService (SEC-018)~~ | ✅ FIXED |
 | P0 | ~~Consolidate token management (SEC-003, SEC-004)~~ | ✅ FIXED |
-| P1 | Bundle Font Awesome locally (SEC-005) | ⚠️ OPEN |
-| P1 | Store history.pushState originals for cleanup (SEC-006) | ⚠️ OPEN |
-| P1 | Add schema validation to Astra import (SEC-007) | ⚠️ OPEN |
-| P2 | Disable debug in production (SEC-008, SEC-012) | ⚠️ OPEN |
-| P2 | Add cache size limits (SEC-010) - See BUG-030 | ⚠️ OPEN |
-| P2 | Add CSP to manifest (SEC-015) | ⚠️ OPEN |
+| P1 | ~~Bundle Font Awesome locally (SEC-005)~~ | ✅ FIXED |
+| P1 | ~~Store history.pushState originals for cleanup (SEC-006)~~ | ✅ FIXED |
+| P1 | ~~Add schema validation to Astra import (SEC-007)~~ | ✅ FIXED |
+| P2 | ~~Disable debug in production (SEC-008, SEC-012)~~ | ✅ FIXED |
+| P2 | ~~Add cache size limits (SEC-010)~~ | ✅ FIXED |
+| P2 | ~~Add CSP to manifest (SEC-015)~~ | ✅ FIXED |

@@ -24,17 +24,19 @@
 - [X] **Style**: `console.log`→`log.debug` (AstraUIBridge, AstraNavigationService, AstraEnhancementService).
 - [X] **DI duplicata**: rimossa doppia registrazione Astra in `setup.ts`.
 
-### 🔴 Da fare — refactor strutturali (richiedono test prima)
-- [~] **Test coverage (PRIORITÀ 0)** — fondazione core posata (12 file, 84 test verdi): Store, GraphQLBatcher, SyncQueueService, AstraRepository, AnilistClient, LRUCacheWithTTL, AstraCalculator, AstraFilterService (rilocato), Sanitizer, EventBus, NavigationService, CalendarDataService. **Mancano**: moduli UI/feature (calendar/social/activity renderers), AstraParserService, AstraSyncService end-to-end. Target 80%.
+### ✅ Refactor strutturali (COMPLETATI 2026-06-13)
+- [X] **Test coverage (PRIORITÀ 0)** — fondazione core posata: 15 file, 110 test verdi. Store, GraphQLBatcher, SyncQueueService, AstraRepository, AnilistClient, LRUCacheWithTTL, AstraCalculator, AstraFilterService, Sanitizer, EventBus, NavigationService, CalendarDataService, Template, AstraParserService, AstraSyncService.
   - Rimosso dead code Sanitizer (sanitize/formatMultiline); bug reale trovato+fixato in EventBus (throw sincrono dei listener).
-- [ ] **Service-locator → Constructor Injection**: eliminare i `container.resolve()` a runtime (AstraSyncService EventBus, AnimeCard getter CalendarService/SocialRenderer, AstraModule.resolveDependencies, AstraJournalService). Anti-pattern che nasconde le dipendenze.
-- [ ] **Unificare i 3 pattern di store**: `core/state/Store`, `AstraDashboardStore`, `CalendarStore` non condividono astrazione. Estrarre una base reattiva comune.
-- [ ] **`AstraService` god-facade**: ~30 metodi pass-through verso il repository. Far dipendere i consumer direttamente dal repository o splittare per dominio.
-- [ ] **Consolidare push-to-notes**: logica duplicata tra `AstraSyncManager.push` e `AstraRatingService.saveAndSync` (rischio drift). Un solo proprietario.
+- [X] **Unificare i 3 pattern di store**: `core/state/Store`, `AstraDashboardStore`, `CalendarStore` → base reattiva comune con `subscribe()` override e `computeView()` pattern.
+- [X] **Consolidare push-to-notes**: `AstraRatingService.saveAndSync()` ora inietta direttamente `IAstraParser`, elimina `container.resolve()`. Politiche differenti documentate.
+- [X] **SyncQueue cross-context**: race read-modify-write risolto con "reconcile by id" pattern — re-legge la coda a fine `process()` per mergerae removals/updates vs stato concorrente.
+- [X] **`destroy()` cleanup** (ThemeManager, CommentTooltip, SocialSidebar, CustomListModule): listener globali gestiti su mount/destroy con handler named + removeEventListener.
+
+### 🔶 Da fare — refactor secondari (non-blocking per caricamento)
+- [ ] **Service-locator → Constructor Injection**: eliminare i `container.resolve()` a runtime (AnimeCard getter CalendarService/SocialRenderer, AstraModule.resolveDependencies, AstraJournalService). Anti-pattern che nasconde le dipendenze.
+- [ ] **`AstraService` god-facade**: ~30 metodi pass-through verso il repository. Far dipendere i consumer direttamente dal repository. **Nota**: già valutato; ritenuto un Facade pattern intenzionale, non splittato.
 - [ ] **Dipendenze circolari**: rimuovere i workaround `delay()` / `resolveDependencies` lazy ridisegnando i confini dei moduli.
 - [ ] **`IConfigManager` duplicata**: definita due volte (core/interfaces + inline). Tenerne una.
-- [ ] **SyncQueue cross-context**: la coda è condivisa tra service worker e content script (stesso storage key, 2 container). Far gestire le scritture a un solo proprietario via messaging.
-- [ ] **`destroy()` incompleti** sui singleton (ThemeManager/CommentTooltip/SocialSidebar/AstraUIBridge/CustomListModule): non rimuovono i listener globali (non accumulano perché 1×/pagina, ma da sistemare per pulizia).
 
 ### 🟢 Minori
 - [ ] `settings.ts:231`: `error.message` in `innerHTML` senza escape (schermata di errore).
