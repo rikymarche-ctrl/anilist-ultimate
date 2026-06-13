@@ -1,5 +1,41 @@
 # Anilist Ultimate - Testing Guide
 
+## 🧪 Automated Unit Tests (Vitest)
+
+Run the suite:
+
+```bash
+npm test            # watch mode
+npx vitest run      # single run (CI)
+npx vitest run --coverage
+npx tsc --noEmit    # type-check (must stay clean)
+```
+
+**Current state (2026-06-13): 15 test files, 109 tests, all green; `tsc` clean.**
+
+Tests are **co-located** next to sources as `*.test.ts` and discovered via the `src/**/*.{test,spec}.ts` include (see `vite.config.ts`). Do **not** put tests under `/tests` — that path is outside the include and will silently not run.
+
+Covered core/units:
+
+| Area | File |
+| ---- | ---- |
+| Reactive store | `core/state/Store.test.ts` |
+| GraphQL batching + injection escaping | `core/api/GraphQLBatcher.test.ts` |
+| Sync queue (mutex/race, retry) | `core/services/SyncQueueService.test.ts` |
+| API client (queue, clearQueue) | `api/AnilistClient.test.ts` |
+| LRU + TTL cache | `core/cache/LRUCacheWithTTL.test.ts` |
+| HTML escaping / templating (XSS) | `core/utils/Template.test.ts`, `core/utils/Sanitizer.test.ts` |
+| Event bus | `core/events/EventBus.test.ts` |
+| Navigation | `core/navigation/NavigationService.test.ts` |
+| Astra repository / parser / calculator / filter / sync | `modules/astra/**/*.test.ts` |
+| Calendar data service | `modules/calendar/services/CalendarDataService.test.ts` |
+
+> Gaps (TODO): feature/UI renderers (calendar/social/activity components). Target 80% coverage.
+
+The checklist below is the **manual QA** pass (run after loading the unpacked extension).
+
+---
+
 ## 📦 Build Status
 
 ✅ **Build Successful**

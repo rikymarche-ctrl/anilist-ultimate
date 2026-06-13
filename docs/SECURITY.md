@@ -13,6 +13,20 @@ The codebase contains **4 critical**, **4 high**, **6 medium**, and **4 low** se
 
 ---
 
+## 🔄 Code Review Follow-up — 2026-06-13
+
+A second review pass resolved the remaining injection/XSS findings and hardened the shared layers. Net status of the critical/high security surface:
+
+- **GraphQL injection — fully closed.** `GraphQLBatcher.format()` now always quotes and escapes string values (removed the `$`-passthrough; escapes `\ " \n \r \t`), so every batched/inlined value is safe by construction. `HoverCommentsModule` was reverted to a vulnerable state by an external edit and **re-fixed** to use GraphQL variables. A full-tree grep confirms **no `userName:"${...}"` / `mediaId:${...}` interpolation remains** in `src/`. → **SEC-002 and SEC-018: RESOLVED.**
+- **New XSS fixed — SEC-019:** `AstraRadarChart.getHTML()` interpolated user-editable section names raw into an `innerHTML` SVG string (exploitable via Settings or `importJSON`). Now escaped via `escapeHtml()`.
+- **Self-XSS fixed:** `CustomListManager` search-empty-state now renders through the auto-escaping `html` template.
+- **Dead/bypassable code removed:** `Sanitizer.sanitize()` / `formatMultiline()` deleted (unused; `sanitize()` was bypassable, e.g. `java\tscript:`). Only `Sanitizer.escape()` remains, now unit-tested.
+- **Regression guards:** the XSS/injection fixes are now locked by unit tests (`GraphQLBatcher`, `Template`, `Sanitizer`, `AstraParserService`). 109 tests across 12 files; `tsc --noEmit` clean.
+
+> Items SEC-005 (Font Awesome CDN), SEC-006 (history patching — `stop()` still does not restore), SEC-007 (Astra import validation), SEC-008/012 (debug exposure), SEC-010 (cache size limits — partially addressed via `LRUCacheWithTTL`), SEC-015 (CSP) remain **OPEN** and are tracked in the recommendations table.
+
+---
+
 ## Critical Findings
 
 ### SEC-001: XSS via innerHTML with API Data

@@ -1,5 +1,30 @@
 # Anilist Ultimate - Changelog
 
+## [Unreleased] - Code review hardening & test foundation (2026-06)
+
+### 🔒 Security
+- GraphQL injection fully closed: `GraphQLBatcher.format()` always quotes/escapes (no `$`-passthrough); `HoverCommentsModule` uses GraphQL variables.
+- XSS fixed: `AstraRadarChart` escapes user-editable section names; `CustomListManager` search uses the auto-escaping `html` template.
+- Removed dead/bypassable `Sanitizer.sanitize()`/`formatMultiline()` (kept `escape()`).
+
+### 🐛 Fixes
+- `AnilistClient.clearQueue()` now rejects pending promises (no hung callers).
+- `background.ts` gates the message router on DI init (MV3 cold-start race).
+- `AstraRepository.factoryReset()` scans storage correctly (was a no-op).
+- `SyncQueueService` serializes the queue via an async mutex (read-modify-write race).
+- `EventBus.emit()` isolates synchronous handler throws (no cascading failure).
+
+### ⚡ Performance
+- AniList sync no longer re-serializes the manifest per entry (`skipPersist` + single `persist()`): O(n²) → O(n).
+
+### 🧹 Refactor / Cleanup
+- Removed dead code (`CustomScrollbar`, `AstraStatsOverview`, `AstraWorkGrid`).
+- De-duplicated Astra DI registration in `setup.ts`; `AstraSyncService` now injects `EventBus` (no service-locator).
+- Defensive copies in `AstraRepository` getters; managed event listeners; `console.log` → `log.debug`.
+
+### ✅ Testing
+- New Vitest foundation: 15 files, 109 tests, `tsc` clean. See `docs/TESTING.md`.
+
 ## [2.0.0] - 2026-04-07
 
 ### 🎉 Complete Rewrite - Modern TypeScript Architecture
