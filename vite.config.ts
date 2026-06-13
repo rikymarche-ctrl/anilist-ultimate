@@ -27,6 +27,10 @@ export default defineConfig({
       },
     },
     minify: 'terser',
+    // esbuild's CSS minifier corrupts the Font Awesome `--fa` custom-property
+    // glyph escapes (Private Use Area codepoints) - some become empty strings,
+    // others become raw multi-byte UTF-8. Keep CSS unminified to preserve them.
+    cssMinify: false,
     terserOptions: {
       compress: {
         drop_console: false, // TEMPORANEO: mantengo i log per debug
@@ -59,4 +63,3 @@ export default defineConfig({
     },
   },
 });
-
