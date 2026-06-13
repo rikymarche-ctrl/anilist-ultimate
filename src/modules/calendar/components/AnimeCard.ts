@@ -11,12 +11,13 @@
  * @see docs/MODULES.md#1-calendar-module
  */
 
-import { injectable, inject, container } from 'tsyringe';
+import { injectable, inject, delay } from 'tsyringe';
 import { BaseComponent } from '@ui/components/BaseComponent';
 import { CalendarStore } from '../CalendarStore';
 import { TOKENS } from '@core/di/tokens';
 import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { SocialRenderer } from '../../social/SocialRenderer';
+import { AstraRatingController } from '../../astra/ui/AstraRatingController';
 import { html } from '@core/utils/Template';
 import type { AnimeEntry, CardOptions } from '@core/types';
 
@@ -33,15 +34,14 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   constructor(
     @inject('AnimeCardProps') props: AnimeCardProps,
-    @inject(TOKENS.CalendarStore) private store: CalendarStore
+    @inject(TOKENS.CalendarStore) private store: CalendarStore,
+    @inject(TOKENS.CalendarService) private calendarService: ICalendarService,
+    @inject(delay(() => SocialRenderer)) private socialRenderer: SocialRenderer,
+    @inject(delay(() => AstraRatingController)) private ratingController: AstraRatingController
   ) {
     super(props);
     // Re-render now that this.store is assigned (BaseComponent constructor calls render BEFORE this assignment)
     this.element = this.render();
-  }
-
-  private get calendarService(): ICalendarService {
-    return container.resolve<ICalendarService>(TOKENS.CalendarService);
   }
 
   protected render(): HTMLElement {
@@ -189,10 +189,6 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       this.socialPortalController.abort();
       this.socialPortalController = null;
     }
-  }
-
-  private get socialRenderer(): SocialRenderer {
-    return container.resolve<SocialRenderer>(TOKENS.SocialRenderer);
   }
 
   /**
@@ -582,8 +578,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   private handleEditEntry(): void {
     const { anime } = this.props;
-    const modal = container.resolve<any>(TOKENS.AstraRatingController);
-    modal.open(anime.mediaId);
+    this.ratingController.open(anime.mediaId);
   }
 
   private async handleMarkWatched(): Promise<void> {
