@@ -37,6 +37,10 @@ import './styles/astra.css';
 // (removes the supply-chain + privacy + availability risk). crxjs emits the CSS
 // and its font files as web-accessible resources.
 import '@fortawesome/fontawesome-free/css/all.min.css';
+// The codebase uses Font Awesome 4 icon names/syntax (e.g. "fa fa-pencil"),
+// but the bundled package is FA7. The v4-shims map old class names/glyphs
+// to their FA7 equivalents so existing markup renders correctly.
+import '@fortawesome/fontawesome-free/css/v4-shims.min.css';
 
 /**
  * Initialize the global debug object
