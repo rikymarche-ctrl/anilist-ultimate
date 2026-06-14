@@ -33,14 +33,8 @@ import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
 import './styles/astra.css';
-// SEC-005: Font Awesome is bundled locally instead of loaded from a runtime CDN
-// (removes the supply-chain + privacy + availability risk). crxjs emits the CSS
-// and its font files as web-accessible resources.
-import '@fortawesome/fontawesome-free/css/all.min.css';
-// The codebase uses Font Awesome 4 icon names/syntax (e.g. "fa fa-pencil"),
-// but the bundled package is FA7. The v4-shims map old class names/glyphs
-// to their FA7 equivalents so existing markup renders correctly.
-import '@fortawesome/fontawesome-free/css/v4-shims.min.css';
+import '@fortawesome/fontawesome-free/js/all.min.js';
+import '@fortawesome/fontawesome-free/js/v4-shims.min.js';
 
 /**
  * Initialize the global debug object

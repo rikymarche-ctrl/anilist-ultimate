@@ -66,7 +66,7 @@ export class AstraSyncService {
 
       const [animeRes, mangaRes] = await Promise.all([
         this.api.query<MediaListCollectionResponse>(query, { userId, type: 'ANIME' }),
-        this.api.query<MediaListCollectionResponse>(query, { userId, type: 'MANGA' })
+        this.api.query<MediaListCollectionResponse>(query, { userId, type: 'MANGA' }),
       ]);
 
       let addedCount = 0;
@@ -80,13 +80,19 @@ export class AstraSyncService {
 
         for (const list of collection.lists) {
           for (const entry of list.entries) {
-            const existingSummary = this.repository.getWorks().find(s => s.mediaId === entry.mediaId);
+            const existingSummary = this.repository
+              .getWorks()
+              .find((s) => s.mediaId === entry.mediaId);
 
             if (existingSummary) {
               const full = await this.repository.getFullWork(entry.mediaId);
               if (!full) continue;
 
-              const newTitle = entry.media.title.english || entry.media.title.romaji || entry.media.title.native || 'Unknown Title';
+              const newTitle =
+                entry.media.title.english ||
+                entry.media.title.romaji ||
+                entry.media.title.native ||
+                'Unknown Title';
               let changed = false;
 
               if (full.status !== entry.status || full.title !== newTitle) {
@@ -131,15 +137,24 @@ export class AstraSyncService {
             } else {
               // NEW WORK
               const media = entry.media;
-              const type = media.type === 'ANIME' ? 'anime' : (media.format === 'NOVEL' ? 'novel' : 'manga');
-              
+              const type =
+                media.type === 'ANIME' ? 'anime' : media.format === 'NOVEL' ? 'novel' : 'manga';
+
               const newWork: AstraWork = {
                 id: `w_new_${entry.mediaId}`, // Temporary ID, saveWork will generate proper UUID if needed
                 mediaId: entry.mediaId,
-                title: media.title.english || media.title.romaji || media.title.native || 'Unknown Title',
+                title:
+                  media.title.english ||
+                  media.title.romaji ||
+                  media.title.native ||
+                  'Unknown Title',
                 type: type as any,
                 country: media.countryOfOrigin,
-                cover: media.coverImage.extraLarge || media.coverImage.large || media.coverImage.medium || undefined,
+                cover:
+                  media.coverImage.extraLarge ||
+                  media.coverImage.large ||
+                  media.coverImage.medium ||
+                  undefined,
                 status: entry.status,
                 customLists: this.parseCustomLists(entry),
                 tags: [],
@@ -150,7 +165,7 @@ export class AstraSyncService {
                 episodes: media.episodes ?? undefined,
                 chapters: media.chapters ?? undefined,
                 progress: entry.progress,
-                duration: media.duration ?? undefined
+                duration: media.duration ?? undefined,
               };
 
               if (entry.notes) {
@@ -192,7 +207,7 @@ export class AstraSyncService {
     let customLists: string[] = [];
     if (entry.customLists) {
       const cl = entry.customLists as Record<string, boolean>;
-      customLists = Object.keys(cl).filter(k => cl[k]);
+      customLists = Object.keys(cl).filter((k) => cl[k]);
     }
     if (entry.private) customLists.push('Private');
     if (entry.hiddenFromStatusLists) customLists.push('Hide from status lists');

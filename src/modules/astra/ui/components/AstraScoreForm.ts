@@ -34,8 +34,7 @@ export class AstraScoreForm extends AstraView {
     this.store = store;
   }
 
-  public resetState(): void {
-  }
+  public resetState(): void {}
 
   protected template(state: AstraRatingState): HTMLElement {
     if (!state || !state.media) return html`<div></div>`;
@@ -47,12 +46,28 @@ export class AstraScoreForm extends AstraView {
       <div class="astra-score-form">
         <div class="astra-form-header-section astra-quick-grid-2x2">
           <div id="status-selector-mount"></div>
-          
+
           <div class="astra-input-split">
-            <div class="astra-input-box"><span class="astra-label-xs">START</span><input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}"></div>
-            <div class="astra-input-box"><span class="astra-label-xs">FINISH</span><input type="date" class="astra-date-input" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}"></div>
+            <div class="astra-input-box">
+              <span class="astra-label-xs">START</span
+              ><input
+                type="date"
+                class="astra-date-input"
+                id="astra-start-date"
+                value="${this.formatDateForInput(entry?.startedAt)}"
+              />
+            </div>
+            <div class="astra-input-box">
+              <span class="astra-label-xs">FINISH</span
+              ><input
+                type="date"
+                class="astra-date-input"
+                id="astra-finish-date"
+                value="${this.formatDateForInput(entry?.completedAt)}"
+              />
+            </div>
           </div>
-          
+
           <div class="astra-input-split">
             <div id="progress-stepper-mount"></div>
             <div id="repeat-stepper-mount"></div>
@@ -61,20 +76,44 @@ export class AstraScoreForm extends AstraView {
           <div class="astra-input-box">
             <span class="astra-label-xs">CUSTOM LISTS</span>
             <div class="astra-dropdown" id="astra-lists-dropdown">
-              <button class="astra-dropdown-trigger"><i class="fa fa-list-ul"></i><span>Manage Lists</span><i class="fa fa-chevron-down"></i></button>
+              <button class="astra-dropdown-trigger">
+                <i class="fa fa-list-ul"></i><span>Manage Lists</span
+                ><i class="fa fa-chevron-down"></i>
+              </button>
               <div class="astra-dropdown-menu">
-                  ${state.allCustomLists.map(list => html`
-                    <div class="astra-dropdown-item astra-list-option ${(entry?.customLists || {})[list] ? 'active' : ''}" data-list="${list}">
-                      <div class="astra-checkbox ${(entry?.customLists || {})[list] ? 'checked' : ''}"></div>
+                ${state.allCustomLists.map(
+                  (list) => html`
+                    <div
+                      class="astra-dropdown-item astra-list-option ${(entry?.customLists || {})[
+                        list
+                      ]
+                        ? 'active'
+                        : ''}"
+                      data-list="${list}"
+                    >
+                      <div
+                        class="astra-checkbox ${(entry?.customLists || {})[list] ? 'checked' : ''}"
+                      ></div>
                       <span>${list}</span>
                     </div>
-                  `)}
+                  `
+                )}
                 <div class="astra-dropdown-divider"></div>
-                <div class="astra-dropdown-item astra-list-option ${entry?.hiddenFromStatusLists ? 'active' : ''}" data-type="hide">
-                  <div class="astra-checkbox ${entry?.hiddenFromStatusLists ? 'checked' : ''}"></div>
+                <div
+                  class="astra-dropdown-item astra-list-option ${entry?.hiddenFromStatusLists
+                    ? 'active'
+                    : ''}"
+                  data-type="hide"
+                >
+                  <div
+                    class="astra-checkbox ${entry?.hiddenFromStatusLists ? 'checked' : ''}"
+                  ></div>
                   <span>Hide from status lists</span>
                 </div>
-                <div class="astra-dropdown-item astra-list-option ${entry?.private ? 'active' : ''}" data-type="private">
+                <div
+                  class="astra-dropdown-item astra-list-option ${entry?.private ? 'active' : ''}"
+                  data-type="private"
+                >
                   <div class="astra-checkbox ${entry?.private ? 'checked' : ''}"></div>
                   <span>Private</span>
                 </div>
@@ -98,15 +137,37 @@ export class AstraScoreForm extends AstraView {
         <div class="astra-form-footer">
           <div class="astra-footer-left">
             <div class="astra-notes-area">
-              <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes || ''}</textarea>
+              <textarea
+                class="astra-textarea"
+                id="astra-general-notes"
+                placeholder="General thoughts..."
+              >
+${season.notes || ''}</textarea
+              >
             </div>
             <div class="astra-overall-box">
-              <span class="astra-overall-val" id="astra-overall-val" style="display: ${season.manualOverride ? 'none' : 'block'}">0</span>
-              <input type="number" class="astra-overall-input" id="astra-manual-score" min="0" max="10" step="0.1" value="${this.formatScore(season.legacyScore || 0)}" style="display: ${season.manualOverride ? 'block' : 'none'}">
+              <span
+                class="astra-overall-val"
+                id="astra-overall-val"
+                style="display: ${season.manualOverride ? 'none' : 'block'}"
+                >0</span
+              >
+              <input
+                type="number"
+                class="astra-overall-input"
+                id="astra-manual-score"
+                min="0"
+                max="10"
+                step="0.1"
+                value="${this.formatScore(season.legacyScore || 0)}"
+                style="display: ${season.manualOverride ? 'block' : 'none'}"
+              />
             </div>
           </div>
           <div class="astra-footer-right">
-            <button class="astra-btn astra-btn--primary astra-btn--full" id="astra-save-btn"><i class="fa fa-refresh"></i> SYNC TO ANILIST</button>
+            <button class="astra-btn astra-btn--primary astra-btn--full" id="astra-save-btn">
+              <i class="fa fa-refresh"></i> SYNC TO ANILIST
+            </button>
           </div>
         </div>
       </div>
@@ -122,7 +183,7 @@ export class AstraScoreForm extends AstraView {
     this.statusSelector.mount(this.$('#status-selector-mount')!, {
       status: work.status,
       type: work.type,
-      onStatusChange: (val) => this.handleInput('status', val)
+      onStatusChange: (val) => this.handleInput('status', val),
     });
 
     this.progressStepper.mount(this.$('#progress-stepper-mount')!, {
@@ -131,21 +192,21 @@ export class AstraScoreForm extends AstraView {
       value: work.progress || 0,
       max: state.totalCount,
       aired: state.airedCount,
-      onValueChange: (val) => this.handleInput('progress', val)
+      onValueChange: (val) => this.handleInput('progress', val),
     });
 
     this.repeatStepper.mount(this.$('#repeat-stepper-mount')!, {
       label: 'REWATCHES',
       field: 'repeat',
       value: media.mediaListEntry?.repeat || 0,
-      onValueChange: (val) => this.handleInput('repeat', val)
+      onValueChange: (val) => this.handleInput('repeat', val),
     });
 
     this.criteriaList.mount(this.$('#criteria-list-mount')!, {
       season,
       sections: this.service.getSections(),
       settings: this.service.getSettings(),
-      onScoreChange: (id, val) => this.store?.updateScore(id, val)
+      onScoreChange: (id, val) => this.store?.updateScore(id, val),
     });
   }
 
@@ -173,12 +234,20 @@ export class AstraScoreForm extends AstraView {
   protected bindEvents(): void {
     if (!this.store) return;
 
-    this.$('#astra-start-date')?.addEventListener('change', (e) => this.handleInput('start-date', (e.target as HTMLInputElement).value));
-    this.$('#astra-finish-date')?.addEventListener('change', (e) => this.handleInput('finish-date', (e.target as HTMLInputElement).value));
-    this.$('#astra-general-notes')?.addEventListener('input', (e) => this.handleInput('notes', (e.target as HTMLTextAreaElement).value));
-    this.$('#astra-manual-score')?.addEventListener('input', (e) => this.handleInput('manual-score', parseFloat((e.target as HTMLInputElement).value) || 0));
+    this.$('#astra-start-date')?.addEventListener('change', (e) =>
+      this.handleInput('start-date', (e.target as HTMLInputElement).value)
+    );
+    this.$('#astra-finish-date')?.addEventListener('change', (e) =>
+      this.handleInput('finish-date', (e.target as HTMLInputElement).value)
+    );
+    this.$('#astra-general-notes')?.addEventListener('input', (e) =>
+      this.handleInput('notes', (e.target as HTMLTextAreaElement).value)
+    );
+    this.$('#astra-manual-score')?.addEventListener('input', (e) =>
+      this.handleInput('manual-score', parseFloat((e.target as HTMLInputElement).value) || 0)
+    );
 
-    this.$$('.astra-list-option').forEach(opt => {
+    this.$$('.astra-list-option').forEach((opt) => {
       opt.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!this.store) return;
@@ -200,7 +269,7 @@ export class AstraScoreForm extends AstraView {
       });
     });
 
-    this.$$('.astra-dropdown-trigger').forEach(trigger => {
+    this.$$('.astra-dropdown-trigger').forEach((trigger) => {
       trigger.addEventListener('click', (e) => {
         e.stopPropagation();
         const parent = (e.currentTarget as HTMLElement).parentElement;
@@ -209,8 +278,12 @@ export class AstraScoreForm extends AstraView {
     });
 
     // Managed listener: removed on unmount to avoid stacking document listeners on re-mount.
-    this.addEventListener(document, 'click', () => this.$$('.astra-dropdown').forEach(d => d.classList.remove('active')));
-    this.$('#astra-save-btn')?.addEventListener('click', () => this.eventBus.emit('astra-save-request'));
+    this.addEventListener(document, 'click', () =>
+      this.$$('.astra-dropdown').forEach((d) => d.classList.remove('active'))
+    );
+    this.$('#astra-save-btn')?.addEventListener('click', () =>
+      this.eventBus.emit('astra-save-request')
+    );
   }
 
   private handleInput(field: string, value: any): void {
@@ -223,11 +296,15 @@ export class AstraScoreForm extends AstraView {
     else if (field === 'repeat') this.store.updateMediaListEntry({ repeat: value });
     else if (field === 'start-date') {
       const [y, m, d] = value.split('-').map(Number);
-      entry.startedAt = value ? { year: y, month: m, day: d } : { year: null, month: null, day: null };
+      entry.startedAt = value
+        ? { year: y, month: m, day: d }
+        : { year: null, month: null, day: null };
       this.store.setDirty(true);
     } else if (field === 'finish-date') {
       const [y, m, d] = value.split('-').map(Number);
-      entry.completedAt = value ? { year: y, month: m, day: d } : { year: null, month: null, day: null };
+      entry.completedAt = value
+        ? { year: y, month: m, day: d }
+        : { year: null, month: null, day: null };
       this.store.setDirty(true);
     } else if (field === 'customLists') {
       this.store.updateMediaListEntry({ customLists: value });
@@ -246,7 +323,8 @@ export class AstraScoreForm extends AstraView {
     Object.entries(consolidated).forEach(([id, val]) => {
       const el = document.getElementById(`avg-${id}`);
       if (el) {
-        const formatted = val === null || val === 0 ? '—' : (val % 1 === 0 ? val.toString() : val.toFixed(1));
+        const formatted =
+          val === null || val === 0 ? '—' : val % 1 === 0 ? val.toString() : val.toFixed(1);
         el.textContent = formatted;
         el.style.color = AstraRadarChart.getScoreColor(val);
       }

@@ -119,13 +119,17 @@ import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
 import type { ModuleMetadata } from '@core/interfaces/IModule';
 
 // Shared Components
-import { ActivityFilterBar, ActivityRenderer, CustomListTabManager } from '@/modules/activity/shared';
+import {
+  ActivityFilterBar,
+  ActivityRenderer,
+  CustomListTabManager,
+} from '@/modules/activity/shared';
 import { CustomListService } from '@/modules/social/CustomListService';
 import { SocialMaskingService } from '@core/services/SocialMaskingService';
 
 /**
  * Setup the DI container with all services.
- * 
+ *
  * @param isBackground Set to true if running in Service Worker context (no DOM)
  */
 export async function setupDI(isBackground = false): Promise<void> {
@@ -140,20 +144,14 @@ export async function setupDI(isBackground = false): Promise<void> {
 
   // Storage (Sync: config, preferences)
   container.register(TOKENS.Storage, {
-    useFactory: (c) => new StorageManager(
-      'sync',
-      c.resolve(TOKENS.Logger),
-      c.resolve(TOKENS.ErrorHandler)
-    )
+    useFactory: (c) =>
+      new StorageManager('sync', c.resolve(TOKENS.Logger), c.resolve(TOKENS.ErrorHandler)),
   });
 
   // Storage (Local: heavy data, Astra)
   container.register(TOKENS.LocalStorage, {
-    useFactory: (c) => new StorageManager(
-      'local',
-      c.resolve(TOKENS.Logger),
-      c.resolve(TOKENS.ErrorHandler)
-    )
+    useFactory: (c) =>
+      new StorageManager('local', c.resolve(TOKENS.Logger), c.resolve(TOKENS.ErrorHandler)),
   });
 
   // Event Bus (new instance, singleton via @injectable())
@@ -218,13 +216,13 @@ export async function setupDI(isBackground = false): Promise<void> {
   // Calendar Services
   container.registerSingleton(CalendarService);
   container.register(TOKENS.CalendarService, { useToken: CalendarService });
-  
+
   container.registerSingleton(CalendarDomService);
   container.register(TOKENS.CalendarDomService, { useToken: CalendarDomService });
-  
+
   container.registerSingleton(CalendarDataService);
   container.register(TOKENS.CalendarDataService, { useToken: CalendarDataService });
-  
+
   container.registerSingleton(CalendarSocialService);
   container.register(TOKENS.CalendarSocialService, { useToken: CalendarSocialService });
 
@@ -251,31 +249,31 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.registerSingleton(AstraSyncService);
   container.registerSingleton(AstraService);
   container.register(TOKENS.AstraService, { useToken: AstraService });
-  
+
   container.registerSingleton(AstraDashboardStore);
   container.register(TOKENS.AstraStore, { useToken: AstraDashboardStore });
-  
+
   container.registerSingleton(AstraFilterService);
   container.register(TOKENS.AstraFilterService, { useToken: AstraFilterService });
-  
+
   container.registerSingleton(AstraStatsService);
   container.register(TOKENS.AstraStatsService, { useToken: AstraStatsService });
-  
+
   container.registerSingleton(AstraJournalService);
   container.register(TOKENS.AstraJournalService, { useToken: AstraJournalService });
-  
+
   container.registerSingleton(AstraRatingService);
   container.register(TOKENS.IAstraRatingService, { useToken: AstraRatingService });
-  
+
   container.registerSingleton(AstraParserService);
   container.register(TOKENS.AstraParserService, { useToken: AstraParserService });
 
   container.registerSingleton(AstraSyncManager);
   container.register(TOKENS.AstraSyncManager, { useToken: AstraSyncManager });
-  
+
   container.registerSingleton(AstraRatingController);
   container.register(TOKENS.AstraRatingController, { useToken: AstraRatingController });
-  
+
   container.registerSingleton(AstraRatingHeader);
   container.registerSingleton(AstraScoreForm);
   container.registerSingleton(AstraStatusSelector);
@@ -287,35 +285,32 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.registerSingleton(AstraFilterBar);
   container.registerSingleton(AstraWorkTable);
   container.registerSingleton(AstraSettingsView);
-  
+
   container.registerSingleton(AstraDashboard);
   container.register(TOKENS.AstraDashboard, { useToken: AstraDashboard });
-  
+
   container.registerSingleton(PillUIBuilder);
   container.register(TOKENS.AstraPillBuilder, { useToken: PillUIBuilder });
-  
+
   container.registerSingleton(AstraEnhancementService);
   container.register(TOKENS.AstraEnhancementService, { useToken: AstraEnhancementService });
-  
+
   container.registerSingleton(AstraNavigationService);
   container.register(TOKENS.AstraNavigationService, { useToken: AstraNavigationService });
-  
+
   container.registerSingleton(AstraUIBridge);
   container.registerSingleton(AstraRoutingService);
   container.registerSingleton(AstraPillManager);
-  
+
   // Explicitly register AstraModule
   container.registerSingleton(AstraModule);
-  
+
   // Register Astra Strategies
   container.registerSingleton(HomeProgressStrategy);
   container.registerSingleton(UserListStrategy);
-  
+
   container.register(TOKENS.AstraStrategies, {
-    useFactory: (c) => [
-      c.resolve(HomeProgressStrategy),
-      c.resolve(UserListStrategy),
-    ]
+    useFactory: (c) => [c.resolve(HomeProgressStrategy), c.resolve(UserListStrategy)],
   });
   console.log('[Setup] Astra strategies registered');
 
@@ -386,7 +381,12 @@ export async function setupDI(isBackground = false): Promise<void> {
       description: 'Hover to see comments on activity feed',
       enabled: config.isFeatureEnabled('hoverComments'),
       factory: () => container.resolve(HoverCommentsModule),
-      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/') || path.startsWith('/activity/'),
+      pageMatch: (path) =>
+        path === '/' ||
+        path === '/home' ||
+        path.startsWith('/user/') ||
+        path.startsWith('/activity/') ||
+        /^\/(anime|manga)\/\d+/.test(path),
     },
     {
       name: 'notificationCleaner',
@@ -400,14 +400,22 @@ export async function setupDI(isBackground = false): Promise<void> {
       description: 'Show review ratings on cards',
       enabled: config.isFeatureEnabled('reviewEnhancer'),
       factory: () => container.resolve(ReviewEnhancerModule),
-      pageMatch: (path) => path === '/' || path === '/home' || path.includes('/reviews') || /^\/(anime|manga)\/\d+/.test(path),
+      pageMatch: (path) =>
+        path === '/' ||
+        path === '/home' ||
+        path.includes('/reviews') ||
+        /^\/(anime|manga)\/\d+/.test(path),
     },
     {
       name: 'activityEnhancer',
       description: 'Enhanced activity feed',
       enabled: config.isFeatureEnabled('socialActivity'),
       factory: () => container.resolve(ActivityEnhancerModule),
-      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/') || path.startsWith('/activity/'),
+      pageMatch: (path) =>
+        path === '/' ||
+        path === '/home' ||
+        path.startsWith('/user/') ||
+        path.startsWith('/activity/'),
     },
     {
       name: 'forumEnhancer',
@@ -421,7 +429,11 @@ export async function setupDI(isBackground = false): Promise<void> {
       description: 'Show scores in activity feed',
       enabled: config.isFeatureEnabled('activityScore'),
       factory: () => container.resolve(ActivityScoreModule),
-      pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/') || path.startsWith('/activity/'),
+      pageMatch: (path) =>
+        path === '/' ||
+        path === '/home' ||
+        path.startsWith('/user/') ||
+        path.startsWith('/activity/'),
     },
     {
       name: 'socialActivity',
@@ -484,7 +496,8 @@ export async function setupDI(isBackground = false): Promise<void> {
       description: 'Activity filtering on user profile',
       enabled: config.isFeatureEnabled('socialActivity'),
       factory: () => container.resolve(ProfileActivityModule),
-      pageMatch: (path) => path.startsWith('/user/') && !path.includes('/animelist') && !path.includes('/mangalist'),
+      pageMatch: (path) =>
+        path.startsWith('/user/') && !path.includes('/animelist') && !path.includes('/mangalist'),
     },
     {
       name: 'mediaMusic',

@@ -50,7 +50,7 @@ export class AstraRatingService implements IAstraRatingService {
 
       return {
         media: resp.Media,
-        allCustomLists: resp.Viewer?.mediaListOptions?.animeList?.customLists || []
+        allCustomLists: resp.Viewer?.mediaListOptions?.animeList?.customLists || [],
       };
     } catch (err) {
       log.error('[AstraRatingService] Failed to fetch initial data', err);
@@ -62,34 +62,43 @@ export class AstraRatingService implements IAstraRatingService {
     return this.getMediaRatingData(mediaId);
   }
 
-  public async updateProgress(mediaId: number, progress?: number): Promise<{ mediaId: number; progress: number; title: string }> {
+  public async updateProgress(
+    mediaId: number,
+    progress?: number
+  ): Promise<{ mediaId: number; progress: number; title: string }> {
     try {
       const userId = await this.api.getCurrentUserId();
       if (!userId) throw new Error('Not logged in');
 
-      const data = await this.api.query<any>(`
+      const data = await this.api.query<any>(
+        `
         query ($mediaId: Int, $userId: Int) {
           MediaList(mediaId: $mediaId, userId: $userId) {
             id progress status media { id title { userPreferred } }
           }
         }
-      `, { mediaId, userId });
+      `,
+        { mediaId, userId }
+      );
 
       if (!data?.MediaList) throw new Error('Entry not found');
 
       const entry = data.MediaList;
       const newProgress = progress ?? (entry.progress || 0) + 1;
 
-      await this.api.mutate(`
+      await this.api.mutate(
+        `
         mutation ($id: Int, $progress: Int) {
           SaveMediaListEntry(id: $id, progress: $progress) { id progress }
         }
-      `, { id: entry.id, progress: newProgress });
+      `,
+        { id: entry.id, progress: newProgress }
+      );
 
       return {
         mediaId: entry.media.id,
         progress: newProgress,
-        title: entry.media.title.userPreferred
+        title: entry.media.title.userPreferred,
       };
     } catch (err) {
       log.error('[AstraRatingService] Failed to update progress', err);
@@ -101,18 +110,21 @@ export class AstraRatingService implements IAstraRatingService {
    * Persists work locally and triggers AniList mutation.
    * If sync fails, it is queued for background retry.
    */
-  public async saveAndSync(work: AstraWork, extra: {
-    overallScore: number;
-    progress?: number;
-    repeat?: number;
-    private?: boolean;
-    hidden?: boolean;
-    notes?: string;
-    customLists?: string[];
-    startedAt?: any;
-    completedAt?: any;
-    skipSync?: boolean;
-  }): Promise<void> {
+  public async saveAndSync(
+    work: AstraWork,
+    extra: {
+      overallScore: number;
+      progress?: number;
+      repeat?: number;
+      private?: boolean;
+      hidden?: boolean;
+      notes?: string;
+      customLists?: string[];
+      startedAt?: any;
+      completedAt?: any;
+      skipSync?: boolean;
+    }
+  ): Promise<void> {
     log.debug(`[AstraRatingService] Saving work ${work.mediaId}...`);
 
     try {
@@ -146,7 +158,7 @@ export class AstraRatingService implements IAstraRatingService {
         notes: notesToSync,
         lists: extra.customLists || work.customLists,
         startedAt: extra.startedAt,
-        completedAt: extra.completedAt
+        completedAt: extra.completedAt,
       };
 
       if (extra.skipSync) {
@@ -175,7 +187,10 @@ export class AstraRatingService implements IAstraRatingService {
         await this.api.mutate(GQL_SAVE, payload);
         log.success(`[AstraRatingService] Sync completed for ${work.mediaId}`);
       } catch (syncErr) {
-        log.warn(`[AstraRatingService] Network sync failed for ${work.mediaId}. Enqueueing mutation.`, syncErr);
+        log.warn(
+          `[AstraRatingService] Network sync failed for ${work.mediaId}. Enqueueing mutation.`,
+          syncErr
+        );
 
         // 4. Persistence Fallback: Enqueue for background sync
         await this.syncQueue.enqueue('ASTRA_SAVE', payload);

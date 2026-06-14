@@ -80,7 +80,7 @@ export class PillUIBuilder {
     const wrapper = document.createElement('div');
     wrapper.className = 'au-pill-wrapper';
     wrapper.setAttribute('data-au-media-id', String(options.mediaId));
-    wrapper.style.zIndex = '999'; // Triple safety
+    wrapper.style.zIndex = '3';
     
     const pill = this.build(options);
     wrapper.appendChild(pill);

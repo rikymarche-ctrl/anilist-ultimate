@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import '@fortawesome/fontawesome-free/js/all.min.js';
 import { container } from '@core/di/container';
 import { TOKENS } from '@core/di/tokens';
 import { ConfigManager } from '@core/config/ConfigManager';

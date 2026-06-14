@@ -26,6 +26,7 @@ export class AstraDashboard extends AstraView {
   private overlay: HTMLElement | null = null;
   private activeTab: 'dashboard' | 'settings' = 'dashboard';
   private isOpening = false;
+  private dashboardHasEntries = false;
 
   constructor(
     @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
@@ -49,10 +50,14 @@ export class AstraDashboard extends AstraView {
     // Persistent subscription: survives rerenders and open/close cycles
     this.store.subscribe((state) => {
       const tabChanged = this.activeTab !== state.activeTab;
+      const hasEntries = state.stats.totalCount > 0;
+      const entryStateChanged = this.dashboardHasEntries !== hasEntries;
+
       this.activeTab = state.activeTab;
+      this.dashboardHasEntries = hasEntries;
 
       if (this.mounted) {
-        if (tabChanged) {
+        if (tabChanged || (this.activeTab === 'dashboard' && entryStateChanged)) {
           log.info(`[AstraDashboard] Tab changed to ${this.activeTab}, rerendering...`);
           this.rerender();
         } else {
@@ -156,19 +161,47 @@ export class AstraDashboard extends AstraView {
     this.settingsView.unmount();
 
     if (this.activeTab === 'dashboard') {
+      const state = this.store.getState();
+      const hasEntries = state.stats.totalCount > 0;
+      const headerActionsHtml = hasEntries
+        ? `
+          <div class="astra-dashboard-shell-actions">
+            <button type="button" class="astra-dashboard-action astra-dashboard-action--primary" id="astra-dashboard-sync">
+              <i class="fa-solid fa-rotate"></i>
+              <span>Sync</span>
+            </button>
+            <span class="astra-dashboard-action-separator"></span>
+            <button type="button" class="astra-dashboard-action" id="astra-dashboard-stats">
+              <i class="fa-solid fa-chart-line"></i>
+              <span>Stats</span>
+            </button>
+            <button type="button" class="astra-dashboard-action" id="astra-dashboard-table-view" title="Table view">
+              <i class="fa-solid fa-list"></i>
+            </button>
+            <span class="astra-dashboard-action-separator"></span>
+            <button type="button" class="astra-dashboard-action" id="astra-dashboard-export-wrapped">
+              <i class="fa-solid fa-image"></i>
+              <span>Export Wrapped</span>
+            </button>
+          </div>
+        `
+        : '';
+
       const layout = document.createElement('div');
       layout.className = 'astra-dashboard-layout';
       layout.innerHTML = `
-        <div id="astra-stats-mount"></div>
+        <header class="astra-dashboard-shell-header">
+          <h2>Astra Dashboard</h2>
+          ${headerActionsHtml}
+        </header>
         <div id="astra-filters-mount"></div>
         <div id="astra-table-mount"></div>
       `;
       content.appendChild(layout);
-      
-      const state = this.store.getState();
-      this.statsHeader.mount(this.$('#astra-stats-mount')!, state.stats);
+
       this.filterBar.mount(this.$('#astra-filters-mount')!, state);
       this.workTable.mount(this.$('#astra-table-mount')!, state);
+      this.bindDashboardHeaderEvents(layout);
     } else {
       this.settingsView.mount(content);
     }
@@ -179,10 +212,26 @@ export class AstraDashboard extends AstraView {
    */
   private refreshComponents(state: IDashboardState): void {
     if (this.activeTab === 'dashboard') {
-      this.statsHeader.update(state.stats);
       this.filterBar.update(state);
       this.workTable.update(state);
     }
+  }
+
+  private bindDashboardHeaderEvents(layout: HTMLElement): void {
+    layout.querySelector('#astra-dashboard-sync')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+      button.innerHTML = '<i class="fa-solid fa-rotate fa-spin"></i><span>Syncing</span>';
+      try {
+        await this.service.syncWithAniList();
+      } catch (error) {
+        log.error('[AstraDashboard] Sync failed', error);
+      } finally {
+        button.disabled = false;
+        button.innerHTML = '<i class="fa-solid fa-rotate"></i><span>Sync</span>';
+      }
+    });
+
   }
 
   /**

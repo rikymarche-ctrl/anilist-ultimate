@@ -261,6 +261,9 @@ export class MediaSocialEnhancer extends BaseModule {
     this.filterBar.reset();
 
     bar.classList.add('au-media-social-bar');
+    if (isSocialPage) {
+      bar.classList.add('au-media-social-page-bar');
+    }
     bar.style.setProperty('margin-top', '12px', 'important');
     bar.style.setProperty('margin-bottom', '8px', 'important');
     bar.style.width = '100%';

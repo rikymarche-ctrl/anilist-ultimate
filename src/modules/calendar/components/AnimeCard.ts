@@ -101,7 +101,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         socialShowAvatars: state.preferences.socialShowAvatars,
       }),
       (curr: any, prev: any) => {
-        if (curr.socialEnabled !== prev.socialEnabled || curr.socialShowAvatars !== prev.socialShowAvatars) {
+        if (
+          curr.socialEnabled !== prev.socialEnabled ||
+          curr.socialShowAvatars !== prev.socialShowAvatars
+        ) {
           // 1. Surgically patch the pill (immediate, no rerender needed)
           this.refreshPillSocialButton();
           // 2. Sync the floating portal
@@ -123,7 +126,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     // 1. If options changed (layout mode, etc.), we need a full rerender
     if (JSON.stringify(prevOptions) !== JSON.stringify(options)) {
-      return false; 
+      return false;
     }
 
     // 2. Surgical update for Anime data changes
@@ -154,8 +157,8 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
       // Social portal update (if activity changed)
       if (JSON.stringify(prevAnime.friendActivity) !== JSON.stringify(anime.friendActivity)) {
-         this.destroySocialPortal();
-         this.syncSocialPortal();
+        this.destroySocialPortal();
+        this.syncSocialPortal();
       }
 
       return true; // Handled surgically
@@ -232,7 +235,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const showPillSocial = socialEnabled && !socialShowAvatars;
 
     // Use cached query instead of querying every time
-    this.getActionPills().forEach(pill => {
+    this.getActionPills().forEach((pill) => {
       // Remove existing social separator + button (the separator immediately before the social btn)
       const existingSocialBtn = pill.querySelector<HTMLElement>('[data-action="social-activity"]');
       if (existingSocialBtn) {
@@ -279,7 +282,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const episodesBehind = Math.max(0, available - watched);
     const isBehind = episodesBehind > 0;
 
-    let episodeStr = "";
+    let episodeStr = '';
     if (isBehind) {
       episodeStr = total ? `${watched}/${available}/${total}` : `${watched}/${available}`;
     } else {
@@ -287,7 +290,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       if (total && total > 1) {
         episodeStr = `${watched}/${total}`;
       } else if (total === 1 && watched === 1) {
-        episodeStr = "1";
+        episodeStr = '1';
       } else {
         episodeStr = `${watched}`;
       }
@@ -299,11 +302,19 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   /**
    * Render action pill (mark watched, edit, optional social)
    */
-  private renderActionPill(socialSection: HTMLElement | null, compact: boolean = false): HTMLElement {
+  private renderActionPill(
+    socialSection: HTMLElement | null,
+    compact: boolean = false
+  ): HTMLElement {
     const compactClass = compact ? ' action-pill--compact' : '';
     const pill = html`
       <div class="action-pill${compactClass}" role="toolbar" aria-label="Anime actions">
-        <button type="button" class="pill-section" data-action="mark-watched" aria-label="Mark episode as watched">
+        <button
+          type="button"
+          class="pill-section"
+          data-action="mark-watched"
+          aria-label="Mark episode as watched"
+        >
           <i class="fa fa-plus" aria-hidden="true"></i>
         </button>
       </div>
@@ -331,7 +342,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     const showPillSocial = socialEnabled && !socialShowAvatars;
     let socialSection: HTMLElement | null = null;
-    
+
     if (showPillSocial) {
       const container = document.createElement('div');
       container.style.display = 'contents';
@@ -349,7 +360,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
     // Common elements
     const title = html`<h3 class="anime-card__title">${anime.cleanTitle}</h3>`;
-    
+
     let episode: HTMLElement | null = null;
     if (showEpisodeNumbers) {
       episode = html`<span class="anime-card__episode"></span>`;
@@ -367,10 +378,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         <div style="display: contents;">
           <div class="anime-card__compact-content">
             ${title}
-            <div class="anime-card__meta">
-              ${episode}
-              ${time}
-            </div>
+            <div class="anime-card__meta">${episode} ${time}</div>
           </div>
           <div class="anime-card__action anime-card__action--compact">
             ${this.renderActionPill(socialSection, true)}
@@ -393,10 +401,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
           <div class="anime-card__content">
             ${title}
             <div class="anime-card__details">
-              <div class="anime-card__meta-row">
-                ${episode}
-                ${time}
-              </div>
+              <div class="anime-card__meta-row">${episode} ${time}</div>
             </div>
           </div>
           <div class="anime-card__action anime-card__action--extended">
@@ -419,10 +424,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         </div>
         <div class="anime-card__content">
           ${title}
-          <div class="anime-card__meta">
-            ${episode}
-            ${time}
-          </div>
+          <div class="anime-card__meta">${episode} ${time}</div>
         </div>
         <div class="anime-card__action anime-card__action--standard">
           ${this.renderActionPill(socialSection)}
@@ -435,7 +437,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     let timeText: string;
 
     if (timeFormat === 'countdown') {
-      const secondsRemaining = Math.max(0, Math.floor((anime.airingAt.getTime() - Date.now()) / 1000));
+      const secondsRemaining = Math.max(
+        0,
+        Math.floor((anime.airingAt.getTime() - Date.now()) / 1000)
+      );
       timeText = this.calendarService.formatTimeUntilAiring(secondsRemaining);
     } else {
       timeText = this.calendarService.formatAiringTime(anime.airingAt);
@@ -478,12 +483,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       this.addEventListener(markWatchedBtn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         // Visual feedback
         const btn = markWatchedBtn as HTMLElement;
         btn.classList.add('au-pill-pressed');
         setTimeout(() => btn.classList.remove('au-pill-pressed'), 300);
-        
+
         this.handleMarkWatched();
       });
     }
@@ -494,12 +499,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       this.addEventListener(editBtn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         // Visual feedback
         const btn = editBtn as HTMLElement;
         btn.classList.add('au-pill-pressed');
         setTimeout(() => btn.classList.remove('au-pill-pressed'), 300);
-        
+
         this.handleEditEntry();
       });
     }
@@ -510,12 +515,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       this.addEventListener(socialBtn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        
+
         // Visual feedback
         const btn = socialBtn as HTMLElement;
         btn.classList.add('au-pill-pressed');
         setTimeout(() => btn.classList.remove('au-pill-pressed'), 300);
-        
+
         this.handleSocialActivity();
       });
     }
@@ -527,8 +532,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
         const episodesBehind = Math.max(0, lastAired - this.props.anime.progress);
         if (episodesBehind > 0) {
           const remaining = episodesBehind - 1;
-          const text = remaining <= 0 ? "You'll be caught up!" :
-            (remaining === 1 ? '1 episode will remain' : `${remaining} episodes will remain`);
+          const text =
+            remaining <= 0
+              ? "You'll be caught up!"
+              : remaining === 1
+                ? '1 episode will remain'
+                : `${remaining} episodes will remain`;
           this.showCardTooltip(text, e as MouseEvent);
         } else {
           const nextEp = this.props.anime.episode;
@@ -571,9 +580,16 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
   private handleSocialActivity(): void {
     const { anime } = this.props;
     // Emit custom event for SocialSidebar to handle
-    window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-      detail: { mediaId: anime.mediaId, title: anime.cleanTitle, element: this.element, type: 'ANIME' }
-    }));
+    window.dispatchEvent(
+      new CustomEvent('au-open-social-sidebar', {
+        detail: {
+          mediaId: anime.mediaId,
+          title: anime.cleanTitle,
+          element: this.element,
+          type: 'ANIME',
+        },
+      })
+    );
   }
 
   private handleEditEntry(): void {
@@ -585,9 +601,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const { anime, options } = this.props;
 
     if (options.onMarkWatched) {
-      const pillSection = this.element.querySelector(
-        '[data-action="mark-watched"]'
-      ) as HTMLElement;
+      const pillSection = this.element.querySelector('[data-action="mark-watched"]') as HTMLElement;
 
       // Show loading spinner in pill
       if (pillSection) {
@@ -639,7 +653,6 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     if (tip) tip.style.display = 'none';
   }
 
-
   public updateTime(timeFormat: 'release' | 'countdown'): void {
     const timeElement = this.element.querySelector('.anime-card__time');
     if (!timeElement) return;
@@ -647,7 +660,10 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const { anime } = this.props;
 
     if (timeFormat === 'countdown') {
-      const secondsRemaining = Math.max(0, Math.floor((anime.airingAt.getTime() - Date.now()) / 1000));
+      const secondsRemaining = Math.max(
+        0,
+        Math.floor((anime.airingAt.getTime() - Date.now()) / 1000)
+      );
       timeElement.textContent = this.calendarService.formatTimeUntilAiring(secondsRemaining);
     } else {
       timeElement.textContent = this.calendarService.formatAiringTime(anime.airingAt);

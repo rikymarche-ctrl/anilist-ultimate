@@ -42,7 +42,13 @@ function makeMocks() {
     getSections: vi.fn(() => []),
     getWorks: vi.fn(() => []),
     getFullWork: vi.fn(async () => undefined),
-    createDefaultSeason: vi.fn(() => ({ id: 's', label: 'S1', scores: {}, skip: [], episodeNotes: {} })),
+    createDefaultSeason: vi.fn(() => ({
+      id: 's',
+      label: 'S1',
+      scores: {},
+      skip: [],
+      episodeNotes: {},
+    })),
     saveWork: vi.fn(async () => ({})),
     persist: vi.fn(async () => {}),
   };
@@ -54,7 +60,12 @@ function makeMocks() {
 describe('AstraSyncService.syncWithAniList', () => {
   it('imports a new AniList entry and reports it as added', async () => {
     const { api, repository, parser, eventBus } = makeMocks();
-    const service = new AstraSyncService(api as any, repository as any, parser as any, eventBus as any);
+    const service = new AstraSyncService(
+      api as any,
+      repository as any,
+      parser as any,
+      eventBus as any
+    );
 
     const result = await service.syncWithAniList();
 
@@ -66,7 +77,12 @@ describe('AstraSyncService.syncWithAniList', () => {
   it('defers the manifest write: saveWork is called with skipPersist=true and persist() once', async () => {
     // Regression guard for the O(n^2) sync fix.
     const { api, repository, parser, eventBus } = makeMocks();
-    const service = new AstraSyncService(api as any, repository as any, parser as any, eventBus as any);
+    const service = new AstraSyncService(
+      api as any,
+      repository as any,
+      parser as any,
+      eventBus as any
+    );
 
     await service.syncWithAniList();
 
@@ -76,7 +92,12 @@ describe('AstraSyncService.syncWithAniList', () => {
 
   it('queries both ANIME and MANGA collections', async () => {
     const { api, repository, parser, eventBus } = makeMocks();
-    const service = new AstraSyncService(api as any, repository as any, parser as any, eventBus as any);
+    const service = new AstraSyncService(
+      api as any,
+      repository as any,
+      parser as any,
+      eventBus as any
+    );
 
     await service.syncWithAniList();
 
@@ -87,7 +108,12 @@ describe('AstraSyncService.syncWithAniList', () => {
 
   it('emits ASTRA_SYNC_COMPLETE with the counts', async () => {
     const { api, repository, parser, eventBus } = makeMocks();
-    const service = new AstraSyncService(api as any, repository as any, parser as any, eventBus as any);
+    const service = new AstraSyncService(
+      api as any,
+      repository as any,
+      parser as any,
+      eventBus as any
+    );
 
     await service.syncWithAniList();
 

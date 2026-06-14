@@ -33,7 +33,12 @@ export class AstraFilterService implements IFilterService {
 
     // 3. AniList Status Filter
     if (filters.anilistStatus !== 'all') {
-      result = result.filter(w => w.status === filters.anilistStatus);
+      const statuses = Array.isArray(filters.anilistStatus)
+        ? filters.anilistStatus
+        : [filters.anilistStatus];
+      result = statuses.length > 0
+        ? result.filter(w => statuses.includes(w.status))
+        : result;
     }
 
     // 4. Country Filter

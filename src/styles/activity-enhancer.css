@@ -267,7 +267,8 @@
 
 .au-custom-list-item.active::after {
   content: '\f00c';
-  font-family: 'FontAwesome';
+  font-family: 'Font Awesome 7 Free';
+  font-weight: 900;
   font-size: 1.1rem;
   opacity: 0.9;
 }
@@ -463,15 +464,11 @@
   margin-bottom: 15px !important;
 }
 
-/* Static Search Bar for Media Pages */
-.au-media-social-bar .au-activity-search {
-  transition: none !important;
-  width: 160px !important;
+/* Static Search Bar for the compact media social page. Home keeps its expansion. */
+.au-media-social-page-bar .au-search-container,
+.au-media-social-page-bar .au-search-container:focus-within {
+  width: 150px !important;
   margin-right: 0 !important;
-}
-
-.au-media-social-bar .au-activity-search:focus-within {
-  width: 160px !important;
 }
 
 /* Home Page Symmetry */

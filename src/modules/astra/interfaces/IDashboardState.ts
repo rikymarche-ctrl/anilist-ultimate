@@ -25,7 +25,7 @@ export interface IDashboardFilters {
   search: string;
   type: 'all' | 'anime' | 'manga' | 'novel';
   ratingStatus: 'all' | 'rated' | 'unrated';
-  anilistStatus: 'all' | MediaListStatus;
+  anilistStatus: 'all' | MediaListStatus[];
   country: 'all' | string;
   isGrouped: boolean;
 }

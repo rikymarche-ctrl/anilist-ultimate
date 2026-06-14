@@ -67,7 +67,7 @@ export class ConfigManager implements IConfigManager {
    */
   async load(): Promise<void> {
     try {
-      const stored = await this.storage.get(this.STORAGE_KEY) as Partial<AppConfig> | null;
+      const stored = (await this.storage.get(this.STORAGE_KEY)) as Partial<AppConfig> | null;
 
       if (stored) {
         // Merge stored config with defaults (in case new keys were added)
@@ -144,7 +144,10 @@ export class ConfigManager implements IConfigManager {
 
     // Notify listeners (both specific feature and general features)
     this.notifyListeners(`features.${feature}`, enabled, oldValue);
-    this.notifyListeners('features', this.config.features, { ...this.config.features, [feature]: oldValue });
+    this.notifyListeners('features', this.config.features, {
+      ...this.config.features,
+      [feature]: oldValue,
+    });
 
     // Emit CONFIG_CHANGED event
     this.eventBus?.emit(EVENT_TYPES.CONFIG_CHANGED, {
@@ -202,7 +205,11 @@ export class ConfigManager implements IConfigManager {
   /**
    * Notify change listeners
    */
-  private notifyListeners<K extends keyof AppConfig>(key: K | string, newValue: any, oldValue?: any): void {
+  private notifyListeners<K extends keyof AppConfig>(
+    key: K | string,
+    newValue: any,
+    oldValue?: any
+  ): void {
     const listeners = this.listeners.get(String(key));
 
     if (listeners && listeners.size > 0) {

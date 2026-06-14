@@ -128,7 +128,10 @@ export class AstraService {
   public updateSubSectionWeight(sectionId: string, subId: string, weight: number): Promise<void> { return this.repository.updateSubSectionWeight(sectionId, subId, weight); }
   public exportJSON(): Promise<string> { return this.repository.exportJSON(); }
   public importJSON(json: string): Promise<boolean> { return this.repository.importJSON(json); }
-  public factoryReset(): Promise<void> { return this.repository.factoryReset(); }
+  public async factoryReset(): Promise<void> {
+    await this.repository.factoryReset();
+    this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {});
+  }
 
   public calcSectionScore(section: AstraSection, scores: Record<string, number | null>): number | null {
     return AstraCalculator.calcSectionScore(section, scores);

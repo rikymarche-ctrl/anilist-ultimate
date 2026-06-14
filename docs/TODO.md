@@ -68,6 +68,8 @@
 
 ## 🛠️ Fixes & UX Improvements
 
+- [ ] **Notification wording bug**: sistemare il bug/testo tipo "liked comment reply" / reply-like/comment-like, evitando label ambigue o concatenate male.
+- [ ] **Astra Wrapped tracking locale**: dopo l'import iniziale da AniList, tracciare in locale eventi episodio/capitolo come tuple ottimizzate (`mediaId`, unità, timestamp, status/progress precedente) per sapere esattamente quando è stato visto/letto ogni episodio e permettere recap per periodo senza dipendere dalle date mergeate di AniList.
 - [ ] **Riprogettazione Flussi Iniezione**: Studiare tutte le combinazioni (Calendar ON/OFF, Astra ON/OFF) per decidere il comportamento ideale della Pillola/Capsula in ogni scenario (Home, Liste, Calendar).
 - [ ] **Fix Astra Dashboard**: Risolvere il blocco totale della dashboard (probabile conflitto DI o Storage).
 - [ ] **Slider Arrows Bug**: Le freccette degli slider rimangono visibili anche senza contenuto.

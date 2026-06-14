@@ -1313,7 +1313,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .astra-checkbox.checked::after {
   content: '\f00c';
-  font-family: 'Font Awesome 5 Free';
+  font-family: 'Font Awesome 7 Free';
   font-weight: 900;
   color: white;
   font-size: 10px;
@@ -4084,6 +4084,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   position: relative;
 }
 
+.media-preview-card.au-astra-card:hover {
+  z-index: 20;
+}
+
 /* Hide native AniList progress overlays ONLY on cards managed by Astra */
 .media-preview-card.au-astra-card .image-overlay .plus-progress,
 .media-preview-card.au-astra-card .image-overlay .progress-bar,
@@ -4153,6 +4157,15 @@ body.au-astra-enabled .section-header .friend-activity-button {
   background: rgba(0, 0, 0, 0.4);
   /* Slightly darker overlay */
   border-radius: 4px;
+}
+
+/* AniList discovery preview cards render their title/status overlay inside the
+   cover. Keep Astra's pill above the cover without dimming that native overlay. */
+.media-preview-card .cover > .au-pill-wrapper,
+.media-preview-card .image > .au-pill-wrapper,
+.media-preview-card .img > .au-pill-wrapper {
+  background: transparent !important;
+  backdrop-filter: none !important;
 }
 
 .media-preview-card:hover .au-pill-wrapper {
@@ -4480,6 +4493,937 @@ body.au-astra-enabled .section-header .friend-activity-button {
   border-color: var(--astra-accent);
   box-shadow: 0 0 0 3px var(--astra-accent-a10);
   outline: none;
+}
+
+/* Dashboard classic layout restoration */
+.astra-modal--dashboard .astra-dashboard-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 28px 24px 24px !important;
+  box-sizing: border-box !important;
+}
+
+.astra-modal--dashboard #astra-filters-mount {
+  flex: 0 0 auto !important;
+}
+
+.astra-modal--dashboard #astra-stats-mount {
+  display: none !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-shell-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  flex: 0 0 auto !important;
+  min-height: 48px !important;
+  padding: 0 0 18px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055) !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-shell-header h2 {
+  margin: 0 !important;
+  color: var(--astra-text) !important;
+  font-size: 28px !important;
+  font-weight: 850 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-shell-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 0 0 auto !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-action {
+  height: 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.055) !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  color: var(--astra-muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-action i {
+  font-size: 11px !important;
+  opacity: 0.82 !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-action:hover {
+  color: var(--astra-text) !important;
+  border-color: rgba(var(--astra-accent-rgb), 0.32) !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-action:disabled {
+  opacity: 0.55 !important;
+  cursor: wait !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-action--primary {
+  border-color: rgba(var(--astra-accent-rgb), 0.35) !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-action-separator {
+  width: 1px !important;
+  height: 22px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  margin: 0 4px !important;
+  flex: 0 0 auto !important;
+}
+
+.astra-modal--dashboard #astra-table-mount {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.astra-modal--dashboard .astra-stats-strip {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(220px, 1fr)) minmax(240px, 1.1fr) !important;
+  grid-template-areas:
+    "total average completed"
+    "other planned distribution" !important;
+  gap: 16px !important;
+  padding: 20px 0 0 !important;
+  align-items: stretch !important;
+}
+
+.astra-modal--dashboard .astra-stats-strip .astra-stat-card:nth-child(1) {
+  grid-area: total;
+}
+
+.astra-modal--dashboard .astra-stats-strip .astra-stat-card:nth-child(2) {
+  grid-area: average;
+}
+
+.astra-modal--dashboard .astra-stats-strip .astra-stat-card:nth-child(4) {
+  grid-area: completed;
+}
+
+.astra-modal--dashboard .astra-stats-strip .astra-stat-card:nth-child(5) {
+  grid-area: other;
+}
+
+.astra-modal--dashboard .astra-stats-strip .astra-stat-card:nth-child(6) {
+  grid-area: planned;
+}
+
+.astra-modal--dashboard .astra-stat-divider,
+.astra-modal--dashboard .astra-stat-spacer {
+  display: none !important;
+}
+
+.astra-modal--dashboard .astra-distribution-mini {
+  grid-area: distribution !important;
+  min-height: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  align-self: stretch !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+
+.astra-modal--dashboard .astra-stat-card {
+  min-height: 92px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-controls {
+  display: grid !important;
+  grid-template-columns: minmax(300px, 400px) minmax(380px, 1fr) minmax(180px, 220px) !important;
+  grid-template-areas:
+    "search search search"
+    "filters status sort" !important;
+  gap: 14px 36px !important;
+  align-items: end !important;
+  padding-bottom: 18px !important;
+  max-width: 1180px !important;
+}
+
+.astra-modal--dashboard .astra-search-box-row {
+  grid-area: search !important;
+  width: 100% !important;
+}
+
+.astra-modal--dashboard .astra-search-box {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.astra-modal--dashboard .astra-filter-bar {
+  display: contents !important;
+}
+
+.astra-modal--dashboard .astra-filter-group:first-child {
+  grid-area: filters !important;
+  display: grid !important;
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) !important;
+  gap: 8px 12px !important;
+  min-width: 0 !important;
+}
+
+.astra-modal--dashboard .astra-filter-group:last-child {
+  grid-area: sort !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  min-width: 180px !important;
+  align-self: end !important;
+}
+
+.astra-modal--dashboard .astra-filter-group--status {
+  grid-area: status !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  align-self: end !important;
+}
+
+.astra-modal--dashboard .astra-status-toggle-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+.astra-modal--dashboard .astra-status-toggle {
+  height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 0 11px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--astra-border) !important;
+  background: var(--astra-bg-elev) !important;
+  color: var(--astra-muted) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease !important;
+}
+
+.astra-modal--dashboard .astra-status-toggle i {
+  font-size: 11px !important;
+  opacity: 0.75 !important;
+}
+
+.astra-modal--dashboard .astra-status-toggle:hover {
+  border-color: var(--astra-accent-a50) !important;
+  color: var(--astra-text) !important;
+}
+
+.astra-modal--dashboard .astra-status-toggle.active {
+  border-color: var(--astra-accent) !important;
+  background: var(--astra-accent-a10) !important;
+  color: var(--astra-accent) !important;
+}
+
+.astra-modal--dashboard .astra-status-toggle.is-secondary {
+  border-color: rgba(45, 212, 191, 0.6) !important;
+  background: rgba(45, 212, 191, 0.1) !important;
+  color: #2dd4bf !important;
+}
+
+.astra-modal--dashboard .astra-filter-spacer,
+.astra-modal--dashboard .astra-filter-divider {
+  display: none !important;
+}
+
+.astra-modal--dashboard .astra-filter-select {
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 28px !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--astra-border) !important;
+  background: var(--astra-bg-elev) !important;
+  color: var(--astra-text) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.astra-modal--dashboard .astra-filter-label {
+  color: var(--astra-muted) !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+}
+
+.astra-modal--dashboard .astra-empty-state {
+  min-height: 240px !important;
+  margin-top: 14px !important;
+  border: 1px dashed var(--astra-accent-a30, rgba(139, 92, 246, 0.3)) !important;
+  border-radius: 10px !important;
+  background: rgba(139, 92, 246, 0.04) !important;
+  flex: 1 1 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+}
+
+.astra-modal--dashboard .astra-table-wrap {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+
+.astra-modal--dashboard .astra-table-wrap:has(.astra-empty-state--importer) {
+  display: flex !important;
+}
+
+/* ===================================================================== */
+/* Astra Portal — first-run onboarding / importer empty state            */
+/* ===================================================================== */
+.astra-modal--dashboard .astra-empty-state--importer {
+  position: relative !important;
+  width: fit-content !important;
+  height: fit-content !important;
+  min-height: 0 !important;
+  flex: 0 0 auto !important;
+  margin: auto !important;
+  padding: 0 200px !important;
+  border: none !important;
+  background: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  isolation: isolate !important;
+}
+
+.astra-modal--dashboard .astra-empty-state--importer::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 46px !important;
+  bottom: 46px !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 0 !important;
+  border: 1px dashed rgba(var(--astra-accent-rgb), 0.28) !important;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(90% 70% at 50% 0%, rgba(var(--astra-accent-rgb), 0.06), transparent 60%),
+    rgba(8, 11, 17, 0.45) !important;
+  pointer-events: none !important;
+  transition: border-color 0.2s ease, background-color 0.2s ease !important;
+}
+
+.astra-modal--dashboard .astra-empty-state--importer.is-dragover::before {
+  border-color: rgba(var(--astra-accent-rgb), 0.75) !important;
+  background:
+    radial-gradient(90% 70% at 50% 0%, rgba(var(--astra-accent-rgb), 0.14), transparent 60%),
+    rgba(var(--astra-accent-rgb), 0.06) !important;
+}
+
+.astra-modal--dashboard .astra-empty-state--importer .astra-portal-card {
+  z-index: 1 !important;
+}
+
+/* --- Ambient layers --- */
+.astra-modal--dashboard .astra-portal-aurora,
+.astra-modal--dashboard .astra-portal-stars,
+.astra-modal--dashboard .astra-portal-grid {
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+.astra-modal--dashboard .astra-portal-aurora {
+  background:
+    radial-gradient(40% 50% at 20% 30%, rgba(var(--astra-accent-rgb), 0.28), transparent 70%),
+    radial-gradient(38% 46% at 82% 64%, rgba(120, 90, 255, 0.22), transparent 72%),
+    radial-gradient(45% 40% at 55% 110%, rgba(var(--astra-accent-rgb), 0.20), transparent 70%) !important;
+  filter: blur(20px) saturate(1.1) !important;
+  opacity: 0.85 !important;
+  animation: astraPortalDrift 18s ease-in-out infinite alternate !important;
+}
+
+.astra-modal--dashboard .astra-portal-grid {
+  background-image:
+    linear-gradient(rgba(var(--astra-accent-rgb), 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--astra-accent-rgb), 0.05) 1px, transparent 1px) !important;
+  background-size: 46px 46px !important;
+  mask-image: radial-gradient(70% 70% at 50% 45%, #000 0%, transparent 78%) !important;
+  -webkit-mask-image: radial-gradient(70% 70% at 50% 45%, #000 0%, transparent 78%) !important;
+  opacity: 0.5 !important;
+}
+
+.astra-modal--dashboard .astra-portal-stars {
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 22%, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1.2px 1.2px at 78% 14%, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.5px 1.5px at 64% 78%, rgba(var(--astra-accent-rgb), 0.9), transparent),
+    radial-gradient(1px 1px at 32% 64%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1.3px 1.3px at 88% 52%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 46% 34%, rgba(var(--astra-accent-rgb), 0.8), transparent),
+    radial-gradient(1.2px 1.2px at 22% 86%, rgba(255, 255, 255, 0.6), transparent) !important;
+  animation: astraPortalTwinkle 5.5s ease-in-out infinite !important;
+}
+
+@keyframes astraPortalDrift {
+  0%   { transform: translate3d(-2%, -1%, 0) scale(1.02); }
+  100% { transform: translate3d(3%, 2%, 0) scale(1.08); }
+}
+
+@keyframes astraPortalTwinkle {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.95; }
+}
+
+/* --- Card --- */
+.astra-modal--dashboard .astra-portal-card {
+  position: relative !important;
+  z-index: 1 !important;
+  width: min(700px, 96%) !important;
+  padding: 52px 56px 44px !important;
+  border-radius: 32px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012)),
+    rgba(12, 16, 23, 0.72) !important;
+  backdrop-filter: blur(16px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(var(--astra-accent-rgb), 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  text-align: center !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--dashboard .astra-portal-card::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  padding: 1px !important;
+  background: linear-gradient(140deg, rgba(var(--astra-accent-rgb), 0.55), transparent 38%, transparent 62%, rgba(var(--astra-accent-rgb), 0.4)) !important;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+  -webkit-mask-composite: xor !important;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+  mask-composite: exclude !important;
+  opacity: 0.28 !important;
+  pointer-events: none !important;
+}
+
+/* --- View switching (idle / syncing) --- */
+.astra-modal--dashboard .astra-portal-view {
+  display: none !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.astra-modal--dashboard .astra-portal-card[data-portal-state="idle"] .astra-portal-view--idle,
+.astra-modal--dashboard .astra-portal-card[data-portal-state="syncing"] .astra-portal-view--syncing {
+  display: flex !important;
+  animation: astraPortalFade 0.45s ease both !important;
+}
+
+@keyframes astraPortalFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Brand logo lockup --- */
+.astra-modal--dashboard .astra-portal-logo {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  margin-bottom: 14px !important;
+}
+
+.astra-modal--dashboard .astra-portal-mark {
+  width: 58px !important;
+  height: 58px !important;
+  fill: var(--astra-accent) !important;
+}
+
+.astra-modal--dashboard .astra-portal-logo--pulsing .astra-portal-mark {
+  animation: astraPortalPulse 1.6s ease-in-out infinite !important;
+}
+
+@keyframes astraPortalPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.1); opacity: 0.75; }
+}
+
+/* --- Copy --- */
+.astra-modal--dashboard .astra-portal-eyebrow {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 4px 12px !important;
+  margin-bottom: 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(var(--astra-accent-rgb), 0.3) !important;
+  background: rgba(var(--astra-accent-rgb), 0.10) !important;
+  color: var(--astra-accent) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+}
+
+.astra-modal--dashboard .astra-portal-title {
+  margin: 0 !important;
+  color: var(--astra-text) !important;
+  font-size: 32px !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.15 !important;
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.72)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.astra-modal--dashboard .astra-portal-sub {
+  max-width: 460px !important;
+  margin: 12px auto 0 !important;
+  color: var(--astra-muted) !important;
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+}
+
+/* --- Actions --- */
+.astra-modal--dashboard .astra-portal-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  max-width: 320px !important;
+  gap: 12px !important;
+  margin: 32px auto 0 !important;
+}
+
+.astra-modal--dashboard .astra-portal-btn {
+  position: relative !important;
+  width: 100% !important;
+  height: 50px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 9px !important;
+  padding: 0 22px !important;
+  border-radius: 13px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  overflow: hidden !important;
+  transition: transform 0.16s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease !important;
+}
+
+.astra-modal--dashboard .astra-portal-btn i {
+  font-size: 14px !important;
+}
+
+.astra-modal--dashboard .astra-portal-btn:hover {
+  transform: translateY(-2px) !important;
+}
+
+.astra-modal--dashboard .astra-portal-btn--primary {
+  border: 1px solid rgba(var(--astra-accent-rgb), 0.35) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--astra-text-dim) !important;
+}
+
+.astra-modal--dashboard .astra-portal-btn--primary:hover {
+  border-color: rgba(var(--astra-accent-rgb), 0.5) !important;
+  background: rgba(var(--astra-accent-rgb), 0.10) !important;
+  color: var(--astra-text) !important;
+}
+
+.astra-modal--dashboard .astra-portal-btn--ghost {
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--astra-text-dim) !important;
+}
+
+.astra-modal--dashboard .astra-portal-btn--ghost:hover {
+  border-color: rgba(var(--astra-accent-rgb), 0.5) !important;
+  background: rgba(var(--astra-accent-rgb), 0.10) !important;
+  color: var(--astra-text) !important;
+}
+
+/* --- Feature row --- */
+.astra-modal--dashboard .astra-portal-features {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 14px !important;
+  margin-top: 24px !important;
+  padding-top: 20px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  width: 100% !important;
+}
+
+.astra-modal--dashboard .astra-portal-feature {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  color: var(--astra-muted) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.astra-modal--dashboard .astra-portal-feature i {
+  color: var(--astra-accent) !important;
+  font-size: 12px !important;
+}
+
+.astra-modal--dashboard .astra-portal-feature-sep {
+  width: 4px !important;
+  height: 4px !important;
+  border-radius: 50% !important;
+  background: rgba(var(--astra-accent-rgb), 0.4) !important;
+}
+
+/* --- Syncing progress bar --- */
+.astra-modal--dashboard .astra-portal-progress {
+  position: relative !important;
+  width: min(300px, 80%) !important;
+  height: 6px !important;
+  margin-top: 22px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--dashboard .astra-portal-progress-bar {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100% !important;
+  width: 40% !important;
+  border-radius: inherit !important;
+  background: linear-gradient(90deg, transparent, var(--astra-accent), transparent) !important;
+  box-shadow: 0 0 12px 1px rgba(var(--astra-accent-rgb), 0.6) !important;
+  animation: astraPortalIndeterminate 1.4s ease-in-out infinite !important;
+}
+
+@keyframes astraPortalIndeterminate {
+  0%   { left: -45%; }
+  100% { left: 105%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astra-modal--dashboard .astra-portal-aurora,
+  .astra-modal--dashboard .astra-portal-stars,
+  .astra-modal--dashboard .astra-portal-logo-glow,
+  .astra-modal--dashboard .astra-portal-orbit--spin,
+  .astra-modal--dashboard .astra-portal-logo--pulsing .astra-portal-badge,
+  .astra-modal--dashboard .astra-portal-btn-shine {
+    animation: none !important;
+  }
+}
+
+/* Astra dashboard filter toolbar target layout */
+.astra-modal--dashboard .astra-dashboard-controls--toolbar {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 0 16px !important;
+  box-sizing: border-box !important;
+}
+
+.astra-modal--dashboard .astra-search-box--toolbar {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 220px !important;
+  max-width: none !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  position: relative !important;
+  padding: 0 10px 0 20px !important;
+  border: 1px solid rgba(var(--astra-accent-rgb), 0.12) !important;
+  border-radius: 7px !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+.astra-modal--dashboard .astra-search-box--toolbar i {
+  position: absolute !important;
+  left: 3px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 1 !important;
+  color: var(--astra-muted) !important;
+  font-size: 14px !important;
+  pointer-events: none !important;
+}
+
+.astra-modal--dashboard .astra-search-box--toolbar input {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  color: var(--astra-text) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  outline: none !important;
+}
+
+.astra-modal--dashboard .astra-search-box--toolbar:focus-within {
+  border-color: var(--astra-accent-a50) !important;
+  box-shadow: 0 0 0 1px var(--astra-accent-a20) !important;
+}
+
+.astra-modal--dashboard .astra-filter-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  padding-bottom: 2px !important;
+  scrollbar-width: thin !important;
+}
+
+.astra-modal--dashboard .astra-filter-toolbar-left,
+.astra-modal--dashboard .astra-filter-toolbar-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+.astra-modal--dashboard .astra-filter-toolbar-left {
+  flex: 1 1 auto !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin !important;
+}
+
+.astra-modal--dashboard .astra-filter-toolbar-left > .astra-search-box--toolbar {
+  margin-left: 2px !important;
+}
+
+.astra-modal--dashboard .astra-filter-toolbar-right {
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  gap: 6px !important;
+}
+
+.astra-modal--dashboard .astra-filter-toolbar::-webkit-scrollbar {
+  height: 4px !important;
+}
+
+.astra-modal--dashboard .astra-filter-toolbar::-webkit-scrollbar-thumb,
+.astra-modal--dashboard .astra-filter-toolbar-left::-webkit-scrollbar-thumb {
+  background: var(--astra-accent-a20) !important;
+  border-radius: 999px !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-chip,
+.astra-modal--dashboard .astra-toolbar-select-wrap {
+  height: 30px !important;
+  min-height: 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  padding: 0 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid rgba(255, 255, 255, 0.055) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  color: var(--astra-muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  flex: 0 0 auto !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025) !important;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-chip i,
+.astra-modal--dashboard .astra-toolbar-select-wrap i {
+  font-size: 11px !important;
+  opacity: 0.75 !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-chip:hover,
+.astra-modal--dashboard .astra-toolbar-select-wrap:hover {
+  color: var(--astra-text) !important;
+  border-color: rgba(var(--astra-accent-rgb), 0.32) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-chip.active {
+  color: var(--astra-accent) !important;
+  border-color: var(--astra-accent-a50) !important;
+  background: var(--astra-accent-a10) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown.active > .astra-toolbar-chip {
+  color: var(--astra-accent) !important;
+  border-color: var(--astra-accent-a50) !important;
+  background: var(--astra-accent-a10) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-chip--dropdown {
+  padding-right: 10px !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown {
+  position: relative !important;
+  flex: 0 0 auto !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown.open > .astra-toolbar-chip {
+  color: var(--astra-text) !important;
+  border-color: var(--astra-accent-a50) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown.open .astra-toolbar-chip .fa-chevron-down {
+  transform: rotate(180deg) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown-menu {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  right: 0 !important;
+  min-width: 150px !important;
+  padding: 6px !important;
+  border: 1px solid rgba(var(--astra-accent-rgb), 0.18) !important;
+  border-radius: 10px !important;
+  background: #0d1219 !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+  display: none !important;
+  z-index: 1000002 !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown.open .astra-toolbar-dropdown-menu {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown-item {
+  width: 100% !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 10px !important;
+  border: none !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: var(--astra-text-dim) !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: var(--astra-text) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown-item.active {
+  background: var(--astra-accent-a20) !important;
+  color: var(--astra-accent) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-select-wrap {
+  position: relative !important;
+  min-width: 116px !important;
+  padding: 0 8px 0 11px !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-select-wrap.active {
+  color: var(--astra-accent) !important;
+  border-color: var(--astra-accent-a50) !important;
+  background: var(--astra-accent-a10) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-select-label {
+  pointer-events: none !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 2 !important;
+  opacity: 0 !important;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  padding: 0 18px 0 0 !important;
+  min-width: 76px !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-select-wrap::after {
+  content: '\f078';
+  font-family: 'Font Awesome 7 Free';
+  font-weight: 900;
+  font-size: 10px;
+  color: currentColor;
+  opacity: 0.7;
+  margin-left: -14px;
+  pointer-events: none;
+}
+
+.astra-modal--dashboard .astra-toolbar-separator {
+  width: 1px !important;
+  height: 22px !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
 }
 
 .astra-macro-filters {

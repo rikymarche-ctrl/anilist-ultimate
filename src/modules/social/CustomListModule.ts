@@ -75,8 +75,10 @@ export class CustomListModule extends BaseModule {
     if (!location.pathname.startsWith('/settings')) return;
 
     const navGroups = document.querySelectorAll('.nav-group.mobile-nav-hidden');
-    const targetGroup = Array.from(navGroups).find(g => g.querySelector('.group-header')?.textContent === 'Settings');
-    
+    const targetGroup = Array.from(navGroups).find(
+      (g) => g.querySelector('.group-header')?.textContent === 'Settings'
+    );
+
     if (!targetGroup || targetGroup.querySelector('.au-custom-lists-link')) return;
 
     const link = document.createElement('a');
@@ -97,7 +99,7 @@ export class CustomListModule extends BaseModule {
 
   private handleRouting(): void {
     const isCustomPath = location.hash === '#au-custom-lists';
-    
+
     if (isCustomPath && !this.isManagerActive) {
       this.activateManager();
     } else if (!isCustomPath && this.isManagerActive) {
@@ -110,9 +112,10 @@ export class CustomListModule extends BaseModule {
 
   private activateManager(): void {
     // Try both specific and general selectors as AniList IDs/Classes can be dynamic
-    const contentArea = document.querySelector('.settings.container > .content') || 
-                        document.querySelector('.settings .content');
-    
+    const contentArea =
+      document.querySelector('.settings.container > .content') ||
+      document.querySelector('.settings .content');
+
     if (!contentArea) {
       log.warn('CustomListModule: Content area not found, will retry via observer');
       return;
@@ -129,7 +132,7 @@ export class CustomListModule extends BaseModule {
     if (!auContainer) {
       auContainer = document.createElement('div');
       auContainer.id = 'au-custom-settings-container';
-      auContainer.className = 'content'; 
+      auContainer.className = 'content';
       auContainer.setAttribute('data-v-48560ace', ''); // Inherit layout styles
       contentArea.parentElement?.appendChild(auContainer);
     }
@@ -139,7 +142,7 @@ export class CustomListModule extends BaseModule {
     if (!this.managerInstance) {
       this.managerInstance = container.resolve(CustomListManager);
     }
-    
+
     // Always ensure the element is appended to the container (it might have been cleared by AniList navigation)
     if (auContainer && !auContainer.contains(this.managerInstance.getElement())) {
       auContainer.appendChild(this.managerInstance.getElement());
@@ -150,8 +153,9 @@ export class CustomListModule extends BaseModule {
     log.info('CustomListModule: Deactivating Manager UI');
     this.isManagerActive = false;
 
-    const nativeContent = document.querySelector('.settings.container > .content') || 
-                          document.querySelector('.settings .content');
+    const nativeContent =
+      document.querySelector('.settings.container > .content') ||
+      document.querySelector('.settings .content');
     if (nativeContent) (nativeContent as HTMLElement).style.display = 'block';
 
     const auContainer = document.getElementById('au-custom-settings-container');
@@ -161,12 +165,12 @@ export class CustomListModule extends BaseModule {
   private updateLinkUI(): void {
     const isCustomPath = location.hash === '#au-custom-lists';
     const link = document.querySelector('.au-custom-lists-link');
-    
+
     // 1. Clear active classes from ALL links in the sidebar if we are on our path
     if (isCustomPath) {
       const navGroups = document.querySelectorAll('.nav-group.mobile-nav-hidden');
-      navGroups.forEach(group => {
-        group.querySelectorAll('a').forEach(a => {
+      navGroups.forEach((group) => {
+        group.querySelectorAll('a').forEach((a) => {
           if (a !== link) {
             a.classList.remove('router-link-exact-active', 'router-link-active');
           }

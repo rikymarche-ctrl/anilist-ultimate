@@ -18,6 +18,12 @@ import { PreferencesService } from '@core/services/PreferencesService';
  */
 @injectable()
 export class AstraEnhancementService {
+  private static readonly HOME_PROGRESS_DISABLED_SECTIONS = [
+    'trending anime & manga',
+    'newly added anime',
+    'newly added manga'
+  ];
+
   constructor(
     @inject(TOKENS.AstraPillBuilder) private pillBuilder: PillUIBuilder,
     @inject(TOKENS.AstraStrategies) private strategies: ICardEnhancementStrategy[],
@@ -91,7 +97,7 @@ export class AstraEnhancementService {
 
       const { socialEnabled, socialShowAvatars } = this.preferences.getPreferences();
       const isHome = path === '/' || path.startsWith('/home') || path.endsWith('/astra');
-      const isUserList = path.includes('/animelist') || path.includes('/mangalist') || isHome;
+      const isUserList = this.shouldShowProgressAction(card, path, isHome);
 
       const cover = card.querySelector('.cover, .image, .img, .banner-image');
       const target = cover || card;
@@ -132,7 +138,6 @@ export class AstraEnhancementService {
     const { socialEnabled, socialShowAvatars } = this.preferences.getPreferences();
     const astraEnabled = this.config.isFeatureEnabled('astra');
     const path = window.location.pathname;
-    const isUserListCard = path.includes('/animelist') || path.includes('/mangalist');
 
     wrappers.forEach((wrapper) => {
       const mediaId = parseInt(wrapper.getAttribute('data-au-media-id') || '0', 10);
@@ -141,9 +146,10 @@ export class AstraEnhancementService {
       const workSummary = summaries.find((s) => s.mediaId === mediaId);
       const score = workSummary ? workSummary.currentScore : null;
 
+      const card = wrapper.closest('.au-astra-card') as HTMLElement | null;
       const pill = this.pillBuilder.build({
         mediaId,
-        isUserListCard: isUserListCard || path === '/' || path === '/home',
+        isUserListCard: this.shouldShowProgressAction(card, path),
         socialEnabled,
         socialShowAvatars,
         score,
@@ -153,5 +159,60 @@ export class AstraEnhancementService {
       (wrapper as HTMLElement).innerHTML = '';
       (wrapper as HTMLElement).appendChild(pill);
     });
+  }
+
+  private shouldShowProgressAction(
+    card: HTMLElement | null,
+    path: string,
+    isHome = path === '/' || path.startsWith('/home') || path.endsWith('/astra')
+  ): boolean {
+    if (path.includes('/animelist') || path.includes('/mangalist')) {
+      return true;
+    }
+
+    if (!isHome || !card) {
+      return false;
+    }
+
+    const sectionTitle = this.getCardSectionTitle(card);
+    if (!sectionTitle) {
+      return true;
+    }
+
+    return !AstraEnhancementService.HOME_PROGRESS_DISABLED_SECTIONS.some((title) =>
+      sectionTitle.includes(title)
+    );
+  }
+
+  private getCardSectionTitle(card: HTMLElement): string {
+    const sectionCandidates: Array<HTMLElement | null> = [
+      card.closest('section'),
+      card.closest('.section'),
+      card.closest('.home'),
+      card.parentElement ?? null,
+      card.parentElement?.parentElement ?? null
+    ];
+
+    for (const section of sectionCandidates) {
+      if (!section) continue;
+
+      const ownHeader = section.querySelector(
+        ':scope > h1, :scope > h2, :scope > h3, :scope > .section-header, :scope > .header, :scope > .title'
+      );
+      if (ownHeader?.textContent?.trim()) {
+        return ownHeader.textContent.trim().toLowerCase();
+      }
+
+      const previousHeader = section.previousElementSibling;
+      if (
+        previousHeader instanceof HTMLElement &&
+        previousHeader.matches('h1, h2, h3, .section-header, .header, .title') &&
+        previousHeader.textContent?.trim()
+      ) {
+        return previousHeader.textContent.trim().toLowerCase();
+      }
+    }
+
+    return '';
   }
 }

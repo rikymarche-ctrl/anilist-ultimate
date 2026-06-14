@@ -77,10 +77,10 @@ export const TIME = {
 
   // Cache durations
   CACHE_SCHEDULE_DURATION: 30 * 60 * 1000, // 30 minutes
-  CACHE_PROGRESS_DURATION: 5 * 60 * 1000,  // 5 minutes
+  CACHE_PROGRESS_DURATION: 5 * 60 * 1000, // 5 minutes
 
   // Update intervals
-  COUNTDOWN_UPDATE_INTERVAL: 60 * 1000,    // 1 minute
+  COUNTDOWN_UPDATE_INTERVAL: 60 * 1000, // 1 minute
   SCHEDULE_REFRESH_INTERVAL: 30 * 60 * 1000, // 30 minutes
 } as const;
 

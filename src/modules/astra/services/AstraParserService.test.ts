@@ -3,7 +3,12 @@ import { AstraParserService } from './AstraParserService';
 import type { AstraSection, AstraWork } from '../AstraInterfaces';
 
 const sections: AstraSection[] = [
-  { id: 'story', name: 'Story', weight: 1, subSections: [{ id: 'pacing', name: 'Pacing', weight: 1 }] },
+  {
+    id: 'story',
+    name: 'Story',
+    weight: 1,
+    subSections: [{ id: 'pacing', name: 'Pacing', weight: 1 }],
+  },
   { id: 'art', name: 'Art', weight: 1 },
 ] as any;
 
@@ -17,9 +22,7 @@ function makeWork(seasonOver: Record<string, any> = {}): AstraWork {
     tags: [],
     notes: '',
     updatedAt: 0,
-    seasons: [
-      { id: 's', label: 'S1', scores: {}, skip: [], episodeNotes: {}, ...seasonOver },
-    ],
+    seasons: [{ id: 's', label: 'S1', scores: {}, skip: [], episodeNotes: {}, ...seasonOver }],
   } as any;
 }
 

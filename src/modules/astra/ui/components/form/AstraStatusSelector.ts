@@ -24,15 +24,39 @@ export class AstraStatusSelector extends AstraView {
     const { status, type } = this.options;
 
     const statusOptions = [
-      { value: MediaListStatus.CURRENT, label: getStatusLabel(MediaListStatus.CURRENT, type), icon: 'fa-play-circle' },
-      { value: MediaListStatus.COMPLETED, label: getStatusLabel(MediaListStatus.COMPLETED, type), icon: 'fa-check-circle' },
-      { value: MediaListStatus.PAUSED, label: getStatusLabel(MediaListStatus.PAUSED, type), icon: 'fa-pause-circle' },
-      { value: MediaListStatus.DROPPED, label: getStatusLabel(MediaListStatus.DROPPED, type), icon: 'fa-times-circle' },
-      { value: MediaListStatus.PLANNING, label: getStatusLabel(MediaListStatus.PLANNING, type), icon: 'fa-calendar' },
-      { value: MediaListStatus.REPEATING, label: getStatusLabel(MediaListStatus.REPEATING, type), icon: 'fa-redo' },
+      {
+        value: MediaListStatus.CURRENT,
+        label: getStatusLabel(MediaListStatus.CURRENT, type),
+        icon: 'fa-play-circle',
+      },
+      {
+        value: MediaListStatus.COMPLETED,
+        label: getStatusLabel(MediaListStatus.COMPLETED, type),
+        icon: 'fa-check-circle',
+      },
+      {
+        value: MediaListStatus.PAUSED,
+        label: getStatusLabel(MediaListStatus.PAUSED, type),
+        icon: 'fa-pause-circle',
+      },
+      {
+        value: MediaListStatus.DROPPED,
+        label: getStatusLabel(MediaListStatus.DROPPED, type),
+        icon: 'fa-times-circle',
+      },
+      {
+        value: MediaListStatus.PLANNING,
+        label: getStatusLabel(MediaListStatus.PLANNING, type),
+        icon: 'fa-calendar',
+      },
+      {
+        value: MediaListStatus.REPEATING,
+        label: getStatusLabel(MediaListStatus.REPEATING, type),
+        icon: 'fa-redo',
+      },
     ];
 
-    const currentStatus = statusOptions.find(o => o.value === status) || statusOptions[0];
+    const currentStatus = statusOptions.find((o) => o.value === status) || statusOptions[0];
 
     return html`
       <div class="astra-input-box">
@@ -44,12 +68,19 @@ export class AstraStatusSelector extends AstraView {
             <i class="fa fa-chevron-down"></i>
           </button>
           <div class="astra-dropdown-menu">
-            ${statusOptions.map(o => html`
-              <div class="astra-dropdown-item astra-status-option ${status === o.value ? 'active' : ''}" data-value="${o.value}">
-                <i class="fa ${o.icon}"></i>
-                <span>${o.label}</span>
-              </div>
-            `)}
+            ${statusOptions.map(
+              (o) => html`
+                <div
+                  class="astra-dropdown-item astra-status-option ${status === o.value
+                    ? 'active'
+                    : ''}"
+                  data-value="${o.value}"
+                >
+                  <i class="fa ${o.icon}"></i>
+                  <span>${o.label}</span>
+                </div>
+              `
+            )}
           </div>
         </div>
       </div>
@@ -62,7 +93,7 @@ export class AstraStatusSelector extends AstraView {
       this.$('.astra-dropdown')?.classList.toggle('active');
     });
 
-    this.$$('.astra-status-option').forEach(opt => {
+    this.$$('.astra-status-option').forEach((opt) => {
       opt.addEventListener('click', () => {
         const val = (opt as HTMLElement).dataset.value as MediaListStatus;
         if (val && this.options) {

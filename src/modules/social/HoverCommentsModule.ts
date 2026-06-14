@@ -21,10 +21,10 @@ export class HoverCommentsModule extends BaseModule {
   private pollingInterval: any = null;
   private processedMediaId: number | null = null;
   private isProcessing = false;
-  private readonly ICON_SVG = `<svg class="au-comment-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M256 32C114.6 32 0 125.1 0 240c0 67.6 39.1 127.9 100.1 163.8c-3.1 13.1-13.8 37.7-35 53.7c-6.3 4.8-3.1 14.7 4.8 15c66.2 3.3 115.1-34.7 140.3-54.9c14.7 1.5 29.8 2.4 45.8 2.4c141.4 0 256-93.1 256-208S397.4 32 256 32z"/></svg>`;
 
   private notesCache: Record<string, { notes: string; timestamp: number }> = {};
-  private readonly CACHE_KEY = 'hover_comments_cache';
+  private readonly CACHE_KEY = 'hover_comments_cache_v2';
+  private readonly EMPTY_CACHE_TTL_MS = 10 * 60 * 1000;
   /** SEC-010: cap the persisted notes cache to avoid unbounded growth over a session. */
   private readonly MAX_CACHE_ENTRIES = 500;
 
@@ -95,7 +95,7 @@ export class HoverCommentsModule extends BaseModule {
     if (!media) return;
 
     if (this.processedMediaId === media.id) {
-      this.injectIconsIfMissing(media.id);
+      await this.runInjectionFlow(media.id);
       return;
     }
 
@@ -115,16 +115,24 @@ export class HoverCommentsModule extends BaseModule {
     if (!followingSection) return;
 
     const userLinks = Array.from(
-      followingSection.querySelectorAll<HTMLAnchorElement>('a[href^="/user/"]')
+      followingSection.querySelectorAll<HTMLAnchorElement>(
+        'a[href*="/user/"]:not([data-au-comment-injected])'
+      )
     );
+    if (userLinks.length === 0) return;
+
     const usernamesToFetch: string[] = [];
 
     userLinks.forEach((link) => {
       const username = this.extractUsername(link);
       if (!username) return;
       const cacheKey = this.getCacheKey(username, mediaId);
-      if (this.notesCache[cacheKey]) {
-        this.injectIcon(link, username, mediaId, this.notesCache[cacheKey].notes);
+      const cached = this.notesCache[cacheKey];
+      if (cached && (cached.notes.trim() || Date.now() - cached.timestamp < this.EMPTY_CACHE_TTL_MS)) {
+        const cachedNotes = cached.notes;
+        if (cachedNotes.trim()) {
+          this.injectIcon(link, username, mediaId, cachedNotes);
+        }
       } else {
         usernamesToFetch.push(username);
       }
@@ -152,9 +160,12 @@ export class HoverCommentsModule extends BaseModule {
         // Use GraphQL variables (not string interpolation) to prevent injection.
         const query = `query ($userName: String, $mediaId: Int) { MediaList(userName: $userName, mediaId: $mediaId) { notes } }`;
         const data = await this.batcher.query<any>(query, { userName: username, mediaId });
-        if (data?.notes) {
-          const cacheKey = this.getCacheKey(username, mediaId);
-          this.notesCache[cacheKey] = { notes: data.notes, timestamp: Date.now() };
+        const cacheKey = this.getCacheKey(username, mediaId);
+        const userNotes = data?.notes || '';
+
+        this.notesCache[cacheKey] = { notes: userNotes, timestamp: Date.now() };
+
+        if (userNotes.trim()) {
           results[username] = data.notes;
         }
       } catch (e) {
@@ -198,24 +209,6 @@ export class HoverCommentsModule extends BaseModule {
     return `${username.toLowerCase()}_${mediaId}`;
   }
 
-  private injectIconsIfMissing(mediaId: number): void {
-    const followingSection = this.findFollowingSection();
-    if (!followingSection) return;
-
-    const userLinks = Array.from(
-      followingSection.querySelectorAll<HTMLAnchorElement>(
-        'a[href^="/user/"]:not([data-au-comment-injected])'
-      )
-    );
-    userLinks.forEach((link) => {
-      const username = this.extractUsername(link);
-      const cacheKey = username ? this.getCacheKey(username, mediaId) : null;
-      if (username && cacheKey && this.notesCache[cacheKey]) {
-        this.injectIcon(link, username, mediaId, this.notesCache[cacheKey].notes);
-      }
-    });
-  }
-
   private injectIcon(
     link: HTMLAnchorElement,
     username: string,
@@ -230,13 +223,17 @@ export class HoverCommentsModule extends BaseModule {
 
     const iconContainer = html`
       <div class="comment-icon-ghost">
-        <span class="anilist-comment-icon">${this.ICON_SVG}</span>
+        <span class="anilist-comment-icon"></span>
       </div>
     `;
+    if (window.location.pathname.endsWith('/social')) {
+      iconContainer.classList.add('au-in-social-feed');
+    }
 
     anchor.appendChild(iconContainer);
 
     const icon = iconContainer.querySelector('.anilist-comment-icon') as HTMLElement;
+    icon.appendChild(this.createCommentIconSvg());
     iconContainer.addEventListener('mouseenter', (e) => {
       e.stopPropagation();
       this.tooltip.show(icon, { username, mediaId, notes, timestamp: Date.now() });
@@ -248,9 +245,36 @@ export class HoverCommentsModule extends BaseModule {
     link.setAttribute('data-au-comment-injected', 'true');
   }
 
+  private createCommentIconSvg(): SVGSVGElement {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('au-comment-svg');
+    svg.setAttribute('viewBox', '0 0 512 512');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('fill', 'currentColor');
+    path.setAttribute(
+      'd',
+      'M256 32C114.6 32 0 125.1 0 240c0 67.6 39.1 127.9 100.1 163.8c-3.1 13.1-13.8 37.7-35 53.7c-6.3 4.8-3.1 14.7 4.8 15c66.2 3.3 115.1-34.7 140.3-54.9c14.7 1.5 29.8 2.4 45.8 2.4c141.4 0 256-93.1 256-208S397.4 32 256 32z'
+    );
+
+    svg.appendChild(path);
+    return svg;
+  }
+
   private extractUsername(link: HTMLAnchorElement): string | null {
     const href = link.getAttribute('href');
-    return href ? href.replace('/user/', '').replace(/\/$/, '') : null;
+    if (!href) return null;
+
+    try {
+      const url = new URL(href, window.location.origin);
+      const match = url.pathname.match(/^\/user\/([^/]+)/);
+      return match ? decodeURIComponent(match[1]) : null;
+    } catch {
+      const match = href.match(/\/user\/([^/?#]+)/);
+      return match ? decodeURIComponent(match[1]) : null;
+    }
   }
 
   private extractMediaFromUrl(): { id: number; type: string } | null {
@@ -259,11 +283,47 @@ export class HoverCommentsModule extends BaseModule {
   }
 
   private findFollowingSection(): HTMLElement | null {
-    const sidebar = document.querySelector('div.following, div[class*="following"], .following');
-    if (sidebar) return sidebar as HTMLElement;
     if (window.location.pathname.endsWith('/social')) {
-      return document.querySelector('.activity-feed') as HTMLElement;
+      return this.findSectionByHeader('Following');
     }
+
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'div.following, .following, .activity-feed, .activities, div[class*="following"]'
+      )
+    );
+
+    return (
+      candidates.find((candidate) => candidate.querySelector('a[href*="/user/"]')) ||
+      candidates[0] ||
+      null
+    );
+  }
+
+  private findSectionByHeader(title: string): HTMLElement | null {
+    const normalizedTitle = title.toLowerCase();
+    const headers = Array.from(
+      document.querySelectorAll<HTMLElement>('h2, h3, .section-header')
+    );
+
+    for (const header of headers) {
+      const headerText = header.textContent?.trim().toLowerCase();
+      if (headerText !== normalizedTitle) continue;
+
+      const section =
+        header.closest<HTMLElement>('.grid-section, section, .content-wrap, .sidebar, .following') ||
+        header.parentElement;
+
+      if (section?.querySelector('a[href*="/user/"]')) {
+        return section;
+      }
+
+      const next = header.nextElementSibling as HTMLElement | null;
+      if (next?.querySelector('a[href*="/user/"]')) {
+        return next;
+      }
+    }
+
     return null;
   }
 

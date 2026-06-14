@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { AstraCalculator } from './AstraCalculator';
 import type { AstraSection, AstraSeason, AstraSettings } from '../AstraInterfaces';
 
-const section = (id: string, weight: number, subSections?: { id: string; weight: number }[]): AstraSection =>
-  ({ id, name: id, weight, subSections }) as any;
+const section = (
+  id: string,
+  weight: number,
+  subSections?: { id: string; weight: number }[]
+): AstraSection => ({ id, name: id, weight, subSections }) as any;
 
 const settings = (over: Partial<AstraSettings> = {}): AstraSettings =>
   ({ enableSeriesFinale: false, finaleWeightMultiplier: 2, ...over }) as any;
@@ -47,7 +50,15 @@ describe('AstraCalculator.calcSeasonOverall', () => {
   });
 
   it('returns legacyScore when manualOverride is set', () => {
-    const result = AstraCalculator.calcSeasonOverall({ A: 1 }, sections, settings(), [], false, 9.5, true);
+    const result = AstraCalculator.calcSeasonOverall(
+      { A: 1 },
+      sections,
+      settings(),
+      [],
+      false,
+      9.5,
+      true
+    );
     expect(result).toBe(9.5);
   });
 

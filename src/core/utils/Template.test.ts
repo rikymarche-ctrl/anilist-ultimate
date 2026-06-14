@@ -33,7 +33,9 @@ describe('html tagged template', () => {
   });
 
   it('escapes each string in an interpolated array', () => {
-    const el = html`<ul>${['<b>x</b>', 'plain']}</ul>`;
+    const el = html`<ul>
+      ${['<b>x</b>', 'plain']}
+    </ul>`;
     expect(el.querySelector('b')).toBeNull();
     expect(el.textContent).toContain('<b>x</b>');
     expect(el.textContent).toContain('plain');

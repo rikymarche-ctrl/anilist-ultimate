@@ -42,7 +42,7 @@ import '../../styles/notification-cleaner.css';
 export class NotificationCleanerModule extends BaseModule {
   /** Observer name for targeted mutation tracking */
   private readonly OBSERVER_NAME = 'notifications-continuous';
-  
+
   /** Current grouping preference state */
   private enabled: boolean = false;
 
@@ -135,7 +135,7 @@ export class NotificationCleanerModule extends BaseModule {
       this.pollingInterval = null;
     }
 
-    document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
+    document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach((n) => {
       n.removeAttribute('data-au-processed');
     });
   }
@@ -150,13 +150,23 @@ export class NotificationCleanerModule extends BaseModule {
     const container = await this.waitForElement('.notifications', 5000);
     if (!container) {
       log.warn('[NotificationCleaner] Notifications container not found, observing body');
-      this.registerObserver(this.OBSERVER_NAME, document.body, { childList: true, subtree: true }, () => {
-        this.checkAndProcess();
-      });
+      this.registerObserver(
+        this.OBSERVER_NAME,
+        document.body,
+        { childList: true, subtree: true },
+        () => {
+          this.checkAndProcess();
+        }
+      );
     } else {
-      this.registerObserver(this.OBSERVER_NAME, container, { childList: true, subtree: true }, () => {
-        this.checkAndProcess();
-      });
+      this.registerObserver(
+        this.OBSERVER_NAME,
+        container,
+        { childList: true, subtree: true },
+        () => {
+          this.checkAndProcess();
+        }
+      );
       log.debug('[NotificationCleaner] Observing .notifications container');
     }
 
@@ -175,7 +185,9 @@ export class NotificationCleanerModule extends BaseModule {
   private checkAndProcess(): void {
     if (this.isProcessing) return;
 
-    const markAllButton = document.querySelector('.reset-btn, .reset-button, .mark-all, .mark-as-read');
+    const markAllButton = document.querySelector(
+      '.reset-btn, .reset-button, .mark-all, .mark-as-read'
+    );
     if (markAllButton && !document.querySelector('.au-compress-button')) {
       this.injectSettingsUI(markAllButton as HTMLElement);
     }
@@ -215,7 +227,9 @@ export class NotificationCleanerModule extends BaseModule {
     this.enabled = !this.enabled;
     await storage.set('clutterfree_group_likes', this.enabled);
 
-    log.info(`[NotificationCleaner] Toggle to ${this.enabled ? 'ENABLED (merge)' : 'DISABLED (unmerge)'}`);
+    log.info(
+      `[NotificationCleaner] Toggle to ${this.enabled ? 'ENABLED (merge)' : 'DISABLED (unmerge)'}`
+    );
 
     const toggleBtn = document.querySelector('.au-compress-button');
     if (toggleBtn) {
@@ -228,7 +242,7 @@ export class NotificationCleanerModule extends BaseModule {
     this.lastNotificationCount = 0;
 
     if (this.enabled) {
-      document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach(n => {
+      document.querySelectorAll<HTMLElement>('.notification[data-au-processed]').forEach((n) => {
         n.removeAttribute('data-au-processed');
       });
 
@@ -252,15 +266,22 @@ export class NotificationCleanerModule extends BaseModule {
 
     if (!this.enabled) return;
 
-    const currentNotifications = Array.from(document.querySelectorAll<HTMLElement>(
-      '.notification:not(.au-virtual-notification):not(.au-sub-notification), ' +
-      '.notification-item:not(.au-virtual-notification):not(.au-sub-notification)'
-    ));
+    const currentNotifications = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.notification:not(.au-virtual-notification):not(.au-sub-notification), ' +
+          '.notification-item:not(.au-virtual-notification):not(.au-sub-notification)'
+      )
+    );
 
-    currentNotifications.forEach(n => this.extractUsernameFromNotif(n));
-    const newNotifications = currentNotifications.filter(n => !n.hasAttribute('data-au-processed'));
+    currentNotifications.forEach((n) => this.extractUsernameFromNotif(n));
+    const newNotifications = currentNotifications.filter(
+      (n) => !n.hasAttribute('data-au-processed')
+    );
 
-    if (newNotifications.length === 0 && currentNotifications.length === this.lastNotificationCount) {
+    if (
+      newNotifications.length === 0 &&
+      currentNotifications.length === this.lastNotificationCount
+    ) {
       return;
     }
 
@@ -276,10 +297,12 @@ export class NotificationCleanerModule extends BaseModule {
       const singleGroupsToProcess: NotificationGroup[] = [];
       const pendingEnhancements: HTMLElement[] = [];
 
-      const visibleNotifs = Array.from(document.querySelectorAll<HTMLElement>(
-        '.notification:not(.au-hidden-notification):not(.au-sub-notification), ' +
-        '.notification-item:not(.au-hidden-notification):not(.au-sub-notification)'
-      ));
+      const visibleNotifs = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '.notification:not(.au-hidden-notification):not(.au-sub-notification), ' +
+            '.notification-item:not(.au-hidden-notification):not(.au-sub-notification)'
+        )
+      );
 
       for (const notification of newNotifications) {
         const username = this.extractUsernameFromNotif(notification);
@@ -289,7 +312,9 @@ export class NotificationCleanerModule extends BaseModule {
         }
 
         const text = notification.textContent || '';
-        const notifType = notification.getAttribute('data-au-type') || this.groupService.detectNotificationType(text);
+        const notifType =
+          notification.getAttribute('data-au-type') ||
+          this.groupService.detectNotificationType(text);
         if (notifType) notification.setAttribute('data-au-type', notifType);
 
         const time = notification.querySelector('.time')?.textContent?.trim() || '';
@@ -312,13 +337,13 @@ export class NotificationCleanerModule extends BaseModule {
             continue;
           } else {
             if (currentGroup) {
-               if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
-               else singleGroupsToProcess.push(currentGroup);
+              if (currentGroup.count > 1) groupsToProcess.push(currentGroup);
+              else singleGroupsToProcess.push(currentGroup);
             }
-            
+
             currentGroup = {
               user: username,
-              types: new Map([[notifType || 'unknown', 2]]), 
+              types: new Map([[notifType || 'unknown', 2]]),
               count: 2,
               elements: [prevVisible, notification],
               firstTime: prevVisible.querySelector('.time')?.textContent?.trim() || time,
@@ -353,8 +378,8 @@ export class NotificationCleanerModule extends BaseModule {
       }
 
       if (singleGroupsToProcess.length > 0) {
-        const singles = singleGroupsToProcess.map(g => g.elements[0]);
-        singles.forEach(s => {
+        const singles = singleGroupsToProcess.map((g) => g.elements[0]);
+        singles.forEach((s) => {
           const id = this.fetchService.extractActivityId(s);
           if (id) s.setAttribute('data-activity-id', id.toString());
           this.groupService.injectUserLink(s, this.extractUsernameFromNotif(s));
@@ -367,7 +392,7 @@ export class NotificationCleanerModule extends BaseModule {
         await this.groupService.enhanceNotificationsWithActivityDetails(pendingEnhancements);
       }
 
-      newNotifications.forEach(n => n.setAttribute('data-au-processed', 'true'));
+      newNotifications.forEach((n) => n.setAttribute('data-au-processed', 'true'));
     } finally {
       this.isProcessing = false;
       this.resumeObserver(this.OBSERVER_NAME);
@@ -392,21 +417,23 @@ export class NotificationCleanerModule extends BaseModule {
       isSingleType
     );
 
-    group.elements.forEach(n => {
+    group.elements.forEach((n) => {
       n.style.display = 'none';
       n.classList.add('au-hidden-notification');
     });
   }
 
   private createVirtualNotification(template: HTMLElement, group: NotificationGroup): HTMLElement {
-    const vn = (template.tagName === 'A' ? document.createElement('div') : template.cloneNode(true)) as HTMLElement;
+    const vn = (
+      template.tagName === 'A' ? document.createElement('div') : template.cloneNode(true)
+    ) as HTMLElement;
     if (template.tagName === 'A') {
       vn.className = template.className;
-      vn.append(...Array.from(template.childNodes).map(c => c.cloneNode(true)));
+      vn.append(...Array.from(template.childNodes).map((c) => c.cloneNode(true)));
     }
     vn.classList.add('au-virtual-notification');
 
-    vn.querySelectorAll('a').forEach(link => {
+    vn.querySelectorAll('a').forEach((link) => {
       if (link.getAttribute('href')?.includes('/activity/')) {
         const span = document.createElement('span');
         span.className = link.className;
@@ -453,9 +480,8 @@ export class NotificationCleanerModule extends BaseModule {
       timeContainer.style.fontSize = '1.1rem';
       timeContainer.style.color = 'var(--color-text-lighter)';
       timeContainer.style.opacity = '0.8';
-      timeContainer.textContent = (lastTime && lastTime !== firstTime) 
-        ? `${firstTime} - ${lastTime}` 
-        : firstTime;
+      timeContainer.textContent =
+        lastTime && lastTime !== firstTime ? `${firstTime} - ${lastTime}` : firstTime;
       vn.appendChild(timeContainer);
     }
 
@@ -469,11 +495,13 @@ export class NotificationCleanerModule extends BaseModule {
     const inner = document.createElement('div');
     inner.className = 'au-notification-dropdown-inner';
 
-    group.elements.forEach(notif => {
-      const clone = (notif.tagName === 'A' ? document.createElement('div') : notif.cloneNode(true)) as HTMLElement;
+    group.elements.forEach((notif) => {
+      const clone = (
+        notif.tagName === 'A' ? document.createElement('div') : notif.cloneNode(true)
+      ) as HTMLElement;
       if (notif.tagName === 'A') {
         clone.className = notif.className;
-        clone.append(...Array.from(notif.childNodes).map(c => c.cloneNode(true)));
+        clone.append(...Array.from(notif.childNodes).map((c) => c.cloneNode(true)));
       }
       clone.classList.add('au-sub-notification');
       clone.setAttribute('data-au-processed', 'true');
@@ -515,12 +543,13 @@ export class NotificationCleanerModule extends BaseModule {
   private extractUsernameFromNotif(notif: HTMLElement): string {
     const attr = notif.getAttribute('data-au-user');
     if (attr) return attr;
-    
+
     let link = notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]:not(.avatar)');
-    
+
     if (!link) {
-      link = notif.querySelector<HTMLAnchorElement>('a.avatar[href*="/user/"]') || 
-             notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
+      link =
+        notif.querySelector<HTMLAnchorElement>('a.avatar[href*="/user/"]') ||
+        notif.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
     }
 
     const user = link?.getAttribute('href')?.replace('/user/', '').replace(/\/$/, '') || '';
@@ -539,13 +568,17 @@ export class NotificationCleanerModule extends BaseModule {
   }
 
   private clearVirtualNotifications(): void {
-    const virtuals = document.querySelectorAll('.au-virtual-notification, .au-notification-dropdown');
+    const virtuals = document.querySelectorAll(
+      '.au-virtual-notification, .au-notification-dropdown'
+    );
     const hiddens = document.querySelectorAll<HTMLElement>('.au-hidden-notification');
 
-    log.debug(`[NotificationCleaner] Clearing ${virtuals.length} virtual notifications, ${hiddens.length} hidden notifications`);
+    log.debug(
+      `[NotificationCleaner] Clearing ${virtuals.length} virtual notifications, ${hiddens.length} hidden notifications`
+    );
 
-    virtuals.forEach(n => n.remove());
-    hiddens.forEach(n => {
+    virtuals.forEach((n) => n.remove());
+    hiddens.forEach((n) => {
       n.style.display = '';
       n.classList.remove('au-hidden-notification');
       n.removeAttribute('data-au-processed');
@@ -557,7 +590,7 @@ export class NotificationCleanerModule extends BaseModule {
    */
   public override async destroy(): Promise<void> {
     this.fullReset();
-    
+
     if (this.delegatedClickListener) {
       document.body.removeEventListener('click', this.delegatedClickListener, true);
       this.delegatedClickListener = null;

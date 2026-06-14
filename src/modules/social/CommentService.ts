@@ -93,12 +93,12 @@ export class CommentService {
     `;
 
     try {
-      const data = await this.batcher.query<{ MediaList: { notes: string } | null }>(query, {
+      const data = await this.batcher.query<{ notes?: string; MediaList?: { notes: string } | null }>(query, {
         userName: username,
         mediaId: mediaId,
       });
 
-      const notes = data?.MediaList?.notes || '';
+      const notes = data?.notes || data?.MediaList?.notes || '';
       const comment: UserComment = {
         username,
         mediaId,

@@ -56,10 +56,18 @@ export class SocialSidebar extends BaseComponent {
         <div class="au-social-tabs">
           <div class="au-filter active" data-type="self">Self</div>
           <div class="au-filter" data-type="following">Following</div>
-          <div class="au-filter au-filter-dropdown" data-type="custom-lists" id="au-custom-lists-trigger">
+          <div
+            class="au-filter au-filter-dropdown"
+            data-type="custom-lists"
+            id="au-custom-lists-trigger"
+          >
             <span class="au-filter-label">Custom Lists</span>
             <i class="fa fa-caret-down"></i>
-            <div class="au-filter-dropdown-menu" style="display: none;" id="au-custom-lists-menu"></div>
+            <div
+              class="au-filter-dropdown-menu"
+              style="display: none;"
+              id="au-custom-lists-menu"
+            ></div>
           </div>
           <div class="au-filter" data-type="global">Global</div>
         </div>
@@ -74,7 +82,12 @@ export class SocialSidebar extends BaseComponent {
         <div class="au-social-search-wrapper">
           <div class="au-social-search-inner">
             <i class="fa fa-search au-social-search-icon"></i>
-            <input type="text" class="au-social-search-input" id="au-social-search" placeholder="Search friends or notes..." />
+            <input
+              type="text"
+              class="au-social-search-input"
+              id="au-social-search"
+              placeholder="Search friends or notes..."
+            />
           </div>
         </div>
         <div class="au-social-content" id="au-social-content">
@@ -98,7 +111,7 @@ export class SocialSidebar extends BaseComponent {
     // 2. Navigation & Actions
     this.$('#au-social-close')?.addEventListener('click', () => this.close());
 
-    this.$$('.au-filter:not(.au-filter-dropdown)').forEach(filter => {
+    this.$$('.au-filter:not(.au-filter-dropdown)').forEach((filter) => {
       filter.addEventListener('click', () => {
         const type = filter.getAttribute('data-type') as SocialFilter;
         this.setFilter(type);
@@ -119,7 +132,7 @@ export class SocialSidebar extends BaseComponent {
       if (dropdownMenu) dropdownMenu.style.display = 'none';
     });
 
-    this.$$('.au-status-filter').forEach(filter => {
+    this.$$('.au-status-filter').forEach((filter) => {
       filter.addEventListener('click', () => {
         const status = filter.getAttribute('data-status')!;
         this.setStatus(status);
@@ -165,7 +178,7 @@ export class SocialSidebar extends BaseComponent {
    */
   private async handleContentClick(e: MouseEvent): Promise<void> {
     const target = e.target as HTMLElement;
-    
+
     // Star toggle
     const starBtn = target.closest('.au-bf-toggle');
     if (starBtn) {
@@ -173,16 +186,20 @@ export class SocialSidebar extends BaseComponent {
       const row = starBtn.closest('.au-friend-row') as HTMLElement;
       const userId = parseInt(row.dataset.userId || '0');
       const userName = row.dataset.userName || '';
-      
+
       const isNowBf = !this.customListService.isUserInList('Best Friends', userId);
-      await this.customListService.toggleUserInList('Best Friends', {
-        id: userId,
-        name: userName,
-        avatar: row.querySelector('img')?.src || ''
-      }, isNowBf);
+      await this.customListService.toggleUserInList(
+        'Best Friends',
+        {
+          id: userId,
+          name: userName,
+          avatar: row.querySelector('img')?.src || '',
+        },
+        isNowBf
+      );
 
       // Update all instances of this star
-      this.$$(`.au-friend-row[data-user-id="${userId}"] .au-bf-toggle`).forEach(star => {
+      this.$$(`.au-friend-row[data-user-id="${userId}"] .au-bf-toggle`).forEach((star) => {
         star.className = `fa ${isNowBf ? 'fa-star' : 'fa-star-o'} au-bf-toggle`;
       });
 
@@ -219,7 +236,7 @@ export class SocialSidebar extends BaseComponent {
     }
 
     menu.innerHTML = '';
-    listNames.forEach(name => {
+    listNames.forEach((name) => {
       const item = html`
         <div class="au-dropdown-item" data-list-name="${name}">
           <i class="fa fa-list-ul"></i> ${name}
@@ -239,7 +256,7 @@ export class SocialSidebar extends BaseComponent {
     this.currentPage = 1;
     this.hasNextPage = true;
 
-    this.$$('.au-filter').forEach(f => f.classList.remove('active'));
+    this.$$('.au-filter').forEach((f) => f.classList.remove('active'));
     this.$('#au-custom-lists-trigger')?.classList.add('active');
     const label = this.$('#au-custom-lists-trigger .au-filter-label');
     if (label) label.textContent = listName;
@@ -250,7 +267,12 @@ export class SocialSidebar extends BaseComponent {
     if (this.currentMediaId) this.loadData(this.currentMediaId, 1);
   }
 
-  public open(mediaId: number, title: string, anchor?: HTMLElement, type: MediaType = 'ANIME'): void {
+  public open(
+    mediaId: number,
+    title: string,
+    anchor?: HTMLElement,
+    type: MediaType = 'ANIME'
+  ): void {
     if (this.currentMediaId === mediaId && this.element.classList.contains('active')) return;
 
     this.currentMediaId = mediaId;
@@ -289,7 +311,7 @@ export class SocialSidebar extends BaseComponent {
     this.currentPage = 1;
     this.hasNextPage = true;
 
-    this.$$('.au-filter').forEach(f => {
+    this.$$('.au-filter').forEach((f) => {
       f.classList.toggle('active', f.getAttribute('data-type') === type);
     });
 
@@ -300,14 +322,14 @@ export class SocialSidebar extends BaseComponent {
   }
 
   private setStatus(status: string): void {
-    const statusVal = status === 'all' ? 'all' : status as MediaListStatus;
+    const statusVal = status === 'all' ? 'all' : (status as MediaListStatus);
     if (this.currentStatus === statusVal) return;
 
     this.currentStatus = statusVal;
     this.currentPage = 1;
     this.hasNextPage = true;
 
-    this.$$('.au-status-filter').forEach(f => {
+    this.$$('.au-status-filter').forEach((f) => {
       f.classList.toggle('active', f.getAttribute('data-status') === status);
     });
 
@@ -320,23 +342,26 @@ export class SocialSidebar extends BaseComponent {
     const content = this.$('#au-social-content')!;
     if (page === 1) {
       content.innerHTML = '';
-      content.appendChild(html`
-        <div class="au-social-loading">
+      content.appendChild(
+        html` <div class="au-social-loading">
           <i class="fa fa-spinner fa-spin"></i>
           <span>Retrieving activities...</span>
-        </div>`);
+        </div>`
+      );
     } else {
-      const loader = html`
-        <div class="au-social-loading" id="au-social-more-loader">
-          <i class="fa fa-spinner fa-spin"></i>
-        </div>`;
+      const loader = html` <div class="au-social-loading" id="au-social-more-loader">
+        <i class="fa fa-spinner fa-spin"></i>
+      </div>`;
       content.appendChild(loader);
     }
 
     this.isLoading = true;
 
     try {
-      const fetchFilter = (this.currentFilter === 'friends' || this.currentCustomList) ? 'following' : this.currentFilter;
+      const fetchFilter =
+        this.currentFilter === 'friends' || this.currentCustomList
+          ? 'following'
+          : this.currentFilter;
       const { nodes, hasNextPage } = await this.socialService.getDetailedActivity(
         mediaId,
         fetchFilter,
@@ -352,13 +377,16 @@ export class SocialSidebar extends BaseComponent {
 
       this.lastLoadedNodes = page === 1 ? nodes : [...this.lastLoadedNodes, ...nodes];
       this.refreshEntries();
-
     } catch (e) {
       log.error('[SocialSidebar] Load failed', e);
       this.isLoading = false;
       if (page === 1) {
         content.innerHTML = '';
-        content.appendChild(html`<div class="au-social-empty">Failed to load activity. Is it available for this anime?</div>`);
+        content.appendChild(
+          html`<div class="au-social-empty">
+            Failed to load activity. Is it available for this anime?
+          </div>`
+        );
       }
     }
   }
@@ -368,17 +396,20 @@ export class SocialSidebar extends BaseComponent {
 
     // Local filtering for Friends/Custom Lists
     if (this.currentFilter === 'friends') {
-      filtered = filtered.filter(node => this.customListService.isUserInList('Best Friends', node.user.id));
+      filtered = filtered.filter((node) =>
+        this.customListService.isUserInList('Best Friends', node.user.id)
+      );
     } else if (this.currentCustomList) {
       const listUsers = this.customListService.getList(this.currentCustomList);
       const userIds = new Set(listUsers.map((u: any) => u.id));
-      filtered = filtered.filter(node => userIds.has(node.user.id));
+      filtered = filtered.filter((node) => userIds.has(node.user.id));
     }
 
     if (this.searchQuery) {
-      filtered = filtered.filter(node =>
-        node.user.name.toLowerCase().includes(this.searchQuery) ||
-        (node.notes && node.notes.toLowerCase().includes(this.searchQuery))
+      filtered = filtered.filter(
+        (node) =>
+          node.user.name.toLowerCase().includes(this.searchQuery) ||
+          (node.notes && node.notes.toLowerCase().includes(this.searchQuery))
       );
     }
 
@@ -402,30 +433,46 @@ export class SocialSidebar extends BaseComponent {
       const format = node.user.mediaListOptions?.scoreFormat || 'POINT_100';
       const formattedScore = ScoreFormatter.format(node.score, format);
       const scoreColor = ScoreFormatter.getColor(node.score);
-      const isMalSync = node.notes && (node.notes.includes('malSync::') || node.notes.includes('autotrack'));
+      const isMalSync =
+        node.notes && (node.notes.includes('malSync::') || node.notes.includes('autotrack'));
       const relativeTime = this.timeAgo(node.updatedAt * 1000);
       const isBf = this.customListService.isUserInList('Best Friends', node.user.id);
-      
+
       const row = html`
-        <div class="au-friend-row" data-user-id="${node.user.id}" data-user-name="${node.user.name}" style="animation-delay: ${i * 0.05}s">
+        <div
+          class="au-friend-row"
+          data-user-id="${node.user.id}"
+          data-user-name="${node.user.name}"
+          style="animation-delay: ${i * 0.05}s"
+        >
           <div class="au-friend-avatar-link">
-            <img src="${node.user.avatar.medium}" alt="${node.user.name}">
+            <img src="${node.user.avatar.medium}" alt="${node.user.name}" />
           </div>
           <div class="au-friend-info">
             <div class="au-friend-header">
               <span class="au-friend-name" data-profile-link="true">${node.user.name}</span>
-              <i class="fa ${isBf ? 'fa-star' : 'fa-star-o'} au-bf-toggle" title="Toggle Best Friend"></i>
+              <i
+                class="fa ${isBf ? 'fa-star' : 'fa-star-o'} au-bf-toggle"
+                title="Toggle Best Friend"
+              ></i>
             </div>
             <div class="au-friend-status au-status--${node.status.toLowerCase()}">
               ${this.formatStatus(node)}
-              ${node.score > 0 ? html`
-                <span class="au-score-badge" style="color:${scoreColor}; border-color: ${scoreColor}40; background:${scoreColor}15">
-                  ${formattedScore}
-                </span>
-              ` : ''}
+              ${node.score > 0
+                ? html`
+                    <span
+                      class="au-score-badge"
+                      style="color:${scoreColor}; border-color: ${scoreColor}40; background:${scoreColor}15"
+                    >
+                      ${formattedScore}
+                    </span>
+                  `
+                : ''}
             </div>
             <div class="au-friend-date">${relativeTime}</div>
-            ${node.notes && !isMalSync ? html`<div class="au-friend-note">"${Sanitizer.escape(node.notes)}"</div>` : ''}
+            ${node.notes && !isMalSync
+              ? html`<div class="au-friend-note">"${Sanitizer.escape(node.notes)}"</div>`
+              : ''}
           </div>
         </div>
       `;

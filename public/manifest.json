@@ -53,7 +53,17 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "assets/*", "webfonts/*", "src/styles/*.css", "**/*.woff2", "**/*.woff", "**/*.ttf"],
+      "resources": [
+        "icons/*",
+        "assets/*",
+        "webfonts/*",
+        "src/styles/*.css",
+        "node_modules/@fortawesome/fontawesome-free/css/*",
+        "node_modules/@fortawesome/fontawesome-free/webfonts/*",
+        "**/*.woff2",
+        "**/*.woff",
+        "**/*.ttf"
+      ],
       "matches": ["https://anilist.co/*"]
     }
   ],

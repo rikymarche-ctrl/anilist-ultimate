@@ -14,6 +14,8 @@ import {
   type AuthLogoutResponse,
   type AuthStatusResponse,
 } from '../shared/messages';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import '@fortawesome/fontawesome-free/js/all.min.js';
 
 // Elementi DOM
 const loginBtn = document.getElementById('login-btn') as HTMLButtonElement;

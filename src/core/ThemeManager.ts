@@ -42,9 +42,7 @@ export class ThemeManager {
    * Constructor with DI support
    * tsyringe @singleton() decorator will manage singleton lifecycle
    */
-  constructor(
-    @inject(TOKENS.Config) private config: IConfigManager
-  ) {
+  constructor(@inject(TOKENS.Config) private config: IConfigManager) {
     if (typeof window !== 'undefined') {
       this.init();
     }
@@ -162,7 +160,14 @@ export class ThemeManager {
     // Ensure it's a valid hex for appending
     if (accentColor.startsWith('#') && accentColor.length === 4) {
       // Convert #RGB to #RRGGBB
-      accentColor = '#' + accentColor[1] + accentColor[1] + accentColor[2] + accentColor[2] + accentColor[3] + accentColor[3];
+      accentColor =
+        '#' +
+        accentColor[1] +
+        accentColor[1] +
+        accentColor[2] +
+        accentColor[2] +
+        accentColor[3] +
+        accentColor[3];
     }
 
     log.debug('Applying custom accent color', { accentColor });

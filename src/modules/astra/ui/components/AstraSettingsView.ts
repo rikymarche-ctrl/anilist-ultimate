@@ -37,7 +37,10 @@ export class AstraSettingsView extends AstraView {
         <div class="astra-settings-header">
           <div class="astra-settings-title-group">
             <h2>Astra Configuration</h2>
-            <p class="astra-muted">Fine-tune your rating experience and integration preferences. <b>Changes are saved automatically.</b></p>
+            <p class="astra-muted">
+              Fine-tune your rating experience and integration preferences.
+              <b>Changes are saved automatically.</b>
+            </p>
           </div>
         </div>
 
@@ -48,20 +51,41 @@ export class AstraSettingsView extends AstraView {
               <div class="astra-settings-info">
                 <div class="astra-settings-label-row">
                   <span class="astra-settings-label">Series Finale Scoring</span>
-                  ${when(!hasFinale, html`<span class="astra-badge-warn"><i class="fa fa-exclamation-triangle"></i> Requires "Finale" section</span>`)}
+                  ${when(
+                    !hasFinale,
+                    html`<span class="astra-badge-warn"
+                      ><i class="fa fa-exclamation-triangle"></i> Requires "Finale" section</span
+                    >`
+                  )}
                 </div>
-                <span class="astra-settings-desc">Apply extra weight to the "Finale" section for the last episode of a series.</span>
+                <span class="astra-settings-desc"
+                  >Apply extra weight to the "Finale" section for the last episode of a
+                  series.</span
+                >
               </div>
               <div class="astra-settings-controls">
                 <div class="astra-stepper astra-stepper--inline">
-                  <button class="astra-step-btn" id="dec-multiplier"><i class="fa fa-minus"></i></button>
+                  <button class="astra-step-btn" id="dec-multiplier">
+                    <i class="fa fa-minus"></i>
+                  </button>
                   <div class="astra-stepper-center">
-                    <input type="number" id="multiplier-input" value="${settings.finaleWeightMultiplier}" step="0.5" min="1">
+                    <input
+                      type="number"
+                      id="multiplier-input"
+                      value="${settings.finaleWeightMultiplier}"
+                      step="0.5"
+                      min="1"
+                    />
                     <span class="astra-unit">x</span>
                   </div>
-                  <button class="astra-step-btn" id="inc-multiplier"><i class="fa fa-plus"></i></button>
+                  <button class="astra-step-btn" id="inc-multiplier">
+                    <i class="fa fa-plus"></i>
+                  </button>
                 </div>
-                <div class="astra-toggle ${when(settings.enableSeriesFinale, 'active')}" data-setting="enableSeriesFinale">
+                <div
+                  class="astra-toggle ${when(settings.enableSeriesFinale, 'active')}"
+                  data-setting="enableSeriesFinale"
+                >
                   <div class="astra-toggle-handle"></div>
                 </div>
               </div>
@@ -73,9 +97,15 @@ export class AstraSettingsView extends AstraView {
             <div class="astra-settings-item">
               <div class="astra-settings-info">
                 <span class="astra-settings-label">Append Astra Review to comment</span>
-                <span class="astra-settings-desc">Include the detailed breakdown (scores, journal) in your AniList activity notes.</span>
+                <span class="astra-settings-desc"
+                  >Include the detailed breakdown (scores, journal) in your AniList activity
+                  notes.</span
+                >
               </div>
-              <div class="astra-toggle ${when(settings.appendAstraToComment, 'active')}" data-setting="appendAstraToComment">
+              <div
+                class="astra-toggle ${when(settings.appendAstraToComment, 'active')}"
+                data-setting="appendAstraToComment"
+              >
                 <div class="astra-toggle-handle"></div>
               </div>
             </div>
@@ -83,13 +113,15 @@ export class AstraSettingsView extends AstraView {
 
           <div class="astra-settings-section">
             <div class="astra-settings-section-header">
-              <h3 class="astra-section-title"><i class="fa fa-layer-group"></i> Scoring Configuration</h3>
+              <h3 class="astra-section-title">
+                <i class="fa fa-layer-group"></i> Scoring Configuration
+              </h3>
               <button class="astra-btn astra-btn--secondary astra-btn--sm" id="astra-add-section">
                 <i class="fa fa-plus"></i> Add Section
               </button>
             </div>
             <div class="astra-sections-list">
-              ${map(sections, s => this.renderSectionItem(s))}
+              ${map(sections, (s) => this.renderSectionItem(s))}
             </div>
           </div>
 
@@ -99,7 +131,9 @@ export class AstraSettingsView extends AstraView {
               <div class="astra-settings-item">
                 <div class="astra-settings-info">
                   <span class="astra-settings-label">Sync with AniList</span>
-                  <span class="astra-settings-desc">Fetch and update all media entries from your AniList profile.</span>
+                  <span class="astra-settings-desc"
+                    >Fetch and update all media entries from your AniList profile.</span
+                  >
                 </div>
                 <button class="astra-btn astra-btn--secondary" id="astra-sync-list">
                   <i class="fa fa-sync"></i> Sync List
@@ -108,7 +142,9 @@ export class AstraSettingsView extends AstraView {
               <div class="astra-settings-item">
                 <div class="astra-settings-info">
                   <span class="astra-settings-label">Export Data</span>
-                  <span class="astra-settings-desc">Download all your Astra ratings and notes as a JSON file.</span>
+                  <span class="astra-settings-desc"
+                    >Download all your Astra ratings and notes as a JSON file.</span
+                  >
                 </div>
                 <button class="astra-btn astra-btn--secondary" id="astra-export-json">
                   <i class="fa fa-download"></i> Export JSON
@@ -117,7 +153,9 @@ export class AstraSettingsView extends AstraView {
               <div class="astra-settings-item">
                 <div class="astra-settings-info">
                   <span class="astra-settings-label">Import Data</span>
-                  <span class="astra-settings-desc">Restore your Astra database from a previously exported JSON file.</span>
+                  <span class="astra-settings-desc"
+                    >Restore your Astra database from a previously exported JSON file.</span
+                  >
                 </div>
                 <button class="astra-btn astra-btn--secondary" id="astra-import-json">
                   <i class="fa fa-upload"></i> Import JSON
@@ -126,7 +164,10 @@ export class AstraSettingsView extends AstraView {
               <div class="astra-settings-item destructive">
                 <div class="astra-settings-info">
                   <span class="astra-settings-label">Delete All Data</span>
-                  <span class="astra-settings-desc">Permanently delete all ratings, notes, and configurations. <b>This cannot be undone.</b></span>
+                  <span class="astra-settings-desc"
+                    >Permanently delete all ratings, notes, and configurations.
+                    <b>This cannot be undone.</b></span
+                  >
                 </div>
                 <button class="astra-btn astra-btn--danger" id="astra-reset-data">
                   <i class="fa fa-trash"></i> Delete All
@@ -144,50 +185,117 @@ export class AstraSettingsView extends AstraView {
    */
   private renderSectionItem(section: any): HTMLElement {
     const hasSubSections = section.subSections && section.subSections.length > 0;
-    
+
     return html`
-      <div class="astra-section-config-card ${when(hasSubSections, 'has-subs')}" data-id="${section.id}">
+      <div
+        class="astra-section-config-card ${when(hasSubSections, 'has-subs')}"
+        data-id="${section.id}"
+      >
         <div class="astra-section-header-row">
           <div class="astra-section-meta">
-            <input type="text" class="astra-section-name-input" data-id="${section.id}" value="${section.name}" placeholder="Section Name">
+            <input
+              type="text"
+              class="astra-section-name-input"
+              data-id="${section.id}"
+              value="${section.name}"
+              placeholder="Section Name"
+            />
             <span class="astra-section-weight-info">Overall weight: <b>${section.weight}</b></span>
           </div>
           <div class="astra-section-controls">
             <div class="astra-stepper astra-stepper--inline">
-              <button class="astra-step-btn dec-weight" data-id="${section.id}"><i class="fa fa-minus"></i></button>
+              <button class="astra-step-btn dec-weight" data-id="${section.id}">
+                <i class="fa fa-minus"></i>
+              </button>
               <div class="astra-stepper-center">
-                <input type="number" class="astra-weight-input" data-id="${section.id}" value="${section.weight}" step="0.25" min="0">
+                <input
+                  type="number"
+                  class="astra-weight-input"
+                  data-id="${section.id}"
+                  value="${section.weight}"
+                  step="0.25"
+                  min="0"
+                />
               </div>
-              <button class="astra-step-btn inc-weight" data-id="${section.id}"><i class="fa fa-plus"></i></button>
+              <button class="astra-step-btn inc-weight" data-id="${section.id}">
+                <i class="fa fa-plus"></i>
+              </button>
             </div>
-            <button class="astra-icon-btn destructive astra-remove-section" data-id="${section.id}" title="Remove Section">
+            <button
+              class="astra-icon-btn destructive astra-remove-section"
+              data-id="${section.id}"
+              title="Remove Section"
+            >
               <i class="fa-solid fa-trash-can"></i>
             </button>
-            <button class="astra-icon-btn astra-add-sub" data-id="${section.id}" title="Add Sub-section">
+            <button
+              class="astra-icon-btn astra-add-sub"
+              data-id="${section.id}"
+              title="Add Sub-section"
+            >
               <i class="fa fa-plus-circle"></i>
             </button>
           </div>
         </div>
 
-        ${when(hasSubSections, html`
-          <div class="astra-subsections-grid">
-            ${map(section.subSections, (sub: any) => html`
-              <div class="astra-subsection-item">
-                <div class="astra-sub-info">
-                  <input type="text" class="astra-sub-name-input" data-section-id="${section.id}" data-sub-id="${sub.id}" value="${sub.name}" placeholder="Sub-section Name">
-                  <button class="astra-remove-sub" data-section-id="${section.id}" data-sub-id="${sub.id}" title="Remove Sub-section">×</button>
-                </div>
-                <div class="astra-stepper astra-stepper--xs">
-                  <button class="astra-step-btn dec-sub-weight" data-section-id="${section.id}" data-sub-id="${sub.id}"><i class="fa fa-minus"></i></button>
-                  <div class="astra-stepper-center">
-                    <input type="number" class="astra-sub-weight-input" data-section-id="${section.id}" data-sub-id="${sub.id}" value="${sub.weight}" step="0.25">
+        ${when(
+          hasSubSections,
+          html`
+            <div class="astra-subsections-grid">
+              ${map(
+                section.subSections,
+                (sub: any) => html`
+                  <div class="astra-subsection-item">
+                    <div class="astra-sub-info">
+                      <input
+                        type="text"
+                        class="astra-sub-name-input"
+                        data-section-id="${section.id}"
+                        data-sub-id="${sub.id}"
+                        value="${sub.name}"
+                        placeholder="Sub-section Name"
+                      />
+                      <button
+                        class="astra-remove-sub"
+                        data-section-id="${section.id}"
+                        data-sub-id="${sub.id}"
+                        title="Remove Sub-section"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div class="astra-stepper astra-stepper--xs">
+                      <button
+                        class="astra-step-btn dec-sub-weight"
+                        data-section-id="${section.id}"
+                        data-sub-id="${sub.id}"
+                      >
+                        <i class="fa fa-minus"></i>
+                      </button>
+                      <div class="astra-stepper-center">
+                        <input
+                          type="number"
+                          class="astra-sub-weight-input"
+                          data-section-id="${section.id}"
+                          data-sub-id="${sub.id}"
+                          value="${sub.weight}"
+                          step="0.25"
+                        />
+                      </div>
+                      <button
+                        class="astra-step-btn inc-sub-weight"
+                        data-section-id="${section.id}"
+                        data-sub-id="${sub.id}"
+                      >
+                        <i class="fa fa-plus"></i>
+                      </button>
+                    </div>
                   </div>
-                  <button class="astra-step-btn inc-sub-weight" data-section-id="${section.id}" data-sub-id="${sub.id}"><i class="fa fa-plus"></i></button>
-                </div>
-              </div>
-            `)}
-          </div>
-        `)}
+                `
+              )}
+            </div>
+          `
+        )}
       </div>
     `;
   }
@@ -196,14 +304,13 @@ export class AstraSettingsView extends AstraView {
    * Binds configuration events (toggles, steppers, data management).
    */
   protected bindEvents(): void {
-    this.$$('.astra-toggle').forEach(toggle => {
+    this.$$('.astra-toggle').forEach((toggle) => {
       this.addEventListener(toggle, 'click', () => {
         const setting = toggle.dataset.setting as keyof AstraSettings;
         if (!setting) return;
 
         const isActive = toggle.classList.toggle('active');
         this.service.updateSettings({ [setting]: isActive });
-        this.toast.info(`Updated: ${setting}`);
       });
     });
 
@@ -239,14 +346,14 @@ export class AstraSettingsView extends AstraView {
     }
 
     // Section Weights
-    this.$$('.astra-weight-input').forEach(input => {
+    this.$$('.astra-weight-input').forEach((input) => {
       this.addEventListener(input as HTMLElement, 'change', () => {
         const inputEl = input as HTMLInputElement;
         const id = inputEl.dataset.id!;
         const val = parseFloat(inputEl.value);
         if (isNaN(val) || val < 0) {
           this.toast.error('Invalid weight! Min: 0');
-          const original = this.service.getSections().find(s => s.id === id)?.weight || 1;
+          const original = this.service.getSections().find((s) => s.id === id)?.weight || 1;
           inputEl.value = original.toString();
           return;
         }
@@ -254,12 +361,12 @@ export class AstraSettingsView extends AstraView {
       });
     });
 
-    this.$$('.inc-weight').forEach(btn => {
+    this.$$('.inc-weight').forEach((btn) => {
       this.addEventListener(btn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         const id = (btn as HTMLElement).dataset.id!;
         const sections = this.service.getSections();
-        const section = sections.find(s => s.id === id);
+        const section = sections.find((s) => s.id === id);
         if (section) {
           const newWeight = section.weight + 0.25;
           this.service.updateSectionWeight(id, newWeight);
@@ -269,12 +376,12 @@ export class AstraSettingsView extends AstraView {
       });
     });
 
-    this.$$('.dec-weight').forEach(btn => {
+    this.$$('.dec-weight').forEach((btn) => {
       this.addEventListener(btn as HTMLElement, 'click', (e) => {
         e.stopPropagation();
         const id = (btn as HTMLElement).dataset.id!;
         const sections = this.service.getSections();
-        const section = sections.find(s => s.id === id);
+        const section = sections.find((s) => s.id === id);
         if (section && section.weight > 0.25) {
           const newWeight = section.weight - 0.25;
           this.service.updateSectionWeight(id, newWeight);
@@ -298,7 +405,7 @@ export class AstraSettingsView extends AstraView {
     }
 
     // Section Renaming
-    this.$$('.astra-section-name-input').forEach(input => {
+    this.$$('.astra-section-name-input').forEach((input) => {
       this.addEventListener(input as HTMLElement, 'change', async () => {
         const el = input as HTMLInputElement;
         const id = el.dataset.id!;
@@ -311,7 +418,7 @@ export class AstraSettingsView extends AstraView {
     });
 
     // Remove Section
-    this.$$('.astra-remove-section').forEach(btn => {
+    this.$$('.astra-remove-section').forEach((btn) => {
       this.addEventListener(btn as HTMLElement, 'click', async (e) => {
         e.stopPropagation();
         const id = (btn as HTMLElement).dataset.id!;
@@ -329,7 +436,7 @@ export class AstraSettingsView extends AstraView {
       this.addEventListener(syncBtn, 'click', async () => {
         syncBtn.classList.add('loading');
         this.toast.info('Syncing with AniList... This may take a while.');
-        
+
         try {
           const result = await this.service.syncWithAniList();
           this.toast.success(`Sync complete! Added: ${result.added}, Updated: ${result.updated}`);
@@ -399,11 +506,15 @@ export class AstraSettingsView extends AstraView {
     const resetBtn = this.$('#astra-reset-data');
     if (resetBtn) {
       this.addEventListener(resetBtn, 'click', async () => {
-        if (confirm('ARE YOU SURE? This will permanently delete ALL your Astra ratings and notes. This cannot be undone.')) {
+        if (
+          confirm(
+            'ARE YOU SURE? This will permanently delete ALL your Astra ratings and notes. This cannot be undone.'
+          )
+        ) {
           try {
             await this.service.factoryReset();
-            this.toast.success('All data cleared! Reloading...');
-            setTimeout(() => window.location.reload(), 1500);
+            this.update();
+            this.toast.success('All data cleared!');
           } catch (err) {
             this.toast.error('Reset failed.');
           }

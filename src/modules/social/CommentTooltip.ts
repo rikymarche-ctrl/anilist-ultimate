@@ -114,13 +114,13 @@ export class CommentTooltip extends BaseComponent<{ onRefresh?: () => void }> {
 
     const container = document.createElement('div');
     const lines = notes.split('\n');
-    
+
     lines.forEach((line, index) => {
       const span = document.createElement('span');
       // Simple text content is safe
       span.textContent = line;
       container.appendChild(span);
-      
+
       if (index < lines.length - 1) {
         container.appendChild(document.createElement('br'));
       }
