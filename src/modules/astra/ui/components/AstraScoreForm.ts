@@ -273,7 +273,11 @@ ${season.notes || ''}</textarea
       trigger.addEventListener('click', (e) => {
         e.stopPropagation();
         const parent = (e.currentTarget as HTMLElement).parentElement;
-        parent?.classList.toggle('active');
+        const wasActive = parent?.classList.contains('active');
+        this.$$('.astra-dropdown').forEach((d) => d.classList.remove('active'));
+        if (!wasActive) {
+          parent?.classList.add('active');
+        }
       });
     });
 

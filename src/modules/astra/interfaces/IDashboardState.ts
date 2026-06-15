@@ -16,7 +16,13 @@ export type AstraSortType =
   | 'score-desc'
   | 'score-asc'
   | 'title-asc'
-  | 'progress-desc';
+  | 'title-desc'
+  | 'type-asc'
+  | 'type-desc'
+  | 'progress-desc'
+  | 'progress-asc'
+  | `section-${string}-asc`
+  | `section-${string}-desc`;
 
 export type AstraDashboardLayout = 'table' | 'list' | 'grid';
 

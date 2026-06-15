@@ -7,7 +7,7 @@
 import { injectable, inject } from 'tsyringe';
 import { AstraView } from '../base/AstraView';
 import { AstraDashboardStore } from '../../store/AstraDashboardStore';
-import { IDashboardState } from '../../interfaces/IDashboardState';
+import { IDashboardState, AstraSortType } from '../../interfaces/IDashboardState';
 import { AstraService } from '../../AstraService';
 import { AstraWorkSummary } from '../../AstraInterfaces';
 import { AstraRatingModal } from '../AstraRatingModal';

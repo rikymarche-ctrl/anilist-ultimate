@@ -14,6 +14,12 @@ export interface StatusSelectorOptions {
 export class AstraStatusSelector extends AstraView {
   private options: StatusSelectorOptions | null = null;
 
+  /**
+   * Mounts the status selector component to a parent element.
+   *
+   * @param parent The parent container element.
+   * @param options The status selector options.
+   */
   public mount(parent: HTMLElement, options: StatusSelectorOptions): void {
     this.options = options;
     super.mount(parent);
@@ -90,7 +96,13 @@ export class AstraStatusSelector extends AstraView {
   protected bindEvents(): void {
     this.$('.astra-dropdown-trigger')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.$('.astra-dropdown')?.classList.toggle('active');
+      const dropdown = this.$('.astra-dropdown');
+      const wasActive = dropdown?.classList.contains('active');
+      const container = this.element.closest('.astra-modal, .astra-score-form') || document.body;
+      container.querySelectorAll('.astra-dropdown.active').forEach((d) => d.classList.remove('active'));
+      if (!wasActive) {
+        dropdown?.classList.add('active');
+      }
     });
 
     this.$$('.astra-status-option').forEach((opt) => {

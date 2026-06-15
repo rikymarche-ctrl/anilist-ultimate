@@ -48,6 +48,8 @@ export class AstraRatingModal {
   private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
   private isNewWork: boolean = false; // Track if we are creating a new entry
   private livePreviewRaf: number | null = null; // Coalesces live-preview redraws during slider drag
+  private documentClickHandler: (() => void) | null = null;
+  private documentEscHandler: ((e: KeyboardEvent) => Promise<void>) | null = null;
 
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
@@ -68,6 +70,13 @@ export class AstraRatingModal {
     return container.resolve<AstraDashboard>(TOKENS.AstraDashboard);
   }
 
+  /**
+   * Opens the Astra rating modal view and initializes data.
+   *
+   * @param mediaId The AniList media ID to load.
+   * @param initialTab The initial tab to show ('rating' or 'journal').
+   * @returns A promise that resolves when the modal open operation has completed.
+   */
   public async open(mediaId: number, initialTab: 'rating' | 'journal' = 'rating'): Promise<void> {
     this.activeTab = initialTab;
     const data = await this.fetchAniListData(mediaId);
@@ -572,6 +581,12 @@ export class AstraRatingModal {
     `;
   }
 
+  /**
+   * Closes the rating modal view, auto-saves any unsaved modifications,
+   * and cleans up global event listeners.
+   *
+   * @returns A promise that resolves when the close process completes.
+   */
   public async close(): Promise<void> {
     if (!this.overlay || !this.state) return;
 
@@ -590,6 +605,16 @@ export class AstraRatingModal {
       }
     } else {
       log.debug('[AstraRatingModal] Closing without save (no changes or new empty work)');
+    }
+
+    // Cleanup global listeners
+    if (this.documentEscHandler) {
+      document.removeEventListener('keydown', this.documentEscHandler);
+      this.documentEscHandler = null;
+    }
+    if (this.documentClickHandler) {
+      document.removeEventListener('click', this.documentClickHandler);
+      this.documentClickHandler = null;
     }
 
     this.overlay.classList.add('astra-modal-overlay--closing');
@@ -687,12 +712,22 @@ export class AstraRatingModal {
     });
 
     // ESC key to close modal (accessibility)
-    const handleEscKey = async (e: KeyboardEvent) => {
+    this.documentEscHandler = async (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         await this.close();
       }
     };
-    document.addEventListener('keydown', handleEscKey);
+    document.addEventListener('keydown', this.documentEscHandler);
+
+    // Global document click to close active dropdowns
+    this.documentClickHandler = () => {
+      if (this.overlay) {
+        this.overlay.querySelectorAll('.astra-dropdown.active').forEach((d) => {
+          d.classList.remove('active');
+        });
+      }
+    };
+    document.addEventListener('click', this.documentClickHandler);
 
     // Setup focus trap
     this.setupFocusTrap();
@@ -742,16 +777,16 @@ export class AstraRatingModal {
     const trigger = dropdown?.querySelector('.astra-dropdown-trigger');
     trigger?.addEventListener('click', (e) => {
       e.stopPropagation();
-      dropdown?.classList.toggle('active');
+      const wasActive = dropdown?.classList.contains('active');
+      if (this.overlay) {
+        this.overlay.querySelectorAll('.astra-dropdown.active').forEach((d) =>
+          d.classList.remove('active')
+        );
+      }
+      if (!wasActive) {
+        dropdown?.classList.add('active');
+      }
     });
-
-    document.addEventListener(
-      'click',
-      () => {
-        dropdown?.classList.remove('active');
-      },
-      { once: false }
-    );
 
     dropdown?.querySelector('.astra-dropdown-menu')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -762,7 +797,15 @@ export class AstraRatingModal {
     const statusTrigger = statusDropdown?.querySelector('.astra-dropdown-trigger');
     statusTrigger?.addEventListener('click', (e) => {
       e.stopPropagation();
-      statusDropdown?.classList.toggle('active');
+      const wasActive = statusDropdown?.classList.contains('active');
+      if (this.overlay) {
+        this.overlay.querySelectorAll('.astra-dropdown.active').forEach((d) =>
+          d.classList.remove('active')
+        );
+      }
+      if (!wasActive) {
+        statusDropdown?.classList.add('active');
+      }
     });
     statusDropdown
       ?.querySelector('.astra-dropdown-menu')
@@ -784,7 +827,6 @@ export class AstraRatingModal {
         this.state?.updateField('status', value);
       });
     });
-    document.addEventListener('click', () => statusDropdown?.classList.remove('active'));
 
     // Custom date pickers
     this.overlay!.querySelectorAll('.astra-datepicker').forEach((dp) =>
@@ -1312,8 +1354,6 @@ export class AstraRatingModal {
         return;
       }
     });
-
-    document.addEventListener('click', () => dp.classList.remove('active'));
   }
 
   private setDateValue(hidden: HTMLInputElement, labelEl: HTMLElement, iso: string): void {
