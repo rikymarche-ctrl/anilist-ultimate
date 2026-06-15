@@ -40,7 +40,7 @@ export class AstraDashboard extends AstraView {
     @inject(AstraOverlayService) private overlayService: AstraOverlayService
   ) {
     super({});
-    
+
     // Safety: BaseComponent constructor calls render() before this.store is assigned.
     // We re-render now that dependencies are injected.
     this.element = this.render();
@@ -60,7 +60,10 @@ export class AstraDashboard extends AstraView {
       this.dashboardLayout = state.layout;
 
       if (this.mounted) {
-        if (tabChanged || (this.activeTab === 'dashboard' && (entryStateChanged || layoutChanged))) {
+        if (
+          tabChanged ||
+          (this.activeTab === 'dashboard' && (entryStateChanged || layoutChanged))
+        ) {
           log.info(`[AstraDashboard] Tab changed to ${this.activeTab}, rerendering...`);
           this.rerender();
         } else {
@@ -78,11 +81,13 @@ export class AstraDashboard extends AstraView {
     if (this.overlayService.isActive('dashboard') || this.isOpening) {
       return;
     }
-    
+
     this.isOpening = true;
     try {
+      // Always land on the dashboard home, never the last-used Settings tab.
+      this.store.setTab('dashboard');
       await this.service.init();
-    
+
       this.overlay = this.overlayService.create('dashboard');
       this.mount(this.overlay);
       this.overlayService.show('dashboard');
@@ -140,10 +145,10 @@ export class AstraDashboard extends AstraView {
           <div class="astra-nav-spacer"></div>
           <button class="astra-modal-close"><i class="fa-solid fa-xmark"></i></button>
         </nav>
- 
+
         <div class="astra-modal-main">
           <div id="astra-dashboard-content">
-             <!-- Sub-components will be mounted here -->
+            <!-- Sub-components will be mounted here -->
           </div>
         </div>
       </div>
@@ -178,6 +183,10 @@ export class AstraDashboard extends AstraView {
             <button type="button" class="astra-dashboard-action" id="astra-dashboard-stats">
               <i class="fa-solid fa-chart-line"></i>
               <span>Stats</span>
+            </button>
+            <button type="button" class="astra-dashboard-action ${state.showProgress ? 'active' : ''}" id="astra-dashboard-progress">
+              <i class="fa-solid fa-bars-progress"></i>
+              <span>Progress</span>
             </button>
             <div class="astra-dashboard-layout-toggle" aria-label="Dashboard layout">
               <button
@@ -230,7 +239,9 @@ export class AstraDashboard extends AstraView {
       content.appendChild(layout);
 
       this.filterBar.mount(this.$('#astra-filters-mount')!, state);
-      this.workTable.mount(this.$('#astra-table-mount')!, state);
+      const tableMount = this.$('#astra-table-mount')!;
+      tableMount.classList.toggle('astra-show-progress', state.showProgress);
+      this.workTable.mount(tableMount, state);
       this.bindDashboardHeaderEvents(layout);
     } else {
       this.settingsView.mount(content);
@@ -262,6 +273,14 @@ export class AstraDashboard extends AstraView {
       }
     });
 
+    layout.querySelector('#astra-dashboard-progress')?.addEventListener('click', (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      const next = !this.store.getState().showProgress;
+      this.store.setShowProgress(next);
+      button.classList.toggle('active', next);
+      layout.querySelector('#astra-table-mount')?.classList.toggle('astra-show-progress', next);
+    });
+
     layout.querySelectorAll<HTMLElement>('[data-layout]').forEach((button) => {
       button.addEventListener('click', () => {
         const nextLayout = button.dataset.layout as 'table' | 'list' | 'grid' | undefined;
@@ -271,13 +290,21 @@ export class AstraDashboard extends AstraView {
       });
     });
 
+    // Collapse the title/actions row once the table is scrolled, keeping only the filter bar pinned.
+    const scrollContainer = layout.querySelector('.astra-table-wrap');
+    if (scrollContainer) {
+      this.addEventListener(scrollContainer, 'scroll', () => {
+        const scrolled = scrollContainer.scrollTop > 8;
+        layout.classList.toggle('astra-dashboard-layout--scrolled', scrolled);
+      });
+    }
   }
 
   /**
    * Binds navigation and modal events.
    */
   protected bindEvents(): void {
-    this.$$('.astra-nav-item').forEach(item => {
+    this.$$('.astra-nav-item').forEach((item) => {
       this.addEventListener(item, 'click', () => {
         const tab = (item as HTMLElement).dataset.tab as any;
         if (tab && tab !== this.activeTab) {
@@ -290,7 +317,7 @@ export class AstraDashboard extends AstraView {
     if (closeBtn) {
       this.addEventListener(closeBtn, 'click', () => this.close());
     }
-    
+
     if (this.overlay) {
       this.addEventListener(this.overlay, 'mousedown', (e) => {
         if (e.target === this.overlay) this.close();

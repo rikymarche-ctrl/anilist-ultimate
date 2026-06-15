@@ -10,12 +10,12 @@ import { MediaListStatus } from '@/api/AnilistTypes';
 /**
  * Valid sort directions and criteria for the dashboard grid
  */
-export type AstraSortType = 
-  | 'updated-desc' 
-  | 'updated-asc' 
-  | 'score-desc' 
-  | 'score-asc' 
-  | 'title-asc' 
+export type AstraSortType =
+  | 'updated-desc'
+  | 'updated-asc'
+  | 'score-desc'
+  | 'score-asc'
+  | 'title-asc'
   | 'progress-desc';
 
 export type AstraDashboardLayout = 'table' | 'list' | 'grid';
@@ -54,6 +54,7 @@ export interface IDashboardState {
   stats: IDashboardStats;
   filteredWorks: AstraWorkSummary[];
   layout: AstraDashboardLayout;
+  showProgress: boolean;
   activeTab: 'dashboard' | 'settings';
   isLoading: boolean;
   error: string | null;

@@ -47,6 +47,7 @@ export class AstraRatingModal {
   private media: any = null;
   private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
   private isNewWork: boolean = false; // Track if we are creating a new entry
+  private livePreviewRaf: number | null = null; // Coalesces live-preview redraws during slider drag
 
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
@@ -112,6 +113,9 @@ export class AstraRatingModal {
         customLists,
         tags: [],
         notes: '',
+        episodes: media.episodes ?? undefined,
+        chapters: media.chapters ?? undefined,
+        progress: media.mediaListEntry?.progress ?? 0,
         updatedAt: Date.now(),
         seasons: [
           {
@@ -149,7 +153,7 @@ export class AstraRatingModal {
         }
       }
       Media(id: $id) {
-        id title { userPreferred } type format episodes status countryOfOrigin
+        id title { userPreferred } type format episodes chapters status countryOfOrigin
         nextAiringEpisode { episode }
         coverImage { large extraLarge color }
         mediaListEntry {
@@ -202,7 +206,7 @@ export class AstraRatingModal {
       <div class="astra-modal astra-modal--rating">
         <nav class="astra-modal-nav">
           <div class="astra-nav-back" id="astra-dashboard-link">
-            <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 28px; height: 28px; transform: rotate(-90deg);">
+            <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="width: 32px; height: 32px; transform: rotate(-90deg);">
               <path d="M12 4L4 20H8L12 12L16 20H20L12 4Z" />
             </svg>
             <div class="astra-nav-back-text">Back to Dashboard</div>
@@ -216,11 +220,6 @@ export class AstraRatingModal {
             <span>Journal</span>
           </button>
           <div class="astra-nav-spacer"></div>
-          <button class="astra-nav-item astra-nav-item--save" id="astra-nav-save" 
-            style="display: ${this.activeTab === 'journal' ? 'flex' : 'none'}">
-            <i class="fa fa-save"></i>
-            <span>Save</span>
-          </button>
         </nav>
 
         <div class="astra-modal-main">
@@ -316,27 +315,41 @@ export class AstraRatingModal {
               <div class="astra-grid-cell">
                 <div class="astra-input-box">
                   <span class="astra-label-xs">STATUS</span>
-                  <select class="astra-select" id="astra-status">
-                    <option value="${MediaListStatus.CURRENT}" ${work.status === MediaListStatus.CURRENT ? 'selected' : ''}>${getStatusLabel(MediaListStatus.CURRENT, work.type)}</option>
-                    <option value="${MediaListStatus.COMPLETED}" ${work.status === MediaListStatus.COMPLETED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.COMPLETED, work.type)}</option>
-                    <option value="${MediaListStatus.PAUSED}" ${work.status === MediaListStatus.PAUSED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PAUSED, work.type)}</option>
-                    <option value="${MediaListStatus.DROPPED}" ${work.status === MediaListStatus.DROPPED ? 'selected' : ''}>${getStatusLabel(MediaListStatus.DROPPED, work.type)}</option>
-                    <option value="${MediaListStatus.PLANNING}" ${work.status === MediaListStatus.PLANNING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.PLANNING, work.type)}</option>
-                    <option value="${MediaListStatus.REPEATING}" ${work.status === MediaListStatus.REPEATING ? 'selected' : ''}>${getStatusLabel(MediaListStatus.REPEATING, work.type)}</option>
-                  </select>
+                  <div class="astra-dropdown astra-status-dropdown" id="astra-status-dropdown">
+                    <button type="button" class="astra-dropdown-trigger">
+                      <i class="fa ${this.statusIcon(work.status)}" id="astra-status-icon"></i>
+                      <span class="astra-dropdown-label" id="astra-status-label">${getStatusLabel(work.status, work.type)}</span>
+                      <i class="fa fa-chevron-down"></i>
+                    </button>
+                    <div class="astra-dropdown-menu">
+                      <div class="astra-dropdown-scroll">
+                        ${[
+                          MediaListStatus.CURRENT,
+                          MediaListStatus.COMPLETED,
+                          MediaListStatus.PAUSED,
+                          MediaListStatus.DROPPED,
+                          MediaListStatus.PLANNING,
+                          MediaListStatus.REPEATING,
+                        ]
+                          .map(
+                            (s) => `
+                          <div class="astra-dropdown-item astra-status-option ${work.status === s ? 'active' : ''}" data-value="${s}">
+                            <i class="fa ${this.statusIcon(s)}"></i>
+                            <span>${getStatusLabel(s, work.type)}</span>
+                          </div>`
+                          )
+                          .join('')}
+                      </div>
+                    </div>
+                  </div>
+                  <input type="hidden" id="astra-status" value="${work.status}">
                 </div>
               </div>
 
               <div class="astra-grid-cell">
                 <div class="astra-input-split">
-                  <div class="astra-input-box">
-                    <span class="astra-label-xs">START DATE</span>
-                    <input type="date" class="astra-date-input" id="astra-start-date" value="${this.formatDateForInput(entry?.startedAt)}">
-                  </div>
-                  <div class="astra-input-box">
-                    <span class="astra-label-xs">FINISH DATE</span>
-                    <input type="date" class="astra-date-input" id="astra-finish-date" value="${this.formatDateForInput(entry?.completedAt)}">
-                  </div>
+                  ${this.renderDateField('astra-start-date', 'START DATE', this.formatDateForInput(entry?.startedAt))}
+                  ${this.renderDateField('astra-finish-date', 'FINISH DATE', this.formatDateForInput(entry?.completedAt))}
                 </div>
               </div>
 
@@ -417,11 +430,9 @@ export class AstraRatingModal {
 
             <div class="astra-form-footer">
               <div class="astra-notes-area">
-                <span class="astra-label-sm">Rating Notes</span>
                 <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${season.notes || ''}</textarea>
               </div>
               <div class="astra-overall-area">
-                <span class="astra-label-sm">Weighted Score</span>
                 <div class="astra-overall-box">
                   <span class="astra-overall-val" style="display: ${season.manualOverride ? 'none' : 'block'}">—</span>
                   <input type="number" class="astra-overall-input" id="astra-manual-score" 
@@ -487,6 +498,12 @@ export class AstraRatingModal {
       effectiveWeight *= settings.finaleWeightMultiplier || 2;
     }
 
+    // Compact "series finale" toggle, relocated from the header into the Finale section itself.
+    const finaleToggleHtml =
+      isFinale && settings.enableSeriesFinale && !season.manualOverride
+        ? `<button type="button" class="astra-finale-toggle ${season.isSeriesFinale ? 'active' : ''}" id="astra-section-finale-btn" title="Mark as series finale (weight ×${settings.finaleWeightMultiplier || 2})"><i class="fa fa-flag-checkered"></i></button>`
+        : '';
+
     if (hasSubSections) {
       return `
         <div class="astra-score-group ${groupClass}" data-id="${section.id}">
@@ -494,6 +511,7 @@ export class AstraRatingModal {
             <div class="astra-label-left">
               <i class="fa fa-chevron-down astra-accordion-icon"></i>
               <span class="astra-score-group-title">${section.name} ${this.renderWeightTag(effectiveWeight)}</span>
+              ${finaleToggleHtml}
             </div>
             <span class="astra-group-avg" id="avg-${section.id}">—</span>
           </div>
@@ -511,6 +529,7 @@ export class AstraRatingModal {
         <div class="astra-score-group-header">
           <div class="astra-label-left">
             <span class="astra-score-group-title">${section.name} ${this.renderWeightTag(effectiveWeight)}</span>
+            ${finaleToggleHtml}
           </div>
           <span class="astra-group-avg" id="avg-${section.id}">—</span>
         </div>
@@ -637,8 +656,9 @@ export class AstraRatingModal {
     // Dashboard link
     const dashboardLink = this.overlay.querySelector('#astra-dashboard-link');
     dashboardLink?.addEventListener('click', () => {
+      const focusMediaId = this.media?.id;
       this.close();
-      this.dashboard.open();
+      this.dashboard.open(focusMediaId ? { mediaId: focusMediaId } : undefined);
     });
 
     const closeBtns = this.overlay!.querySelectorAll('.astra-modal-close');
@@ -737,6 +757,40 @@ export class AstraRatingModal {
       e.stopPropagation();
     });
 
+    // Status custom dropdown (single-select, mirrors the Custom Lists styling/animation)
+    const statusDropdown = this.overlay!.querySelector('#astra-status-dropdown');
+    const statusTrigger = statusDropdown?.querySelector('.astra-dropdown-trigger');
+    statusTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      statusDropdown?.classList.toggle('active');
+    });
+    statusDropdown
+      ?.querySelector('.astra-dropdown-menu')
+      ?.addEventListener('click', (e) => e.stopPropagation());
+    statusDropdown?.querySelectorAll('.astra-status-option').forEach((opt) => {
+      opt.addEventListener('click', () => {
+        const value = (opt as HTMLElement).dataset.value as MediaListStatus;
+        const hidden = this.overlay!.querySelector('#astra-status') as HTMLInputElement;
+        const label = this.overlay!.querySelector('#astra-status-label');
+        const icon = this.overlay!.querySelector('#astra-status-icon');
+        if (hidden) hidden.value = value;
+        if (label) label.textContent = (opt.textContent || '').trim();
+        if (icon) icon.className = `fa ${this.statusIcon(value)}`;
+        statusDropdown
+          .querySelectorAll('.astra-status-option')
+          .forEach((o) => o.classList.remove('active'));
+        opt.classList.add('active');
+        statusDropdown.classList.remove('active');
+        this.state?.updateField('status', value);
+      });
+    });
+    document.addEventListener('click', () => statusDropdown?.classList.remove('active'));
+
+    // Custom date pickers
+    this.overlay!.querySelectorAll('.astra-datepicker').forEach((dp) =>
+      this.bindDatePicker(dp as HTMLElement)
+    );
+
     // Header events are now handled by AstraRatingHeader component
     const manualScoreInput = this.overlay!.querySelector('#astra-manual-score') as HTMLInputElement;
 
@@ -805,17 +859,32 @@ export class AstraRatingModal {
       });
     });
 
-    // Finale Toggle
-    const finaleBtn = this.overlay!.querySelector('#astra-finale-btn');
-    finaleBtn?.addEventListener('click', () => {
+    // Finale Toggle (relocated into the Finale section header)
+    const finaleBtn = this.overlay!.querySelector('#astra-section-finale-btn');
+    finaleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation(); // don't trigger accordion collapse if finale has sub-sections
       if (!this.state) return;
       const season = this.state.data.seasons[this.currentSeasonIdx];
-      this.state.updateSeasonField(this.currentSeasonIdx, 'isSeriesFinale', !season.isSeriesFinale);
+      const newState = !season.isSeriesFinale;
+      this.state.updateSeasonField(this.currentSeasonIdx, 'isSeriesFinale', newState);
+      finaleBtn.classList.toggle('active', newState);
+
+      // Reflect the new effective weight on the Finale section's weight tag.
+      const settings = this.astraService.getSettings();
+      const finaleSection = this.astraService
+        .getSections()
+        .find((s) => s.id === 'finale' || s.name.toLowerCase().trim() === 'finale');
+      if (finaleSection) {
+        const eff = newState
+          ? finaleSection.weight * (settings.finaleWeightMultiplier || 2)
+          : finaleSection.weight;
+        const tag = this.overlay!.querySelector(
+          `.astra-score-group[data-id="${finaleSection.id}"] .astra-weight-tag`
+        ) as HTMLElement | null;
+        if (tag) tag.textContent = `w${eff % 1 === 0 ? eff.toFixed(0) : eff.toFixed(1)}`;
+      }
+
       this.updateLivePreview();
-      finaleBtn.classList.toggle(
-        'active',
-        this.state.data.seasons[this.currentSeasonIdx].isSeriesFinale
-      );
     });
 
     // Stepper
@@ -1045,6 +1114,214 @@ export class AstraRatingModal {
     return { year: y, month: m, day: d };
   }
 
+  /** Renders a custom date field: styled trigger + popover calendar, backed by a hidden input. */
+  private renderDateField(id: string, label: string, iso: string): string {
+    return `
+      <div class="astra-input-box">
+        <span class="astra-label-xs">${label}</span>
+        <div class="astra-dropdown astra-datepicker" data-target="${id}">
+          <button type="button" class="astra-dropdown-trigger astra-datepicker-trigger">
+            <i class="fa fa-calendar"></i>
+            <span class="astra-dropdown-label astra-dp-label">${this.formatDateDisplay(iso)}</span>
+            <i class="fa fa-chevron-down"></i>
+          </button>
+          <div class="astra-dropdown-menu astra-datepicker-menu"></div>
+        </div>
+        <input type="hidden" id="${id}" value="${iso}">
+      </div>
+    `;
+  }
+
+  private statusIcon(status: MediaListStatus): string {
+    switch (status) {
+      case MediaListStatus.CURRENT:
+        return 'fa-circle-play';
+      case MediaListStatus.COMPLETED:
+        return 'fa-circle-check';
+      case MediaListStatus.PAUSED:
+        return 'fa-circle-pause';
+      case MediaListStatus.DROPPED:
+        return 'fa-circle-stop';
+      case MediaListStatus.PLANNING:
+        return 'fa-clock';
+      case MediaListStatus.REPEATING:
+        return 'fa-arrows-rotate';
+      default:
+        return 'fa-circle-play';
+    }
+  }
+
+  private formatDateDisplay(iso: string): string {
+    if (!iso) return 'Not set';
+    const [y, m, d] = iso.split('-').map(Number);
+    if (!y || !m || !d) return 'Not set';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return `${d} ${months[m - 1]} ${y}`;
+  }
+
+  private toIso(year: number, month: number, day: number): string {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  private buildCalendarHtml(year: number, month: number, selectedIso: string): string {
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    const dow = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const startDow = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const now = new Date();
+    const todayIso = this.toIso(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let cells = '';
+    for (let i = 0; i < startDow; i++)
+      cells += `<span class="astra-cal-day astra-cal-day--empty"></span>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = this.toIso(year, month, d);
+      const cls = ['astra-cal-day'];
+      if (iso === selectedIso) cls.push('astra-cal-day--selected');
+      if (iso === todayIso) cls.push('astra-cal-day--today');
+      cells += `<button type="button" class="${cls.join(' ')}" data-day="${iso}">${d}</button>`;
+    }
+
+    return `
+      <div class="astra-cal-header">
+        <span class="astra-cal-title">${monthNames[month]} ${year}</span>
+        <div class="astra-cal-nav">
+          <button type="button" class="astra-cal-nav-btn" data-nav="prev"><i class="fa fa-chevron-left"></i></button>
+          <button type="button" class="astra-cal-nav-btn" data-nav="next"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="astra-cal-grid astra-cal-dow">${dow.map((d) => `<span class="astra-cal-dow-cell">${d}</span>`).join('')}</div>
+      <div class="astra-cal-grid astra-cal-days">${cells}</div>
+      <div class="astra-cal-footer">
+        <button type="button" class="astra-cal-action" data-clear>Clear</button>
+        <button type="button" class="astra-cal-action astra-cal-action--accent" data-today>Today</button>
+      </div>
+    `;
+  }
+
+  private bindDatePicker(dp: HTMLElement): void {
+    const trigger = dp.querySelector('.astra-dropdown-trigger');
+    const menu = dp.querySelector('.astra-datepicker-menu') as HTMLElement;
+    const hidden = this.overlay!.querySelector(`#${dp.dataset.target}`) as HTMLInputElement;
+    const labelEl = dp.querySelector('.astra-dp-label') as HTMLElement;
+    if (!trigger || !menu || !hidden) return;
+
+    const renderMonth = () => {
+      const iso = hidden.value;
+      let year: number;
+      let month: number;
+      if (dp.dataset.viewYear && dp.dataset.viewMonth) {
+        year = Number(dp.dataset.viewYear);
+        month = Number(dp.dataset.viewMonth);
+      } else if (iso) {
+        const [y, m] = iso.split('-').map(Number);
+        year = y;
+        month = m - 1;
+      } else {
+        const now = new Date();
+        year = now.getFullYear();
+        month = now.getMonth();
+      }
+      dp.dataset.viewYear = String(year);
+      dp.dataset.viewMonth = String(month);
+      menu.innerHTML = this.buildCalendarHtml(year, month, hidden.value);
+    };
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasActive = dp.classList.contains('active');
+      this.overlay!.querySelectorAll('.astra-dropdown.active').forEach((d) =>
+        d.classList.remove('active')
+      );
+      if (!wasActive) {
+        renderMonth();
+        dp.classList.add('active');
+      }
+    });
+
+    menu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const target = e.target as HTMLElement;
+
+      const navBtn = target.closest('[data-nav]') as HTMLElement | null;
+      if (navBtn) {
+        let year = Number(dp.dataset.viewYear);
+        let month = Number(dp.dataset.viewMonth) + (navBtn.dataset.nav === 'next' ? 1 : -1);
+        if (month < 0) {
+          month = 11;
+          year--;
+        } else if (month > 11) {
+          month = 0;
+          year++;
+        }
+        dp.dataset.viewYear = String(year);
+        dp.dataset.viewMonth = String(month);
+        menu.innerHTML = this.buildCalendarHtml(year, month, hidden.value);
+        return;
+      }
+
+      const dayBtn = target.closest('[data-day]') as HTMLElement | null;
+      if (dayBtn) {
+        this.setDateValue(hidden, labelEl, dayBtn.dataset.day!);
+        dp.classList.remove('active');
+        return;
+      }
+
+      if (target.closest('[data-clear]')) {
+        this.setDateValue(hidden, labelEl, '');
+        dp.classList.remove('active');
+        return;
+      }
+
+      if (target.closest('[data-today]')) {
+        const now = new Date();
+        this.setDateValue(
+          hidden,
+          labelEl,
+          this.toIso(now.getFullYear(), now.getMonth(), now.getDate())
+        );
+        delete dp.dataset.viewYear;
+        delete dp.dataset.viewMonth;
+        dp.classList.remove('active');
+        return;
+      }
+    });
+
+    document.addEventListener('click', () => dp.classList.remove('active'));
+  }
+
+  private setDateValue(hidden: HTMLInputElement, labelEl: HTMLElement, iso: string): void {
+    hidden.value = iso;
+    labelEl.textContent = this.formatDateDisplay(iso);
+    if (this.state) this.state.isDirty = true;
+  }
+
   private renderEpisodeJournal(): void {
     const list = this.overlay!.querySelector('.astra-ep-list');
     if (!list || !this.media) return;
@@ -1104,6 +1381,17 @@ export class AstraRatingModal {
   }
 
   private updateLivePreview(): void {
+    // Coalesce rapid calls (e.g. per-pixel slider drag) into one redraw per frame.
+    // Rebuilding the radar SVG synchronously on every input event was blocking the
+    // main thread and dropping pointer-move events, making sliders stick mid-drag.
+    if (this.livePreviewRaf !== null) return;
+    this.livePreviewRaf = requestAnimationFrame(() => {
+      this.livePreviewRaf = null;
+      this.performLivePreview();
+    });
+  }
+
+  private performLivePreview(): void {
     if (!this.state) return;
     const work = this.state.data;
     const season = work.seasons[this.currentSeasonIdx];

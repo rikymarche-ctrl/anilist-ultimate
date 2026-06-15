@@ -685,7 +685,7 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
 }
 
 .astra-ep-textarea:focus {
-  border-color: var(--astra-accent);
+  border-color: var(--astra-accent-a50);
   background: rgba(0, 0, 0, 0.3);
 }
 
@@ -1059,10 +1059,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   transition: background 0.3s ease;
 }
 
-.astra-score-group-header:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .astra-accordion-icon {
   transition: transform 0.3s ease;
   margin-right: 8px;
@@ -1109,6 +1105,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   align-items: center;
 }
 
+.astra-score-input--sub .astra-score-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .astra-sub-label {
   font-size: 13px;
   font-weight: 600;
@@ -1118,14 +1121,31 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   gap: 8px;
 }
 
+.astra-score-num-input,
 .astra-score-num-input--small {
   background: transparent;
   border: none;
+  color: var(--astra-text);
   font-weight: 800;
-  width: 35px;
+  width: 44px;
   padding: 0;
   font-size: 14px;
   text-align: right;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.astra-score-num-input::-webkit-outer-spin-button,
+.astra-score-num-input::-webkit-inner-spin-button,
+.astra-score-num-input--small::-webkit-outer-spin-button,
+.astra-score-num-input--small::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.astra-score-num-input--small {
+  width: 35px;
 }
 
 .astra-slider--mini {
@@ -1412,6 +1432,168 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .astra-dropdown-scroll {
   max-height: 200px;
   overflow-y: auto;
+}
+
+.astra-status-option {
+  font-weight: 600;
+}
+
+.astra-finale-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--astra-border-soft);
+  background: transparent;
+  color: var(--astra-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.astra-finale-toggle:hover {
+  border-color: var(--astra-accent-a50);
+  color: var(--astra-text);
+}
+
+.astra-finale-toggle.active {
+  background: var(--astra-accent-a20);
+  border-color: var(--astra-accent);
+  color: var(--astra-accent);
+}
+
+.astra-status-option i {
+  width: 16px;
+  text-align: center;
+  color: var(--astra-muted);
+}
+
+.astra-status-option.active i {
+  color: var(--astra-accent);
+}
+
+/* Custom calendar (start / finish date pickers) */
+.astra-datepicker-menu {
+  width: 248px !important;
+  padding: 12px !important;
+}
+
+.astra-datepicker:last-child .astra-datepicker-menu {
+  left: auto;
+  right: 0;
+}
+
+.astra-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.astra-cal-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--astra-text);
+}
+
+.astra-cal-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.astra-cal-nav-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--astra-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.astra-cal-nav-btn:hover {
+  background: var(--astra-accent-a10);
+  color: var(--astra-accent);
+}
+
+.astra-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.astra-cal-dow-cell {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--astra-muted);
+  padding: 4px 0;
+}
+
+.astra-cal-day {
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  color: var(--astra-text);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.astra-cal-day:hover {
+  background: var(--astra-accent-a10);
+  color: var(--astra-accent);
+}
+
+.astra-cal-day--empty {
+  background: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+
+.astra-cal-day--today {
+  box-shadow: inset 0 0 0 1px var(--astra-accent-a50);
+}
+
+.astra-cal-day--selected {
+  background: var(--astra-accent) !important;
+  color: #fff !important;
+  font-weight: 800;
+}
+
+.astra-cal-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--astra-border-soft);
+}
+
+.astra-cal-action {
+  background: transparent;
+  border: none;
+  color: var(--astra-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.astra-cal-action:hover {
+  color: var(--astra-text);
+}
+
+.astra-cal-action--accent {
+  color: var(--astra-accent);
 }
 
 .astra-textarea {
@@ -3067,10 +3249,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* THE PROGRESS ENGINE - BACKGROUND INJECTION */
 .astra-show-progress .astra-grid-row:not(.astra-row-no-progress) {
   background-image: linear-gradient(90deg,
-      rgba(var(--astra-accent-rgb), 0.2) 0%,
-      rgba(var(--astra-accent-rgb), 0.1) 100%);
+      rgba(var(--astra-accent-rgb), 0.13) 0%,
+      rgba(var(--astra-accent-rgb), 0.05) 100%);
+  background-repeat: no-repeat;
   background-size: calc(var(--progress-val, 0) * 1%) 100%;
-  box-shadow: inset 3px 0 0 var(--astra-accent);
+  box-shadow: inset 2px 0 0 var(--astra-accent-a50);
 }
 
 /* Group Headers */
@@ -3798,21 +3981,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: var(--astra-accent-a10);
+  border-radius: 0;
+  background: transparent;
   color: var(--astra-accent);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
   margin-bottom: 30px;
-  border: 1px solid var(--astra-accent-a20);
+  border: none;
   position: relative;
 }
 
 .astra-nav-back:hover {
   transform: scale(1.1) translateX(-2px);
-  background: var(--astra-accent);
-  color: white;
-  box-shadow: 0 0 15px var(--astra-accent-a50);
+  background: transparent;
+  color: var(--astra-accent);
+  filter: drop-shadow(0 0 8px var(--astra-accent-a50));
 }
 
 .astra-nav-back-text {
@@ -4511,6 +4694,16 @@ body.au-astra-enabled .section-header .friend-activity-button {
   min-height: 0 !important;
   padding: 28px 24px 24px !important;
   box-sizing: border-box !important;
+  transition: gap 0.2s ease, padding-top 0.2s ease !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-layout--scrolled {
+  gap: 0 !important;
+  padding-top: 4px !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-layout--scrolled .astra-dashboard-shell-header {
+  margin-bottom: -8px !important;
 }
 
 .astra-modal--dashboard #astra-filters-mount {
@@ -4530,6 +4723,17 @@ body.au-astra-enabled .section-header .friend-activity-button {
   min-height: 48px !important;
   padding: 0 0 18px !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.055) !important;
+  overflow: hidden !important;
+  transition: min-height 0.2s ease, padding 0.2s ease, opacity 0.2s ease, border-color 0.2s ease !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-layout--scrolled .astra-dashboard-shell-header {
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-bottom-color: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .astra-modal--dashboard .astra-dashboard-shell-header h2 {
@@ -6019,7 +6223,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
 .astra-modal--rating:not(.astra-v2) .astra-field-group {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  gap: 16px !important;
+  gap: 10px !important;
   width: 100% !important;
 }
 
@@ -6040,6 +6244,11 @@ body.au-astra-enabled .section-header .friend-activity-button {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
   gap: 12px !important;
   padding: 12px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-score-group--collapsed .astra-sub-sections,
+.astra-modal--rating:not(.astra-v2) .astra-score-group--collapsed .astra-main-section {
+  display: none !important;
 }
 
 .astra-modal--rating:not(.astra-v2) .astra-sidebar {
@@ -6066,9 +6275,9 @@ body.au-astra-enabled .section-header .friend-activity-button {
 
 .astra-modal--rating:not(.astra-v2) .astra-form-footer {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 120px !important;
+  grid-template-columns: 5fr 1fr !important;
   gap: 18px !important;
-  align-items: end !important;
+  align-items: stretch !important;
   padding-top: 14px !important;
 }
 
@@ -6086,12 +6295,14 @@ body.au-astra-enabled .section-header .friend-activity-button {
 
 .astra-modal--rating:not(.astra-v2) .astra-notes-area textarea {
   width: 100% !important;
-  height: 58px !important;
+  height: 100% !important;
+  min-height: 58px !important;
   margin: 0 !important;
+  resize: none !important;
 }
 
 .astra-modal--rating:not(.astra-v2) .astra-overall-area {
-  width: 120px !important;
+  width: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 8px !important;
@@ -6099,7 +6310,9 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 .astra-modal--rating:not(.astra-v2) .astra-overall-box {
-  height: 58px !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: 58px !important;
   padding: 0 12px !important;
   border-radius: 12px !important;
 }
@@ -6112,6 +6325,37 @@ body.au-astra-enabled .section-header .friend-activity-button {
   gap: 12px !important;
   overflow-y: auto !important;
   padding-right: 8px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-ep-row {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 16px !important;
+  flex: 0 0 auto !important;
+  padding: 14px 16px !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-ep-num {
+  flex: 0 0 45px !important;
+  min-width: 45px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-ep-body {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-ep-textarea {
+  width: 100% !important;
+  min-height: 72px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  resize: none !important;
 }
 
 .score-high {

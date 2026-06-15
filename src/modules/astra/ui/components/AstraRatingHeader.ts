@@ -72,15 +72,6 @@ export class AstraRatingHeader extends AstraView {
                  <i class="fa fa-exclamation-triangle"></i>
                  <span>OVERRIDE</span>
                </button>
-
-               ${state.showFinale && !state.manualOverride ? html`
-               <button class="astra-finale-pill ${state.isSeriesFinale ? 'active' : ''}" 
-                 id="header-finale-btn" 
-                 title="Toggle Series Finale">
-                 <i class="fa fa-flag-checkered"></i>
-                 <span>FINALE</span>
-               </button>
-               ` : ''}
             </div>
             ` : ''}
           </div>
@@ -97,10 +88,6 @@ export class AstraRatingHeader extends AstraView {
     this.$('#header-override-btn')?.addEventListener('click', () => {
       const active = !this.state?.manualOverride;
       this.state?.onOverrideToggle(active);
-    });
-
-    this.$('#header-finale-btn')?.addEventListener('click', () => {
-      this.state?.onFinaleToggle();
     });
   }
 }

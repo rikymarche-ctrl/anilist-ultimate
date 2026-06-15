@@ -21,7 +21,7 @@ import {
   IDashboardState,
   IDashboardFilters,
   AstraSortType,
-  AstraDashboardLayout
+  AstraDashboardLayout,
 } from '../interfaces/IDashboardState';
 import { log } from '@core/logger';
 import type { IEventBus } from '@core/interfaces/IEventBus';
@@ -49,6 +49,7 @@ const INITIAL_STATE: IDashboardState = {
   },
   filteredWorks: [],
   layout: 'table',
+  showProgress: false,
   activeTab: 'dashboard',
   isLoading: false,
   error: null,
@@ -83,12 +84,14 @@ export class AstraDashboardStore extends Store<IDashboardState> {
         filters?: Partial<IDashboardFilters>;
         sort?: AstraSortType;
         layout?: AstraDashboardLayout;
+        showProgress?: boolean;
       }>(this.STORAGE_KEY);
       if (saved) {
         const patch: Partial<IDashboardState> = {};
         if (saved.filters) patch.filters = { ...this.getState().filters, ...saved.filters };
         if (saved.sort) patch.sort = saved.sort;
         if (saved.layout) patch.layout = saved.layout;
+        if (typeof saved.showProgress === 'boolean') patch.showProgress = saved.showProgress;
         if (Object.keys(patch).length > 0) this.setState(patch);
       }
     } catch (e) {
@@ -146,6 +149,11 @@ export class AstraDashboardStore extends Store<IDashboardState> {
     this.persist();
   }
 
+  public setShowProgress(showProgress: boolean): void {
+    this.setState({ showProgress });
+    this.persist();
+  }
+
   public setTab(tab: 'dashboard' | 'settings'): void {
     this.setState({ activeTab: tab });
   }
@@ -171,8 +179,8 @@ export class AstraDashboardStore extends Store<IDashboardState> {
 
   private async persist(): Promise<void> {
     try {
-      const { filters, sort, layout } = this.getState();
-      await this.storage.set(this.STORAGE_KEY, { filters, sort, layout });
+      const { filters, sort, layout, showProgress } = this.getState();
+      await this.storage.set(this.STORAGE_KEY, { filters, sort, layout, showProgress });
     } catch (e) {
       log.error('[AstraDashboardStore] Failed to persist state', e);
     }

@@ -108,11 +108,27 @@ export class AstraSyncService {
                 changed = true;
               }
 
-              full.genres = entry.media.genres || [];
-              full.episodes = entry.media.episodes ?? undefined;
-              full.chapters = entry.media.chapters ?? undefined;
+              // Persist refreshed media metadata. These were previously assigned
+              // without flagging `changed`, so updated episode/chapter totals never
+              // got saved (entries stayed stuck on "?" until something else changed).
+              const nextEpisodes = entry.media.episodes ?? undefined;
+              const nextChapters = entry.media.chapters ?? undefined;
+              const nextDuration = entry.media.duration ?? undefined;
+              const nextGenres = entry.media.genres || [];
+              if (
+                full.episodes !== nextEpisodes ||
+                full.chapters !== nextChapters ||
+                full.progress !== entry.progress ||
+                full.duration !== nextDuration ||
+                JSON.stringify(full.genres) !== JSON.stringify(nextGenres)
+              ) {
+                changed = true;
+              }
+              full.genres = nextGenres;
+              full.episodes = nextEpisodes;
+              full.chapters = nextChapters;
               full.progress = entry.progress;
-              full.duration = entry.media.duration ?? undefined;
+              full.duration = nextDuration;
               if (entry.notes) {
                 const parsed = this.parser.parse(entry.notes, sections);
                 if (parsed) {
