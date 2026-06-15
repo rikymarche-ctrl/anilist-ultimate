@@ -26,6 +26,7 @@ import { AstraCalculator } from '../utils/AstraCalculator';
 @injectable()
 export class AstraRepository {
   private summaries: AstraWorkSummary[] = [];
+  private summaryIndexByMediaId: Map<number, number> = new Map();
   private fullWorkCache: Map<number, AstraWork> = new Map();
   private readonly MAX_CACHE_SIZE = 20;
 
@@ -76,6 +77,7 @@ export class AstraRepository {
         this.sections = sections || [...DEFAULT_SECTIONS];
         this.settings = settings ? { ...DEFAULT_SETTINGS, ...settings } : DEFAULT_SETTINGS;
       }
+      this.rebuildSummaryIndex();
 
       this.isInitialized = true;
       log.success(
@@ -85,6 +87,7 @@ export class AstraRepository {
     } catch (error) {
       log.error('[AstraRepository] Initialization failed', error);
       this.summaries = [];
+      this.rebuildSummaryIndex();
     }
   }
 
@@ -150,12 +153,13 @@ export class AstraRepository {
     this.fullWorkCache.set(fullWork.mediaId, fullWork);
 
     const summary = this.createSummary(fullWork);
-    const existingIdx = this.summaries.findIndex((s) => s.mediaId === fullWork!.mediaId);
+    const existingIdx = this.summaryIndexByMediaId.get(fullWork.mediaId);
 
-    if (existingIdx >= 0) {
+    if (existingIdx !== undefined) {
       this.summaries[existingIdx] = summary;
     } else {
-      this.summaries.unshift(summary);
+      this.summaryIndexByMediaId.set(summary.mediaId, this.summaries.length);
+      this.summaries.push(summary);
     }
 
     // During bulk sync, callers defer the (expensive) manifest write and call
@@ -170,6 +174,7 @@ export class AstraRepository {
   public async deleteWork(mediaId: number): Promise<void> {
     await this.init();
     this.summaries = this.summaries.filter((s) => s.mediaId !== mediaId);
+    this.rebuildSummaryIndex();
     this.fullWorkCache.delete(mediaId);
     await Promise.all([this.storage.remove(`${this.WORK_PREFIX}${mediaId}`), this.persist()]);
   }
@@ -201,6 +206,7 @@ export class AstraRepository {
       country: work.country,
       updatedAt: work.updatedAt,
       genres: work.genres,
+      customLists: work.customLists,
       currentScore: latestSeason
         ? latestSeason.legacyScore ||
           AstraCalculator.calcSeasonScore(latestSeason, this.sections, this.settings)
@@ -323,6 +329,7 @@ export class AstraRepository {
     this.sections = [...DEFAULT_SECTIONS];
     this.settings = { ...DEFAULT_SETTINGS };
     this.fullWorkCache.clear();
+    this.rebuildSummaryIndex();
 
     // Clear all Astra storage entries directly via chrome.storage.local.
     // Note: keys are stored with StorageManager's prefix, so we match on the
@@ -373,6 +380,7 @@ export class AstraRepository {
       this.summaries = data.manifest;
       this.sections = data.sections;
       this.settings = { ...DEFAULT_SETTINGS, ...data.settings };
+      this.rebuildSummaryIndex();
 
       await this.persist();
 
@@ -387,5 +395,12 @@ export class AstraRepository {
       log.error('[AstraRepository] Import failed', e);
       return false;
     }
+  }
+
+  private rebuildSummaryIndex(): void {
+    this.summaryIndexByMediaId.clear();
+    this.summaries.forEach((summary, index) => {
+      this.summaryIndexByMediaId.set(summary.mediaId, index);
+    });
   }
 }

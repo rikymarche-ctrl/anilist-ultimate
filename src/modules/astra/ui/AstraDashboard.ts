@@ -10,7 +10,6 @@ import { AstraView } from './base/AstraView';
 import { AstraDashboardStore } from '../store/AstraDashboardStore';
 import { IDashboardState } from '../interfaces/IDashboardState';
 import { AstraService } from '../AstraService';
-import { AstraStatsHeader } from './components/AstraStatsHeader';
 import { AstraFilterBar } from './components/AstraFilterBar';
 import { AstraWorkTable } from './components/AstraWorkTable';
 import { AstraSettingsView } from './components/AstraSettingsView';
@@ -33,7 +32,6 @@ export class AstraDashboard extends AstraView {
     @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(AstraStatsHeader) private statsHeader: AstraStatsHeader,
     @inject(AstraFilterBar) private filterBar: AstraFilterBar,
     @inject(AstraWorkTable) private workTable: AstraWorkTable,
     @inject(AstraSettingsView) private settingsView: AstraSettingsView,
@@ -106,7 +104,6 @@ export class AstraDashboard extends AstraView {
   }
 
   protected override onUnmount(): void {
-    this.statsHeader.unmount();
     this.filterBar.unmount();
     this.workTable.unmount();
     this.settingsView.unmount();
@@ -163,7 +160,6 @@ export class AstraDashboard extends AstraView {
     if (!content) return;
 
     // Unmount previous components before switching tabs
-    this.statsHeader.unmount();
     this.filterBar.unmount();
     this.workTable.unmount();
     this.settingsView.unmount();
@@ -180,14 +176,16 @@ export class AstraDashboard extends AstraView {
               <span>Sync</span>
             </button>
             <span class="astra-dashboard-action-separator"></span>
-            <button type="button" class="astra-dashboard-action" id="astra-dashboard-stats">
-              <i class="fa-solid fa-chart-line"></i>
-              <span>Stats</span>
-            </button>
-            <button type="button" class="astra-dashboard-action ${state.showProgress ? 'active' : ''}" id="astra-dashboard-progress">
+            <button
+              type="button"
+              class="astra-dashboard-action astra-dashboard-action--icon ${state.showProgress ? 'active' : ''}"
+              id="astra-dashboard-progress"
+              title="Progress fill"
+              aria-label="Progress fill"
+            >
               <i class="fa-solid fa-bars-progress"></i>
-              <span>Progress</span>
             </button>
+            <span class="astra-dashboard-action-separator"></span>
             <div class="astra-dashboard-layout-toggle" aria-label="Dashboard layout">
               <button
                 type="button"

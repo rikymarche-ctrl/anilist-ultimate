@@ -330,11 +330,27 @@
   transform: scale(1.05);
 }
 
-/* Behind card: modifier kept for logic but visual border removed for minimalist look */
+/* Behind card: keep the warning visible above cover/overlay layers. */
 .anime-card--is-behind {
-  border-left: 3px solid #ff4f4f !important;
+  opacity: 1 !important;
+  border-left-color: transparent !important;
   animation: behind-outer-pulse 4.5s ease-in-out infinite;
   z-index: 10;
+}
+
+.anime-card--is-behind::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 6px 0 0 6px;
+  background: #ff4f4f;
+  box-shadow: 0 0 10px rgba(255, 79, 79, 0.45);
+  pointer-events: none;
+  z-index: 35;
+  animation: behind-stripe-pulse 4.5s ease-in-out infinite;
 }
 
 @keyframes behind-outer-pulse {
@@ -353,6 +369,21 @@
   100% {
     box-shadow: 0 0 0 0px rgba(255, 79, 79, 0);
     border-left-color: rgba(255, 79, 79, 0.4) !important;
+  }
+}
+
+.anime-card--is-behind.anime-card--aired {
+  opacity: 1 !important;
+}
+
+@keyframes behind-stripe-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+
+  50% {
+    opacity: 1;
   }
 }
 

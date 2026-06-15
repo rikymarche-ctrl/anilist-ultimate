@@ -35,6 +35,7 @@ export interface AstraWorkSummary {
   currentScore: number | null;
   sectionScores?: Record<string, number | null>;
   genres?: string[];
+  customLists?: string[];
 }
 
 export interface AstraSeason {

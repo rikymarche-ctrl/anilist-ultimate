@@ -34,6 +34,7 @@ const INITIAL_STATE: IDashboardState = {
     type: 'all',
     ratingStatus: 'all',
     country: 'all',
+    customList: 'all',
     isGrouped: true,
     anilistStatus: 'all',
   },
@@ -59,6 +60,7 @@ const INITIAL_STATE: IDashboardState = {
 @singleton()
 export class AstraDashboardStore extends Store<IDashboardState> {
   private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private viewUpdateTimer: ReturnType<typeof setTimeout> | null = null;
   /** Transient search text held until the debounce window applies it. */
   private pendingSearch = '';
   private readonly STORAGE_KEY = 'au_astra_dashboard_state_v2';
@@ -73,9 +75,9 @@ export class AstraDashboardStore extends Store<IDashboardState> {
     super(INITIAL_STATE);
     this.init();
 
-    this.eventBus.on(EVENT_TYPES.ASTRA_DATA_UPDATED, () => this.updateFilteredList());
-    this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, () => this.updateFilteredList());
-    this.eventBus.on(EVENT_TYPES.ASTRA_SYNC_COMPLETE, () => this.updateFilteredList());
+    this.eventBus.on(EVENT_TYPES.ASTRA_DATA_UPDATED, () => this.scheduleFilteredListUpdate());
+    this.eventBus.on(EVENT_TYPES.PROGRESS_UPDATED, () => this.scheduleFilteredListUpdate());
+    this.eventBus.on(EVENT_TYPES.ASTRA_SYNC_COMPLETE, () => this.scheduleFilteredListUpdate());
   }
 
   private async init(): Promise<void> {
@@ -161,6 +163,15 @@ export class AstraDashboardStore extends Store<IDashboardState> {
   private updateFilteredList(): void {
     const { filters, sort } = this.getState();
     this.setState(this.computeView(filters, sort));
+  }
+
+  private scheduleFilteredListUpdate(): void {
+    if (this.viewUpdateTimer) return;
+
+    this.viewUpdateTimer = setTimeout(() => {
+      this.viewUpdateTimer = null;
+      this.updateFilteredList();
+    }, 0);
   }
 
   /** Pure derivation of the filtered list + stats from the current works. */

@@ -29,6 +29,7 @@ export interface IDashboardFilters {
   ratingStatus: 'all' | 'rated' | 'unrated';
   anilistStatus: 'all' | MediaListStatus[];
   country: 'all' | string;
+  customList: 'all' | string;
   isGrouped: boolean;
 }
 

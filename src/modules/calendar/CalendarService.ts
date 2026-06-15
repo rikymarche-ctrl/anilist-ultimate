@@ -234,12 +234,14 @@ export class CalendarService implements ICalendarService {
    * Get entries for this week (next 7 days)
    */
   getWeekEntries(entries: AnimeEntry[]): AnimeEntry[] {
-    const now = Date.now();
-    const weekFromNow = now + 7 * 24 * 60 * 60 * 1000;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startOfToday = today.getTime();
+    const weekFromNow = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
     return entries.filter((entry) => {
       const airingTime = entry.airingAt.getTime();
-      return airingTime >= now && airingTime <= weekFromNow;
+      return airingTime >= startOfToday && airingTime <= weekFromNow;
     });
   }
 

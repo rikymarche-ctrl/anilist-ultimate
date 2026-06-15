@@ -46,7 +46,12 @@ export class AstraFilterService implements IFilterService {
       result = result.filter(w => w.country === filters.country);
     }
 
-    // 5. Search (if query exists)
+    // 5. Custom list filter
+    if (filters.customList !== 'all') {
+      result = result.filter(w => w.customLists?.includes(filters.customList));
+    }
+
+    // 6. Search (if query exists)
     if (filters.search && filters.search.trim() !== '') {
       result = this.search(result, filters.search);
     }

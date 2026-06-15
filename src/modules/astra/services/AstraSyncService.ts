@@ -73,6 +73,10 @@ export class AstraSyncService {
       let updatedCount = 0;
 
       const sections = this.repository.getSections();
+      const existingSummariesByMediaId = new Map(
+        this.repository.getWorks().map((summary) => [summary.mediaId, summary])
+      );
+      const existingMediaIds = new Set(existingSummariesByMediaId.keys());
 
       const processResult = async (result: MediaListCollectionResponse) => {
         const collection = result?.MediaListCollection;
@@ -80,9 +84,7 @@ export class AstraSyncService {
 
         for (const list of collection.lists) {
           for (const entry of list.entries) {
-            const existingSummary = this.repository
-              .getWorks()
-              .find((s) => s.mediaId === entry.mediaId);
+            const existingSummary = existingMediaIds.has(entry.mediaId);
 
             if (existingSummary) {
               const full = await this.repository.getFullWork(entry.mediaId);
@@ -103,7 +105,11 @@ export class AstraSyncService {
 
               // Sync metadata
               const customLists = this.parseCustomLists(entry);
-              if (JSON.stringify(full.customLists) !== JSON.stringify(customLists)) {
+              const currentSummary = existingSummariesByMediaId.get(entry.mediaId);
+              if (
+                JSON.stringify(full.customLists) !== JSON.stringify(customLists) ||
+                JSON.stringify(currentSummary?.customLists || []) !== JSON.stringify(customLists)
+              ) {
                 full.customLists = customLists;
                 changed = true;
               }
@@ -147,7 +153,8 @@ export class AstraSyncService {
 
               if (changed) {
                 // Defer manifest persist; flushed once after the full sync.
-                await this.repository.saveWork(full, true);
+                const saved = await this.repository.saveWork(full, true);
+                existingMediaIds.add(saved.mediaId);
                 updatedCount++;
               }
             } else {
@@ -194,7 +201,8 @@ export class AstraSyncService {
                 newWork.seasons[0].legacyScore = normalized;
               }
 
-              await this.repository.saveWork(newWork, true);
+              const saved = await this.repository.saveWork(newWork, true);
+              existingMediaIds.add(saved.mediaId);
               addedCount++;
             }
           }

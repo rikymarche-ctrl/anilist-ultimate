@@ -14,9 +14,28 @@ import { AstraRatingModal } from '../AstraRatingModal';
 import { TOKENS } from '@core/di/tokens';
 import { html, map } from '@core/utils/Template';
 import { AstraRowRenderer } from './AstraRowRenderer';
+import { MediaListStatus } from '@/api/AnilistTypes';
+import { getStatusLabel } from '@core/utils/UIHelpers';
+
+type AstraGroupedItem =
+  | { kind: 'header'; status: string; count: number; collapsed: boolean }
+  | { kind: 'work'; work: AstraWorkSummary };
 
 @injectable()
 export class AstraWorkTable extends AstraView {
+  private static readonly RENDER_CHUNK_SIZE = 50;
+  private readonly collapsedGroups = new Set<string>([
+    MediaListStatus.COMPLETED,
+    MediaListStatus.PLAN_TO_WATCH,
+    MediaListStatus.PLAN_TO_READ,
+    MediaListStatus.PAUSED,
+    MediaListStatus.DROPPED,
+    MediaListStatus.REWATCHING,
+    MediaListStatus.REREADING,
+    'UNKNOWN',
+  ]);
+  private renderProcessId = 0;
+
   constructor(
     @inject(TOKENS.AstraStore) _store: AstraDashboardStore,
     @inject(TOKENS.AstraService) private service: AstraService,
@@ -36,39 +55,26 @@ export class AstraWorkTable extends AstraView {
     const state = this.props;
 
     if (prevState && prevState.layout !== state.layout) {
+      this.renderProcessId++;
       return false;
     }
 
     if (state.filteredWorks.length === 0) {
+      this.renderProcessId++;
       // Re-render only if the empty-state variant actually changed
       // (importer vs. "no results"); otherwise skip to avoid replaying
       // the portal's entrance animation on every filter click.
+      const showsEmptyState = this.element?.classList.contains('astra-empty-state') ?? false;
       const showsImporter =
         this.element?.classList.contains('astra-empty-state--importer') ?? false;
       const needsImporter = state.stats.totalCount === 0;
-      return showsImporter === needsImporter;
-    }
-
-    if (state.layout !== 'table') {
-      return false;
+      return showsEmptyState && showsImporter === needsImporter;
     }
 
     // Switch between populated grid and empty/import states with a full rerender.
     if (!body) return false;
 
-    const sections = this.service.getSections();
-
-    // Clear and batch-append using DocumentFragment
-    body.innerHTML = '';
-    const fragment = document.createDocumentFragment();
-
-    state.filteredWorks.forEach((work: AstraWorkSummary) => {
-      fragment.appendChild(
-        AstraRowRenderer.render(work, sections, (id) => this.ratingController.open(id))
-      );
-    });
-
-    body.appendChild(fragment);
+    this.renderVisibleRows();
     return true;
   }
 
@@ -104,7 +110,7 @@ export class AstraWorkTable extends AstraView {
     return this.renderTableLayout(works, sections);
   }
 
-  private renderTableLayout(works: AstraWorkSummary[], sections: any[]): HTMLElement {
+  private renderTableLayout(_works: AstraWorkSummary[], sections: any[]): HTMLElement {
     return html`
       <div class="astra-table-wrap">
         <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 105px)">
@@ -119,17 +125,13 @@ export class AstraWorkTable extends AstraView {
             ${map(sections, (s: any) => html`<div class="astra-col-section">${s.name}</div>`)}
             <div class="astra-col-actions">Actions</div>
           </div>
-          <div class="astra-grid-body">
-            ${map(works, (w: AstraWorkSummary) =>
-              AstraRowRenderer.render(w, sections, (id: number) => this.ratingController.open(id))
-            )}
-          </div>
+          <div class="astra-grid-body"></div>
         </div>
       </div>
     `;
   }
 
-  private renderListLayout(works: AstraWorkSummary[], sections: any[]): HTMLElement {
+  private renderListLayout(_works: AstraWorkSummary[], sections: any[]): HTMLElement {
     return html`
       <div class="astra-table-wrap astra-layout-list-wrap">
         <div class="astra-grid astra-grid--compact" style="--astra-dynamic-cols: repeat(${sections.length}, 105px)">
@@ -143,22 +145,194 @@ export class AstraWorkTable extends AstraView {
             ${map(sections, (s: any) => html`<div class="astra-col-section">${s.name}</div>`)}
             <div class="astra-col-actions">Actions</div>
           </div>
-          <div class="astra-grid-body">
-            ${map(works, (w: AstraWorkSummary) =>
-              AstraRowRenderer.renderCompact(w, sections, (id: number) => this.ratingController.open(id))
-            )}
-          </div>
+          <div class="astra-grid-body"></div>
         </div>
       </div>
     `;
   }
 
-  private renderGridLayout(works: AstraWorkSummary[]): HTMLElement {
+  private renderVisibleRows(): void {
+    const body = this.$('.astra-grid-body');
+    if (!body) return;
+
+    const state = this.props;
+    const sections = this.service.getSections();
+    const compact = state.layout === 'list';
+    const grid = state.layout === 'grid';
+    const items = this.buildGroupedItems(state.filteredWorks);
+    const processId = ++this.renderProcessId;
+
+    body.innerHTML = '';
+    this.renderChunk(items, sections, compact, grid, body, processId, 0);
+  }
+
+  private buildGroupedItems(works: AstraWorkSummary[]): AstraGroupedItem[] {
+    const groups = new Map<string, AstraWorkSummary[]>();
+
+    works.forEach((work) => {
+      const status = this.getDisplayStatus(work);
+      if (!groups.has(status)) groups.set(status, []);
+      groups.get(status)!.push(work);
+    });
+
+    const statusOrder = [
+      MediaListStatus.WATCHING,
+      MediaListStatus.READING,
+      MediaListStatus.REWATCHING,
+      MediaListStatus.REREADING,
+      MediaListStatus.COMPLETED,
+      MediaListStatus.PLAN_TO_WATCH,
+      MediaListStatus.PLAN_TO_READ,
+      MediaListStatus.PAUSED,
+      MediaListStatus.DROPPED,
+      'UNKNOWN',
+    ];
+
+    const activeStatusFilters =
+      this.props.filters.anilistStatus === 'all' ? [] : this.props.filters.anilistStatus;
+    const forceOpen = new Set<string>(
+      activeStatusFilters.flatMap((status: MediaListStatus) =>
+        this.getPossibleDisplayStatuses(status)
+      )
+    );
+
+    return Array.from(groups.keys())
+      .sort((a, b) => {
+        const idxA = statusOrder.indexOf(a as MediaListStatus);
+        const idxB = statusOrder.indexOf(b as MediaListStatus);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
+      })
+      .flatMap((status) => {
+        const groupWorks = groups.get(status)!;
+        const collapsed = this.collapsedGroups.has(status) && !forceOpen.has(status);
+        const header: AstraGroupedItem = {
+          kind: 'header',
+          status,
+          count: groupWorks.length,
+          collapsed,
+        };
+        return collapsed
+          ? [header]
+          : [header, ...groupWorks.map((work): AstraGroupedItem => ({ kind: 'work', work }))];
+      });
+  }
+
+  private renderChunk(
+    items: AstraGroupedItem[],
+    sections: any[],
+    compact: boolean,
+    grid: boolean,
+    body: HTMLElement,
+    processId: number,
+    start: number
+  ): void {
+    if (processId !== this.renderProcessId) return;
+
+    const chunk = items.slice(start, start + AstraWorkTable.RENDER_CHUNK_SIZE);
+    if (chunk.length === 0) return;
+
+    const fragment = document.createDocumentFragment();
+    chunk.forEach((item) => {
+      fragment.appendChild(
+        item.kind === 'header'
+          ? this.renderGroupHeader(item.status, item.count, item.collapsed)
+          : grid
+            ? this.renderGridCard(item.work)
+          : compact
+            ? AstraRowRenderer.renderCompact(item.work, sections, (id) => this.ratingController.open(id))
+            : AstraRowRenderer.render(item.work, sections, (id) => this.ratingController.open(id))
+      );
+    });
+    body.appendChild(fragment);
+
+    if (start + AstraWorkTable.RENDER_CHUNK_SIZE < items.length) {
+      requestAnimationFrame(() => {
+        this.renderChunk(
+          items,
+          sections,
+          compact,
+          grid,
+          body,
+          processId,
+          start + AstraWorkTable.RENDER_CHUNK_SIZE
+        );
+      });
+    }
+  }
+
+  private renderGroupHeader(status: string, count: number, collapsed: boolean): HTMLElement {
+    const label = this.getGroupLabel(status);
+
+    return html`
+      <button
+        type="button"
+        class="astra-grid-group-header ${collapsed ? 'collapsed' : ''}"
+        data-status="${status}"
+      >
+        <div class="astra-group-info">
+          <i class="fa fa-chevron-down"></i>
+          <span class="astra-group-title">${label}</span>
+          <span class="astra-group-badge">${count}</span>
+        </div>
+        <div class="astra-group-line"></div>
+      </button>
+    `;
+  }
+
+  private getDisplayStatus(work: AstraWorkSummary): string {
+    switch (work.status) {
+      case MediaListStatus.CURRENT:
+        return work.type === 'anime' ? MediaListStatus.WATCHING : MediaListStatus.READING;
+      case MediaListStatus.REPEATING:
+        return work.type === 'anime' ? MediaListStatus.REWATCHING : MediaListStatus.REREADING;
+      case MediaListStatus.PLANNING:
+        return work.type === 'anime' ? MediaListStatus.PLAN_TO_WATCH : MediaListStatus.PLAN_TO_READ;
+      default:
+        return work.status || 'UNKNOWN';
+    }
+  }
+
+  private getPossibleDisplayStatuses(status: MediaListStatus): string[] {
+    switch (status) {
+      case MediaListStatus.CURRENT:
+        return [MediaListStatus.WATCHING, MediaListStatus.READING];
+      case MediaListStatus.REPEATING:
+        return [MediaListStatus.REWATCHING, MediaListStatus.REREADING];
+      case MediaListStatus.PLANNING:
+        return [MediaListStatus.PLAN_TO_WATCH, MediaListStatus.PLAN_TO_READ];
+      default:
+        return [status];
+    }
+  }
+
+  private getGroupLabel(status: string): string {
+    switch (status) {
+      case MediaListStatus.WATCHING:
+        return 'Watching';
+      case MediaListStatus.READING:
+        return 'Reading';
+      case MediaListStatus.REWATCHING:
+        return 'Rewatching';
+      case MediaListStatus.REREADING:
+        return 'Rereading';
+      case MediaListStatus.PLAN_TO_WATCH:
+        return 'Planning Anime';
+      case MediaListStatus.PLAN_TO_READ:
+        return 'Planning Manga';
+      case 'UNKNOWN':
+        return 'Unknown';
+      default:
+        return getStatusLabel(status as MediaListStatus, 'ANIME');
+    }
+  }
+
+  private renderGridLayout(_works: AstraWorkSummary[]): HTMLElement {
     return html`
       <div class="astra-table-wrap astra-layout-grid-wrap">
-        <div class="astra-layout-grid">
-          ${map(works, (work: AstraWorkSummary) => this.renderGridCard(work))}
-        </div>
+        <div class="astra-grid-body astra-layout-grid"></div>
       </div>
     `;
   }
@@ -172,7 +346,7 @@ export class AstraWorkTable extends AstraView {
         data-media-id="${work.mediaId}"
         title="${work.title}"
       >
-        <img src="${work.cover || ''}" class="astra-layout-card-cover" loading="lazy">
+        <img src="${work.cover || ''}" class="astra-layout-card-cover" loading="lazy" data-action="preview" data-title="${work.title}">
         <div class="astra-layout-card-shade"></div>
         <div class="astra-layout-card-info">
           <div class="astra-layout-card-title">${work.title}</div>
@@ -265,12 +439,48 @@ export class AstraWorkTable extends AstraView {
    * Binds navigation and modal events.
    */
   protected bindEvents(): void {
-    this.$$('[data-action="edit"][data-media-id]').forEach((target) => {
-      target.addEventListener('click', (event) => {
-        const mediaId = Number((event.currentTarget as HTMLElement).dataset.mediaId);
-        if (mediaId) this.ratingController.open(mediaId);
-      });
+    if (this.props.filteredWorks?.length > 0) {
+      this.renderVisibleRows();
+    }
+
+    this.$('.astra-grid-body')?.addEventListener('click', (event) => {
+      const header = (event.target as HTMLElement).closest(
+        '.astra-grid-group-header'
+      ) as HTMLElement | null;
+      const status = header?.dataset.status;
+      if (!status) return;
+
+      if (this.collapsedGroups.has(status)) {
+        this.collapsedGroups.delete(status);
+      } else {
+        this.collapsedGroups.add(status);
+      }
+      this.renderVisibleRows();
     });
+
+    this.$('.astra-grid-body')?.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement;
+      const preview = target.closest('[data-action="preview"]') as HTMLImageElement | null;
+      if (preview) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openImagePreview(preview.src, preview.dataset.title || '');
+        return;
+      }
+
+      const editTarget = target.closest('[data-action="edit"][data-media-id]') as HTMLElement | null;
+      const mediaId = Number(editTarget?.dataset.mediaId);
+      if (mediaId) this.ratingController.open(mediaId);
+    });
+
+    if (this.props.layout !== 'grid') {
+      this.$$('[data-action="edit"][data-media-id]').forEach((target) => {
+        target.addEventListener('click', (event) => {
+          const mediaId = Number((event.currentTarget as HTMLElement).dataset.mediaId);
+          if (mediaId) this.ratingController.open(mediaId);
+        });
+      });
+    }
 
     this.$('[data-empty-action="sync"]')?.addEventListener('click', () => {
       void this.runSync();
@@ -290,6 +500,31 @@ export class AstraWorkTable extends AstraView {
     });
 
     this.bindDropZone();
+  }
+
+  private openImagePreview(src: string, title: string): void {
+    if (!src) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'astra-preview-overlay';
+    const content = document.createElement('div');
+    content.className = 'astra-preview-content';
+    const img = document.createElement('img');
+    img.className = 'astra-preview-img';
+    img.src = src;
+    img.alt = title;
+    content.appendChild(img);
+    overlay.appendChild(content);
+
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', close);
+    document.addEventListener('keydown', function onKeydown(event) {
+      if (event.key !== 'Escape') return;
+      close();
+      document.removeEventListener('keydown', onKeydown);
+    });
+
+    document.body.appendChild(overlay);
   }
 
   /**

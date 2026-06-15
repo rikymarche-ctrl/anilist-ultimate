@@ -8,6 +8,7 @@ import { injectable, inject } from 'tsyringe';
 import { AstraView } from '../base/AstraView';
 import { AstraDashboardStore } from '../../store/AstraDashboardStore';
 import { IDashboardState } from '../../interfaces/IDashboardState';
+import { AstraService } from '../../AstraService';
 import { MediaListStatus } from '@/api/AnilistTypes';
 import { TOKENS } from '@core/di/tokens';
 import { html, when } from '@core/utils/Template';
@@ -15,7 +16,8 @@ import { html, when } from '@core/utils/Template';
 @injectable()
 export class AstraFilterBar extends AstraView {
   constructor(
-    @inject(TOKENS.AstraStore) private store: AstraDashboardStore
+    @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
+    @inject(TOKENS.AstraService) private service: AstraService
   ) {
     super({});
     // Safety re-render after DI assignment
@@ -69,6 +71,8 @@ export class AstraFilterBar extends AstraView {
             : filters.country === 'TW'
               ? 'Taiwan'
               : 'Country';
+    const customLists = this.getCustomLists();
+    const customListLabel = filters.customList === 'all' ? 'Custom Lists' : filters.customList;
 
     return html`
       <div class="astra-dashboard-controls astra-dashboard-controls--toolbar">
@@ -118,11 +122,21 @@ export class AstraFilterBar extends AstraView {
           </div>
 
           <div class="astra-filter-toolbar-right">
-            <button type="button" class="astra-toolbar-chip astra-toolbar-chip--dropdown" data-dashboard-placeholder="custom-lists">
-              <i class="fa-solid fa-list"></i>
-              <span>Custom Lists</span>
-              <i class="fa-solid fa-chevron-down"></i>
-            </button>
+            <div class="astra-toolbar-dropdown ${when(filters.customList !== 'all', 'active')}" data-toolbar-dropdown>
+              <button type="button" class="astra-toolbar-chip astra-toolbar-chip--dropdown" data-dropdown-trigger>
+                <i class="fa-solid fa-list"></i>
+                <span>${customListLabel}</span>
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+              <div class="astra-toolbar-dropdown-menu astra-toolbar-dropdown-menu--wide">
+                <button type="button" class="astra-toolbar-dropdown-item ${when(filters.customList === 'all', 'active')}" data-filter-field="customList" data-filter-value="all">Custom Lists</button>
+                ${customLists.length > 0
+                  ? customLists.map(list => html`
+                    <button type="button" class="astra-toolbar-dropdown-item ${when(filters.customList === list, 'active')}" data-filter-field="customList" data-filter-value="${list}">${list}</button>
+                  `)
+                  : html`<div class="astra-toolbar-dropdown-empty">No lists found</div>`}
+              </div>
+            </div>
 
             <div class="astra-toolbar-dropdown ${when(filters.type !== 'all', 'active')}" data-toolbar-dropdown>
               <button type="button" class="astra-toolbar-chip astra-toolbar-chip--dropdown" data-dropdown-trigger>
@@ -184,7 +198,7 @@ export class AstraFilterBar extends AstraView {
       this.addEventListener(item, 'click', (e) => {
         e.stopPropagation();
         const target = e.currentTarget as HTMLElement;
-        const field = target.dataset.filterField as 'type' | 'country';
+        const field = target.dataset.filterField as 'type' | 'country' | 'customList';
         const value = target.dataset.filterValue;
         if (!field || !value) return;
 
@@ -256,9 +270,20 @@ export class AstraFilterBar extends AstraView {
           type: 'all',
           ratingStatus: 'all',
           anilistStatus: 'all',
-          country: 'all'
+          country: 'all',
+          customList: 'all'
         });
     }
+  }
+
+  private getCustomLists(): string[] {
+    const names = new Set<string>();
+    this.service.getWorks().forEach(work => {
+      work.customLists?.forEach(list => {
+        if (list) names.add(list);
+      });
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
   }
 
   private cycleCurrentRepeating(statuses: MediaListStatus[]): MediaListStatus[] {
