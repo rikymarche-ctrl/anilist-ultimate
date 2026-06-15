@@ -3,7 +3,7 @@
  * @description Dedicated service for media card enhancements and pill injections.
  */
 
-import { injectable, inject, delay } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { log } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import { PillUIBuilder } from '../ui/PillUIBuilder';

@@ -73,6 +73,9 @@ export class AstraDashboard extends AstraView {
 
   /**
    * Opens the dashboard overlay and initializes data.
+   *
+   * @param payload Optional payload containing a mediaId to focus after loading.
+   * @returns A promise that resolves when the dashboard open operation has initialized.
    */
   public async open(payload?: { mediaId?: number }): Promise<void> {
     log.info('[AstraDashboard] open() called', payload);
@@ -99,6 +102,11 @@ export class AstraDashboard extends AstraView {
     }
   }
 
+  /**
+   * Mounts the dashboard component to the parent element.
+   *
+   * @param parent The parent container element.
+   */
   public mount(parent: HTMLElement): void {
     super.mount(parent);
   }
@@ -111,7 +119,7 @@ export class AstraDashboard extends AstraView {
   }
 
   /**
-   * Closes the dashboard with a fade-out animation.
+   * Closes the dashboard overlay view with a fade-out animation.
    */
   public close(): void {
     this.overlayService.hide('dashboard', () => {
@@ -171,11 +179,6 @@ export class AstraDashboard extends AstraView {
       const headerActionsHtml = hasEntries
         ? `
           <div class="astra-dashboard-shell-actions">
-            <button type="button" class="astra-dashboard-action astra-dashboard-action--primary" id="astra-dashboard-sync">
-              <i class="fa-solid fa-rotate"></i>
-              <span>Sync</span>
-            </button>
-            <span class="astra-dashboard-action-separator"></span>
             <button
               type="button"
               class="astra-dashboard-action astra-dashboard-action--icon ${state.showProgress ? 'active' : ''}"
@@ -257,20 +260,6 @@ export class AstraDashboard extends AstraView {
   }
 
   private bindDashboardHeaderEvents(layout: HTMLElement): void {
-    layout.querySelector('#astra-dashboard-sync')?.addEventListener('click', async (event) => {
-      const button = event.currentTarget as HTMLButtonElement;
-      button.disabled = true;
-      button.innerHTML = '<i class="fa-solid fa-rotate fa-spin"></i><span>Syncing</span>';
-      try {
-        await this.service.syncWithAniList();
-      } catch (error) {
-        log.error('[AstraDashboard] Sync failed', error);
-      } finally {
-        button.disabled = false;
-        button.innerHTML = '<i class="fa-solid fa-rotate"></i><span>Sync</span>';
-      }
-    });
-
     layout.querySelector('#astra-dashboard-progress')?.addEventListener('click', (event) => {
       const button = event.currentTarget as HTMLButtonElement;
       const next = !this.store.getState().showProgress;
