@@ -18,6 +18,8 @@ export interface AstraWork {
   chapters?: number;
   progress?: number;
   duration?: number;
+  isPrivate?: boolean;
+  isHidden?: boolean;
 }
 
 export interface AstraWorkSummary {
@@ -36,6 +38,8 @@ export interface AstraWorkSummary {
   sectionScores?: Record<string, number | null>;
   genres?: string[];
   customLists?: string[];
+  isPrivate?: boolean;
+  isHidden?: boolean;
 }
 
 export interface AstraSeason {

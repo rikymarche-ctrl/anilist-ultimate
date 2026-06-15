@@ -1596,6 +1596,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   color: var(--astra-accent);
 }
 
+/* Sortable column headers */
+.astra-grid-header .astra-col--sortable {
+  cursor: pointer;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.astra-grid-header .astra-col--sortable:hover {
+  color: var(--astra-text);
+}
+
+.astra-grid-header .astra-col--sorted {
+  color: var(--astra-accent) !important;
+}
+
+.astra-sort-arrow {
+  font-size: 8px;
+  line-height: 1;
+}
+
 /* Import progress overlay */
 .astra-import-overlay {
   position: fixed;
@@ -3520,12 +3540,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 14px 0 10px 14px;
+  padding: 12px 0 10px 12px;
   background: transparent;
   cursor: pointer;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.035);
-  border-left: 2px solid rgba(var(--astra-accent-rgb), 0.35);
+  border-left: 2px solid rgba(var(--astra-accent-rgb), 0.55);
   font: inherit;
   text-align: left;
   user-select: none;
@@ -3541,9 +3561,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-radius: 0 0 12px 12px;
 }
 
+.astra-grid-group-header:first-child {
+  border-top: 1px solid rgba(255, 255, 255, 0.035);
+}
+
 .astra-grid-group-header:hover {
   background: rgba(255, 255, 255, 0.025);
   border-left-color: rgba(var(--astra-accent-rgb), 0.55);
+}
+
+.astra-grid-group-header:not(.collapsed) {
+  margin-bottom: 18px;
+}
+
+.astra-grid .astra-grid-group-header:not(.collapsed) {
+  margin-bottom: 0;
 }
 
 .astra-group-info {
@@ -3553,12 +3585,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-shrink: 0;
 }
 
+.astra-modal--dashboard .astra-grid-group-header .astra-group-info i,
 .astra-grid-group-header .astra-group-info i.fa-chevron-down,
 .astra-grid-group-header .astra-group-info i.fa {
   width: 16px;
-  color: rgba(155, 166, 184, 0.86) !important;
-  -webkit-text-fill-color: rgba(155, 166, 184, 0.86) !important;
+  color: rgba(198, 207, 220, 0.9) !important;
+  -webkit-text-fill-color: rgba(198, 207, 220, 0.9) !important;
   transition: transform 0.2s;
+}
+
+/* Font Awesome may render in SVG mode, replacing the <i> with an <svg> whose
+   <path fill="currentColor">. Force the colour on both the container and the
+   svg/path so the chevron follows the text colour regardless of FA mode. */
+.astra-grid-group-header .astra-group-info {
+  color: rgba(198, 207, 220, 0.9);
+}
+
+.astra-grid-group-header .astra-group-info svg,
+.astra-grid-group-header .astra-group-info svg path {
+  color: rgba(198, 207, 220, 0.9) !important;
+  fill: rgba(198, 207, 220, 0.9) !important;
 }
 
 .astra-grid-group-header.collapsed .astra-group-info i {
@@ -5853,39 +5899,48 @@ body.au-astra-enabled .section-header .friend-activity-button {
   top: calc(100% + 8px) !important;
   right: 0 !important;
   min-width: 150px !important;
-  padding: 6px !important;
-  border: 1px solid rgba(var(--astra-accent-rgb), 0.18) !important;
+  padding: 8px !important;
+  border: 1px solid var(--astra-border) !important;
   border-radius: 10px !important;
-  background: #0d1219 !important;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
-  display: none !important;
+  background: var(--astra-bg-elev) !important;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.58), 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+  border-radius: 12px !important;
+  /* Animated open/close to match the quick-edit dropdowns (fade + slide). */
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-10px) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
   z-index: 1000002 !important;
 }
 
 .astra-modal--dashboard .astra-toolbar-dropdown-menu--wide {
-  min-width: 190px !important;
+  min-width: 260px !important;
   max-height: 320px !important;
   overflow-y: auto !important;
 }
 
 .astra-modal--dashboard .astra-toolbar-dropdown.open .astra-toolbar-dropdown-menu {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 2px !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
 }
 
 .astra-modal--dashboard .astra-toolbar-dropdown-item {
   width: 100% !important;
-  height: 30px !important;
+  min-height: 32px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  padding: 0 10px !important;
+  gap: 10px !important;
+  padding: 7px 10px !important;
   border: none !important;
-  border-radius: 7px !important;
+  border-radius: 6px !important;
   background: transparent !important;
-  color: var(--astra-text-dim) !important;
-  font-size: 12px !important;
+  color: var(--astra-text-muted) !important;
+  font-size: 13px !important;
   font-weight: 750 !important;
   text-align: left !important;
   cursor: pointer !important;
@@ -5897,8 +5952,41 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 .astra-modal--dashboard .astra-toolbar-dropdown-item.active {
-  background: var(--astra-accent-a20) !important;
+  background: rgba(var(--astra-accent-rgb), 0.18) !important;
   color: var(--astra-accent) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-checkbox {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 auto !important;
+  border: 1.5px solid var(--astra-border-soft) !important;
+  border-radius: 3px !important;
+  background: var(--astra-bg-elev-3) !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-checkbox.checked {
+  background: var(--astra-accent) !important;
+  border-color: var(--astra-accent) !important;
+  box-shadow: inset 0 0 0 2px var(--astra-bg-elev) !important;
+}
+
+/* Center items in the simple (Type / Country) dropdowns; the wide Custom Lists
+   menu keeps its left-aligned checkbox rows. */
+.astra-modal--dashboard
+  .astra-toolbar-dropdown-menu:not(.astra-toolbar-dropdown-menu--wide)
+  .astra-toolbar-dropdown-item {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.astra-modal--dashboard .astra-toolbar-dropdown-divider {
+  flex: 0 0 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  margin: 6px 4px !important;
+  background: var(--astra-border) !important;
+  opacity: 0.8 !important;
 }
 
 .astra-modal--dashboard .astra-toolbar-dropdown-empty {
@@ -6143,6 +6231,13 @@ body.au-astra-enabled .section-header .friend-activity-button {
   padding: 10px 16px !important;
 }
 
+.astra-modal--dashboard .astra-grid-header:not(.astra-grid-header--visual) {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-bottom: 0 !important;
+  border-radius: 10px 10px 0 0 !important;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
 .astra-modal--dashboard .astra-grid--compact .astra-grid-row {
   grid-template-columns: 1fr 80px 80px var(--astra-dynamic-cols) 100px !important;
   min-height: 48px !important;
@@ -6261,8 +6356,29 @@ body.au-astra-enabled .section-header .friend-activity-button {
   row-gap: 0 !important;
   align-items: start !important;
   width: 100% !important;
-  padding: 0 0 32px !important;
+  padding: 0 !important;
   max-width: none !important;
+}
+
+.astra-modal--dashboard .astra-layout-grid-wrap .astra-grid-header--visual {
+  height: 27px !important;
+  display: block !important;
+  border-radius: 10px 10px 0 0 !important;
+  background: linear-gradient(rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.035)), var(--astra-bg-elev) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-bottom: 0 !important;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.astra-modal--dashboard .astra-layout-grid-wrap .astra-layout-grid {
+  background: var(--astra-bg-elev) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 0 0 10px 10px !important;
+  padding: 0 !important;
 }
 
 .astra-modal--dashboard .astra-layout-card {

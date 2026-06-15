@@ -207,6 +207,8 @@ export class AstraRepository {
       updatedAt: work.updatedAt,
       genres: work.genres,
       customLists: work.customLists,
+      isPrivate: work.isPrivate,
+      isHidden: work.isHidden,
       currentScore: latestSeason
         ? latestSeason.legacyScore ||
           AstraCalculator.calcSeasonScore(latestSeason, this.sections, this.settings)

@@ -35,7 +35,9 @@ export interface IDashboardFilters {
   ratingStatus: 'all' | 'rated' | 'unrated';
   anilistStatus: 'all' | MediaListStatus[];
   country: 'all' | string;
-  customList: 'all' | string;
+  /** Selected custom lists (multi-select). Empty array = no list filter.
+      May include the built-in sentinels '__private__' and '__hidden__'. */
+  customLists: string[];
   isGrouped: boolean;
 }
 

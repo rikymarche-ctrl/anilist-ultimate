@@ -34,11 +34,11 @@ const INITIAL_STATE: IDashboardState = {
     type: 'all',
     ratingStatus: 'all',
     country: 'all',
-    customList: 'all',
+    customLists: [],
     isGrouped: true,
     anilistStatus: 'all',
   },
-  sort: 'updated-desc',
+  sort: 'title-asc',
   stats: {
     totalCount: 0,
     averageScore: 0,

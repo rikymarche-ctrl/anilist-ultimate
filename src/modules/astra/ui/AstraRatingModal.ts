@@ -779,9 +779,9 @@ export class AstraRatingModal {
       e.stopPropagation();
       const wasActive = dropdown?.classList.contains('active');
       if (this.overlay) {
-        this.overlay.querySelectorAll('.astra-dropdown.active').forEach((d) =>
-          d.classList.remove('active')
-        );
+        this.overlay
+          .querySelectorAll('.astra-dropdown.active')
+          .forEach((d) => d.classList.remove('active'));
       }
       if (!wasActive) {
         dropdown?.classList.add('active');
@@ -792,6 +792,17 @@ export class AstraRatingModal {
       e.stopPropagation();
     });
 
+    // Catch-all: any input/change inside the modal marks the state dirty so the
+    // on-close save() never early-returns and silently drops changes. Several
+    // controls (custom-list checkboxes, private/hide, general notes, journal
+    // textareas, progress & rewatches) are only read at save time, so without
+    // this their changes wouldn't flip isDirty and wouldn't persist.
+    const markDirty = () => {
+      if (this.state) this.state.isDirty = true;
+    };
+    this.overlay!.addEventListener('input', markDirty);
+    this.overlay!.addEventListener('change', markDirty);
+
     // Status custom dropdown (single-select, mirrors the Custom Lists styling/animation)
     const statusDropdown = this.overlay!.querySelector('#astra-status-dropdown');
     const statusTrigger = statusDropdown?.querySelector('.astra-dropdown-trigger');
@@ -799,9 +810,9 @@ export class AstraRatingModal {
       e.stopPropagation();
       const wasActive = statusDropdown?.classList.contains('active');
       if (this.overlay) {
-        this.overlay.querySelectorAll('.astra-dropdown.active').forEach((d) =>
-          d.classList.remove('active')
-        );
+        this.overlay
+          .querySelectorAll('.astra-dropdown.active')
+          .forEach((d) => d.classList.remove('active'));
       }
       if (!wasActive) {
         statusDropdown?.classList.add('active');
@@ -1073,6 +1084,12 @@ export class AstraRatingModal {
         customLists.push((cb as HTMLInputElement).dataset.name!);
       });
       if (this.state) this.state.updateField('customLists', customLists);
+
+      // Persist progress & rewatches onto the local work too (these inputs are
+      // otherwise only read for the AniList sync below, so typing directly into
+      // them wouldn't survive on the local copy).
+      const progressVal = progressInput ? parseInt(progressInput.value) || 0 : currentWork.progress || 0;
+      this.state.updateField('progress' as any, progressVal);
 
       // Save to local Astra service
       log.debug('[AstraRatingModal] Persisting to local storage...');

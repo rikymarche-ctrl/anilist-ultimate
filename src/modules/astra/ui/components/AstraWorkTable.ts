@@ -37,7 +37,7 @@ export class AstraWorkTable extends AstraView {
   private renderProcessId = 0;
 
   constructor(
-    @inject(TOKENS.AstraStore) _store: AstraDashboardStore,
+    @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
     @inject(TOKENS.AstraService) private service: AstraService,
     @inject(TOKENS.AstraRatingController) private ratingController: AstraRatingModal
   ) {
@@ -119,10 +119,12 @@ export class AstraWorkTable extends AstraView {
             style="display: grid; grid-template-columns: 60px 1fr 80px 80px var(--astra-dynamic-cols) 100px;"
           >
             <div class="astra-col-cover">Cover</div>
-            <div class="astra-col-title">Title</div>
-            <div class="astra-col-type">Type</div>
-            <div class="astra-col-score">Score</div>
-            ${map(sections, (s: any) => html`<div class="astra-col-section">${s.name}</div>`)}
+            ${this.sortHeader('astra-col-title', 'Title', 'title')}
+            ${this.sortHeader('astra-col-type', 'Type', 'type')}
+            ${this.sortHeader('astra-col-score', 'Score', 'score')}
+            ${map(sections, (s: any) =>
+              this.sortHeader('astra-col-section', s.name, `section-${s.id}`)
+            )}
             <div class="astra-col-actions">Actions</div>
           </div>
           <div class="astra-grid-body"></div>
@@ -131,18 +133,40 @@ export class AstraWorkTable extends AstraView {
     `;
   }
 
+  /** Renders a clickable column header that toggles sort direction. */
+  private sortHeader(colClass: string, label: string, key: string): HTMLElement {
+    const sort = this.props.sort || '';
+    const isAsc = sort === `${key}-asc`;
+    const isDesc = sort === `${key}-desc`;
+    const arrow = isAsc ? '▲' : isDesc ? '▼' : '';
+    return html`
+      <div
+        class="${colClass} astra-col--sortable ${isAsc || isDesc ? 'astra-col--sorted' : ''}"
+        data-sort-key="${key}"
+        title="Sort by ${label}"
+      >
+        <span>${label}</span><span class="astra-sort-arrow">${arrow}</span>
+      </div>
+    `;
+  }
+
   private renderListLayout(_works: AstraWorkSummary[], sections: any[]): HTMLElement {
     return html`
       <div class="astra-table-wrap astra-layout-list-wrap">
-        <div class="astra-grid astra-grid--compact" style="--astra-dynamic-cols: repeat(${sections.length}, 105px)">
+        <div
+          class="astra-grid astra-grid--compact"
+          style="--astra-dynamic-cols: repeat(${sections.length}, 105px)"
+        >
           <div
             class="astra-grid-header"
             style="display: grid; grid-template-columns: 1fr 80px 80px var(--astra-dynamic-cols) 100px;"
           >
-            <div class="astra-col-title">Title</div>
-            <div class="astra-col-type">Type</div>
-            <div class="astra-col-score">Score</div>
-            ${map(sections, (s: any) => html`<div class="astra-col-section">${s.name}</div>`)}
+            ${this.sortHeader('astra-col-title', 'Title', 'title')}
+            ${this.sortHeader('astra-col-type', 'Type', 'type')}
+            ${this.sortHeader('astra-col-score', 'Score', 'score')}
+            ${map(sections, (s: any) =>
+              this.sortHeader('astra-col-section', s.name, `section-${s.id}`)
+            )}
             <div class="astra-col-actions">Actions</div>
           </div>
           <div class="astra-grid-body"></div>
@@ -241,9 +265,11 @@ export class AstraWorkTable extends AstraView {
           ? this.renderGroupHeader(item.status, item.count, item.collapsed)
           : grid
             ? this.renderGridCard(item.work)
-          : compact
-            ? AstraRowRenderer.renderCompact(item.work, sections, (id) => this.ratingController.open(id))
-            : AstraRowRenderer.render(item.work, sections, (id) => this.ratingController.open(id))
+            : compact
+              ? AstraRowRenderer.renderCompact(item.work, sections, (id) =>
+                  this.ratingController.open(id)
+                )
+              : AstraRowRenderer.render(item.work, sections, (id) => this.ratingController.open(id))
       );
     });
     body.appendChild(fragment);
@@ -332,6 +358,7 @@ export class AstraWorkTable extends AstraView {
   private renderGridLayout(_works: AstraWorkSummary[]): HTMLElement {
     return html`
       <div class="astra-table-wrap astra-layout-grid-wrap">
+        <div class="astra-grid-header astra-grid-header--visual" aria-hidden="true"></div>
         <div class="astra-grid-body astra-layout-grid"></div>
       </div>
     `;
@@ -346,7 +373,13 @@ export class AstraWorkTable extends AstraView {
         data-media-id="${work.mediaId}"
         title="${work.title}"
       >
-        <img src="${work.cover || ''}" class="astra-layout-card-cover" loading="lazy" data-action="preview" data-title="${work.title}">
+        <img
+          src="${work.cover || ''}"
+          class="astra-layout-card-cover"
+          loading="lazy"
+          data-action="preview"
+          data-title="${work.title}"
+        />
         <div class="astra-layout-card-shade"></div>
         <div class="astra-layout-card-info">
           <div class="astra-layout-card-title">${work.title}</div>
@@ -468,7 +501,9 @@ export class AstraWorkTable extends AstraView {
         return;
       }
 
-      const editTarget = target.closest('[data-action="edit"][data-media-id]') as HTMLElement | null;
+      const editTarget = target.closest(
+        '[data-action="edit"][data-media-id]'
+      ) as HTMLElement | null;
       const mediaId = Number(editTarget?.dataset.mediaId);
       if (mediaId) this.ratingController.open(mediaId);
     });
@@ -481,6 +516,31 @@ export class AstraWorkTable extends AstraView {
         });
       });
     }
+
+    // Column header sorting (toggles asc/desc, e.g. A–Z / Z–A on Title).
+    this.$('.astra-grid-header')?.addEventListener('click', (event) => {
+      const cell = (event.target as HTMLElement).closest('[data-sort-key]') as HTMLElement | null;
+      if (!cell) return;
+      const key = cell.dataset.sortKey!;
+      const current = this.props.sort || '';
+      // Score & section columns feel natural high→low first; text columns A→Z first.
+      const descFirst = key === 'score' || key.startsWith('section-');
+      let next: string;
+      if (current === `${key}-asc`) next = `${key}-desc`;
+      else if (current === `${key}-desc`) next = `${key}-asc`;
+      else next = descFirst ? `${key}-desc` : `${key}-asc`;
+
+      // Update arrow indicators immediately (the surgical row update won't redraw the header).
+      const header = cell.closest('.astra-grid-header');
+      header?.querySelectorAll<HTMLElement>('[data-sort-key]').forEach((c) => {
+        const active = c.dataset.sortKey === key;
+        c.classList.toggle('astra-col--sorted', active);
+        const arrowEl = c.querySelector('.astra-sort-arrow');
+        if (arrowEl) arrowEl.textContent = active ? (next.endsWith('-asc') ? '▲' : '▼') : '';
+      });
+
+      this.store.setSort(next as AstraSortType);
+    });
 
     this.$('[data-empty-action="sync"]')?.addEventListener('click', () => {
       void this.runSync();

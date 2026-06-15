@@ -115,6 +115,18 @@ export class AstraService {
     return this.customListsCache;
   }
 
+  public async hydrateCustomListsFromStoredWorks(): Promise<void> {
+    const summaries = this.repository.getWorks().filter((work) => work.customLists === undefined);
+    if (summaries.length === 0) return;
+
+    for (const summary of summaries) {
+      const full = await this.repository.getFullWork(summary.mediaId);
+      if (!full) continue;
+      await this.repository.saveWork(full, true);
+    }
+    await this.repository.persist();
+  }
+
   /**
    * Increments progress for a media entry and notifies the system.
    */

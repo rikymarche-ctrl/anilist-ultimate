@@ -121,11 +121,15 @@ export class AstraSyncService {
               const nextChapters = entry.media.chapters ?? undefined;
               const nextDuration = entry.media.duration ?? undefined;
               const nextGenres = entry.media.genres || [];
+              const nextPrivate = !!entry.private;
+              const nextHidden = !!entry.hiddenFromStatusLists;
               if (
                 full.episodes !== nextEpisodes ||
                 full.chapters !== nextChapters ||
                 full.progress !== entry.progress ||
                 full.duration !== nextDuration ||
+                full.isPrivate !== nextPrivate ||
+                full.isHidden !== nextHidden ||
                 JSON.stringify(full.genres) !== JSON.stringify(nextGenres)
               ) {
                 changed = true;
@@ -135,6 +139,8 @@ export class AstraSyncService {
               full.chapters = nextChapters;
               full.progress = entry.progress;
               full.duration = nextDuration;
+              full.isPrivate = nextPrivate;
+              full.isHidden = nextHidden;
               if (entry.notes) {
                 const parsed = this.parser.parse(entry.notes, sections);
                 if (parsed) {
@@ -179,6 +185,8 @@ export class AstraSyncService {
                   media.coverImage.medium ||
                   undefined,
                 status: entry.status,
+                isPrivate: !!entry.private,
+                isHidden: !!entry.hiddenFromStatusLists,
                 customLists: this.parseCustomLists(entry),
                 tags: [],
                 seasons: [this.repository.createDefaultSeason()],

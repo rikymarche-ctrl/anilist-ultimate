@@ -11,7 +11,11 @@
  */
 
 import { injectable, inject } from 'tsyringe';
-import { USER_ANIME_LIST_QUERY, UPDATE_PROGRESS_MUTATION, UPDATE_NOTES_MUTATION } from '@/api/queries/calendar';
+import {
+  USER_ANIME_LIST_QUERY,
+  UPDATE_PROGRESS_MUTATION,
+  UPDATE_NOTES_MUTATION,
+} from '@/api/queries/calendar';
 import { log } from '@core/logger';
 import { DAYS_OF_WEEK } from '@core/constants';
 import { MediaListStatus } from '@/api/AnilistTypes';
@@ -30,7 +34,7 @@ export class CalendarService implements ICalendarService {
   constructor(
     @inject(TOKENS.ApiClient) private apiClient: IApiClient,
     @inject(TOKENS.EventBus) private eventBus: IEventBus
-  ) { }
+  ) {}
 
   /**
    * Fetch user's currently watching anime with airing schedules
@@ -46,9 +50,16 @@ export class CalendarService implements ICalendarService {
       });
 
       if (data?.MediaListCollection?.lists) {
-        const listNames = data.MediaListCollection.lists.map(l => `${l.name} (${l.entries.length})`);
-        const totalRaw = data.MediaListCollection.lists.reduce((acc, l) => acc + l.entries.length, 0);
-        log.debug(`[CalendarService] API Response: ${data.MediaListCollection.lists.length} lists [${listNames.join(', ')}]. Total: ${totalRaw}`);
+        const listNames = data.MediaListCollection.lists.map(
+          (l) => `${l.name} (${l.entries.length})`
+        );
+        const totalRaw = data.MediaListCollection.lists.reduce(
+          (acc, l) => acc + l.entries.length,
+          0
+        );
+        log.debug(
+          `[CalendarService] API Response: ${data.MediaListCollection.lists.length} lists [${listNames.join(', ')}]. Total: ${totalRaw}`
+        );
       } else {
         log.warn('[CalendarService] API response missing MediaListCollection', data);
       }
@@ -90,25 +101,48 @@ export class CalendarService implements ICalendarService {
       //    (This excludes 'PLANNING' titles like Akane-banashi)
       // 3. Only include things with a known upcoming episode
       // ═══════════════════════════════════════════════════════════════════════════
-      
+
       if (media.type !== 'ANIME') {
-        log.debug(`[CalendarService] Skipping "${media.title.romaji}" - Media type is ${media.type}`);
+        log.debug(
+          `[CalendarService] Skipping "${media.title.romaji}" - Media type is ${media.type}`
+        );
         continue;
       }
 
       if (entry.status !== MediaListStatus.CURRENT && entry.status !== MediaListStatus.REPEATING) {
-        log.debug(`[CalendarService] Skipping "${media.title.romaji}" - Status is ${entry.status} (Not CURRENT)`);
+        log.debug(
+          `[CalendarService] Skipping "${media.title.romaji}" - Status is ${entry.status} (Not CURRENT/REPEATING)`
+        );
         continue;
       }
 
-      if (!media.nextAiringEpisode) {
-        log.debug(`[CalendarService] Skipping "${media.title.romaji}" - No upcoming episode found`);
+      // Number of episodes already aired. With an upcoming episode it's that
+      // episode minus one; once a cour has fully aired AniList drops
+      // `nextAiringEpisode`, so we fall back to the known episode total.
+      const lastAired = media.nextAiringEpisode
+        ? media.nextAiringEpisode.episode - 1
+        : (media.episodes ?? 0);
+      const isBehind = (progress ?? 0) < lastAired;
+      // Only currently-releasing shows belong on the weekly calendar. A show on
+      // a between-cour break can briefly have no `nextAiringEpisode` while still
+      // RELEASING (e.g. Iruma-kun) — keep those. But long-finished backlog you
+      // happen to be behind on (Kill la Kill, Monogatari, …) must NOT flood it.
+      const isReleasing = media.status === 'RELEASING';
+
+      if (!media.nextAiringEpisode && !(isBehind && isReleasing)) {
+        log.debug(
+          `[CalendarService] Skipping "${media.title.romaji}" - No upcoming episode (caught up or not currently releasing)`
+        );
         continue;
       }
 
       seenMediaIds.add(media.id); // Mark as seen
 
-      const airingAt = new Date(media.nextAiringEpisode.airingAt * 1000);
+      // Catch-up shows (no upcoming episode) have no future air date; surface
+      // them on today's column so they remain visible/actionable.
+      const airingAt = media.nextAiringEpisode
+        ? new Date(media.nextAiringEpisode.airingAt * 1000)
+        : new Date();
       const dayOfWeek = DAYS_OF_WEEK[airingAt.getDay()];
 
       // Determine clean title (prefer English, fallback to Romaji)
@@ -119,9 +153,9 @@ export class CalendarService implements ICalendarService {
         mediaId: media.id,
         title: cleanTitle,
         cleanTitle,
-        episode: media.nextAiringEpisode.episode,
+        episode: media.nextAiringEpisode ? media.nextAiringEpisode.episode : (progress ?? 0) + 1,
         airingAt,
-        timeUntilAiring: media.nextAiringEpisode.timeUntilAiring,
+        timeUntilAiring: media.nextAiringEpisode ? media.nextAiringEpisode.timeUntilAiring : 0,
         coverImage: media.coverImage.large || media.coverImage.medium,
         siteUrl: media.siteUrl,
         progress,
@@ -157,7 +191,7 @@ export class CalendarService implements ICalendarService {
         mediaId,
         progress: newProgress,
         previousProgress: newProgress - 1,
-        userId: 0
+        userId: 0,
       });
 
       return true;
@@ -173,7 +207,9 @@ export class CalendarService implements ICalendarService {
   async updateNotes(mediaId: number, episode: number, notes: string): Promise<boolean> {
     try {
       // PRIVACY: Never log user-generated content (notes are private)
-      log.debug(`[CalendarService] Saving note for media ${mediaId}, episode ${episode} (${notes.length} chars)`);
+      log.debug(
+        `[CalendarService] Saving note for media ${mediaId}, episode ${episode} (${notes.length} chars)`
+      );
 
       // 1. Update AniList global notes (Append style)
       // For now we just prefix it, in a real scenario we'd fetch current notes first.

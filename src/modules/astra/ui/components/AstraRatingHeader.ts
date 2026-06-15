@@ -38,7 +38,7 @@ export class AstraRatingHeader extends AstraView {
         onOverrideToggle: (active: boolean) => store.setManualOverride(active),
         onFinaleToggle: () => store.toggleSeriesFinale(),
         onClose: () => {}, // Handled by controller
-        activeTab: state.activeTab
+        activeTab: state.activeTab,
       });
     });
   }
@@ -58,24 +58,35 @@ export class AstraRatingHeader extends AstraView {
           <div class="astra-header-left">
             <div class="astra-header-title-box">
               <h2 class="astra-header-title">
-                <a href="https://anilist.co/anime/${state.mediaId}" target="_blank" class="astra-title-link">${state.title}</a>
+                <a
+                  href="https://anilist.co/anime/${state.mediaId}"
+                  target="_blank"
+                  class="astra-title-link"
+                  >${state.title}</a
+                >
               </h2>
             </div>
           </div>
 
           <div class="astra-header-actions">
-            ${!isJournal ? html`
-            <div class="astra-control-group">
-               <button class="astra-finale-pill astra-override-pill ${state.manualOverride ? 'active' : ''}" 
-                 id="header-override-btn" 
-                 title="Toggle Manual Score Override">
-                 <i class="fa fa-exclamation-triangle"></i>
-                 <span>OVERRIDE</span>
-               </button>
-            </div>
-            ` : ''}
+            ${!isJournal
+              ? html`
+                  <div class="astra-control-group">
+                    <button
+                      class="astra-finale-pill astra-override-pill ${state.manualOverride
+                        ? 'active'
+                        : ''}"
+                      id="header-override-btn"
+                      title="Toggle Manual Score Override"
+                    >
+                      <i class="fa fa-exclamation-triangle"></i>
+                      <span>OVERRIDE</span>
+                    </button>
+                  </div>
+                `
+              : ''}
           </div>
-          
+
           <div style="flex: 1;"></div>
         </div>
       </header>
