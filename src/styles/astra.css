@@ -1596,6 +1596,103 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   color: var(--astra-accent);
 }
 
+/* Import progress overlay */
+.astra-import-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 16, 0.72);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.astra-import-overlay--open {
+  opacity: 1;
+}
+
+.astra-import-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 40px 48px;
+  background: var(--astra-bg-elev);
+  border: 1px solid var(--astra-border);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  min-width: 320px;
+}
+
+.astra-import-logo {
+  color: var(--astra-accent);
+  filter: drop-shadow(0 0 12px var(--astra-accent-a50));
+  animation: astraImportPulse 1.6s ease-in-out infinite;
+}
+
+.astra-import-logo svg {
+  fill: currentColor;
+}
+
+.astra-import-title {
+  margin: 14px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--astra-text);
+}
+
+.astra-import-status {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--astra-muted);
+}
+
+.astra-import-progress {
+  position: relative;
+  width: min(300px, 80%);
+  height: 6px;
+  margin-top: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.astra-import-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--astra-accent), transparent);
+  box-shadow: 0 0 12px 1px rgba(var(--astra-accent-rgb), 0.6);
+  animation: astraImportIndeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes astraImportIndeterminate {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes astraImportPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
 /* Taste Profile stats overlay */
 .astra-modal--stats {
   width: min(780px, 92vw);
@@ -3456,9 +3553,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-shrink: 0;
 }
 
-.astra-group-info i {
+.astra-grid-group-header .astra-group-info i.fa-chevron-down,
+.astra-grid-group-header .astra-group-info i.fa {
   width: 16px;
-  color: rgba(155, 166, 184, 0.86);
+  color: rgba(155, 166, 184, 0.86) !important;
+  -webkit-text-fill-color: rgba(155, 166, 184, 0.86) !important;
   transition: transform 0.2s;
 }
 
@@ -5545,7 +5644,10 @@ body.au-astra-enabled .section-header .friend-activity-button {
 .astra-modal--dashboard .astra-portal-progress-bar {
   position: absolute !important;
   top: 0 !important;
-  left: 0 !important;
+  /* NOTE: `left` is intentionally NOT set here. An `!important` author
+     declaration outranks animation declarations in the cascade, so setting
+     `left: 0 !important` would pin the bar and freeze astraPortalIndeterminate
+     (which animates `left`). Let the keyframe own `left`. */
   height: 100% !important;
   width: 40% !important;
   border-radius: inherit !important;
@@ -6156,7 +6258,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)) !important;
   column-gap: 24px !important;
-  row-gap: 30px !important;
+  row-gap: 0 !important;
   align-items: start !important;
   width: 100% !important;
   padding: 0 0 32px !important;
@@ -6176,6 +6278,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   background: var(--astra-bg-elev) !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22) !important;
   cursor: pointer !important;
+  margin-bottom: 30px !important;
 }
 
 .astra-modal--dashboard .astra-layout-card-cover {

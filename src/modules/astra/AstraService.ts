@@ -32,6 +32,8 @@ import {
 @singleton()
 @injectable()
 export class AstraService {
+  private customListsCache: string[] | null = null;
+
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.ApiClient) private api: IApiClient,
@@ -78,7 +80,39 @@ export class AstraService {
    * Sync all works with AniList.
    */
   public async syncWithAniList(): Promise<{ added: number; updated: number }> {
-    return this.syncService.syncWithAniList();
+    const result = await this.syncService.syncWithAniList();
+    this.customListsCache = null;
+    return result;
+  }
+
+  public async getAniListCustomLists(): Promise<string[]> {
+    if (this.customListsCache) return this.customListsCache;
+
+    const query = `
+      query AstraCustomLists {
+        Viewer {
+          mediaListOptions {
+            animeList { customLists }
+            mangaList { customLists }
+          }
+        }
+      }
+    `;
+
+    const response = await this.api.query<{
+      Viewer?: {
+        mediaListOptions?: {
+          animeList?: { customLists?: string[] };
+          mangaList?: { customLists?: string[] };
+        };
+      };
+    }>(query, {}, true);
+
+    const listNames = new Set<string>();
+    response.Viewer?.mediaListOptions?.animeList?.customLists?.forEach((name) => listNames.add(name));
+    response.Viewer?.mediaListOptions?.mangaList?.customLists?.forEach((name) => listNames.add(name));
+    this.customListsCache = Array.from(listNames).sort((a, b) => a.localeCompare(b));
+    return this.customListsCache;
   }
 
   /**

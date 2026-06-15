@@ -9,7 +9,6 @@ import { TOKENS } from '@core/di/tokens';
 import { PillUIBuilder } from '../ui/PillUIBuilder';
 import { ICardEnhancementStrategy } from '../strategies/ICardEnhancementStrategy';
 import type { IConfigManager } from '@core/interfaces/IConfigManager';
-import { AstraService } from '../AstraService';
 import { PreferencesService } from '@core/services/PreferencesService';
 
 /**
@@ -24,10 +23,17 @@ export class AstraEnhancementService {
     'newly added manga'
   ];
 
+  /**
+   * Initializes the AstraEnhancementService.
+   *
+   * @param pillBuilder The UI builder for creating action pills.
+   * @param strategies The strategies used for matching and enhancing media cards.
+   * @param config The configuration manager for feature flags.
+   * @param preferences The service for retrieving user preferences.
+   */
   constructor(
     @inject(TOKENS.AstraPillBuilder) private pillBuilder: PillUIBuilder,
     @inject(TOKENS.AstraStrategies) private strategies: ICardEnhancementStrategy[],
-    @inject(delay(() => AstraService)) private astraService: AstraService,
     @inject(TOKENS.Config) private config: IConfigManager,
     @inject(TOKENS.PreferencesService) private preferences: PreferencesService
   ) {}
@@ -102,10 +108,6 @@ export class AstraEnhancementService {
       const cover = card.querySelector('.cover, .image, .img, .banner-image');
       const target = cover || card;
 
-      const summaries = this.astraService.getWorks();
-      const workSummary = summaries.find((s) => s.mediaId === mediaId);
-      const score = workSummary ? workSummary.currentScore : null;
-
       const astraFeatureFlag = this.config.isFeatureEnabled('astra');
 
       const options = {
@@ -113,7 +115,6 @@ export class AstraEnhancementService {
         isUserListCard: isUserList,
         socialEnabled,
         socialShowAvatars,
-        score,
         astraEnabled: astraFeatureFlag,
       };
 
@@ -134,7 +135,6 @@ export class AstraEnhancementService {
    */
   public refreshAllPills(): void {
     const wrappers = document.querySelectorAll('.au-pill-wrapper');
-    const summaries = this.astraService.getWorks();
     const { socialEnabled, socialShowAvatars } = this.preferences.getPreferences();
     const astraEnabled = this.config.isFeatureEnabled('astra');
     const path = window.location.pathname;
@@ -143,16 +143,12 @@ export class AstraEnhancementService {
       const mediaId = parseInt(wrapper.getAttribute('data-au-media-id') || '0', 10);
       if (!mediaId) return;
 
-      const workSummary = summaries.find((s) => s.mediaId === mediaId);
-      const score = workSummary ? workSummary.currentScore : null;
-
       const card = wrapper.closest('.au-astra-card') as HTMLElement | null;
       const pill = this.pillBuilder.build({
         mediaId,
         isUserListCard: this.shouldShowProgressAction(card, path),
         socialEnabled,
         socialShowAvatars,
-        score,
         astraEnabled,
       });
 

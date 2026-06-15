@@ -483,16 +483,20 @@ export class AstraSettingsView extends AstraView {
 
           const reader = new FileReader();
           reader.onload = async (ev) => {
+            const loader = this.createImportOverlay();
             try {
               const content = ev.target?.result as string;
               const success = await this.service.importJSON(content);
               if (success) {
                 this.toast.success('Data imported! Reloading...');
+                // Keep the overlay up until the reload swaps the page.
                 setTimeout(() => window.location.reload(), 1500);
               } else {
+                loader.remove();
                 this.toast.error('Import failed: Invalid format.');
               }
             } catch (err) {
+              loader.remove();
               this.toast.error('Import failed.');
             }
           };
@@ -521,5 +525,50 @@ export class AstraSettingsView extends AstraView {
         }
       });
     }
+  }
+
+  /**
+   * Full-screen animated overlay shown while a JSON import is being restored,
+   * so the operation feels active instead of frozen. Returns a `remove()` to
+   * tear it down on failure (on success the page reloads over it).
+   */
+  private createImportOverlay(): { remove: () => void } {
+    const overlay = document.createElement('div');
+    overlay.className = 'astra-import-overlay';
+    overlay.innerHTML = `
+      <div class="astra-import-card">
+        <div class="astra-import-logo" aria-hidden="true">
+          <svg viewBox="4.5 4 15 16" width="46" height="46"><path d="M12 4L4.5 20H7L12 10.5L17 20H19.5L12 4Z"></path></svg>
+        </div>
+        <h2 class="astra-import-title">Importing your archive</h2>
+        <p class="astra-import-status">Reading your backup…</p>
+        <div class="astra-import-progress" role="progressbar" aria-label="Importing">
+          <div class="astra-import-progress-bar"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('astra-import-overlay--open'));
+
+    const messages = [
+      'Reading your backup…',
+      'Restoring ratings & notes…',
+      'Rebuilding your archive…',
+      'Almost there…',
+    ];
+    let i = 0;
+    const statusEl = overlay.querySelector('.astra-import-status') as HTMLElement | null;
+    const timer = window.setInterval(() => {
+      i = (i + 1) % messages.length;
+      if (statusEl) statusEl.textContent = messages[i];
+    }, 1200);
+
+    return {
+      remove: () => {
+        clearInterval(timer);
+        overlay.classList.remove('astra-import-overlay--open');
+        setTimeout(() => overlay.remove(), 250);
+      },
+    };
   }
 }

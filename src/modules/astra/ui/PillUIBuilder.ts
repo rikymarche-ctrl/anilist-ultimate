@@ -9,17 +9,19 @@ export interface PillOptions {
   isUserListCard: boolean;
   socialEnabled: boolean;
   socialShowAvatars: boolean;
-  score: number | null;
   astraEnabled: boolean;
 }
 
 @injectable()
 export class PillUIBuilder {
   /**
-   * Builds the secure HTMLElement structure for an Astra pill
+   * Builds the secure HTMLElement structure for an Astra action pill.
+   *
+   * @param options The configuration options for the pill.
+   * @returns The constructed action pill HTMLElement.
    */
   public build(options: PillOptions): HTMLElement {
-    const { isUserListCard, socialEnabled, score, astraEnabled } = options;
+    const { isUserListCard, socialEnabled, astraEnabled } = options;
     
     const markWatchedHTML = isUserListCard ? html`
       <div class="pill-section" data-action="mark-watched" title="Increment Progress">
@@ -30,7 +32,6 @@ export class PillUIBuilder {
     const ratingHTML = astraEnabled ? html`
       <div class="pill-section" data-action="edit-entry" title="Astra Rating">
         <i class="fa fa-pencil"></i>
-        ${score !== null ? html`<span class="score-value">${score.toFixed(1)}</span>` : ''}
       </div>
     ` : null;
 
@@ -63,7 +64,11 @@ export class PillUIBuilder {
   }
 
   /**
-   * Injects the pill into a target element
+   * Injects the action pill into a target container element.
+   *
+   * @param container The host element to inject the pill into.
+   * @param options The configuration options for the pill.
+   * @returns The wrapper element that was appended to the container.
    */
   public inject(container: HTMLElement, options: PillOptions): HTMLElement {
     // Ensure container can hold absolute positioned pill
