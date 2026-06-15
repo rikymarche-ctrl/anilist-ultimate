@@ -10,7 +10,7 @@ import { AstraDashboardStore } from '../../store/AstraDashboardStore';
 import { IDashboardState } from '../../interfaces/IDashboardState';
 import { AstraService } from '../../AstraService';
 import { AstraWorkSummary } from '../../AstraInterfaces';
-import { AstraRatingController } from '../AstraRatingController';
+import { AstraRatingModal } from '../AstraRatingModal';
 import { TOKENS } from '@core/di/tokens';
 import { html, map } from '@core/utils/Template';
 import { AstraRowRenderer } from './AstraRowRenderer';
@@ -20,7 +20,7 @@ export class AstraWorkTable extends AstraView {
   constructor(
     @inject(TOKENS.AstraStore) _store: AstraDashboardStore,
     @inject(TOKENS.AstraService) private service: AstraService,
-    @inject(TOKENS.AstraRatingController) private ratingController: AstraRatingController
+    @inject(TOKENS.AstraRatingController) private ratingController: AstraRatingModal
   ) {
     super({});
     // Safety re-render after DI assignment
@@ -31,9 +31,13 @@ export class AstraWorkTable extends AstraView {
    * Performance: Surgical update of the grid body only.
    * Prevents full rerender stuttering with thousands of entries.
    */
-  protected override onUpdate(): boolean {
+  protected override onUpdate(prevState?: IDashboardState): boolean {
     const body = this.$('.astra-grid-body');
     const state = this.props;
+
+    if (prevState && prevState.layout !== state.layout) {
+      return false;
+    }
 
     if (state.filteredWorks.length === 0) {
       // Re-render only if the empty-state variant actually changed
@@ -43,6 +47,10 @@ export class AstraWorkTable extends AstraView {
         this.element?.classList.contains('astra-empty-state--importer') ?? false;
       const needsImporter = state.stats.totalCount === 0;
       return showsImporter === needsImporter;
+    }
+
+    if (state.layout !== 'table') {
+      return false;
     }
 
     // Switch between populated grid and empty/import states with a full rerender.
@@ -85,6 +93,18 @@ export class AstraWorkTable extends AstraView {
       `;
     }
 
+    if (state.layout === 'grid') {
+      return this.renderGridLayout(works);
+    }
+
+    if (state.layout === 'list') {
+      return this.renderListLayout(works, sections);
+    }
+
+    return this.renderTableLayout(works, sections);
+  }
+
+  private renderTableLayout(works: AstraWorkSummary[], sections: any[]): HTMLElement {
     return html`
       <div class="astra-table-wrap">
         <div class="astra-grid" style="--astra-dynamic-cols: repeat(${sections.length}, 105px)">
@@ -107,6 +127,64 @@ export class AstraWorkTable extends AstraView {
         </div>
       </div>
     `;
+  }
+
+  private renderListLayout(works: AstraWorkSummary[], sections: any[]): HTMLElement {
+    return html`
+      <div class="astra-table-wrap astra-layout-list-wrap">
+        <div class="astra-grid astra-grid--compact" style="--astra-dynamic-cols: repeat(${sections.length}, 105px)">
+          <div
+            class="astra-grid-header"
+            style="display: grid; grid-template-columns: 1fr 80px 80px var(--astra-dynamic-cols) 100px;"
+          >
+            <div class="astra-col-title">Title</div>
+            <div class="astra-col-type">Type</div>
+            <div class="astra-col-score">Score</div>
+            ${map(sections, (s: any) => html`<div class="astra-col-section">${s.name}</div>`)}
+            <div class="astra-col-actions">Actions</div>
+          </div>
+          <div class="astra-grid-body">
+            ${map(works, (w: AstraWorkSummary) =>
+              AstraRowRenderer.renderCompact(w, sections, (id: number) => this.ratingController.open(id))
+            )}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderGridLayout(works: AstraWorkSummary[]): HTMLElement {
+    return html`
+      <div class="astra-table-wrap astra-layout-grid-wrap">
+        <div class="astra-layout-grid">
+          ${map(works, (work: AstraWorkSummary) => this.renderGridCard(work))}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderGridCard(work: AstraWorkSummary): HTMLElement {
+    return html`
+      <button
+        type="button"
+        class="astra-layout-card"
+        data-action="edit"
+        data-media-id="${work.mediaId}"
+        title="${work.title}"
+      >
+        <img src="${work.cover || ''}" class="astra-layout-card-cover" loading="lazy">
+        <div class="astra-layout-card-shade"></div>
+        <div class="astra-layout-card-info">
+          <div class="astra-layout-card-title">${work.title}</div>
+          <div class="astra-layout-card-meta">${this.formatProgress(work)}</div>
+        </div>
+      </button>
+    `;
+  }
+
+  private formatProgress(work: AstraWorkSummary): string {
+    const total = work.type === 'anime' ? work.episodes : work.chapters;
+    return `${work.progress || 0}/${total || '?'}`;
   }
 
   /**
@@ -187,6 +265,13 @@ export class AstraWorkTable extends AstraView {
    * Binds navigation and modal events.
    */
   protected bindEvents(): void {
+    this.$$('[data-action="edit"][data-media-id]').forEach((target) => {
+      target.addEventListener('click', (event) => {
+        const mediaId = Number((event.currentTarget as HTMLElement).dataset.mediaId);
+        if (mediaId) this.ratingController.open(mediaId);
+      });
+    });
+
     this.$('[data-empty-action="sync"]')?.addEventListener('click', () => {
       void this.runSync();
     });

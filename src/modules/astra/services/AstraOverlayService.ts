@@ -13,7 +13,7 @@ export class AstraOverlayService {
 
   /**
    * Creates or returns a modal overlay.
-   * 
+   *
    * @param id Unique identifier for the overlay
    * @returns The overlay element
    */
@@ -25,10 +25,10 @@ export class AstraOverlayService {
     const overlay = document.createElement('div');
     overlay.className = 'astra-modal-overlay';
     overlay.id = `astra-overlay-${id}`;
-    
+
     const target = document.body || document.documentElement;
     target.appendChild(overlay);
-    
+
     // Lock body scroll
     if (document.body) {
       document.body.style.overflow = 'hidden';
@@ -40,7 +40,7 @@ export class AstraOverlayService {
 
   /**
    * Triggers the open animation for an overlay.
-   * 
+   *
    * @param id Overlay identifier
    */
   public show(id: string): void {
@@ -54,7 +54,7 @@ export class AstraOverlayService {
 
   /**
    * Triggers the close animation and removes the overlay.
-   * 
+   *
    * @param id Overlay identifier
    * @param onComplete Callback after animation finishes
    */
@@ -68,7 +68,7 @@ export class AstraOverlayService {
     setTimeout(() => {
       overlay.remove();
       this.activeOverlays.delete(id);
-      
+
       // Unlock body scroll if no other overlays are active
       if (this.activeOverlays.size === 0 && document.body) {
         document.body.style.overflow = '';

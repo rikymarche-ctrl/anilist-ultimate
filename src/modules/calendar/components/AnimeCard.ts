@@ -17,7 +17,7 @@ import { CalendarStore } from '../CalendarStore';
 import { TOKENS } from '@core/di/tokens';
 import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { SocialRenderer } from '../../social/SocialRenderer';
-import { AstraRatingController } from '../../astra/ui/AstraRatingController';
+import { AstraRatingModal } from '../../astra/ui/AstraRatingModal';
 import { html } from '@core/utils/Template';
 import type { AnimeEntry, CardOptions } from '@core/types';
 
@@ -37,7 +37,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     @inject(TOKENS.CalendarStore) private store: CalendarStore,
     @inject(TOKENS.CalendarService) private calendarService: ICalendarService,
     @inject(delay(() => SocialRenderer)) private socialRenderer: SocialRenderer,
-    @inject(delay(() => AstraRatingController)) private ratingController: AstraRatingController
+    @inject(delay(() => AstraRatingModal)) private ratingController: AstraRatingModal
   ) {
     super(props);
     // Re-render now that this.store is assigned (BaseComponent constructor calls render BEFORE this assignment)

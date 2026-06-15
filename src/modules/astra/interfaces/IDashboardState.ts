@@ -18,6 +18,8 @@ export type AstraSortType =
   | 'title-asc' 
   | 'progress-desc';
 
+export type AstraDashboardLayout = 'table' | 'list' | 'grid';
+
 /**
  * Filter configuration for narrowing down the work list
  */
@@ -51,6 +53,7 @@ export interface IDashboardState {
   sort: AstraSortType;
   stats: IDashboardStats;
   filteredWorks: AstraWorkSummary[];
+  layout: AstraDashboardLayout;
   activeTab: 'dashboard' | 'settings';
   isLoading: boolean;
   error: string | null;

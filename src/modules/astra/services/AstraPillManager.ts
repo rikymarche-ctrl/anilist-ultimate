@@ -1,7 +1,7 @@
 import { injectable, inject } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraService } from '../AstraService';
-import { AstraRatingController } from '../ui/AstraRatingController';
+import { AstraRatingModal } from '../ui/AstraRatingModal';
 import type { ToastService } from '@core/services/ToastService';
 import { log } from '@core/logger';
 
@@ -14,7 +14,7 @@ export class AstraPillManager {
 
   constructor(
     @inject(AstraService) private service: AstraService,
-    @inject(AstraRatingController) private ratingModal: AstraRatingController,
+    @inject(AstraRatingModal) private ratingModal: AstraRatingModal,
     @inject(TOKENS.ToastService) private toast: ToastService
   ) {}
 

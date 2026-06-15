@@ -55,11 +55,17 @@ export class AstraRatingController extends AstraView {
 
   /**
    * Opens the rating modal for a specific media entry.
-   * 
+   *
    * @param mediaId AniList media ID
    */
   public async open(mediaId: number): Promise<void> {
-    if (this.overlayService.isActive('rating') || this.isOpening) return;
+    if (this.isOpening) return;
+
+    if (this.overlayService.isActive('rating')) {
+      log.warn('[AstraRatingController] Rating modal already active, ignoring open request');
+      return;
+    }
+
     this.isOpening = true;
 
     try {
@@ -72,9 +78,13 @@ export class AstraRatingController extends AstraView {
       }
 
       const { media, allCustomLists } = data;
-      const mediaType = media.type === 'MANGA' && media.format === 'NOVEL' ? 'novel' : media.type.toLowerCase() as 'anime' | 'manga';
+      const mediaType =
+        media.type === 'MANGA' && media.format === 'NOVEL'
+          ? 'novel'
+          : (media.type.toLowerCase() as 'anime' | 'manga');
 
-      const work = await this.service.getFullWork(mediaId) || this.createDefaultWork(media, mediaType);
+      const work =
+        (await this.service.getFullWork(mediaId)) || this.createDefaultWork(media, mediaType);
 
       // AUTO-SYNC: Merge latest AniList data into local work immediately on open
       if (media.mediaListEntry) {
@@ -89,18 +99,22 @@ export class AstraRatingController extends AstraView {
         airedCount = totalCount;
       }
 
-      this.store = new AstraRatingStore({
-        work,
-        media,
-        allCustomLists,
-        currentSeasonIdx: work.seasons.length - 1,
-        activeTab: 'rating',
-        airedCount,
-        totalCount,
-        manualOverride: !!work.seasons[work.seasons.length - 1].manualOverride,
-        isSeriesFinale: !!work.seasons[work.seasons.length - 1].isSeriesFinale,
-        showFinale: work.status === 'COMPLETED' || (!!totalCount && (work.progress || 0) >= totalCount)
-      }, this.eventBus);
+      this.store = new AstraRatingStore(
+        {
+          work,
+          media,
+          allCustomLists,
+          currentSeasonIdx: work.seasons.length - 1,
+          activeTab: 'rating',
+          airedCount,
+          totalCount,
+          manualOverride: !!work.seasons[work.seasons.length - 1].manualOverride,
+          isSeriesFinale: !!work.seasons[work.seasons.length - 1].isSeriesFinale,
+          showFinale:
+            work.status === 'COMPLETED' || (!!totalCount && (work.progress || 0) >= totalCount),
+        },
+        this.eventBus
+      );
 
       this.header.connect(this.store);
       this.scoreForm.connect(this.store);
@@ -136,9 +150,12 @@ export class AstraRatingController extends AstraView {
       country: media.countryOfOrigin,
       cover: media.coverImage.extraLarge || media.coverImage.large,
       status: entry?.status || MediaListStatus.PLANNING,
-      customLists: [], tags: [], notes: '', updatedAt: Date.now(),
+      customLists: [],
+      tags: [],
+      notes: '',
+      updatedAt: Date.now(),
       seasons: [this.service.createDefaultSeason()],
-      progress: entry?.progress || 0
+      progress: entry?.progress || 0,
     };
   }
 
@@ -224,7 +241,7 @@ export class AstraRatingController extends AstraView {
       onOverrideToggle: (active: boolean) => this.store?.setManualOverride(active),
       onFinaleToggle: () => this.store?.toggleSeriesFinale(),
       onClose: () => this.close(),
-      activeTab: state.activeTab
+      activeTab: state.activeTab,
     });
   }
 
@@ -255,7 +272,7 @@ export class AstraRatingController extends AstraView {
       if (radarTarget) {
         this.radarPreview.mount(radarTarget as HTMLElement, {
           scores: consolidated,
-          sections: this.service.getSections()
+          sections: this.service.getSections(),
         });
       }
 
@@ -270,7 +287,7 @@ export class AstraRatingController extends AstraView {
    * Binds modal interaction events.
    */
   protected bindEvents(): void {
-    this.$$('.astra-nav-item').forEach(item => {
+    this.$$('.astra-nav-item').forEach((item) => {
       this.addEventListener(item, 'click', () => {
         const tab = (item as HTMLElement).dataset.tab as 'rating' | 'journal';
         if (tab) this.store?.setTab(tab);
@@ -292,7 +309,9 @@ export class AstraRatingController extends AstraView {
     const { state, type } = payload;
 
     if (type === 'tab-change') {
-      this.$$('.astra-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === state.activeTab));
+      this.$$('.astra-nav-item').forEach((i) =>
+        i.classList.toggle('active', i.dataset.tab === state.activeTab)
+      );
       this.renderTabContent();
       this.header.update({ ...this.header.getState()!, activeTab: state.activeTab });
     } else if (type === 'dirty-change') {
@@ -300,7 +319,7 @@ export class AstraRatingController extends AstraView {
     } else if (type === 'score-update' || type === 'override-change') {
       const season = state.work.seasons[state.currentSeasonIdx];
       const consolidated = this.service.consolidateScores(season.scores);
-      
+
       this.radarPreview.updateRadar(consolidated, this.service.getSections());
       this.scoreForm.updateSectionScores(consolidated);
 
@@ -324,7 +343,7 @@ export class AstraRatingController extends AstraView {
 
   /**
    * Persists the current state to the backend and synchronizes with AniList.
-   * 
+   *
    * @param shouldClose Whether to close the modal after a successful save
    * @param skipSync Whether to skip syncing with AniList (local save only)
    */
@@ -355,10 +374,12 @@ export class AstraRatingController extends AstraView {
         private: entry?.private,
         hidden: entry?.hiddenFromStatusLists,
         notes: season.notes,
-        customLists: entry?.customLists ? Object.keys(entry.customLists).filter(k => entry.customLists[k]) : [],
+        customLists: entry?.customLists
+          ? Object.keys(entry.customLists).filter((k) => entry.customLists[k])
+          : [],
         startedAt: entry?.startedAt,
         completedAt: entry?.completedAt,
-        skipSync
+        skipSync,
       });
 
       this.store?.setDirty(false);
@@ -388,7 +409,8 @@ export class AstraRatingController extends AstraView {
     const manualInput = document.getElementById('astra-manual-score') as HTMLInputElement;
     if (!display) return;
 
-    const formatted = val === null || val === 0 ? '0' : (val % 1 === 0 ? val.toString() : val.toFixed(1));
+    const formatted =
+      val === null || val === 0 ? '0' : val % 1 === 0 ? val.toString() : val.toFixed(1);
     display.textContent = formatted;
     display.style.color = AstraRadarChart.getScoreColor(val);
 

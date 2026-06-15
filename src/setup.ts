@@ -92,7 +92,7 @@ import { AstraFilterService } from '@/modules/astra/services/AstraFilterService'
 import { AstraStatsService } from '@/modules/astra/services/AstraStatsService';
 import { AstraJournalService } from '@/modules/astra/services/AstraJournalService';
 import { AstraRatingService } from '@/modules/astra/services/AstraRatingService';
-import { AstraRatingController } from '@/modules/astra/ui/AstraRatingController';
+import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
 import { AstraRatingHeader } from '@/modules/astra/ui/components/AstraRatingHeader';
 import { AstraScoreForm } from '@/modules/astra/ui/components/AstraScoreForm';
 import { AstraEpisodeJournal } from '@/modules/astra/ui/components/AstraEpisodeJournal';
@@ -271,8 +271,8 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.registerSingleton(AstraSyncManager);
   container.register(TOKENS.AstraSyncManager, { useToken: AstraSyncManager });
 
-  container.registerSingleton(AstraRatingController);
-  container.register(TOKENS.AstraRatingController, { useToken: AstraRatingController });
+  container.registerSingleton(AstraRatingModal);
+  container.register(TOKENS.AstraRatingController, { useToken: AstraRatingModal });
 
   container.registerSingleton(AstraRatingHeader);
   container.registerSingleton(AstraScoreForm);

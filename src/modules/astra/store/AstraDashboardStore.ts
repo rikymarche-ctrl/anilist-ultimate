@@ -17,7 +17,12 @@ import { TOKENS } from '@core/di/tokens';
 import { AstraRepository } from './AstraRepository';
 import { AstraFilterService } from '../services/AstraFilterService';
 import { AstraStatsService } from '../services/AstraStatsService';
-import { IDashboardState, IDashboardFilters, AstraSortType } from '../interfaces/IDashboardState';
+import {
+  IDashboardState,
+  IDashboardFilters,
+  AstraSortType,
+  AstraDashboardLayout
+} from '../interfaces/IDashboardState';
 import { log } from '@core/logger';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { IStorageService } from '@core/interfaces/IStorageService';
@@ -43,6 +48,7 @@ const INITIAL_STATE: IDashboardState = {
     statusDistribution: {},
   },
   filteredWorks: [],
+  layout: 'table',
   activeTab: 'dashboard',
   isLoading: false,
   error: null,
@@ -76,11 +82,13 @@ export class AstraDashboardStore extends Store<IDashboardState> {
       const saved = await this.storage.get<{
         filters?: Partial<IDashboardFilters>;
         sort?: AstraSortType;
+        layout?: AstraDashboardLayout;
       }>(this.STORAGE_KEY);
       if (saved) {
         const patch: Partial<IDashboardState> = {};
         if (saved.filters) patch.filters = { ...this.getState().filters, ...saved.filters };
         if (saved.sort) patch.sort = saved.sort;
+        if (saved.layout) patch.layout = saved.layout;
         if (Object.keys(patch).length > 0) this.setState(patch);
       }
     } catch (e) {
@@ -133,6 +141,11 @@ export class AstraDashboardStore extends Store<IDashboardState> {
     this.persist();
   }
 
+  public setLayout(layout: AstraDashboardLayout): void {
+    this.setState({ layout });
+    this.persist();
+  }
+
   public setTab(tab: 'dashboard' | 'settings'): void {
     this.setState({ activeTab: tab });
   }
@@ -158,8 +171,8 @@ export class AstraDashboardStore extends Store<IDashboardState> {
 
   private async persist(): Promise<void> {
     try {
-      const { filters, sort } = this.getState();
-      await this.storage.set(this.STORAGE_KEY, { filters, sort });
+      const { filters, sort, layout } = this.getState();
+      await this.storage.set(this.STORAGE_KEY, { filters, sort, layout });
     } catch (e) {
       log.error('[AstraDashboardStore] Failed to persist state', e);
     }

@@ -27,6 +27,7 @@ export class AstraDashboard extends AstraView {
   private activeTab: 'dashboard' | 'settings' = 'dashboard';
   private isOpening = false;
   private dashboardHasEntries = false;
+  private dashboardLayout: 'table' | 'list' | 'grid' = 'table';
 
   constructor(
     @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
@@ -52,12 +53,14 @@ export class AstraDashboard extends AstraView {
       const tabChanged = this.activeTab !== state.activeTab;
       const hasEntries = state.stats.totalCount > 0;
       const entryStateChanged = this.dashboardHasEntries !== hasEntries;
+      const layoutChanged = this.dashboardLayout !== state.layout;
 
       this.activeTab = state.activeTab;
       this.dashboardHasEntries = hasEntries;
+      this.dashboardLayout = state.layout;
 
       if (this.mounted) {
-        if (tabChanged || (this.activeTab === 'dashboard' && entryStateChanged)) {
+        if (tabChanged || (this.activeTab === 'dashboard' && (entryStateChanged || layoutChanged))) {
           log.info(`[AstraDashboard] Tab changed to ${this.activeTab}, rerendering...`);
           this.rerender();
         } else {
@@ -163,6 +166,7 @@ export class AstraDashboard extends AstraView {
     if (this.activeTab === 'dashboard') {
       const state = this.store.getState();
       const hasEntries = state.stats.totalCount > 0;
+      const activeLayout = state.layout;
       const headerActionsHtml = hasEntries
         ? `
           <div class="astra-dashboard-shell-actions">
@@ -175,9 +179,35 @@ export class AstraDashboard extends AstraView {
               <i class="fa-solid fa-chart-line"></i>
               <span>Stats</span>
             </button>
-            <button type="button" class="astra-dashboard-action" id="astra-dashboard-table-view" title="Table view">
-              <i class="fa-solid fa-list"></i>
-            </button>
+            <div class="astra-dashboard-layout-toggle" aria-label="Dashboard layout">
+              <button
+                type="button"
+                class="astra-dashboard-layout-btn ${activeLayout === 'table' ? 'active' : ''}"
+                data-layout="table"
+                title="Table view"
+                aria-label="Table view"
+              >
+                <i class="fa-solid fa-table-list"></i>
+              </button>
+              <button
+                type="button"
+                class="astra-dashboard-layout-btn ${activeLayout === 'list' ? 'active' : ''}"
+                data-layout="list"
+                title="List view"
+                aria-label="List view"
+              >
+                <i class="fa-solid fa-list"></i>
+              </button>
+              <button
+                type="button"
+                class="astra-dashboard-layout-btn ${activeLayout === 'grid' ? 'active' : ''}"
+                data-layout="grid"
+                title="Grid view"
+                aria-label="Grid view"
+              >
+                <i class="fa-solid fa-border-all"></i>
+              </button>
+            </div>
             <span class="astra-dashboard-action-separator"></span>
             <button type="button" class="astra-dashboard-action" id="astra-dashboard-export-wrapped">
               <i class="fa-solid fa-image"></i>
@@ -230,6 +260,15 @@ export class AstraDashboard extends AstraView {
         button.disabled = false;
         button.innerHTML = '<i class="fa-solid fa-rotate"></i><span>Sync</span>';
       }
+    });
+
+    layout.querySelectorAll<HTMLElement>('[data-layout]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const nextLayout = button.dataset.layout as 'table' | 'list' | 'grid' | undefined;
+        if (nextLayout) {
+          this.store.setLayout(nextLayout);
+        }
+      });
     });
 
   }

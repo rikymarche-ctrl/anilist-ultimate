@@ -5,7 +5,7 @@ import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { SharedGlobalObserver } from '@core/observers/SharedGlobalObserver';
 import { AstraService } from './AstraService';
-import { AstraRatingController } from './ui/AstraRatingController';
+import { AstraRatingModal } from './ui/AstraRatingModal';
 import { AstraEnhancementService } from './services/AstraEnhancementService';
 import { AstraNavigationService } from './services/AstraNavigationService';
 import { AstraPillManager } from './services/AstraPillManager';
@@ -21,7 +21,7 @@ import { SocialMaskingService } from '@core/services/SocialMaskingService';
 @injectable()
 export class AstraModule extends BaseModule {
   private service!: AstraService;
-  private ratingModal!: AstraRatingController;
+  private ratingModal!: AstraRatingModal;
   private sharedObserver!: SharedGlobalObserver;
   private maskingService!: SocialMaskingService;
   private enhancementService!: AstraEnhancementService;
@@ -42,7 +42,7 @@ export class AstraModule extends BaseModule {
    */
   private resolveDependencies(): void {
     this.service = container.resolve(AstraService);
-    this.ratingModal = container.resolve(AstraRatingController);
+    this.ratingModal = container.resolve(AstraRatingModal);
     this.sharedObserver = container.resolve(TOKENS.SharedGlobalObserver);
     this.maskingService = container.resolve(TOKENS.SocialMaskingService);
     this.enhancementService = container.resolve(AstraEnhancementService);

@@ -3018,6 +3018,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-align: center;
 }
 
+.astra-grid-row > .astra-col-type,
+.astra-grid-row > .astra-col-score,
+.astra-grid-row > .astra-col-section {
+  justify-content: center;
+  text-align: center;
+}
+
 .astra-grid-header>div:first-child,
 .astra-grid-row>div:first-child {
   padding: 0;
@@ -3782,7 +3789,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-direction: column;
   align-items: center;
   padding: 20px 0;
-  z-index: 10;
+  z-index: 200;
 }
 
 .astra-nav-back {
@@ -4584,6 +4591,39 @@ body.au-astra-enabled .section-header .friend-activity-button {
   background: rgba(255, 255, 255, 0.08) !important;
   margin: 0 4px !important;
   flex: 0 0 auto !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-layout-toggle {
+  height: 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 3px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.055) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-layout-btn {
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--astra-muted) !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+.astra-modal--dashboard .astra-dashboard-layout-btn:hover,
+.astra-modal--dashboard .astra-dashboard-layout-btn.active {
+  background: rgba(var(--astra-accent-rgb), 0.14) !important;
+  color: var(--astra-text) !important;
 }
 
 .astra-modal--dashboard #astra-table-mount {
@@ -5589,6 +5629,489 @@ body.au-astra-enabled .section-header .friend-activity-button {
   border-radius: 20px;
   font-weight: 800;
   font-size: 12px;
+}
+
+/* Dashboard AniList-style alternate layouts */
+.astra-modal--dashboard .astra-layout-list-wrap,
+.astra-modal--dashboard .astra-layout-grid-wrap {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-grid-header {
+  grid-template-columns: 1fr 80px 80px var(--astra-dynamic-cols) 100px !important;
+  padding: 10px 16px !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-grid-row {
+  grid-template-columns: 1fr 80px 80px var(--astra-dynamic-cols) 100px !important;
+  min-height: 48px !important;
+  padding: 6px 16px !important;
+  align-items: center !important;
+  contain-intrinsic-size: 1px 48px !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-grid-row > div {
+  padding: 4px 10px !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-table-title {
+  font-size: 13px !important;
+  margin-bottom: 0 !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-table-title-box {
+  gap: 3px !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-table-subtitle {
+  font-size: 10px !important;
+  transform: scale(0.92) !important;
+  transform-origin: left center !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-table-score-badge {
+  min-width: 38px !important;
+  padding: 3px 8px !important;
+  font-size: 12px !important;
+}
+
+.astra-modal--dashboard .astra-grid--compact .astra-icon-btn {
+  padding: 4px !important;
+  font-size: 12px !important;
+}
+
+.astra-modal--dashboard .astra-layout-list {
+  width: min(100%, 1120px) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  background: var(--astra-bg-elev) !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-header,
+.astra-modal--dashboard .astra-layout-list-row {
+  display: grid !important;
+  grid-template-columns: minmax(280px, 1fr) 140px 150px 130px !important;
+  align-items: center !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-header {
+  min-height: 48px !important;
+  padding: 0 18px !important;
+  color: var(--astra-muted) !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  background: rgba(255, 255, 255, 0.018) !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-row {
+  min-height: 48px !important;
+  padding: 6px 18px !important;
+  color: var(--astra-text-dim) !important;
+  font-size: 13px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.025) !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-row:hover {
+  background: rgba(255, 255, 255, 0.025) !important;
+  color: var(--astra-text) !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-title {
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-cover {
+  width: 40px !important;
+  height: 56px !important;
+  flex: 0 0 auto !important;
+  object-fit: cover !important;
+  border-radius: 4px !important;
+  background: var(--astra-bg-lighter) !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-title button {
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit !important;
+  text-align: left !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+}
+
+.astra-modal--dashboard .astra-layout-list-score,
+.astra-modal--dashboard .astra-layout-list-progress,
+.astra-modal--dashboard .astra-layout-list-type {
+  color: var(--astra-muted) !important;
+  font-weight: 650 !important;
+}
+
+.astra-modal--dashboard .astra-layout-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  gap: 30px !important;
+  align-items: start !important;
+  padding: 0 0 32px !important;
+  max-width: 1120px !important;
+}
+
+.astra-modal--dashboard .astra-layout-card {
+  position: relative !important;
+  aspect-ratio: 2 / 2.85 !important;
+  min-height: 210px !important;
+  display: block !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  background: var(--astra-bg-elev) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22) !important;
+  cursor: pointer !important;
+}
+
+.astra-modal--dashboard .astra-layout-card-cover {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  transition: transform 0.18s ease !important;
+}
+
+.astra-modal--dashboard .astra-layout-card:hover .astra-layout-card-cover {
+  transform: scale(1.025) !important;
+}
+
+.astra-modal--dashboard .astra-layout-card-shade {
+  position: absolute !important;
+  inset: auto 0 0 !important;
+  height: 46% !important;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.76) 100%) !important;
+}
+
+.astra-modal--dashboard .astra-layout-card-info {
+  position: absolute !important;
+  left: 12px !important;
+  right: 12px !important;
+  bottom: 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+  color: #fff !important;
+  text-align: left !important;
+}
+
+.astra-modal--dashboard .astra-layout-card-title {
+  max-width: 100% !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+}
+
+.astra-modal--dashboard .astra-layout-card-meta {
+  color: rgba(255, 255, 255, 0.72) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+/* Legacy Astra quick edit modal imported from master */
+.astra-modal--rating:not(.astra-v2) {
+  width: min(1100px, calc(100vw - 48px)) !important;
+  height: min(720px, calc(100vh - 48px)) !important;
+  display: flex !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-modal-main {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: var(--astra-bg) !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-tab-content {
+  display: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 12px 16px !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-tab-content--active {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.astra-modal--rating:not(.astra-v2) #astra-tab-journal.astra-tab-content--active {
+  overflow: hidden !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-header-section {
+  display: flex !important;
+  gap: 24px !important;
+  margin-bottom: 24px !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  flex: 0 0 auto !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-header-cover {
+  width: 100px !important;
+  height: 145px !important;
+  max-width: 100px !important;
+  max-height: 145px !important;
+  min-width: 100px !important;
+  object-fit: cover !important;
+  border-radius: 12px !important;
+  flex: 0 0 100px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--astra-border-soft) !important;
+  cursor: pointer !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-media-header {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  border-radius: 12px !important;
+  background: var(--astra-bg-elev) !important;
+  border: 1px solid var(--astra-border-soft) !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-quick-grid-2x2 {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 12px 32px !important;
+  align-content: center !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-grid-cell,
+.astra-modal--rating:not(.astra-v2) .astra-input-box {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-input-split {
+  width: 100% !important;
+  display: flex !important;
+  gap: 16px !important;
+  align-items: flex-end !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-input-split > .astra-input-box {
+  flex: 1 1 0 !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-select,
+.astra-modal--rating:not(.astra-v2) .astra-date-input,
+.astra-modal--rating:not(.astra-v2) .astra-dropdown-trigger {
+  width: 100% !important;
+  height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--astra-border) !important;
+  background: var(--astra-bg-elev-2) !important;
+  color: var(--astra-text) !important;
+  font-size: 13px !important;
+  outline: none !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-stepper {
+  width: 100% !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--astra-border) !important;
+  background: var(--astra-bg-elev-2) !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-step-btn {
+  width: 28px !important;
+  height: 100% !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--astra-muted) !important;
+  cursor: pointer !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-stepper-center {
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-number-input {
+  width: 32px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--astra-text) !important;
+  text-align: center !important;
+  font-weight: 600 !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-form-layout {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 340px !important;
+  gap: 24px !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-form {
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-form-scroll {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  overflow-y: auto !important;
+  padding-right: 12px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-field-group {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-score-group {
+  width: 100% !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--astra-border-soft) !important;
+  background: var(--astra-bg-elev) !important;
+  overflow: hidden !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-score-group--full {
+  grid-column: span 2 !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-sub-sections {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 12px !important;
+  padding: 12px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-sidebar {
+  width: 340px !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  justify-content: center !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-radar-container {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px 0 !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-radar-container > * {
+  margin: 0 auto !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-form-footer {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 120px !important;
+  gap: 18px !important;
+  align-items: end !important;
+  padding-top: 14px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-notes-area {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-notes-area .astra-label-sm,
+.astra-modal--rating:not(.astra-v2) .astra-overall-area .astra-label-sm {
+  margin: 0 !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-notes-area textarea {
+  width: 100% !important;
+  height: 58px !important;
+  margin: 0 !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-overall-area {
+  width: 120px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-self: stretch !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-overall-box {
+  height: 58px !important;
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+}
+
+.astra-modal--rating:not(.astra-v2) .astra-ep-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  overflow-y: auto !important;
+  padding-right: 8px !important;
 }
 
 .score-high {

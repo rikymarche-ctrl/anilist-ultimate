@@ -1,7 +1,7 @@
 /**
  * @file AstraService.ts
  * @description Facade service for the Astra scoring system.
- * 
+ *
  * Orchestrates data access, synchronization, and score calculations.
  * Delegating core logic to specialized components:
  * - AstraRepository: Data persistence and manifest management.
@@ -21,12 +21,12 @@ import { AstraSyncManager } from './services/AstraSyncManager';
 import type { IAstraRatingService } from './interfaces/IAstraRatingService';
 import { AstraCalculator } from './utils/AstraCalculator';
 
-import { 
-  AstraWork, 
-  AstraWorkSummary, 
-  AstraSection, 
-  AstraSettings, 
-  AstraSeason 
+import {
+  AstraWork,
+  AstraWorkSummary,
+  AstraSection,
+  AstraSettings,
+  AstraSeason,
 } from './AstraInterfaces';
 
 @singleton()
@@ -62,7 +62,10 @@ export class AstraService {
   /**
    * Save or update a work.
    */
-  public async saveWork(work: Partial<AstraWork> & { mediaId: number }, skipAnilist: boolean = false): Promise<AstraWork> {
+  public async saveWork(
+    work: Partial<AstraWork> & { mediaId: number },
+    skipAnilist: boolean = false
+  ): Promise<AstraWork> {
     const saved = await this.repository.saveWork(work);
     // Auto-sync with AniList notes (background)
     if (!skipAnilist) {
@@ -81,14 +84,16 @@ export class AstraService {
   /**
    * Increments progress for a media entry and notifies the system.
    */
-  public async incrementProgress(mediaId: number): Promise<{ mediaId: number; progress: number; title: string } | null> {
+  public async incrementProgress(
+    mediaId: number
+  ): Promise<{ mediaId: number; progress: number; title: string } | null> {
     try {
       const result = await this.ratingService.updateProgress(mediaId);
-      
+
       this.eventBus.emit(EVENT_TYPES.PROGRESS_UPDATED, {
         mediaId: result.mediaId,
         progress: result.progress,
-        title: result.title
+        title: result.title,
       });
 
       return result;
@@ -108,48 +113,93 @@ export class AstraService {
   }
 
   public hasFinaleSection(): boolean {
-    return this.repository.getSections().some(s => s.id === 'finale' || s.name.toLowerCase().trim() === 'finale');
+    return this.repository
+      .getSections()
+      .some((s) => s.id === 'finale' || s.name.toLowerCase().trim() === 'finale');
   }
 
   // Delegated utility methods
-  public getSections(): AstraSection[] { return this.repository.getSections(); }
-  public getSettings(): AstraSettings { return this.repository.getSettings(); }
-  public updateSettings(settings: Partial<AstraSettings>): Promise<void> { return this.repository.updateSettings(settings); }
-  public deleteWork(mediaId: number): Promise<void> { return this.repository.deleteWork(mediaId); }
-  public createDefaultSeason(label?: string): AstraSeason { return this.repository.createDefaultSeason(label); }
-  
-  public updateSectionWeight(id: string, weight: number): Promise<void> { return this.repository.updateSectionWeight(id, weight); }
-  public updateSectionName(id: string, name: string): Promise<void> { return this.repository.updateSectionName(id, name); }
-  public addSection(name: string): Promise<void> { return this.repository.addSection(name); }
-  public removeSection(id: string): Promise<void> { return this.repository.removeSection(id); }
-  public updateSubSectionName(sectionId: string, subId: string, name: string): Promise<void> { return this.repository.updateSubSectionName(sectionId, subId, name); }
-  public addSubSection(sectionId: string, name: string): Promise<void> { return this.repository.addSubSection(sectionId, name); }
-  public removeSubSection(sectionId: string, subId: string): Promise<void> { return this.repository.removeSubSection(sectionId, subId); }
-  public updateSubSectionWeight(sectionId: string, subId: string, weight: number): Promise<void> { return this.repository.updateSubSectionWeight(sectionId, subId, weight); }
-  public exportJSON(): Promise<string> { return this.repository.exportJSON(); }
-  public importJSON(json: string): Promise<boolean> { return this.repository.importJSON(json); }
+  public getSections(): AstraSection[] {
+    return this.repository.getSections();
+  }
+  public getSettings(): AstraSettings {
+    return this.repository.getSettings();
+  }
+  public updateSettings(settings: Partial<AstraSettings>): Promise<void> {
+    return this.repository.updateSettings(settings);
+  }
+  public deleteWork(mediaId: number): Promise<void> {
+    return this.repository.deleteWork(mediaId);
+  }
+  public createDefaultSeason(label?: string): AstraSeason {
+    return this.repository.createDefaultSeason(label);
+  }
+
+  public updateSectionWeight(id: string, weight: number): Promise<void> {
+    return this.repository.updateSectionWeight(id, weight);
+  }
+  public updateSectionName(id: string, name: string): Promise<void> {
+    return this.repository.updateSectionName(id, name);
+  }
+  public addSection(name: string): Promise<void> {
+    return this.repository.addSection(name);
+  }
+  public removeSection(id: string): Promise<void> {
+    return this.repository.removeSection(id);
+  }
+  public updateSubSectionName(sectionId: string, subId: string, name: string): Promise<void> {
+    return this.repository.updateSubSectionName(sectionId, subId, name);
+  }
+  public addSubSection(sectionId: string, name: string): Promise<void> {
+    return this.repository.addSubSection(sectionId, name);
+  }
+  public removeSubSection(sectionId: string, subId: string): Promise<void> {
+    return this.repository.removeSubSection(sectionId, subId);
+  }
+  public updateSubSectionWeight(sectionId: string, subId: string, weight: number): Promise<void> {
+    return this.repository.updateSubSectionWeight(sectionId, subId, weight);
+  }
+  public exportJSON(): Promise<string> {
+    return this.repository.exportJSON();
+  }
+  public importJSON(json: string): Promise<boolean> {
+    return this.repository.importJSON(json);
+  }
   public async factoryReset(): Promise<void> {
     await this.repository.factoryReset();
     this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {});
   }
 
-  public calcSectionScore(section: AstraSection, scores: Record<string, number | null>): number | null {
+  public calcSectionScore(
+    section: AstraSection,
+    scores: Record<string, number | null>
+  ): number | null {
     return AstraCalculator.calcSectionScore(section, scores);
   }
   public calcSeasonScore(season: AstraSeason): number | null {
-    return AstraCalculator.calcSeasonScore(season, this.repository.getSections(), this.repository.getSettings());
+    return AstraCalculator.calcSeasonScore(
+      season,
+      this.repository.getSections(),
+      this.repository.getSettings()
+    );
   }
   public calcSeriesOverall(work: AstraWork): number | null {
-    return AstraCalculator.calcSeriesOverall(work, this.repository.getSections(), this.repository.getSettings());
+    return AstraCalculator.calcSeriesOverall(
+      work,
+      this.repository.getSections(),
+      this.repository.getSettings()
+    );
   }
 
   /**
    * Consolidates raw scores into section-level scores based on current configuration.
    */
-  public consolidateScores(rawScores: Record<string, number | null>): Record<string, number | null> {
+  public consolidateScores(
+    rawScores: Record<string, number | null>
+  ): Record<string, number | null> {
     const sections = this.getSections();
     const consolidated: Record<string, number | null> = {};
-    sections.forEach(s => {
+    sections.forEach((s) => {
       consolidated[s.id] = this.calcSectionScore(s, rawScores);
     });
     return consolidated;
