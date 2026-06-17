@@ -17,13 +17,17 @@ import { AstraRowRenderer } from './AstraRowRenderer';
 import { MediaListStatus } from '@/api/AnilistTypes';
 import { getStatusLabel } from '@core/utils/UIHelpers';
 
-type AstraGroupedItem =
-  | { kind: 'header'; status: string; count: number; collapsed: boolean }
-  | { kind: 'work'; work: AstraWorkSummary };
+type AstraWorkGroup = {
+  status: string;
+  count: number;
+  collapsed: boolean;
+  works: AstraWorkSummary[];
+};
 
 @injectable()
 export class AstraWorkTable extends AstraView {
   private static readonly RENDER_CHUNK_SIZE = 50;
+  private static readonly RENDER_CHUNK_DELAY_MS = 75;
   private readonly collapsedGroups = new Set<string>([
     MediaListStatus.COMPLETED,
     MediaListStatus.PLAN_TO_WATCH,
@@ -35,6 +39,13 @@ export class AstraWorkTable extends AstraView {
     'UNKNOWN',
   ]);
   private renderProcessId = 0;
+  private pendingGroups: AstraWorkGroup[] = [];
+  private pendingSections: any[] = [];
+  private pendingCompact = false;
+  private pendingGrid = false;
+  private pendingBody: HTMLElement | null = null;
+  private renderedGroupCounts = new Map<string, number>();
+  private renderTimer: number | null = null;
 
   constructor(
     @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
@@ -183,14 +194,23 @@ export class AstraWorkTable extends AstraView {
     const sections = this.service.getSections();
     const compact = state.layout === 'list';
     const grid = state.layout === 'grid';
-    const items = this.buildGroupedItems(state.filteredWorks);
+    const groups = this.buildWorkGroups(state.filteredWorks);
     const processId = ++this.renderProcessId;
 
+    this.stopAutoRender();
     body.innerHTML = '';
-    this.renderChunk(items, sections, compact, grid, body, processId, 0);
+    this.pendingGroups = groups;
+    this.pendingSections = sections;
+    this.pendingCompact = compact;
+    this.pendingGrid = grid;
+    this.pendingBody = body;
+    this.renderedGroupCounts.clear();
+
+    this.renderGroupSkeleton(processId);
+    this.scheduleAutoRender(processId);
   }
 
-  private buildGroupedItems(works: AstraWorkSummary[]): AstraGroupedItem[] {
+  private buildWorkGroups(works: AstraWorkSummary[]): AstraWorkGroup[] {
     const groups = new Map<string, AstraWorkSummary[]>();
 
     works.forEach((work) => {
@@ -229,64 +249,136 @@ export class AstraWorkTable extends AstraView {
         if (idxB !== -1) return 1;
         return a.localeCompare(b);
       })
-      .flatMap((status) => {
+      .map((status) => {
         const groupWorks = groups.get(status)!;
         const collapsed = this.collapsedGroups.has(status) && !forceOpen.has(status);
-        const header: AstraGroupedItem = {
-          kind: 'header',
+        return {
           status,
           count: groupWorks.length,
           collapsed,
+          works: groupWorks,
         };
-        return collapsed
-          ? [header]
-          : [header, ...groupWorks.map((work): AstraGroupedItem => ({ kind: 'work', work }))];
       });
   }
 
-  private renderChunk(
-    items: AstraGroupedItem[],
-    sections: any[],
-    compact: boolean,
-    grid: boolean,
-    body: HTMLElement,
-    processId: number,
-    start: number
-  ): void {
+  private renderGroupSkeleton(processId = this.renderProcessId): void {
     if (processId !== this.renderProcessId) return;
 
-    const chunk = items.slice(start, start + AstraWorkTable.RENDER_CHUNK_SIZE);
-    if (chunk.length === 0) return;
+    const body = this.pendingBody;
+    if (!body) return;
 
     const fragment = document.createDocumentFragment();
-    chunk.forEach((item) => {
-      fragment.appendChild(
-        item.kind === 'header'
-          ? this.renderGroupHeader(item.status, item.count, item.collapsed)
-          : grid
-            ? this.renderGridCard(item.work)
-            : compact
-              ? AstraRowRenderer.renderCompact(item.work, sections, (id) =>
-                  this.ratingController.open(id)
-                )
-              : AstraRowRenderer.render(item.work, sections, (id) => this.ratingController.open(id))
-      );
+    this.pendingGroups.forEach((group) => {
+      fragment.appendChild(this.renderGroupHeader(group.status, group.count, group.collapsed));
+      this.renderedGroupCounts.set(group.status, 0);
+
+      if (!group.collapsed) {
+        const rows = this.renderGroupRows(group, 0);
+        fragment.appendChild(rows.fragment);
+        this.renderedGroupCounts.set(group.status, rows.nextCount);
+      }
     });
     body.appendChild(fragment);
+  }
 
-    if (start + AstraWorkTable.RENDER_CHUNK_SIZE < items.length) {
-      requestAnimationFrame(() => {
-        this.renderChunk(
-          items,
-          sections,
-          compact,
-          grid,
-          body,
-          processId,
-          start + AstraWorkTable.RENDER_CHUNK_SIZE
-        );
-      });
+  private renderGroupRows(
+    group: AstraWorkGroup,
+    start: number
+  ): { fragment: DocumentFragment; nextCount: number } {
+    const fragment = document.createDocumentFragment();
+    const chunk = group.works.slice(start, start + AstraWorkTable.RENDER_CHUNK_SIZE);
+
+    chunk.forEach((work) => {
+      fragment.appendChild(this.renderWorkItem(work));
+    });
+
+    return { fragment, nextCount: start + chunk.length };
+  }
+
+  private renderWorkItem(work: AstraWorkSummary): HTMLElement {
+    if (this.pendingGrid) return this.renderGridCard(work);
+    if (this.pendingCompact) {
+      return AstraRowRenderer.renderCompact(work, this.pendingSections, (id) =>
+        this.ratingController.open(id)
+      );
     }
+
+    return AstraRowRenderer.render(work, this.pendingSections, (id) =>
+      this.ratingController.open(id)
+    );
+  }
+
+  private renderNextGroupChunk(group: AstraWorkGroup): void {
+    const body = this.pendingBody;
+    if (!body || group.collapsed) return;
+
+    const renderedCount = this.renderedGroupCounts.get(group.status) ?? 0;
+    if (renderedCount >= group.works.length) return;
+
+    const rows = this.renderGroupRows(group, renderedCount);
+    body.insertBefore(rows.fragment, this.findNextGroupHeader(group.status));
+    this.renderedGroupCounts.set(group.status, rows.nextCount);
+  }
+
+  private scheduleAutoRender(processId = this.renderProcessId): void {
+    if (this.renderTimer !== null || !this.hasPendingRows()) return;
+
+    this.renderTimer = window.setTimeout(() => {
+      window.requestAnimationFrame(() => {
+        this.renderTimer = null;
+        if (processId !== this.renderProcessId) return;
+
+        const nextGroup = this.pendingGroups.find((group) => {
+          const renderedCount = this.renderedGroupCounts.get(group.status) ?? 0;
+          return !group.collapsed && renderedCount < group.works.length;
+        });
+
+        if (nextGroup) {
+          this.renderNextGroupChunk(nextGroup);
+          this.scheduleAutoRender(processId);
+        }
+      });
+    }, AstraWorkTable.RENDER_CHUNK_DELAY_MS);
+  }
+
+  private stopAutoRender(): void {
+    if (this.renderTimer === null) return;
+
+    window.clearTimeout(this.renderTimer);
+    this.renderTimer = null;
+  }
+
+  private findNextGroupHeader(status: string): HTMLElement | null {
+    const header = this.$(`.astra-grid-group-header[data-status="${status}"]`);
+    let sibling = header?.nextElementSibling as HTMLElement | null;
+
+    while (sibling) {
+      if (sibling.classList.contains('astra-grid-group-header')) return sibling;
+      sibling = sibling.nextElementSibling as HTMLElement | null;
+    }
+
+    return null;
+  }
+
+  private renderUntilMedia(mediaId: number): void {
+    const group = this.pendingGroups.find((candidate) =>
+      candidate.works.some((work) => work.mediaId === mediaId)
+    );
+    if (!group || group.collapsed) return;
+
+    const targetIndex = group.works.findIndex((work) => work.mediaId === mediaId);
+    while ((this.renderedGroupCounts.get(group.status) ?? 0) <= targetIndex) {
+      const previousCount = this.renderedGroupCounts.get(group.status) ?? 0;
+      this.renderNextGroupChunk(group);
+      if ((this.renderedGroupCounts.get(group.status) ?? 0) === previousCount) break;
+    }
+  }
+
+  private hasPendingRows(): boolean {
+    return this.pendingGroups.some((group) => {
+      const renderedCount = this.renderedGroupCounts.get(group.status) ?? 0;
+      return !group.collapsed && renderedCount < group.works.length;
+    });
   }
 
   private renderGroupHeader(status: string, count: number, collapsed: boolean): HTMLElement {
@@ -661,7 +753,12 @@ export class AstraWorkTable extends AstraView {
    * @param mediaId AniList media ID to focus
    */
   public focusEntry(mediaId: number): void {
-    const row = this.$(`.astra-grid-row[data-media-id="${mediaId}"]`);
+    let row = this.$(`.astra-grid-row[data-media-id="${mediaId}"]`);
+    if (!row) {
+      this.renderUntilMedia(mediaId);
+      row = this.$(`.astra-grid-row[data-media-id="${mediaId}"]`);
+    }
+
     if (row) {
       row.scrollIntoView({ behavior: 'smooth', block: 'center' });
       row.classList.remove('astra-row-focus-pulse');
