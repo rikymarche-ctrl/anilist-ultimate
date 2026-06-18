@@ -23,7 +23,6 @@ interface MediaInfo {
 
 @injectable()
 export class MediaMetadataModule extends BaseModule {
-  private mediaId: number | null = null;
   private isProcessing = false;
   private readonly OBSERVER_NAME = 'media-metadata-injector';
 
@@ -66,9 +65,12 @@ export class MediaMetadataModule extends BaseModule {
 
   private fullCleanup(): void {
     this.sharedObserver.unregister(this.OBSERVER_NAME);
-    this.mediaId = null;
     this.isProcessing = false;
-    document.querySelectorAll('.au-mal-score, .au-subreddit, .au-reddit-btn').forEach(el => el.remove());
+    document
+      .querySelectorAll('.au-mal-score, .au-subreddit, .au-reddit-btn')
+      .forEach((el) => el.remove());
+    // Drop the dedup tag so a reused sidebar element gets re-processed on the next page.
+    document.querySelectorAll('[data-au-meta]').forEach((el) => el.removeAttribute('data-au-meta'));
   }
 
   private async checkAndProcess(): Promise<void> {
@@ -81,13 +83,20 @@ export class MediaMetadataModule extends BaseModule {
     const sidebar = document.querySelector('.sidebar');
     if (!sidebar) return;
 
-    // Fix: Check for the specific injected classes to prevent duplicates
-    if (this.mediaId === mediaId && sidebar.querySelector('.au-mal-score')) return;
+    // Dedup by tagging the sidebar element itself. The old guard keyed off the
+    // injected `.au-mal-score` node, but that node is only added when the media
+    // has a MAL id — so MAL-less entries never matched and re-fetched the Media
+    // query on EVERY mutation-observer tick, contributing to the request burst /
+    // rate-limit cascade. Tagging the element fixes that and still self-heals when
+    // Vue re-renders the sidebar (the fresh element has no tag).
+    if (sidebar.getAttribute('data-au-meta') === String(mediaId)) return;
 
     const type = match[1].toUpperCase();
-    this.mediaId = mediaId;
 
     this.isProcessing = true;
+    // Mark before the async work so concurrent observer ticks can't queue a
+    // second fetch for the same media while this one is in flight.
+    sidebar.setAttribute('data-au-meta', String(mediaId));
     try {
       const cacheKey = `metadata_cache_${mediaId}`;
       const cached = await localStorage.get<any>(cacheKey);
@@ -95,7 +104,7 @@ export class MediaMetadataModule extends BaseModule {
       if (cached) {
         await this.injectMetadata(sidebar as HTMLElement, cached, type);
         // Refresh cache in background
-        this.fetchMediaInfo(mediaId).then(info => {
+        this.fetchMediaInfo(mediaId).then((info) => {
           if (info) localStorage.set(cacheKey, info);
         });
       } else {
@@ -130,7 +139,10 @@ export class MediaMetadataModule extends BaseModule {
         const info = data.Media;
         // Fetch MAL score in background and update cache if possible
         if (info.idMal) {
-          const score = await this.fetchMalScore(info.idMal, window.location.pathname.includes('/anime/') ? 'ANIME' : 'MANGA');
+          const score = await this.fetchMalScore(
+            info.idMal,
+            window.location.pathname.includes('/anime/') ? 'ANIME' : 'MANGA'
+          );
           (info as any).malScore = score;
         }
         return info;
@@ -152,29 +164,40 @@ export class MediaMetadataModule extends BaseModule {
     }
   }
 
-  private async injectMetadata(sidebar: HTMLElement, info: MediaInfo | null, type: string): Promise<void> {
+  private async injectMetadata(
+    sidebar: HTMLElement,
+    info: MediaInfo | null,
+    type: string
+  ): Promise<void> {
     const title = document.querySelector('h1')?.textContent?.trim() || '';
 
     // 1. MAL Score - Perfect integration
     if (info?.idMal) {
       // Use cached score if available
-      const score = (info as any).malScore || await this.fetchMalScore(info.idMal, type);
+      const score = (info as any).malScore || (await this.fetchMalScore(info.idMal, type));
       const malUrl = `https://myanimelist.net/${type.toLowerCase()}/${info.idMal}`;
 
       const malSection = html`
         <div class="data-set au-mal-score" style="margin-bottom: 14px;">
-          <div class="type" style="font-size: 1.2rem; color: var(--color-text-light); padding-bottom: 5px; font-weight: 500;">MAL Score</div>
+          <div
+            class="type"
+            style="font-size: 1.2rem; color: var(--color-text-light); padding-bottom: 5px; font-weight: 500;"
+          >
+            MAL Score
+          </div>
           <div class="value" style="font-size: 1.2rem;">
-            <a href="${malUrl}" target="_blank" style="color: rgb(140, 153, 169); font-weight: 400;">${score || 'N/A'}</a>
+            <a href="${malUrl}" target="_blank" style="color: rgb(140, 153, 169); font-weight: 400;"
+              >${score || 'N/A'}</a
+            >
           </div>
         </div>
       `;
 
       // Inject after Mean Score
-      const meanScoreHeader = Array.from(sidebar.querySelectorAll('.type')).find(el => 
-        el.textContent?.trim() === 'Mean Score'
+      const meanScoreHeader = Array.from(sidebar.querySelectorAll('.type')).find(
+        (el) => el.textContent?.trim() === 'Mean Score'
       );
-      
+
       if (meanScoreHeader) {
         const parent = meanScoreHeader.closest('.data-set');
         if (parent) {
@@ -182,8 +205,8 @@ export class MediaMetadataModule extends BaseModule {
         }
       } else {
         // Fallback: search for Average Score
-        const avgScoreHeader = Array.from(sidebar.querySelectorAll('.type')).find(el => 
-          el.textContent?.trim() === 'Average Score'
+        const avgScoreHeader = Array.from(sidebar.querySelectorAll('.type')).find(
+          (el) => el.textContent?.trim() === 'Average Score'
         );
         if (avgScoreHeader) {
           avgScoreHeader.closest('.data-set')?.after(malSection);
@@ -194,8 +217,9 @@ export class MediaMetadataModule extends BaseModule {
     // 2. Subreddit Button in External Links
     const externalLinksWrap = document.querySelector('.external-links-wrap');
     if (externalLinksWrap && !externalLinksWrap.querySelector('a[href*="reddit.com"]')) {
-      const redditUrl = info?.externalLinks?.find(l => l.url.includes('reddit.com'))?.url
-        || `https://www.reddit.com/search/?q=${encodeURIComponent(title)}`;
+      const redditUrl =
+        info?.externalLinks?.find((l) => l.url.includes('reddit.com'))?.url ||
+        `https://www.reddit.com/search/?q=${encodeURIComponent(title)}`;
 
       const redditBtn = document.createElement('a');
       redditBtn.href = redditUrl;
@@ -204,8 +228,10 @@ export class MediaMetadataModule extends BaseModule {
 
       // Copy scoped CSS attributes from a sibling to inherit background/layout
       const sibling = externalLinksWrap.querySelector('.external-link');
-      const dataAttr = sibling ? Array.from(sibling.attributes).find(a => a.name.startsWith('data-v-'))?.name : null;
-      
+      const dataAttr = sibling
+        ? Array.from(sibling.attributes).find((a) => a.name.startsWith('data-v-'))?.name
+        : null;
+
       if (dataAttr) {
         redditBtn.setAttribute(dataAttr, '');
       }
@@ -214,13 +240,22 @@ export class MediaMetadataModule extends BaseModule {
 
       const redditInner = html`
         <div style="display: contents;">
-          <div class="icon-wrap" ${dataAttr ? dataAttr : ''} style="background: rgb(255, 69, 0); width: 25px; height: 25px; display: flex !important; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0;">
+          <div
+            class="icon-wrap"
+            ${dataAttr ? dataAttr : ''}
+            style="background: rgb(255, 69, 0); width: 25px; height: 25px; display: flex !important; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0;"
+          >
             <i class="fab fa-reddit-alien" style="color: white; font-size: 16px;"></i>
           </div>
-          <span class="name" ${dataAttr ? dataAttr : ''} style="font-size: 1.4rem; font-weight: 700; color: var(--color-text);">Reddit</span>
+          <span
+            class="name"
+            ${dataAttr ? dataAttr : ''}
+            style="font-size: 1.4rem; font-weight: 700; color: var(--color-text);"
+            >Reddit</span
+          >
         </div>
       `;
-      
+
       redditBtn.appendChild(redditInner);
       externalLinksWrap.appendChild(redditBtn);
     }

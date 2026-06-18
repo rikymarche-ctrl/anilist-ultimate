@@ -35,6 +35,8 @@ export type ActivityFilterType =
   | MediaListStatus.PLANNING
   | MediaListStatus.DROPPED
   | MediaListStatus.PAUSED
+  | 'REWATCHED'
+  | 'REREAD'
   | 'TEXT'
   | 'ALL';
 
@@ -104,13 +106,20 @@ export function getActivityType(text: string): ActivityFilterType {
   // CRITICAL: Check progress activities FIRST (more specific and common)
   // This prevents UI elements like "Add to Planning" from false-matching
 
+  // 0. Repeat activities FIRST — AniList writes "rewatched"/"reread" in the text.
+  // Must run before the generic watched/read patterns and the bare "episode N"/
+  // "chapter N" fallbacks, otherwise a repeat would be misclassified as a first
+  // watch/read. ("reread" contains "read", so order matters here.)
+  if (/\brewatched\b/i.test(lower)) return 'REWATCHED';
+  if (/\breread\b/i.test(lower)) return 'REREAD';
+
   // 1. Progress activities - anime
-  if (/(watched|watching|rewatched)\s+(episode|ep)/i.test(lower)) return MediaListStatus.WATCHING;
+  if (/(watched|watching)\s+(episode|ep)/i.test(lower)) return MediaListStatus.WATCHING;
   if (/episode\s*\d+/i.test(lower)) return MediaListStatus.WATCHING;
   if (/\bep\.?\s*\d+/i.test(lower)) return MediaListStatus.WATCHING;
 
   // 2. Progress activities - manga
-  if (/(read|reading|reread)\s+(chapter|ch)/i.test(lower)) return MediaListStatus.READING;
+  if (/(read|reading)\s+(chapter|ch)/i.test(lower)) return MediaListStatus.READING;
   if (/chapter\s*\d+/i.test(lower)) return MediaListStatus.READING;
   if (/\bch\.?\s*\d+/i.test(lower)) return MediaListStatus.READING;
 

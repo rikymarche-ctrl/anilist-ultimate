@@ -6,6 +6,34 @@
 
 ---
 
+## ✅ Resolved in the 2026-06-18 session — API cascade & search hijack
+
+### BUG-035: "Failed to fetch" / rate-limit cascade on media pages
+
+**Severity:** High · **Files:** `AnilistClient.ts`, `constants.ts`, `MediaMetadataModule.ts`
+**User report:** *"quando entro nelle pagine delle opere a volte si bugga, dice che ho esaurito i rate (impossibile) e smette di funzionare tutto."*
+
+**Root causes:**
+1. **No real rate limiter.** `MAX_REQUESTS_PER_MINUTE` (90) was defined but never enforced — only a 700ms gap + 2 concurrent, which let a media page burst far past AniList's *actual* degraded limit (~30/min) and trip a 429.
+2. **Network-level 429 not recognised.** A hard 429 from AniList/Cloudflare reaches the browser as `TypeError: Failed to fetch` (no readable status — the throttled response carries no CORS headers). `isRateLimitError()` only checked `status === 429`/message strings, so every such request did 3 fast retries and emitted its own error toast → the "Failed to fetch" spam and the freeze.
+3. **`MediaMetadataModule` re-fetch loop.** The dedup guard keyed off the injected `.au-mal-score` node, which is only added when the media has a MAL id. MAL-less entries re-fetched the `Media` query on every MutationObserver tick, inflating the burst.
+
+**Fixes:**
+- Added a **sliding-window limiter** in `AnilistClient.processQueue` (defers dispatch instead of bursting); lowered `MAX_REQUESTS_PER_MINUTE` to 25 to match AniList's degraded, IP-shared budget.
+- Added `isNetworkError()`; a run of ≥3 consecutive network errors now routes to `handleRateLimit` (single clear pause) instead of per-request retries, and transient network errors are logged only — **no more toast spam**.
+- `MediaMetadataModule` now dedups by tagging the sidebar element (`data-au-meta`), cleared on page change.
+
+### BUG-036: Astra quick-edit opens while using the AniList search bar
+
+**Severity:** High · **Files:** `AstraEnhancementService.ts`, `AstraPillManager.ts`
+**User report:** *"mentre digitavo nella barra di ricerca un anime da aggiungere, si è aperto il quick edit di Astra."*
+
+**Root cause:** The action pill's `.au-pill-wrapper` covers the whole card and its clickable `.action-pill` sits **dead-centre** — exactly where you click a result to open it. `HomeProgressStrategy` enhances *all* non-sidebar media cards with very loose selectors, so the navbar **live-search dropdown** results (real `/anime/` cards) got pills too. A global capture-phase click listener then fired the pill's `edit-entry` action instead of navigating → quick-edit popped open.
+
+**Fix:** `AstraEnhancementService.processCard` now skips any card inside the nav/header/search regions, so no pill is injected on search results. `AstraPillManager` got a matching defensive guard that ignores pill clicks originating inside those regions.
+
+---
+
 ## ✅ Resolved in the 2026-06-13 code review & hardening
 
 GraphQL injection (GraphQLBatcher `$`-passthrough + HoverComments), XSS (AstraRadarChart

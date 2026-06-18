@@ -44,7 +44,11 @@ export const STORAGE_KEYS = {
 export const API_CONFIG = {
   ENDPOINT: 'https://graphql.anilist.co',
   RATE_LIMIT: {
-    MAX_REQUESTS_PER_MINUTE: 90,
+    // AniList's API has been in a "degraded" state capped at 30 req/min for a long
+    // time (down from the documented 90). The per-IP budget is also shared with the
+    // AniList site itself, so we stay conservatively below 30 to leave headroom and
+    // avoid the 429 cascade. Enforced as a sliding window in AnilistClient.
+    MAX_REQUESTS_PER_MINUTE: 25,
     REQUEST_DELAY_MS: 700,
     MAX_CONCURRENT: 2,
   },

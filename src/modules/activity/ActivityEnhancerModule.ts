@@ -152,9 +152,20 @@ export class ActivityEnhancerModule extends BaseModule {
     const bar = document.querySelector('.au-activity-bar');
     const customTab = document.querySelector('.au-custom-list-btn');
 
-    // If we are not on activity page, or everything is already there, skip
+    // If we are not on activity page, skip
     if (!this.isOnActivityPage()) return;
-    if (bar && customTab) return;
+
+    // Bar + custom tab already injected: nothing to build, BUT the observer also
+    // fires when AniList lazy-loads more entries (Load More / infinite scroll).
+    // Re-apply the active filter so the freshly loaded entries are filtered
+    // automatically — previously this returned early, leaving new entries
+    // unfiltered until the user re-clicked the filter. applyFilters() only
+    // toggles style.display/classes (attribute mutations), which the childList
+    // observer ignores, so this cannot loop.
+    if (bar && customTab) {
+      if (feed) this.applyFilters();
+      return;
+    }
 
     this.isProcessing = true;
     this.suspendObserver(this.OBSERVER_NAME);

@@ -72,6 +72,10 @@ export class AnilistClient implements IApiClient {
   private activeRequests = 0;
   private isRateLimited = false;
   private viewerCache: AniListUser | null = null;
+  /** Timestamps (ms) of dispatched requests within the last minute (sliding-window limiter). */
+  private requestTimestamps: number[] = [];
+  /** Consecutive browser-level network failures; a run of these means we're being throttled. */
+  private consecutiveNetworkErrors = 0;
 
   constructor(
     @inject(TOKENS.ErrorHandler) private errorHandler: IErrorHandler,
@@ -181,13 +185,26 @@ export class AnilistClient implements IApiClient {
       return;
     }
 
+    // Sliding-window rate limiter: never exceed AniList's per-minute budget.
+    // Previously the queue only spaced requests 700ms apart, which still let a
+    // media page burst far past the limit and trip a 429 ("rate exhausted")
+    // cascade the moment the page opened. Defer dispatch until a slot frees up.
+    if (!this.canDispatchNow()) {
+      const waitMs = this.timeUntilNextSlot();
+      log.debug(`[AnilistClient] Per-minute request cap reached, deferring ${waitMs}ms`);
+      setTimeout(() => this.processQueue(), waitMs);
+      return;
+    }
+
     const item = this.queue.shift();
     if (!item) return;
 
+    this.requestTimestamps.push(Date.now());
     this.activeRequests++;
 
     try {
       const response = await this.executeRequest(item);
+      this.consecutiveNetworkErrors = 0;
 
       // Standard queries expect just the data, queryRaw expects the full response
       if (item.isRaw) {
@@ -198,9 +215,17 @@ export class AnilistClient implements IApiClient {
         item.resolve(response);
       }
     } catch (error: unknown) {
-      // Handle rate limiting
-      if (this.isRateLimitError(error)) {
-        log.warn('Rate limit hit, retrying after delay');
+      const networkError = this.isNetworkError(error);
+      this.consecutiveNetworkErrors = networkError ? this.consecutiveNetworkErrors + 1 : 0;
+
+      // Handle rate limiting. A hard 429 from AniList/Cloudflare frequently reaches
+      // the browser as an opaque "Failed to fetch" (a TypeError with no readable
+      // status, because the throttled response carries no CORS headers). So once
+      // several network errors pile up back-to-back we treat it as a rate limit and
+      // pause the whole queue, instead of letting every request hammer its own
+      // retries and spam "Failed to fetch" toasts until everything stops working.
+      if (this.isRateLimitError(error) || (networkError && this.consecutiveNetworkErrors >= 3)) {
+        log.warn('Rate limit / network throttling detected, pausing queue');
         this.handleRateLimit(item, error);
       } else if (item.retries < API_CONFIG.RETRY_ATTEMPTS) {
         const delay = Math.pow(2, item.retries) * 1000; // Exponential backoff: 1s, 2s, 4s...
@@ -236,7 +261,10 @@ export class AnilistClient implements IApiClient {
           error instanceof Error ? error : undefined
         );
 
-        if (!item.silent) {
+        // Transient network errors ("Failed to fetch") are not actionable for the
+        // user and were the source of the toast spam — surface them only to the
+        // logs, never as a toast. Real API/GraphQL errors still notify.
+        if (!item.silent && !networkError) {
           this.errorHandler.handle(apiError, 'Anilist API');
         }
         item.reject(apiError);
@@ -315,6 +343,43 @@ export class AnilistClient implements IApiClient {
 
       throw error;
     }
+  }
+
+  /**
+   * Sliding-window check: are we still under the per-minute request budget?
+   */
+  private canDispatchNow(): boolean {
+    this.pruneTimestamps();
+    return this.requestTimestamps.length < API_CONFIG.RATE_LIMIT.MAX_REQUESTS_PER_MINUTE;
+  }
+
+  /**
+   * Milliseconds until the oldest in-window request ages out and frees a slot.
+   */
+  private timeUntilNextSlot(): number {
+    this.pruneTimestamps();
+    if (this.requestTimestamps.length === 0) return 0;
+    const oldest = this.requestTimestamps[0];
+    return Math.max(0, 60000 - (Date.now() - oldest)) + 50;
+  }
+
+  /**
+   * Drop request timestamps older than one minute.
+   */
+  private pruneTimestamps(): void {
+    const cutoff = Date.now() - 60000;
+    this.requestTimestamps = this.requestTimestamps.filter((t) => t > cutoff);
+  }
+
+  /**
+   * Detects browser-level network failures (offline, DNS, CORS-stripped 429, etc.)
+   * which arrive as a TypeError "Failed to fetch" with no readable HTTP status.
+   */
+  private isNetworkError(error: unknown): boolean {
+    if (error instanceof TypeError) return true;
+    const msg = error instanceof Error ? error.message : (error as { message?: unknown })?.message;
+    if (typeof msg !== 'string') return false;
+    return /failed to fetch|networkerror|network request failed|load failed/i.test(msg);
   }
 
   /**

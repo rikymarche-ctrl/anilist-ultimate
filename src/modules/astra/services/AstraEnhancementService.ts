@@ -69,8 +69,24 @@ export class AstraEnhancementService {
    * @param path The current URL path for context-aware injection logic.
    * @private
    */
+  /**
+   * AniList regions whose media cards must never receive an Astra pill.
+   * The navbar live-search dropdown renders real media cards (with /anime/ links),
+   * so without this guard a pill is injected over each search result. Because pill
+   * clicks are caught by a global capture-phase listener, clicking a result to open
+   * it would instead fire the pill action and pop the Astra quick-edit — the "quick
+   * edit opens while I'm searching" bug. Search/nav cards are not editable targets.
+   */
+  private static readonly EXCLUDED_CARD_ANCESTORS =
+    '.nav, nav, header, .header, [role="search"], [class*="search"], [class*="Search"]';
+
   private processCard(card: HTMLElement, path: string): void {
     try {
+      // Skip cards inside the top navigation or the live-search dropdown.
+      if (card.closest(AstraEnhancementService.EXCLUDED_CARD_ANCESTORS)) {
+        return;
+      }
+
       // 1. Try to find the media link (prioritize card itself if it's an 'a' tag)
       let link = '';
       if (card.tagName.toLowerCase() === 'a') {

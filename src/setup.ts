@@ -94,11 +94,7 @@ import { AstraJournalService } from '@/modules/astra/services/AstraJournalServic
 import { AstraRatingService } from '@/modules/astra/services/AstraRatingService';
 import { AstraRatingModal } from '@/modules/astra/ui/AstraRatingModal';
 import { AstraRatingHeader } from '@/modules/astra/ui/components/AstraRatingHeader';
-import { AstraScoreForm } from '@/modules/astra/ui/components/AstraScoreForm';
-import { AstraEpisodeJournal } from '@/modules/astra/ui/components/AstraEpisodeJournal';
-import { AstraRadarPreview } from '@/modules/astra/ui/components/AstraRadarPreview';
 import { AstraDashboard } from '@/modules/astra/ui/AstraDashboard';
-import { AstraStatsHeader } from '@/modules/astra/ui/components/AstraStatsHeader';
 import { AstraFilterBar } from '@/modules/astra/ui/components/AstraFilterBar';
 import { AstraWorkTable } from '@/modules/astra/ui/components/AstraWorkTable';
 import { AstraSettingsView } from '@/modules/astra/ui/components/AstraSettingsView';
@@ -110,9 +106,6 @@ import { AstraNavigationService } from './modules/astra/services/AstraNavigation
 import { AstraRoutingService } from './modules/astra/services/AstraRoutingService';
 import { AstraPillManager } from './modules/astra/services/AstraPillManager';
 import { AstraUIBridge } from './modules/astra/services/AstraUIBridge';
-import { AstraStatusSelector } from '@/modules/astra/ui/components/form/AstraStatusSelector';
-import { AstraProgressStepper } from '@/modules/astra/ui/components/form/AstraProgressStepper';
-import { AstraCriteriaList } from '@/modules/astra/ui/components/form/AstraCriteriaList';
 import { AstraParserService } from '@/modules/astra/services/AstraParserService';
 import { AstraSyncManager } from '@/modules/astra/services/AstraSyncManager';
 import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
@@ -272,16 +265,8 @@ export async function setupDI(isBackground = false): Promise<void> {
   container.register(TOKENS.AstraSyncManager, { useToken: AstraSyncManager });
 
   container.registerSingleton(AstraRatingModal);
-  container.register(TOKENS.AstraRatingController, { useToken: AstraRatingModal });
 
   container.registerSingleton(AstraRatingHeader);
-  container.registerSingleton(AstraScoreForm);
-  container.registerSingleton(AstraStatusSelector);
-  container.register(AstraProgressStepper, { useClass: AstraProgressStepper });
-  container.registerSingleton(AstraCriteriaList);
-  container.registerSingleton(AstraEpisodeJournal);
-  container.registerSingleton(AstraRadarPreview);
-  container.registerSingleton(AstraStatsHeader);
   container.registerSingleton(AstraFilterBar);
   container.registerSingleton(AstraWorkTable);
   container.registerSingleton(AstraSettingsView);

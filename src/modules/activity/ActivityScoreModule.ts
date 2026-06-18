@@ -91,6 +91,14 @@ export class ActivityScoreModule extends BaseModule {
   }
 
   private checkAndProcess(): void {
+    // Self-heal: when AniList (Vue) re-renders an entry it can strip our injected
+    // badge while keeping the element + our [data-au-score-enhanced] guard. Clear
+    // the guard on entries that lost their badge so they get re-enhanced, instead
+    // of the score silently vanishing after a feed refresh.
+    document.querySelectorAll('[data-au-score-enhanced="true"]').forEach((el) => {
+      if (!el.querySelector('.au-activity-rating')) el.removeAttribute('data-au-score-enhanced');
+    });
+
     // Enhanced selector to find all possible activity blocks, including profile list items
     const entries = document.querySelectorAll('.activity-entry:not([data-au-score-enhanced]), .activity-anime:not([data-au-score-enhanced]), .activity-manga:not([data-au-score-enhanced]), .list.small:not([data-au-score-enhanced])');
 
@@ -193,9 +201,14 @@ export class ActivityScoreModule extends BaseModule {
     const isProfile = window.location.pathname.includes('/user/');
     const mediaLinks = entry.querySelectorAll('a[href^="/anime/"], a[href^="/manga/"]');
     const lastLink = mediaLinks[mediaLinks.length - 1];
+    const userLink = entry.querySelector('a[href^="/user/"]');
     const generalTitle = entry.querySelector('.title, .name, .details .title, .content .title');
-    
-    const target = isProfile ? (lastLink || generalTitle) : generalTitle;
+
+    // On the feed, anchor to the single, stable username link so the badge always
+    // lands in the same spot. The old `.title, .name, ...` union resolved to
+    // whichever matched first in DOM order, which differed between AniList renders
+    // → the badge appeared in the wrong place and "moved" on refresh.
+    const target = isProfile ? (lastLink || generalTitle) : (userLink || generalTitle);
 
     if (target) {
       if (isProfile) {

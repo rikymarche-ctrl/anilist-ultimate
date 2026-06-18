@@ -50,7 +50,7 @@ export class AstraWorkTable extends AstraView {
   constructor(
     @inject(TOKENS.AstraStore) private store: AstraDashboardStore,
     @inject(TOKENS.AstraService) private service: AstraService,
-    @inject(TOKENS.AstraRatingController) private ratingController: AstraRatingModal
+    @inject(AstraRatingModal) private ratingController: AstraRatingModal
   ) {
     super({});
     // Safety re-render after DI assignment

@@ -31,6 +31,14 @@ export class AstraPillManager {
 
       if (!section || !wrapper) return;
 
+      // Defensive: never treat a click as a pill action if the pill ended up inside
+      // the navbar or live-search dropdown. Pills shouldn't be injected there (see
+      // AstraEnhancementService), but if a stray one slips through we must not hijack
+      // a click meant to open a search result and pop the quick-edit instead.
+      if (wrapper.closest('.nav, nav, header, .header, [role="search"], [class*="search"], [class*="Search"]')) {
+        return;
+      }
+
       const mediaId = parseInt(wrapper.getAttribute('data-au-media-id') || '0', 10);
       const action = section.getAttribute('data-action');
       if (!mediaId || !action) return;

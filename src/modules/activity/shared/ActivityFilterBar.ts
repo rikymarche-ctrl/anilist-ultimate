@@ -49,6 +49,26 @@ export interface FilterBarOptions {
  */
 @injectable()
 export class ActivityFilterBar {
+  /**
+   * Filters that cycle through an extra "repeat" state on repeated clicks,
+   * like the Astra dashboard quick-filters:
+   *   Watched → Rewatched → off (ALL),  Read → Reread → off (ALL).
+   * Keyed by the button's base filter type; the button's data-filter stays the
+   * base type, only the active state + label change as you cycle.
+   */
+  private static readonly CYCLE_GROUPS: Partial<
+    Record<ActivityFilterType, { states: ActivityFilterType[]; labels: string[] }>
+  > = {
+    [MediaListStatus.WATCHING]: {
+      states: [MediaListStatus.WATCHING, 'REWATCHED'],
+      labels: ['Watched', 'Rewatched'],
+    },
+    [MediaListStatus.READING]: {
+      states: [MediaListStatus.READING, 'REREAD'],
+      labels: ['Read', 'Reread'],
+    },
+  };
+
   private activeFilters: Set<ActivityFilterType> = new Set(['ALL']);
   private searchQuery: string = '';
   private container: HTMLElement | null = null;
@@ -178,24 +198,45 @@ export class ActivityFilterBar {
   }
 
   /**
-   * Toggle filter (single-select logic)
+   * Toggle filter. Single-select for normal buttons; tri-state cycle for the
+   * Watched/Read buttons (base → repeat → off), see CYCLE_GROUPS.
    */
   private toggleFilter(filter: ActivityFilterType): void {
-    this.activeFilters.clear();
-    this.activeFilters.add(filter);
+    const group = ActivityFilterBar.CYCLE_GROUPS[filter];
+
+    if (group) {
+      const [base, repeat] = group.states;
+      const next: ActivityFilterType = this.activeFilters.has(base)
+        ? repeat
+        : this.activeFilters.has(repeat)
+          ? 'ALL'
+          : base;
+      this.activeFilters = new Set<ActivityFilterType>([next]);
+    } else {
+      this.activeFilters = new Set<ActivityFilterType>([filter]);
+    }
+
     this.updateUI();
     this.options.onFilterChange?.(new Set(this.activeFilters));
   }
 
   /**
-   * Update UI to reflect active filters
+   * Update UI to reflect active filters (incl. cycle-state labels)
    */
   private updateUI(): void {
     if (!this.container) return;
 
     this.container.querySelectorAll('.au-filter-btn').forEach((btn) => {
       const f = btn.getAttribute('data-filter') as ActivityFilterType;
-      btn.classList.toggle('active', this.activeFilters.has(f));
+      const group = ActivityFilterBar.CYCLE_GROUPS[f];
+      if (group) {
+        const activeIdx = group.states.findIndex((s) => this.activeFilters.has(s));
+        btn.classList.toggle('active', activeIdx >= 0);
+        // Reflect the cycle state in the label: Watched ⇄ Rewatched, Read ⇄ Reread.
+        btn.textContent = activeIdx >= 0 ? group.labels[activeIdx] : group.labels[0];
+      } else {
+        btn.classList.toggle('active', this.activeFilters.has(f));
+      }
     });
   }
 
