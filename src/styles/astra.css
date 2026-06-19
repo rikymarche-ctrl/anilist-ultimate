@@ -363,11 +363,13 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
     box-shadow: 0 0 0 0 rgba(var(--astra-accent-rgb), 0);
     border-color: var(--astra-border-soft);
   }
+
   15% {
     background-color: var(--astra-accent-a10);
     box-shadow: 0 0 40px 5px rgba(var(--astra-accent-rgb), 0.5);
     border-color: var(--astra-accent);
   }
+
   100% {
     background-color: transparent;
     box-shadow: 0 0 0 0 rgba(var(--astra-accent-rgb), 0);
@@ -1696,17 +1698,20 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   0% {
     left: -40%;
   }
+
   100% {
     left: 100%;
   }
 }
 
 @keyframes astraImportPulse {
+
   0%,
   100% {
     transform: scale(1);
     opacity: 0.85;
   }
+
   50% {
     transform: scale(1.12);
     opacity: 1;
@@ -1865,6 +1870,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   .astra-tp-body {
     grid-template-columns: 1fr;
   }
+
   .astra-tp-highlights {
     grid-template-columns: 1fr;
   }
@@ -2577,7 +2583,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background: rgba(239, 68, 68, 0.1);
 }
 
-.astra-settings-grid-2col .astra-settings-item > .astra-btn {
+.astra-settings-grid-2col .astra-settings-item>.astra-btn {
   min-width: 160px;
   flex-shrink: 0;
 }
@@ -3479,9 +3485,9 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-align: center;
 }
 
-.astra-grid-row > .astra-col-type,
-.astra-grid-row > .astra-col-score,
-.astra-grid-row > .astra-col-section {
+.astra-grid-row>.astra-col-type,
+.astra-grid-row>.astra-col-score,
+.astra-grid-row>.astra-col-section {
   justify-content: center;
   text-align: center;
 }
@@ -4664,9 +4670,9 @@ body.au-astra-enabled .section-header .friend-activity-button {
 
 /* AniList discovery preview cards render their title/status overlay inside the
    cover. Keep Astra's pill above the cover without dimming that native overlay. */
-.media-preview-card .cover > .au-pill-wrapper,
-.media-preview-card .image > .au-pill-wrapper,
-.media-preview-card .img > .au-pill-wrapper {
+.media-preview-card .cover>.au-pill-wrapper,
+.media-preview-card .image>.au-pill-wrapper,
+.media-preview-card .img>.au-pill-wrapper {
   background: transparent !important;
   backdrop-filter: none !important;
 }
@@ -5460,13 +5466,25 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 @keyframes astraPortalDrift {
-  0%   { transform: translate3d(-2%, -1%, 0) scale(1.02); }
-  100% { transform: translate3d(3%, 2%, 0) scale(1.08); }
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1.02);
+  }
+
+  100% {
+    transform: translate3d(3%, 2%, 0) scale(1.08);
+  }
 }
 
 @keyframes astraPortalTwinkle {
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 0.95; }
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 0.95;
+  }
 }
 
 /* --- Card --- */
@@ -5519,8 +5537,15 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 @keyframes astraPortalFade {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* --- Brand logo lockup --- */
@@ -5542,8 +5567,17 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 @keyframes astraPortalPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%      { transform: scale(1.1); opacity: 0.75; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.75;
+  }
 }
 
 /* --- Copy --- */
@@ -5703,11 +5737,17 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 @keyframes astraPortalIndeterminate {
-  0%   { left: -45%; }
-  100% { left: 105%; }
+  0% {
+    left: -45%;
+  }
+
+  100% {
+    left: 105%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .astra-modal--dashboard .astra-portal-aurora,
   .astra-modal--dashboard .astra-portal-stars,
   .astra-modal--dashboard .astra-portal-logo-glow,
@@ -5807,7 +5847,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   scrollbar-width: thin !important;
 }
 
-.astra-modal--dashboard .astra-filter-toolbar-left > .astra-search-box--toolbar {
+.astra-modal--dashboard .astra-filter-toolbar-left>.astra-search-box--toolbar {
   margin-left: 2px !important;
 }
 
@@ -5869,7 +5909,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
 }
 
-.astra-modal--dashboard .astra-toolbar-dropdown.active > .astra-toolbar-chip {
+.astra-modal--dashboard .astra-toolbar-dropdown.active>.astra-toolbar-chip {
   color: var(--astra-accent) !important;
   border-color: var(--astra-accent-a50) !important;
   background: var(--astra-accent-a10) !important;
@@ -5885,7 +5925,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   flex: 0 0 auto !important;
 }
 
-.astra-modal--dashboard .astra-toolbar-dropdown.open > .astra-toolbar-chip {
+.astra-modal--dashboard .astra-toolbar-dropdown.open>.astra-toolbar-chip {
   color: var(--astra-text) !important;
   border-color: var(--astra-accent-a50) !important;
 }
@@ -5973,9 +6013,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
 
 /* Center items in the simple (Type / Country) dropdowns; the wide Custom Lists
    menu keeps its left-aligned checkbox rows. */
-.astra-modal--dashboard
-  .astra-toolbar-dropdown-menu:not(.astra-toolbar-dropdown-menu--wide)
-  .astra-toolbar-dropdown-item {
+.astra-modal--dashboard .astra-toolbar-dropdown-menu:not(.astra-toolbar-dropdown-menu--wide) .astra-toolbar-dropdown-item {
   justify-content: center !important;
   text-align: center !important;
 }
@@ -6136,7 +6174,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   contain-intrinsic-size: 1px 80px;
 }
 
-.astra-grid-row > div {
+.astra-grid-row>div {
   display: flex;
   align-items: center;
   padding: 12px 16px;
@@ -6246,7 +6284,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   contain-intrinsic-size: 1px 48px !important;
 }
 
-.astra-modal--dashboard .astra-grid--compact .astra-grid-row > div {
+.astra-modal--dashboard .astra-grid--compact .astra-grid-row>div {
   padding: 4px 10px !important;
 }
 
@@ -6601,7 +6639,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   align-items: flex-end !important;
 }
 
-.astra-modal--rating:not(.astra-v2) .astra-input-split > .astra-input-box {
+.astra-modal--rating:not(.astra-v2) .astra-input-split>.astra-input-box {
   flex: 1 1 0 !important;
 }
 
@@ -6737,7 +6775,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
   padding: 12px 0 !important;
 }
 
-.astra-modal--rating:not(.astra-v2) .astra-radar-container > * {
+.astra-modal--rating:not(.astra-v2) .astra-radar-container>* {
   margin: 0 auto !important;
 }
 
