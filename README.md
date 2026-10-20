@@ -15,6 +15,14 @@ An unofficial browser extension bringing a calendar, personal ratings, Wrapped r
 
 Choose the modules you want in settings. Account features use the extension's AniList OAuth login. The Bulk Editor works for every authenticated user on their own lists and stays inactive on other people's lists.
 
+## Screenshots
+
+![Astra Wrapped – intro](docs/screenshots/wrapped-intro.webp)
+![Astra Wrapped – binger](docs/screenshots/wrapped-binger.webp)
+![Astra Wrapped – voice actors](docs/screenshots/wrapped-voice-actor.webp)
+![Astra Wrapped – genres](docs/screenshots/wrapped-genres.webp)
+![Astra Wrapped – journey](docs/screenshots/wrapped-journey.webp)
+
 ## Installation
 
 Requirements: **Node.js 22.13.0 or later**, npm and Chrome 120 or later. Edge and Brave can load unpacked extensions; browser-specific login behavior can vary.
