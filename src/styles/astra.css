@@ -2530,10 +2530,109 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   transition: color 0.3s ease;
 }
 
+/* The AniList score standing in for the overall until a section is rated. */
+.astra-overall-val--anilist {
+  opacity: 0.85;
+  font-style: italic;
+}
+
+.astra-overall-caption {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--astra-muted);
+}
+
 /* Hide spin buttons */
 .astra-btn--full {
   flex: 1;
   height: 60px;
+}
+
+/* Manual overall score: the box is editable; a caption and a reset sit beneath it. */
+.astra-overall-box[role="button"] {
+  cursor: pointer;
+}
+
+.astra-overall-box[role="button"]:focus-visible {
+  outline: 2px solid var(--astra-accent);
+  outline-offset: 2px;
+}
+
+.astra-overall-input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 2px solid transparent;
+  background: transparent;
+  color: var(--astra-accent);
+  font: inherit;
+  font-size: 32px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.astra-overall-input:focus-visible {
+  outline-color: var(--astra-accent);
+}
+
+/* Same inline cue as an invalid field elsewhere in the app: red text and outline, plus aria-invalid. */
+.astra-overall-input--invalid,
+.astra-overall-input--invalid:focus-visible {
+  outline-color: var(--au-error, #ff4d4d);
+  color: var(--au-error, #ff4d4d);
+}
+
+.astra-overall-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 16px;
+  margin-top: 4px;
+}
+
+.astra-overall-meta .astra-overall-caption {
+  margin-top: 0;
+}
+
+.astra-overall-caption[hidden],
+.astra-overall-reset[hidden] {
+  display: none;
+}
+
+.astra-overall-reset {
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--astra-muted);
+  cursor: pointer;
+}
+
+.astra-overall-reset:hover,
+.astra-overall-reset:focus-visible {
+  color: var(--astra-accent);
+}
+
+.astra-overall-hint {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--astra-muted);
+  text-align: center;
+}
+
+/* Radar empty state and visibility: the web needs three active sections and at least one rating. */
+.astra-radar-empty {
+  padding: 24px 12px;
+  font-size: 13px;
+  color: var(--astra-muted);
+  text-align: center;
 }
 
 /* 10. Journal View */
@@ -7211,6 +7310,15 @@ body.au-astra-enabled .section-header .friend-activity-button {
   font-weight: 600 !important;
 }
 
+/* Zero sections: the grid and radar stay hidden while the overall box takes their place. */
+.astra-modal--rating .astra-form-layout[hidden] {
+  display: none !important;
+}
+
+.astra-modal--rating .astra-overall-area--solo .astra-overall-box {
+  min-height: 96px !important;
+}
+
 .astra-modal--rating .astra-form-layout {
   flex: 1 1 auto !important;
   min-height: 0 !important;
@@ -7278,6 +7386,10 @@ body.au-astra-enabled .section-header .friend-activity-button {
   flex-direction: column !important;
   gap: 16px !important;
   justify-content: center !important;
+}
+
+.astra-modal--rating .astra-radar-container[hidden] {
+  display: none !important;
 }
 
 .astra-modal--rating .astra-radar-container {

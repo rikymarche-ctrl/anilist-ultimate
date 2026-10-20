@@ -49,6 +49,8 @@ export const API_CONFIG = {
     // AniList site itself, so we stay conservatively below 30 to leave headroom and
     // avoid the 429 cascade. Enforced as a sliding window in AnilistClient.
     MAX_REQUESTS_PER_MINUTE: 25,
+    /** Budget kept free for user-initiated (priority) requests; background work stops short of it. */
+    RESERVED_PRIORITY_SLOTS: 5,
     REQUEST_DELAY_MS: 700,
     MAX_CONCURRENT: 2,
   },

@@ -302,17 +302,118 @@ describe('AnilistClient', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('preserves the 25-per-minute budget while the queue keeps moving', async () => {
+  it('keeps background work inside the per-minute budget while the queue keeps moving', async () => {
     vi.useFakeTimers(); const client = makeClient(); mockRawRequest.mockResolvedValue({ data: { ok: true } });
     const settled = Promise.allSettled(Array.from({ length: 26 }, (_, id) => client.query('query($id:Int!) { Media(id:$id) { id } }', { id: id + 1 })));
     try {
-      await vi.advanceTimersByTimeAsync(59999); expect(mockRawRequest).toHaveBeenCalledTimes(25);
-      await vi.advanceTimersByTimeAsync(51); expect(mockRawRequest).toHaveBeenCalledTimes(26);
+      // Background work may use 25 - 5 reserved = 20 window slots; the rest wait for the window to slide.
+      await vi.advanceTimersByTimeAsync(59999); expect(mockRawRequest).toHaveBeenCalledTimes(20);
+      await vi.advanceTimersByTimeAsync(51); expect(mockRawRequest).toHaveBeenCalledTimes(21);
+      await vi.advanceTimersByTimeAsync(60000); expect(mockRawRequest).toHaveBeenCalledTimes(26);
       expect((await settled).every(item => item.status === 'fulfilled')).toBe(true);
     } finally { client.destroy(); await settled; }
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('dispatches priority reads ahead of queued background reads, FIFO within each class', async () => {
+    vi.useFakeTimers(); const client = makeClient(); mockRawRequest.mockResolvedValue({ data: { ok: true } });
+    const query = 'query($id:Int!) { Media(id:$id) { id } }';
+    const settled = Promise.allSettled([
+      ...[1, 2, 3].map(id => client.query(query, { id })),
+      ...[8, 9].map(id => client.query(query, { id }, false, { priority: true })),
+    ]);
+    try {
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(mockRawRequest.mock.calls.map(([request]) => request.variables.id)).toEqual([1, 8, 9, 2, 3]);
+      expect((await settled).every(item => item.status === 'fulfilled')).toBe(true);
+    } finally { client.destroy(); await settled; }
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('moves a waiting background read into the priority lane when a priority caller joins it', async () => {
+    vi.useFakeTimers(); const client = makeClient(); mockRawRequest.mockResolvedValue({ data: { ok: true } });
+    const query = 'query($id:Int!) { Media(id:$id) { id } }';
+    const settled = Promise.allSettled([
+      client.query(query, { id: 1 }), client.query(query, { id: 2 }), client.query(query, { id: 3 }),
+      client.query(query, { id: 3 }, false, { priority: true }),
+    ]);
+    try {
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(mockRawRequest.mock.calls.map(([request]) => request.variables.id)).toEqual([1, 3, 2]);
+      expect((await settled).every(item => item.status === 'fulfilled')).toBe(true);
+    } finally { client.destroy(); await settled; }
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('keeps the reserved budget for priority work: background requests stop short of it', async () => {
+    vi.useFakeTimers(); const client = makeClient(); mockRawRequest.mockResolvedValue({ data: { ok: true } });
+    const query = 'query($id:Int!) { Media(id:$id) { id } }';
+    const background = Promise.allSettled(Array.from({ length: 21 }, (_, index) => client.query(query, { id: index + 1 })));
+    try {
+      await vi.advanceTimersByTimeAsync(13300); expect(mockRawRequest).toHaveBeenCalledTimes(20);
+      const priority = Promise.allSettled([client.query(query, { id: 99 }, false, { priority: true })]);
+      await vi.advanceTimersByTimeAsync(700);
+      expect(mockRawRequest).toHaveBeenCalledTimes(21);
+      expect(mockRawRequest.mock.calls[20][0].variables).toEqual({ id: 99 });
+      await vi.advanceTimersByTimeAsync(45000);
+      expect(mockRawRequest).toHaveBeenCalledTimes(21);
+      expect(client.getQueueStatus().queueLength).toBe(1);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(mockRawRequest).toHaveBeenCalledTimes(22);
+      expect((await priority)[0].status).toBe('fulfilled');
+      expect((await background).every(item => item.status === 'fulfilled')).toBe(true);
+    } finally { client.destroy(); await background; }
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('treats mutations as priority writes that jump queued background reads', async () => {
+    vi.useFakeTimers(); const client = makeClient(); mockRawRequest.mockResolvedValue({ data: { ok: true } });
+    const query = 'query($id:Int!) { Media(id:$id) { id } }';
+    const mutation = 'mutation($id:Int!) { SaveMediaListEntry(mediaId:$id) { id } }';
+    const settled = Promise.allSettled([
+      client.query(query, { id: 1 }), client.query(query, { id: 2 }), client.query(query, { id: 3 }),
+      client.mutate(mutation, { id: 7 }),
+    ]);
+    try {
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(mockRawRequest.mock.calls.map(([request]) => request.variables.id)).toEqual([1, 7, 2, 3]);
+      expect((await settled).every(item => item.status === 'fulfilled')).toBe(true);
+    } finally { client.destroy(); await settled; }
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('treats the viewer lookup as a priority read so a cold cache is not stuck behind background work', async () => {
+    vi.useFakeTimers(); const client = makeClient(); mockRawRequest.mockResolvedValue({ data: { ok: true } });
+    const query = 'query($id:Int!) { Media(id:$id) { id } }';
+    const settled = Promise.allSettled([client.query(query, { id: 1 }), client.query(query, { id: 2 })]);
+    const viewer = client.getCurrentUser().catch(() => null);
+    try {
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(mockRawRequest.mock.calls[1][0].query).toContain('Viewer');
+    } finally { client.destroy(); await settled; await viewer; }
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('honours a priority flag sent by a tab proxy through the background router', async () => {
+    vi.useFakeTimers(); const deps = makeDeps();
+    const metadata = { ensureInitialized: async () => {}, getSessionId: () => 's1',
+      getUserCache: () => ({ userId: 7, userName: 'Viewer' }), hasToken: () => true };
+    deps.authTokenService.getUserCache = metadata.getUserCache;
+    const client = clientWithDeps(deps);
+    const router = createBackgroundMessageHandler(Promise.resolve(), () => ({
+      getStatus: async () => ({ authenticated: true, sessionId: 's1', userId: 7 }),
+    }) as never, () => ({}) as never, () => client);
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((message: unknown) => new Promise(resolve => {
+      router(message, { id: chrome.runtime.id, url: 'https://anilist.co/home', tab: { id: 1 } as chrome.tabs.Tab },
+        response => resolve(structuredClone(response)));
+    }) as never);
+    mockRawRequest.mockResolvedValue({ data: { ok: true } });
+    const tab = new AnilistClientProxy(metadata as never, new EventBus());
+    const query = 'query($id:Int!) { Media(id:$id) { id } }';
+    const background = Promise.allSettled([1, 2].map(id => client.query(query, { id })));
+    try {
+      const priority = Promise.allSettled([tab.query(query, { id: 9 }, false, { priority: true })]);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(mockRawRequest.mock.calls.map(([request]) => request.variables.id)).toEqual([1, 9, 2]);
+      expect((await priority)[0].status).toBe('fulfilled');
+      expect((await background).every(item => item.status === 'fulfilled')).toBe(true);
+    } finally { tab.destroy(); client.destroy(); await background; vi.mocked(chrome.runtime.sendMessage).mockReset(); }
+  });
   it('cancels a delayed retry so clearing the queue cannot revive old requests', async () => {
     vi.useFakeTimers();
     mockRawRequest.mockRejectedValue(new Error('Temporary failure'));

@@ -7,17 +7,41 @@ const section = (
   id: string,
   weight: number,
   subSections?: { id: string; weight: number }[]
-): AstraSection => ({ id, name: id, weight, subSections: subSections?.map(sub => ({ ...sub, name: sub.id })) });
+): AstraSection => ({
+  id,
+  name: id,
+  weight,
+  subSections: subSections?.map((sub) => ({ ...sub, name: sub.id })),
+});
 
-const settings = (over: Partial<AstraSettings> = {}): AstraSettings =>
-  ({ enableSeriesFinale: false, finaleWeightMultiplier: 2, autoSync: false, appendAstraToComment: false, ...over });
+const settings = (over: Partial<AstraSettings> = {}): AstraSettings => ({
+  enableSeriesFinale: false,
+  finaleWeightMultiplier: 2,
+  autoSync: false,
+  appendAstraToComment: false,
+  ...over,
+});
 
-const season = (over: Partial<AstraSeason>): AstraSeason =>
-  ({ id: 's', name: 'S1', scores: {}, skip: [], episodeNotes: {}, ...over });
+const season = (over: Partial<AstraSeason>): AstraSeason => ({
+  id: 's',
+  name: 'S1',
+  scores: {},
+  skip: [],
+  episodeNotes: {},
+  ...over,
+});
 
 const work = (seasons: AstraSeason[]): AstraWork => ({
-  id: 'work_1', mediaId: 1, title: 'Test work', type: 'anime', status: MediaListStatus.CURRENT,
-  customLists: [], tags: [], notes: '', updatedAt: 1, seasons,
+  id: 'work_1',
+  mediaId: 1,
+  title: 'Test work',
+  type: 'anime',
+  status: MediaListStatus.CURRENT,
+  customLists: [],
+  tags: [],
+  notes: '',
+  updatedAt: 1,
+  seasons,
 });
 
 describe('AstraCalculator.calcSectionScore', () => {
@@ -103,5 +127,52 @@ describe('AstraCalculator.calcSeriesOverall', () => {
   it('returns null when no season has a score', () => {
     const series = work([season({ scores: {} })]);
     expect(AstraCalculator.calcSeriesOverall(series, sections, settings())).toBeNull();
+  });
+
+  it('averages the manual overall of a season in place of its weighted score', () => {
+    const series = work([
+      season({ scores: { A: 8 }, manualScore: 10 }),
+      season({ scores: { A: 6 } }),
+    ]);
+    // (10 + 6) / 2 = 8
+    expect(AstraCalculator.calcSeriesOverall(series, sections, settings())).toBe(8);
+  });
+});
+
+describe('AstraCalculator.calcSeasonScore manual overall', () => {
+  const sections = [section('A', 1), section('B', 1)];
+
+  it('returns the manual score over the weighted average', () => {
+    const s = season({ scores: { A: 8, B: 6 }, manualScore: 10 });
+    expect(AstraCalculator.calcSeasonScore(s, sections, settings())).toBe(10);
+  });
+
+  it('returns a low manual score as given', () => {
+    const s = season({ scores: { A: 8, B: 6 }, manualScore: 3 });
+    expect(AstraCalculator.calcSeasonScore(s, sections, settings())).toBe(3);
+  });
+
+  it('accepts 11 (the lode) as a manual score', () => {
+    const s = season({ scores: { A: 8 }, manualScore: 11 });
+    expect(AstraCalculator.calcSeasonScore(s, sections, settings())).toBe(11);
+  });
+
+  it.each([null, undefined])('uses the weighted average when manualScore is %s', (manualScore) => {
+    const s = season({ scores: { A: 8, B: 6 }, manualScore });
+    expect(AstraCalculator.calcSeasonScore(s, sections, settings())).toBe(7);
+  });
+
+  it.each([0, 11.5, -1, Number.NaN])('ignores the invalid manual score %s', (manualScore) => {
+    const s = season({ scores: { A: 8, B: 6 }, manualScore });
+    expect(AstraCalculator.calcSeasonScore(s, sections, settings())).toBe(7);
+  });
+
+  it('returns the manual score alone when no section is configured', () => {
+    const s = season({ scores: {}, manualScore: 9 });
+    expect(AstraCalculator.calcSeasonScore(s, [], settings())).toBe(9);
+  });
+
+  it('returns null with no sections and no manual score', () => {
+    expect(AstraCalculator.calcSeasonScore(season({ scores: {} }), [], settings())).toBeNull();
   });
 });

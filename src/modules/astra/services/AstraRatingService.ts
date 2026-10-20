@@ -15,6 +15,7 @@ import type {
   AstraSaveOptions,
   AstraSaveResult,
   AstraProgressResult,
+  AstraDispatchOutcome,
 } from '../interfaces/IAstraRatingService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ISyncQueueService } from '@core/interfaces/ISyncQueueService';
@@ -61,7 +62,10 @@ export class AstraRatingService implements IAstraRatingService {
       for (let attempt = 0; attempt < 3; attempt++) {
         const before = await this.syncQueue.getSnapshot();
         assertApiContext(this.api, context);
-        const resp = await this.api.query<unknown>(ASTRA_RATING_QUERY, { id: mediaId });
+        // The modal's own read: priority keeps it from waiting behind background sync reads.
+        const resp = await this.api.query<unknown>(ASTRA_RATING_QUERY, { id: mediaId }, false, {
+          priority: true,
+        });
         assertApiContext(this.api, context);
         const result = ratingInitialResponse(resp, mediaId, userId);
         const after = await this.syncQueue.getSnapshot();
@@ -81,6 +85,18 @@ export class AstraRatingService implements IAstraRatingService {
               entry.payload.mediaId === mediaId &&
               (entry.payload.notes !== undefined || entry.payload.score !== undefined)
           );
+          let queuedScore: number | null | undefined;
+          for (const entry of after.entries) {
+            if (
+              entry.userId === userId &&
+              entry.type === 'ASTRA_SAVE' &&
+              entry.payload.mediaId === mediaId &&
+              entry.payload.score !== undefined
+            ) {
+              queuedScore = entry.payload.score;
+            }
+          }
+          if (queuedScore !== undefined) result.pendingScore = queuedScore;
           const dates = queuedAstraDates(after.entries, mediaId, userId);
           const pendingListState = queuedAstraListState(after.entries, mediaId, userId);
           if (result.media.mediaListEntry) {
@@ -148,6 +164,35 @@ export class AstraRatingService implements IAstraRatingService {
   }
 
   /**
+   * Drains the queue without holding the caller. Failures stay durable in the queue and are
+   * only logged. `onDispatched` runs exactly once, after the drain settles.
+   */
+  private drainInBackground(
+    mediaId: number,
+    onDispatched?: (result: AstraDispatchOutcome) => void
+  ): void {
+    void (async () => {
+      let outcome: AstraDispatchOutcome = 'queued';
+      try {
+        await this.syncQueue.process();
+        const pending = await this.syncQueue.getQueue();
+        outcome = pending.some(
+          (item) => item.type === 'ASTRA_SAVE' && item.payload.mediaId === mediaId
+        )
+          ? 'queued'
+          : 'synced';
+      } catch (error) {
+        logger.error('[AstraRatingService] Background synchronization failed', error);
+      }
+      try {
+        onDispatched?.(outcome);
+      } catch (error) {
+        logger.error('[AstraRatingService] Dispatch callback failed', error);
+      }
+    })();
+  }
+
+  /**
    * Persists work locally and durably queues its AniList mutation before dispatch.
    * A failed network sync stays queued; storage failures reject the save.
    */
@@ -205,7 +250,10 @@ export class AstraRatingService implements IAstraRatingService {
 
       // Policy: when "append Astra to comment" is enabled, embed the Astra block
       // into the AniList Notes while preserving all surrounding personal text.
-      if (settings.appendAstraToComment && extra.syncAstraNotes !== false) {
+      if (
+        settings.appendAstraToComment &&
+        (extra.syncAstraNotes !== false || extra.replaceNotes === true)
+      ) {
         stage = 'NOTES';
         const sections = this.astraService.getSections();
         const currentData = await this.getMediaRatingData(work.mediaId);
@@ -217,7 +265,9 @@ export class AstraRatingService implements IAstraRatingService {
         }
         if (this.astraService.getSettings().appendAstraToComment) {
           const currentNotes = currentData.media.mediaListEntry?.notes ?? '';
-          const updatedNotes = this.parser.inject(currentNotes, work, sections);
+          const updatedNotes = this.parser.inject(currentNotes, work, sections, {
+            replaceNotes: extra.replaceNotes === true,
+          });
           // Explicit edited notes still use the existing editor path when the option is off.
           notesToSync = updatedNotes === currentNotes ? undefined : updatedNotes;
           if (notesToSync !== undefined) {
@@ -248,6 +298,11 @@ export class AstraRatingService implements IAstraRatingService {
       assertApiContext(this.api, context, saved.ownerId);
       stage = 'QUEUE';
       await this.syncQueue.enqueue('ASTRA_SAVE', payload, ...(context ? [context.sessionId] : []));
+      if (extra.dispatch === 'background') {
+        // The durable entry exists, so the caller may finish now; the drain reports back later.
+        this.drainInBackground(work.mediaId, extra.onDispatched);
+        return 'queued';
+      }
       stage = 'DISPATCH';
       await this.syncQueue.process();
       assertApiContext(this.api, context, saved.ownerId);

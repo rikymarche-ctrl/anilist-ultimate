@@ -28,6 +28,8 @@ import type {
   AstraEpisodeNote,
 } from '../AstraInterfaces';
 import { AstraRadarChart } from './AstraRadarChart';
+import { parseManualScoreInput } from './AstraManualScore';
+import { isManualScore } from '../utils/AstraSeasons';
 import type { IApiClient, ApiContext } from '@core/interfaces/IApiClient';
 import type { ToastService } from '@core/services/ToastService';
 import { logger } from '@core/logger';
@@ -45,6 +47,9 @@ import type {
   IAstraRatingService,
   IRatingInitialData,
   AstraRatingMedia,
+  AstraDispatchMode,
+  AstraDispatchOutcome,
+  AstraSaveOptions,
 } from '../interfaces/IAstraRatingService';
 import { captureApiContext, assertApiContext } from '@/api/ApiContext';
 import { escapeHtml } from '@core/utils/Template';
@@ -70,7 +75,33 @@ import {
   miniCalendarDateParts,
 } from './AstraDatePicker';
 
-const NEEDS_LIST_STATUS_NOTICE = 'Not saved: choose a list status to add this title.';
+const LOCAL_ONLY_NOTICE =
+  'Saved in Astra only: this title is not on your AniList list. Pick a status to add it.';
+const SYNC_QUEUED_NOTICE = 'Saved locally. AniList synchronization is queued.';
+/** A synced background save may reload the host only this soon after the view closed. */
+const BACKGROUND_RELOAD_WINDOW_MS = 15000;
+
+const ANILIST_FALLBACK_TITLE = 'AniList score — rate the sections to replace it';
+
+/** AniList scores run 0-100 with 0 meaning unrated; the overall box uses 0-10. */
+function remoteOverallScore(data: IRatingInitialData): number | null {
+  // A queued score (even a clear) is newer than the remote entry, so it wins over it.
+  const score =
+    data.pendingScore !== undefined
+      ? (data.pendingScore ?? 0)
+      : (data.media.mediaListEntry?.score ?? 0);
+  return score > 0 ? score / 10 : null;
+}
+
+/** What a closing view looked like, so a late drain result can judge whether a reload is still welcome. */
+interface ClosedView {
+  root: HTMLElement;
+  version: number;
+  context: ApiContext | undefined;
+  suppressReload: boolean;
+  location: string;
+  at: number;
+}
 
 interface RatingMeta {
   progress: number;
@@ -103,6 +134,10 @@ export class AstraRatingModal {
   private initialScoresSnapshot = '';
   private needsListStatus = false;
   private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
+  /** AniList's own score on the 0-10 scale (null when unrated): stands in for the overall box until a section is rated. */
+  private remoteOverall: number | null = null;
+  /** True while the overall box shows its manual-score input. */
+  private overallEditing = false;
   private livePreviewRaf: number | null = null; // Coalesces live-preview redraws during slider drag
   /** Temporary journal unlocks never change the episode's watched/progress state. */
   private readonly unlockedNotAiredEpisodes = new Set<string>();
@@ -355,7 +390,8 @@ export class AstraRatingModal {
         };
       }
 
-      this.needsListStatus = !media.mediaListEntry && !existingWork && pending.status === undefined;
+      // AniList is the source of truth: no remote entry means the title is not on the list, even if a local work exists.
+      this.needsListStatus = !media.mediaListEntry && pending.status === undefined;
       this.state = new AstraRatingState(workData, (isDirty) => {
         // Any logic needed when dirty state changes (e.g., UI indicators)
         logger.debug(`[AstraRatingModal] State dirty: ${isDirty}`);
@@ -370,6 +406,7 @@ export class AstraRatingModal {
       this.journalPageIndex = 0;
       this.unlockedNotAiredEpisodes.clear();
       this.media = media;
+      this.remoteOverall = remoteOverallScore(data);
       this.formDraft = new AstraRatingFormDraft(
         media.mediaListEntry,
         workData,
@@ -476,6 +513,8 @@ export class AstraRatingModal {
   }
 
   private render(media: AstraRatingMedia | null, allCustomLists: string[]): void {
+    // A fresh render replaces any open manual-score input.
+    this.overallEditing = false;
     if (!media) return;
     this.clearLoading();
     this.viewScope?.release();
@@ -710,7 +749,7 @@ export class AstraRatingModal {
           </div>
         </div>
 
-        <div class="astra-form-layout">
+        <div class="astra-form-layout"${sections.length === 0 ? ' hidden' : ''}>
           <div class="astra-form">
             <div class="astra-form-scroll">
               <div class="astra-field-group">
@@ -722,7 +761,7 @@ export class AstraRatingModal {
           </div>
 
           <div class="astra-sidebar">
-            <div class="astra-radar-container">
+            <div class="astra-radar-container"${AstraRadarChart.isVisible(sections, season.skip) ? '' : ' hidden'}>
               ${AstraRadarChart.getHTML(this.radarScores(season.scores, sections), sections, season.skip, 300)}
             </div>
           </div>
@@ -732,11 +771,7 @@ export class AstraRatingModal {
           <div class="astra-notes-area">
             <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${'\n'}${escapeHtml(season.notes || '')}</textarea>
           </div>
-          <div class="astra-overall-area">
-            <div class="astra-overall-box">
-              <span class="astra-overall-val">—</span>
-            </div>
-          </div>
+          ${this.renderOverallArea(this.currentSeasonIdx, sections.length > 0)}
         </div>
       </div>
     `;
@@ -969,14 +1004,18 @@ export class AstraRatingModal {
         progressInput.value.trim() !== '' &&
         Number(progressInput.value) !== this.initialProgress;
       if (state.isDirty || progressEdited) {
-        if (this.needsListStatus) {
-          // A title not yet on the list cannot be saved until a status is chosen: discard the draft instead of blocking close.
-          this.toast.info(NEEDS_LIST_STATUS_NOTICE);
-        } else {
-          state.isDirty = true;
-          await this.save();
-          if (!current() || state.isDirty) return;
-        }
+        // Closing never waits for AniList: the local commit and durable queue write are enough.
+        state.isDirty = true;
+        const closed: ClosedView = {
+          root,
+          version,
+          context,
+          suppressReload,
+          location: `${window.location.pathname}${window.location.search}`,
+          at: Date.now(),
+        };
+        await this.save('background', (result) => this.onBackgroundDispatched(result, closed));
+        if (!current() || state.isDirty) return;
       }
     } catch (error) {
       if (current()) {
@@ -1041,6 +1080,7 @@ export class AstraRatingModal {
     this.state = null;
     this.formDraft = null;
     this.media = null;
+    this.remoteOverall = null;
     this.initialSeasonNotes = [];
     this.initialReportSnapshot = '';
     this.initialScoresSnapshot = '';
@@ -1363,6 +1403,8 @@ export class AstraRatingModal {
       });
     });
 
+    this.bindOverallScore();
+
     // Catch-all: any input/change inside the modal marks the state dirty so the
     // on-close save() never early-returns and silently drops changes. Several
     // controls (custom-list checkboxes, private/hide, general notes, journal
@@ -1615,10 +1657,204 @@ export class AstraRatingModal {
     this.toast.error(astraSaveFailureMessage(error));
   }
 
-  private save(): Promise<void> {
+  /**
+   * The Astra overall, or the AniList score as a labelled stand-in for the latest season while
+   * no section is rated. The stand-in is display-only and is never sent to AniList.
+   */
+  private overallDisplay(seasonIndex: number): {
+    value: number | null;
+    fallback: boolean;
+    manual: boolean;
+  } {
+    const season = this.state?.data.seasons[seasonIndex];
+    const computed = season ? this.astraService.calcSeasonScore(season) : null;
+    // calcSeasonScore already prefers a valid manual score, so the value is the manual one here.
+    if (isManualScore(season?.manualScore))
+      return { value: computed, fallback: false, manual: true };
+    const isLatest = seasonIndex === (this.state?.data.seasons.length ?? 0) - 1;
+    const remote = this.remoteOverall;
+    if (!computed && isLatest && remote !== null && remote > 0)
+      return { value: remote, fallback: true, manual: false };
+    return { value: computed, fallback: false, manual: false };
+  }
+
+  /**
+   * The overall box with its caption, manual marker and reset. With no section configured the
+   * box is the only way to set a score, so it is shown with a hint.
+   */
+  private renderOverallArea(seasonIndex: number, hasSections: boolean): string {
+    const { fallback, manual } = this.overallDisplay(seasonIndex);
+    const hint = hasSections
+      ? ''
+      : '<p class="astra-overall-hint">No sections configured: set the score manually.</p>';
+    return `
+      <div class="astra-overall-area${hasSections ? '' : ' astra-overall-area--solo'}">
+        ${hint}
+        <div class="astra-overall-box" role="button" tabindex="0" aria-label="Overall score, click to set it manually">
+          ${this.overallValueHtml(seasonIndex)}
+        </div>
+        <div class="astra-overall-meta">
+          <span class="astra-overall-caption" ${fallback ? '' : 'hidden'}>AniList</span>
+          <span class="astra-overall-caption astra-overall-caption--manual" ${manual ? '' : 'hidden'}>Manual</span>
+          <button type="button" class="astra-overall-reset" aria-label="Use the weighted average" title="Use the weighted average" ${manual ? '' : 'hidden'}>↺</button>
+        </div>
+      </div>`;
+  }
+
+  /** Overall box events, delegated on the overlay: click or Enter/Space edits, Enter or blur commits, Escape cancels. */
+  private bindOverallScore(): void {
+    this.listen(this.overlay, 'click', (event) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest('.astra-overall-reset')) {
+        this.applyManualScore(null);
+        this.refreshOverallArea();
+        return;
+      }
+      if (target?.closest('.astra-overall-box') && !target.closest('.astra-overall-input'))
+        this.beginManualEdit();
+    });
+    this.listen(this.overlay, 'keydown', (event) => this.onOverallKeydown(event));
+    this.listen(this.overlay, 'focusout', (event) => {
+      const target = event.target instanceof HTMLInputElement ? event.target : null;
+      if (target?.classList.contains('astra-overall-input')) this.commitManualEdit(target, false);
+    });
+  }
+
+  private onOverallKeydown(event: KeyboardEvent): void {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target instanceof HTMLInputElement && target.classList.contains('astra-overall-input')) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        this.commitManualEdit(target, true);
+      } else if (event.key === 'Escape') {
+        // Stop here so Escape cancels the edit instead of closing the modal.
+        event.preventDefault();
+        event.stopPropagation();
+        this.endManualEdit(true);
+      }
+      return;
+    }
+    if (
+      target?.classList.contains('astra-overall-box') &&
+      (event.key === 'Enter' || event.key === ' ')
+    ) {
+      event.preventDefault();
+      this.beginManualEdit();
+    }
+  }
+
+  /** Swaps the overall value for a number input prefilled with the value on screen. */
+  private beginManualEdit(): void {
+    if (!this.state || !this.overlay || this.overallEditing) return;
+    const box = this.overlay.querySelector<HTMLElement>('.astra-overall-box');
+    if (!box) return;
+    const { value } = this.overallDisplay(this.currentSeasonIdx);
+    this.overallEditing = true;
+    box.innerHTML =
+      '<input type="number" class="astra-overall-input" min="0.1" max="11" step="0.1" inputmode="decimal" aria-label="Manual overall score">';
+    const input = box.querySelector<HTMLInputElement>('.astra-overall-input');
+    if (!input) return;
+    input.value = value === null ? '' : value.toFixed(1);
+    input.focus();
+    input.select();
+  }
+
+  /** Enter or blur commits. A valid value is stored; an invalid one keeps the previous value. */
+  private commitManualEdit(input: HTMLInputElement, fromKeyboard: boolean): void {
+    if (!this.overallEditing) return;
+    const result = parseManualScoreInput(input.value, input.validity.badInput);
+    if (!result.valid) {
+      if (fromKeyboard) {
+        input.classList.add('astra-overall-input--invalid');
+        input.setAttribute('aria-invalid', 'true');
+        return;
+      }
+      this.endManualEdit(false);
+      return;
+    }
+    this.applyManualScore(result.value);
+    this.endManualEdit(fromKeyboard);
+  }
+
+  private endManualEdit(focusBox: boolean): void {
+    this.overallEditing = false;
+    this.refreshOverallArea(focusBox);
+  }
+
+  /** Stores the manual score (null clears it) and marks the work dirty when it changes. */
+  private applyManualScore(value: number | null): void {
+    if (!this.state) return;
+    const season = this.state.data.seasons[this.currentSeasonIdx];
+    if (!season || (season.manualScore ?? null) === value) return;
+    this.state.updateSeasonField(this.currentSeasonIdx, 'manualScore', value);
+  }
+
+  /** Re-renders the overall area in place; an open edit is left alone. */
+  private refreshOverallArea(focusBox = false): void {
+    if (!this.overlay || this.overallEditing) return;
+    const area = this.overlay.querySelector<HTMLElement>('.astra-overall-area');
+    if (!area) return;
+    const keepFocus = focusBox || area.contains(document.activeElement);
+    area.outerHTML = this.renderOverallArea(
+      this.currentSeasonIdx,
+      this.astraService.getSections().length > 0
+    );
+    if (keepFocus) this.overlay.querySelector<HTMLElement>('.astra-overall-box')?.focus();
+  }
+
+  private overallValueHtml(seasonIndex: number): string {
+    const { value, fallback } = this.overallDisplay(seasonIndex);
+    const text = value === null ? '—' : value.toFixed(1);
+    const color = AstraRadarChart.getScoreColor(value);
+    const attributes = fallback
+      ? `class="astra-overall-val astra-overall-val--anilist" title="${ANILIST_FALLBACK_TITLE}"`
+      : 'class="astra-overall-val"';
+    return `<span ${attributes} style="color: ${color}">${text}</span>`;
+  }
+
+  /**
+   * A background save reports once AniList settles. A queued write is still pending, so say so.
+   * A synced write may reload the page, but only when the user is still where they closed it.
+   */
+  private onBackgroundDispatched(result: AstraDispatchOutcome, closed: ClosedView): void {
+    if (result === 'queued') {
+      this.toast.info(SYNC_QUEUED_NOTICE);
+      return;
+    }
+    if (closed.suppressReload || !this.canReloadAfterDispatch(closed)) return;
+    try {
+      assertApiContext(this.api, closed.context);
+      this.reloadHost();
+    } catch {
+      /* Session moved on; no stale reload. */
+    }
+  }
+
+  private canReloadAfterDispatch(closed: ClosedView): boolean {
+    const focused = document.activeElement;
+    const editing =
+      focused instanceof HTMLElement &&
+      (focused.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(focused.tagName) ||
+        focused.closest('[contenteditable="true"], [contenteditable=""]') !== null);
+    return (
+      (this.overlay === null || this.overlay === closed.root) &&
+      this.openVersion === closed.version &&
+      `${window.location.pathname}${window.location.search}` === closed.location &&
+      Date.now() - closed.at < BACKGROUND_RELOAD_WINDOW_MS &&
+      document.visibilityState === 'visible' &&
+      !editing
+    );
+  }
+
+  /** Joins an in-flight save of the same state; a joined save keeps the dispatch mode it started with. */
+  private save(
+    dispatch: AstraDispatchMode = 'await',
+    onDispatched?: (result: AstraDispatchOutcome) => void
+  ): Promise<void> {
     if (this.saveInFlight && this.savingState === this.state) return this.saveInFlight;
     const state = this.state;
-    const saving = this.persistChanges();
+    const saving = this.persistChanges(dispatch, onDispatched);
     this.saveInFlight = saving;
     this.savingState = state;
     const clear = () => {
@@ -1631,7 +1867,10 @@ export class AstraRatingModal {
     return saving;
   }
 
-  private async persistChanges(): Promise<void> {
+  private async persistChanges(
+    dispatch: AstraDispatchMode,
+    onDispatched?: (result: AstraDispatchOutcome) => void
+  ): Promise<void> {
     if (!this.state || !this.overlay) return;
 
     const scope = this.viewScope;
@@ -1651,7 +1890,8 @@ export class AstraRatingModal {
       return;
     }
 
-    if (this.needsListStatus) throw new Error('Choose a list status before saving.');
+    // A title outside the AniList list is saved in Astra only: no remote write may be queued for it.
+    const localOnly = this.needsListStatus;
 
     try {
       const seasonIndex = this.currentSeasonIdx;
@@ -1686,7 +1926,7 @@ export class AstraRatingModal {
       let result;
       let unchanged = false;
       try {
-        result = await this.ratingService.saveAndSync(draft, {
+        const saveOptions: AstraSaveOptions = {
           overallScore: overall,
           progress,
           repeat,
@@ -1697,8 +1937,15 @@ export class AstraRatingModal {
           customLists,
           syncAstraNotes,
           syncScore,
+          replaceNotes: notesToSync !== undefined,
           ...(notesToSync === undefined ? {} : { notes: notesToSync }),
-        });
+        };
+        result = await this.ratingService.saveAndSync(
+          draft,
+          localOnly
+            ? { ...saveOptions, skipSync: true }
+            : { ...saveOptions, dispatch, ...(onDispatched ? { onDispatched } : {}) }
+        );
       } finally {
         unchanged =
           JSON.stringify(currentWork) === snapshot && this.formEditVersion === editVersion;
@@ -1724,7 +1971,9 @@ export class AstraRatingModal {
       this.initialScoresSnapshot = this.scoresSnapshot(draft);
       if (unchanged) state.resetDirty();
       this.reloadAfterClose = result === 'synced';
-      if (result === 'queued') this.toast.info('Saved locally. AniList synchronization is queued.');
+      // A background save announces its queued state later, once the drain settles.
+      if (result === 'queued' && dispatch === 'await') this.toast.info(SYNC_QUEUED_NOTICE);
+      if (localOnly) this.toast.info(LOCAL_ONLY_NOTICE);
 
       // Recheck the view after the optional asynchronous owner lookup.
       const userId = draft.ownerId ?? (await this.api.getCurrentUserId().catch(() => 0));
@@ -1770,6 +2019,7 @@ export class AstraRatingModal {
       season
         ? {
             scores: season.scores,
+            manualScore: season.manualScore ?? null,
             notes: season.notes ?? '',
             episodeNotes: season.episodeNotes ?? {},
           }
@@ -1777,8 +2027,13 @@ export class AstraRatingModal {
     );
   }
 
+  /** Scores and the manual overall of the latest season: either one changing makes the score sync. */
   private scoresSnapshot(work: AstraWork): string {
-    return JSON.stringify(work.seasons[work.seasons.length - 1]?.scores ?? {});
+    const season = work.seasons[work.seasons.length - 1];
+    return JSON.stringify({
+      scores: season?.scores ?? {},
+      manualScore: season?.manualScore ?? null,
+    });
   }
 
   private captureFormInputs(): AstraRatingFormValues {
@@ -2251,16 +2506,11 @@ export class AstraRatingModal {
     const work = this.state.data;
     const season = work.seasons[this.currentSeasonIdx];
     const sections = this.astraService.getSections();
-    const overall = this.astraService.calcSeasonScore(season);
+    this.refreshOverallArea();
 
-    const overallVal = this.overlay!.querySelector('.astra-overall-val') as HTMLElement;
-    if (overallVal) {
-      overallVal.textContent = overall === null || overall === undefined ? '—' : overall.toFixed(1);
-      overallVal.style.color = AstraRadarChart.getScoreColor(overall);
-    }
-
-    const radarContainer = this.overlay!.querySelector('.astra-radar-container');
+    const radarContainer = this.overlay!.querySelector<HTMLElement>('.astra-radar-container');
     if (radarContainer) {
+      radarContainer.hidden = !AstraRadarChart.isVisible(sections, season.skip);
       radarContainer.innerHTML = AstraRadarChart.getHTML(
         this.radarScores(season.scores, sections),
         sections,

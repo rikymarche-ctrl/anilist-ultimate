@@ -2,16 +2,48 @@ import { injectable, singleton } from 'tsyringe';
 import { logger } from '@core/logger';
 import type { AstraSection, AstraWork } from '../AstraInterfaces';
 import type {
+  AstraInjectOptions,
   IAstraParser,
   ParsedAstraReport,
   AstraDecomposition,
 } from '../interfaces/IAstraParser';
 import { ASTRA_MARKERS } from '../utils/AstraConstants';
 import { AstraCalculator } from '../utils/AstraCalculator';
+import { isManualScore } from '../utils/AstraSeasons';
+import { findFramelessBlocks, type AstraBlockRange } from '../utils/AstraBlockGrammar';
 import { assertNotesLength } from '@core/services/NotesSafety';
+
+const AMBIGUOUS_BLOCK_ERROR =
+  'Incomplete or ambiguous Astra Notes block; original notes preserved. Review the block manually.';
 
 function formatReviewScore(score: number): string {
   return String(Number(score.toFixed(1)));
+}
+
+function countNewlines(value: string): number {
+  return value.split('\n').length - 1;
+}
+
+/** Line breaks that leave a blank line between `before` and the block that follows it. */
+function breaksBefore(before: string, eol: string): string {
+  if (before === '') return '';
+  const trailing = /\s*$/.exec(before)?.[0] ?? '';
+  return eol.repeat(Math.max(0, 2 - countNewlines(trailing)));
+}
+
+/** Line breaks that leave a blank line between a block and the non-empty text after it. */
+function breaksAfter(after: string, eol: string): string {
+  if (after === '') return '';
+  const leading = /^\s*/.exec(after)?.[0] ?? '';
+  return eol.repeat(Math.max(0, 2 - countNewlines(leading)));
+}
+
+function splitAt(text: string, range: AstraBlockRange): AstraDecomposition {
+  return {
+    top: text.slice(0, range.start),
+    block: text.slice(range.start, range.end),
+    bottom: text.slice(range.end),
+  };
 }
 
 /**
@@ -26,36 +58,24 @@ function formatReviewScore(score: number): string {
 export class AstraParserService implements IAstraParser {
   /**
    * Decomposes a string into Top, Astra Block, and Bottom compartments.
-   * Uses regex to find the decorative header and footer boundaries.
+   * Recognizes the frameless block format and the legacy framed block still found on AniList.
    *
    * @param text The raw AniList notes string.
    * @returns An object containing the separated compartments.
    */
   public decompose(text: string): AstraDecomposition {
-    const headers: { start: number; end: number }[] = [];
-    const footers: { start: number; end: number }[] = [];
-    for (const line of text.matchAll(/[^\r\n]+/g)) {
-      const value = line[0].trim();
-      const range = { start: line.index!, end: line.index! + line[0].length };
-      if (value.toUpperCase() === ASTRA_MARKERS.HEADER.toUpperCase()) headers.push(range);
-      else if (value === ASTRA_MARKERS.FOOTER) footers.push(range);
-      else if (/^[─_=-]+.*\[\s*ASTRA REVIEW\s*\]/i.test(value)) {
-        throw new Error(
-          'Unrecognized Astra Notes boundary; original notes preserved. Review the block manually.'
-        );
+    const legacy = this.locateLegacyBlock(text);
+    const frameless = findFramelessBlocks(text);
+    if (legacy) {
+      // A frameless block inside the framed one belongs to it; any other one makes the Notes ambiguous.
+      if (frameless.some((range) => range.start < legacy.start || range.end > legacy.end)) {
+        throw new Error(AMBIGUOUS_BLOCK_ERROR);
       }
+      return splitAt(text, legacy);
     }
-    if (headers.length === 0) return { top: text, block: '', bottom: '' };
-    if (headers.length !== 1 || footers.length !== 1 || footers[0].start < headers[0].end) {
-      throw new Error(
-        'Incomplete or ambiguous Astra Notes block; original notes preserved. Review the block manually.'
-      );
-    }
-    return {
-      top: text.slice(0, headers[0].start),
-      block: text.slice(headers[0].start, footers[0].end),
-      bottom: text.slice(footers[0].end),
-    };
+    if (frameless.length === 0) return { top: text, block: '', bottom: '' };
+    if (frameless.length > 1) throw new Error(AMBIGUOUS_BLOCK_ERROR);
+    return splitAt(text, frameless[0]);
   }
 
   /**
@@ -83,10 +103,13 @@ export class AstraParserService implements IAstraParser {
       sectionScores: {},
       subSectionScores: {},
       journal: {},
-      cleanText: (top + '\n' + bottom).trim(),
+      cleanText: [top.trim(), bottom.trim()].filter(Boolean).join('\n\n'),
     };
 
-    const lines = block.replace(/\r/g, '').split('\n').slice(1, -1);
+    // Only a framed (legacy) block has boundary lines to drop; a frameless block starts with its label.
+    const rawLines = block.replace(/\r/g, '').split('\n');
+    const framed = rawLines[0].trim().toUpperCase() === ASTRA_MARKERS.HEADER.toUpperCase();
+    const lines = framed ? rawLines.slice(1, -1) : rawLines;
     let mode: 'breakdown' | 'journal' | 'notes' | null = null;
     let currentSectionId: string | null = null;
     let currentEpisode: number | null = null;
@@ -127,7 +150,12 @@ export class AstraParserService implements IAstraParser {
       }
       if (mode === 'breakdown' && upperLine.startsWith(ASTRA_MARKERS.LABELS.OVERALL)) {
         const match = line.match(/[\d.]+/);
-        if (match) report.overallScore = parseFloat(match[0]);
+        if (match) {
+          report.overallScore = parseFloat(match[0]);
+          if (/\(manual\)$/i.test(line) && isManualScore(report.overallScore)) {
+            report.manualScore = report.overallScore;
+          }
+        }
         continue;
       }
 
@@ -203,6 +231,7 @@ export class AstraParserService implements IAstraParser {
 
   /**
    * Merges parsed data into a domain object.
+   * General thoughts are the text outside the Astra block, so both notes fields take it.
    *
    * @param work The target work object.
    * @param parsed The data extracted from AniList.
@@ -226,12 +255,12 @@ export class AstraParserService implements IAstraParser {
       }
     }
 
-    // Keep outside text out of the managed review; otherwise pull/push cycles
-    // repeatedly copy personal text into the block and grow the Notes forever.
-    if (work.notes !== finalNotes || season.notes !== internalNotes) {
+    // Keep the Astra block out of the notes the user edits; otherwise every pull copies
+    // the report into General thoughts and the next push writes it back a second time.
+    if (work.notes !== finalNotes || season.notes !== finalNotes) {
       logger.info(`[AstraParser] Notes updated for ${work.mediaId}`);
       work.notes = finalNotes;
-      season.notes = internalNotes;
+      season.notes = finalNotes;
       changed = true;
     }
 
@@ -246,6 +275,17 @@ export class AstraParserService implements IAstraParser {
         season.scores[key] = score;
         changed = true;
       }
+    }
+
+    // AniList is the source of truth for the block: a manual overall the block lacks is cleared.
+    if (isManualScore(parsed.manualScore)) {
+      if (season.manualScore !== parsed.manualScore) {
+        season.manualScore = parsed.manualScore;
+        changed = true;
+      }
+    } else if (season.manualScore !== undefined) {
+      delete season.manualScore;
+      changed = true;
     }
 
     // Merge journal entries additively: a line missing from the remote text never deletes or blanks local data.
@@ -265,19 +305,21 @@ export class AstraParserService implements IAstraParser {
   }
 
   /**
-   * Converts a domain object into a stringified Astra block.
+   * Converts a domain object into a frameless Astra block (no header or footer lines).
    *
    * @param work The source domain object.
    * @param sections Configuration to use for labeling.
-   * @returns A serialized string ready for AniList.
+   * @param carriedNotes Legacy NOTES text read from an existing block, written back verbatim.
+   * @returns A serialized block ready for AniList, or '' when there is nothing to report.
    */
-  public serialize(work: AstraWork, sections: AstraSection[]): string {
+  public serialize(work: AstraWork, sections: AstraSection[], carriedNotes?: string): string {
     const season = work.seasons[work.seasons.length - 1];
     if (!season) return '';
 
     // A free-text marker could masquerade as the end of the managed block.
     const freeText = [
       season.notes ?? '',
+      carriedNotes ?? '',
       ...Object.values(season.episodeNotes ?? {}).map((note) => note.text ?? ''),
       ...sections.flatMap((section) => [
         section.name,
@@ -296,18 +338,18 @@ export class AstraParserService implements IAstraParser {
       );
     }
 
-    let breakdownText = '';
-    let hasScores = false;
-
+    // The manual overall leads the breakdown, so a manual-only season still produces a block.
+    const breakdown: string[] = [];
+    if (isManualScore(season.manualScore)) {
+      breakdown.push(
+        `${ASTRA_MARKERS.LABELS.OVERALL} ${formatReviewScore(season.manualScore)}/10 (manual)`
+      );
+    }
     for (const section of sections) {
       // Sectioned scores derive from their sub-scores; a stored parent value only counts as the lode (11).
       const score = AstraCalculator.calcSectionScore(section, season.scores);
       if (score !== null && score > 0) {
-        if (!hasScores) {
-          breakdownText += `${ASTRA_MARKERS.LABELS.BREAKDOWN}\n`;
-          hasScores = true;
-        }
-        breakdownText += `• ${section.name}: ${formatReviewScore(score)}/10\n`;
+        breakdown.push(`• ${section.name}: ${formatReviewScore(score)}/10`);
         if (section.subSections) {
           const allSubSectionsHaveLode =
             section.subSections.length > 0 &&
@@ -315,51 +357,41 @@ export class AstraParserService implements IAstraParser {
           for (const sub of section.subSections) {
             const subScore = season.scores[`${section.id}_${sub.id}`];
             if (subScore !== null && subScore > 0) {
-              breakdownText += `  └ ${sub.name}: ${formatReviewScore(subScore)}/10\n`;
+              breakdown.push(`  └ ${sub.name}: ${formatReviewScore(subScore)}/10`);
               if (subScore === 11 && !allSubSectionsHaveLode) {
-                breakdownText += `    ★ Lode Astra assegnata a ${sub.name}\n`;
+                breakdown.push(`    ★ Lode Astra assegnata a ${sub.name}`);
               }
             }
           }
           if (allSubSectionsHaveLode) {
-            breakdownText += `  ★ Lode Astra assegnata a tutti i sottocampi di ${section.name}\n`;
+            breakdown.push(`  ★ Lode Astra assegnata a tutti i sottocampi di ${section.name}`);
           }
         }
       }
     }
 
-    let journalText = '';
-    let hasJournal = false;
-    if (season.episodeNotes && Object.keys(season.episodeNotes).length > 0) {
+    const journal: string[] = [];
+    if (season.episodeNotes) {
       const episodes = Object.keys(season.episodeNotes)
         .map(Number)
         .sort((a, b) => a - b);
       for (const ep of episodes) {
         const note = season.episodeNotes[ep];
         if (note.text && note.text.trim()) {
-          if (!hasJournal) {
-            journalText += `\n${ASTRA_MARKERS.LABELS.JOURNAL}\n`;
-            hasJournal = true;
-          }
-          journalText += `Ep ${ep}: ${note.text.replace(/\r\n/g, '\n').replace(/\n/g, '\n  ')}\n`;
+          journal.push(`Ep ${ep}: ${note.text.replace(/\r\n/g, '\n').replace(/\n/g, '\n  ')}`);
         }
       }
     }
 
-    if (!hasScores && !hasJournal && !season.notes?.trim()) {
-      return '';
+    const parts: string[] = [];
+    if (breakdown.length > 0) parts.push([ASTRA_MARKERS.LABELS.BREAKDOWN, ...breakdown].join('\n'));
+    if (journal.length > 0) parts.push([ASTRA_MARKERS.LABELS.JOURNAL, ...journal].join('\n'));
+    if (carriedNotes?.trim()) {
+      const rating = carriedNotes.replace(/\r\n/g, '\n').replace(/\n/g, '\n  ');
+      parts.push(`${ASTRA_MARKERS.LABELS.NOTES}\n${ASTRA_MARKERS.LABELS.RATING} ${rating}`);
     }
-
-    let text = `${ASTRA_MARKERS.HEADER}\n`;
-    text += breakdownText;
-    text += journalText;
-
-    if (season.notes?.trim()) {
-      text += `\n${ASTRA_MARKERS.LABELS.NOTES}\n${ASTRA_MARKERS.LABELS.RATING} ${season.notes.trim().replace(/\r\n/g, '\n').replace(/\n/g, '\n  ')}\n`;
-    }
-
-    text += ASTRA_MARKERS.FOOTER;
-    return text;
+    // Every label must be preceded by a blank line for the block grammar to recognize it.
+    return parts.join('\n\n');
   }
 
   /**
@@ -368,29 +400,73 @@ export class AstraParserService implements IAstraParser {
    * @param text The original AniList notes.
    * @param work The data to inject.
    * @param sections Configuration for labels.
-   * @param _moveNotesIntoBlock Legacy flag. Personal text is always preserved in place.
+   * @param options.replaceNotes True when General thoughts were edited: the text outside the block is replaced by them.
    * @returns The updated notes string.
    */
   public inject(
     text: string,
     work: AstraWork,
     sections: AstraSection[],
-    _moveNotesIntoBlock: boolean = false
+    options: AstraInjectOptions = {}
   ): string {
+    const eol = text.includes('\r\n') ? '\r\n' : '\n';
     const { top, block, bottom } = this.decompose(text);
-    const latestNotes = work.seasons[work.seasons.length - 1]?.notes?.trim() ?? '';
-    // A plain note already stays above the block; copying it into NOTES would duplicate it.
-    const notesAlreadyAbove = !block && latestNotes !== '' && latestNotes === text.trim();
-    const source = notesAlreadyAbove ? structuredClone(work) : work;
-    if (notesAlreadyAbove) source.seasons[source.seasons.length - 1].notes = '';
-    const serialized = this.serialize(source, sections);
-    // Empty local data must never erase an existing remote report.
-    if (!serialized) return text;
-    const result = block
-      ? this.compose({ top, block: serialized, bottom })
-      : text + (text ? (text.includes('\r\n') ? '\r\n\r\n' : '\n\n') : '') + serialized;
+    let result: string;
+    let blockExpected: boolean;
+    if (options.replaceNotes) {
+      const notes = work.seasons[work.seasons.length - 1]?.notes?.trim() ?? '';
+      const body = this.serialize(work, sections);
+      // Empty local data must never erase an existing remote report.
+      const blockOut = body ? body.replace(/\n/g, eol) : block;
+      result = [notes, blockOut.trim()].filter(Boolean).join(eol + eol);
+      blockExpected = blockOut !== '';
+    } else {
+      const carried = block ? this.carriedNotesOf(block, sections) : '';
+      const body = this.serialize(work, sections, carried);
+      // Empty local data must never erase an existing remote report.
+      if (!body) return text;
+      const written = body.replace(/\n/g, eol);
+      result = block
+        ? top + breaksBefore(top, eol) + written + breaksAfter(bottom, eol) + bottom
+        : text + breaksBefore(text, eol) + written;
+      blockExpected = true;
+    }
     assertNotesLength(result);
-    this.decompose(result);
+    // The result must read back with its block intact before it is sent to AniList.
+    const readBack = this.decompose(result);
+    if (blockExpected && readBack.block === '') {
+      throw new Error(
+        'Astra Notes block could not be written; original notes preserved. Review the block manually.'
+      );
+    }
     return result;
+  }
+
+  /** Legacy NOTES text (rating and general lines) of an existing block, in merge order. */
+  private carriedNotesOf(block: string, sections: AstraSection[]): string {
+    const parsed = this.parse(block, sections);
+    return [parsed?.ratingNotes, parsed?.generalNotes].filter(Boolean).join('\n');
+  }
+
+  /** Locates the legacy framed block (header line through footer line), or null when there is none. */
+  private locateLegacyBlock(text: string): AstraBlockRange | null {
+    const headers: AstraBlockRange[] = [];
+    const footers: AstraBlockRange[] = [];
+    for (const line of text.matchAll(/[^\r\n]+/g)) {
+      const value = line[0].trim();
+      const range = { start: line.index!, end: line.index! + line[0].length };
+      if (value.toUpperCase() === ASTRA_MARKERS.HEADER.toUpperCase()) headers.push(range);
+      else if (value === ASTRA_MARKERS.FOOTER) footers.push(range);
+      else if (/^[─_=-]+.*\[\s*ASTRA REVIEW\s*\]/i.test(value)) {
+        throw new Error(
+          'Unrecognized Astra Notes boundary; original notes preserved. Review the block manually.'
+        );
+      }
+    }
+    if (headers.length === 0) return null;
+    if (headers.length !== 1 || footers.length !== 1 || footers[0].start < headers[0].end) {
+      throw new Error(AMBIGUOUS_BLOCK_ERROR);
+    }
+    return { start: headers[0].start, end: footers[0].end };
   }
 }

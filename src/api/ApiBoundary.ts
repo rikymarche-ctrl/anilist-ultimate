@@ -4,10 +4,11 @@ const queryRoots = new Set(['Viewer', 'User', 'Media', 'MediaList', 'MediaListCo
 const mutationRoots = new Set(['SaveMediaListEntry']);
 
 /** Fixed AniList endpoint and a bounded operation allowlist; no URL/header forwarding. */
-export function validateApiRequest(input: Record<string, unknown>): { query: string; variables: Record<string, unknown>; method: 'query' | 'queryRaw' | 'mutate'; silent: boolean } {
+export function validateApiRequest(input: Record<string, unknown>): { query: string; variables: Record<string, unknown>; method: 'query' | 'queryRaw' | 'mutate'; silent: boolean; priority: boolean } {
   if (!['query', 'queryRaw', 'mutate'].includes(input.method as string) || typeof input.query !== 'string'
     || input.query.length > 128 * 1024 || !input.variables || typeof input.variables !== 'object' || Array.isArray(input.variables)
-    || JSON.stringify(input.variables).length > 512 * 1024 || (input.silent !== undefined && typeof input.silent !== 'boolean')) {
+    || JSON.stringify(input.variables).length > 512 * 1024 || (input.silent !== undefined && typeof input.silent !== 'boolean')
+    || (input.priority !== undefined && typeof input.priority !== 'boolean')) {
     throw new Error('Invalid API request');
   }
   const doc: DocumentNode = parse(input.query);
@@ -41,5 +42,5 @@ export function validateApiRequest(input: Record<string, unknown>): { query: str
   check(operation.selectionSet, 0, true, new Set());
   const allowedVariables = new Set(operation.variableDefinitions?.map(def => def.variable.name.value));
   if (!Object.keys(input.variables).every(key => allowedVariables.has(key) && !['__proto__', 'constructor', 'prototype'].includes(key))) throw new Error('Unexpected API variables');
-  return { query: input.query, variables: input.variables as Record<string, unknown>, method: input.method as 'query' | 'queryRaw' | 'mutate', silent: input.silent === true };
+  return { query: input.query, variables: input.variables as Record<string, unknown>, method: input.method as 'query' | 'queryRaw' | 'mutate', silent: input.silent === true, priority: input.priority === true };
 }

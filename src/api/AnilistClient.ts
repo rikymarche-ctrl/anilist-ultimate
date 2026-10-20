@@ -29,7 +29,7 @@ import { API_CONFIG } from '@core/constants';
 import { TOKENS } from '@core/di/tokens';
 import { logger } from '@core/logger';
 import { ApiError } from '@core/errors/ErrorTypes';
-import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { IApiClient, ApiRequestOptions } from '@core/interfaces/IApiClient';
 import type { IErrorHandler } from '@core/errors/ErrorHandler';
 import type { AuthTokenService } from '@core/auth/AuthTokenService';
 import type { IEventBus, EventSubscription } from '@core/interfaces/IEventBus';
@@ -54,6 +54,8 @@ interface RequestQueueItem {
   silent?: boolean;
   isRaw?: boolean;
   epoch: number;
+  /** User-initiated work: dispatched ahead of background items and allowed into the reserved budget. */
+  priority: boolean;
 }
 
 /**
@@ -76,6 +78,8 @@ export class AnilistClient implements IApiClient {
   /** Single reset timer for the current rate-limit cooldown. */
   private rateLimitResetTimer: ReturnType<typeof setTimeout> | null = null;
   private queueTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Wake-up time of queueTimer, so an earlier wake-up can replace a later one. */
+  private queueTimerAt = 0;
   private retryTimers = new Map<ReturnType<typeof setTimeout>, RequestQueueItem>();
   private inFlight = new Map<RequestQueueItem, AbortController>();
   private dispatched = new Set<RequestQueueItem>();
@@ -150,9 +154,10 @@ export class AnilistClient implements IApiClient {
   public async query<T>(
     query: string,
     variables: Record<string, unknown> = {},
-    silent: boolean = false
+    silent: boolean = false,
+    options: ApiRequestOptions = {}
   ): Promise<T> {
-    return this.enqueueRequest<T>(query, variables, silent, false, true);
+    return this.enqueueRequest<T>(query, variables, silent, false, true, API_CONFIG.RETRY_ATTEMPTS, options.priority === true);
   }
 
   public queryOnce<T>(query: string, variables: Record<string, unknown> = {}, silent = true): Promise<T> {
@@ -169,7 +174,7 @@ export class AnilistClient implements IApiClient {
     } catch { return null; }
   }
 
-  private enqueueRequest<T>(query: string, variables: Record<string, unknown>, silent: boolean, isRaw: boolean, share: boolean, maxRetries: number = API_CONFIG.RETRY_ATTEMPTS): Promise<T> {
+  private enqueueRequest<T>(query: string, variables: Record<string, unknown>, silent: boolean, isRaw: boolean, share: boolean, maxRetries: number = API_CONFIG.RETRY_ATTEMPTS, priority = false): Promise<T> {
     if (this.destroyed) return Promise.reject(new Error('API client destroyed'));
     const copied = structuredClone(variables);
     const key = share ? this.readKey(query, copied, isRaw, maxRetries) : null;
@@ -177,11 +182,12 @@ export class AnilistClient implements IApiClient {
     const existing = key ? this.sharedReads.get(key) : undefined;
     if (existing) {
       existing.item.silent = existing.item.silent && silent;
+      if (priority) this.promote(existing.item);
       return existing.promise.then(value => structuredClone(value) as T);
     }
     let item!: RequestQueueItem;
     const promise = new Promise<unknown>((resolve, reject) => {
-      item = { query, variables: copied, resolve, reject, retries: 0, maxRetries, silent, isRaw, epoch: this.queueEpoch };
+      item = { query, variables: copied, resolve, reject, retries: 0, maxRetries, silent, isRaw, epoch: this.queueEpoch, priority };
     });
     if (key) {
       const entry = { promise, item }; this.sharedReads.set(key, entry);
@@ -191,7 +197,7 @@ export class AnilistClient implements IApiClient {
       const clear = () => this.sharedReads.clear();
       void promise.then(clear, clear);
     }
-    this.queue.push(item); void this.processQueue();
+    this.insertQueued(item); void this.processQueue();
     // Each tab/service gets its own graph, even when it shares the transport.
     return promise.then(value => structuredClone(value) as T);
   }
@@ -201,12 +207,35 @@ export class AnilistClient implements IApiClient {
    * (Mutations use same queue as queries for rate limiting)
    */
   public async mutate<T>(mutation: string, variables: Record<string, unknown> = {}): Promise<T> {
-    // Mutations are treated the same as queries for rate limiting purposes
-    return this.enqueueRequest<T>(mutation, variables, false, false, false);
+    // Writes are user actions, so they take the priority lane and may use the reserved budget.
+    return this.enqueueRequest<T>(mutation, variables, false, false, false, API_CONFIG.RETRY_ATTEMPTS, true);
   }
 
   public mutateOnce<T>(mutation: string, variables: Record<string, unknown> = {}): Promise<T> {
-    return this.enqueueRequest<T>(mutation, variables, false, false, false, 0);
+    return this.enqueueRequest<T>(mutation, variables, false, false, false, 0, true);
+  }
+
+  /**
+   * Priority items always sit in front of ordinary ones, so the queue is
+   * [priority..., background...]. Each class stays FIFO; 'head' is used for retries.
+   */
+  private insertQueued(item: RequestQueueItem, where: 'tail' | 'head' = 'tail'): void {
+    let boundary = 0;
+    while (boundary < this.queue.length && this.queue[boundary].priority) boundary++;
+    const index = item.priority
+      ? (where === 'head' ? 0 : boundary)
+      : (where === 'head' ? boundary : this.queue.length);
+    this.queue.splice(index, 0, item);
+  }
+
+  /** A priority caller joined a read that is still waiting: move that read into the priority lane. */
+  private promote(item: RequestQueueItem): void {
+    if (item.priority) return;
+    const index = this.queue.indexOf(item);
+    if (index !== -1) this.queue.splice(index, 1);
+    item.priority = true;
+    // Items not waiting in the queue (in flight or in a retry delay) keep their place; the flag applies when requeued.
+    if (index !== -1) this.insertQueued(item);
   }
 
   /**
@@ -214,10 +243,11 @@ export class AnilistClient implements IApiClient {
    */
   private async processQueue(): Promise<void> {
     // Check if we can process more requests
+    const head = this.queue[0];
     if (
       this.isRateLimited ||
       this.activeRequests >= API_CONFIG.RATE_LIMIT.MAX_CONCURRENT ||
-      this.queue.length === 0
+      !head
     ) {
       return;
     }
@@ -233,8 +263,8 @@ export class AnilistClient implements IApiClient {
     // Previously the queue only spaced requests 700ms apart, which still let a
     // media page burst far past the limit and trip a 429 ("rate exhausted")
     // cascade the moment the page opened. Defer dispatch until a slot frees up.
-    if (!this.canDispatchNow()) {
-      const waitMs = this.timeUntilNextSlot();
+    if (!this.canDispatchNow(head)) {
+      const waitMs = this.timeUntilNextSlot(head);
       logger.debug(`[AnilistClient] Per-minute request cap reached, deferring ${waitMs}ms`);
       this.scheduleQueue(waitMs);
       return;
@@ -299,7 +329,7 @@ export class AnilistClient implements IApiClient {
         const timer = setTimeout(() => {
           this.retryTimers.delete(timer);
           if (item.epoch !== this.queueEpoch) return;
-          this.queue.unshift(item);
+          this.insertQueued(item, 'head');
           void this.processQueue().catch((error: unknown) => logger.error('[AnilistClient] Queued request processing failed', error));
         }, delay);
         this.retryTimers.set(timer, item);
@@ -354,9 +384,10 @@ export class AnilistClient implements IApiClient {
    */
   public async queryRaw<T>(
     query: string,
-    variables: Record<string, unknown> = {}
+    variables: Record<string, unknown> = {},
+    options: ApiRequestOptions = {}
   ): Promise<GraphQLResponse<T>> {
-    return this.enqueueRequest<GraphQLResponse<T>>(query, variables, true, true, true);
+    return this.enqueueRequest<GraphQLResponse<T>>(query, variables, true, true, true, API_CONFIG.RETRY_ATTEMPTS, options.priority === true);
   }
 
   /**
@@ -423,21 +454,32 @@ export class AnilistClient implements IApiClient {
   }
 
   /**
-   * Sliding-window check: are we still under the per-minute request budget?
+   * Requests this item may dispatch into the sliding window. Background work
+   * stops short of the reserved slots so a user read or write is never starved.
    */
-  private canDispatchNow(): boolean {
-    this.pruneTimestamps();
-    return this.requestTimestamps.length < API_CONFIG.RATE_LIMIT.MAX_REQUESTS_PER_MINUTE;
+  private dispatchBudget(item: RequestQueueItem): number {
+    const { MAX_REQUESTS_PER_MINUTE, RESERVED_PRIORITY_SLOTS } = API_CONFIG.RATE_LIMIT;
+    return item.priority ? MAX_REQUESTS_PER_MINUTE : MAX_REQUESTS_PER_MINUTE - RESERVED_PRIORITY_SLOTS;
   }
 
   /**
-   * Milliseconds until the oldest in-window request ages out and frees a slot.
+   * Sliding-window check: are we still under the per-minute budget for this item?
    */
-  private timeUntilNextSlot(): number {
+  private canDispatchNow(item: RequestQueueItem): boolean {
     this.pruneTimestamps();
-    if (this.requestTimestamps.length === 0) return 0;
-    const oldest = this.requestTimestamps[0];
-    return Math.max(0, 60000 - (Date.now() - oldest)) + 50;
+    return this.requestTimestamps.length < this.dispatchBudget(item);
+  }
+
+  /**
+   * Milliseconds until this item's budget frees a slot: the (count - budget)th
+   * oldest in-window request must age out first.
+   */
+  private timeUntilNextSlot(item: RequestQueueItem): number {
+    this.pruneTimestamps();
+    const budget = this.dispatchBudget(item);
+    const count = this.requestTimestamps.length;
+    if (count < budget) return 0;
+    return Math.max(0, 60000 - (Date.now() - this.requestTimestamps[count - budget])) + 50;
   }
 
   /**
@@ -496,7 +538,7 @@ export class AnilistClient implements IApiClient {
     }
 
     // Put item back in queue
-    if (retry) this.queue.unshift(item);
+    if (retry) this.insertQueued(item, 'head');
 
     // Wait for rate limit to reset (60 seconds)
     if (this.rateLimitResetTimer !== null) return;
@@ -529,7 +571,8 @@ export class AnilistClient implements IApiClient {
     const epoch = this.queueEpoch;
 
     try {
-      const data = await this.query<unknown>(VIEWER_QUERY);
+      // Account lookups sit on user-initiated paths, so a cold cache must not wait behind background work.
+      const data = await this.query<unknown>(VIEWER_QUERY, {}, false, { priority: true });
       if (this.destroyed || epoch !== this.queueEpoch || !sameViewerContext(context, this.getContext())) throw new Error('Viewer context changed');
       const user = viewerResponse(data, context.userId);
       this.viewerCache = { context, user };
@@ -578,7 +621,15 @@ export class AnilistClient implements IApiClient {
   }
 
   private scheduleQueue(delay: number): void {
-    if (!this.queue.length || this.queueTimer !== null) return;
+    if (!this.queue.length) return;
+    const wakeAt = Date.now() + delay;
+    // An earlier wake-up replaces a later one, so a freed spacing window or a
+    // priority item is never stuck behind a long wait scheduled for background work.
+    if (this.queueTimer !== null) {
+      if (wakeAt >= this.queueTimerAt) return;
+      clearTimeout(this.queueTimer);
+    }
+    this.queueTimerAt = wakeAt;
     this.queueTimer = setTimeout(() => {
       this.queueTimer = null;
       void this.processQueue();

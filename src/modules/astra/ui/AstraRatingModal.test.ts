@@ -119,6 +119,7 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
     });
     expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ progress: 2, overallScore: 8 });
     expect(rating.saveAndSync.mock.calls[0][1]).not.toHaveProperty('notes');
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ replaceNotes: false });
     expect(state.isDirty).toBe(false);
   });
 
@@ -129,6 +130,7 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     await inspect(modal).save();
     expect(rating.saveAndSync.mock.calls[0][1].notes).toBe('An explicit note edit');
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ replaceNotes: true });
   });
 
   it('shares an in-flight save and retains edits made during that save', async () => {
@@ -169,12 +171,13 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
 
   it('closes an offline queued save without reloading before the retry can run', async () => {
     const { modal, overlay, rating, toast } = setup();
-    rating.saveAndSync.mockResolvedValue('queued');
+    const settle = captureDrain(rating);
     await modal.close();
     expect(inspect(modal).reloadAfterClose).toBe(false);
-    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('queued'));
     await vi.advanceTimersByTimeAsync(350);
     expect(overlay.isConnected).toBe(false);
+    settle('queued');
+    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('queued'));
   });
 
   it('does not claim success after extension context invalidation', async () => {
@@ -230,6 +233,124 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
   });
 });
 
+/** Captures the completion callback a background close hands to the rating service. */
+function captureDrain(rating: ReturnType<typeof setup>['rating']) {
+  const drain: { settle?: (result: 'synced' | 'queued') => void } = {};
+  rating.saveAndSync.mockImplementation(async (_work: AstraWork, extra: AstraSaveOptions): Promise<AstraSaveResult> => {
+    drain.settle = extra.onDispatched;
+    return 'queued';
+  });
+  return (result: 'synced' | 'queued') => drain.settle?.(result);
+}
+
+describe('AstraRatingModal background sync feedback', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    chrome.runtime.id = 'test';
+    document.body.innerHTML = '';
+    vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(document, 'visibilityState');
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('reloads once when a synced drain lands while the closing view is still on screen', async () => {
+    const { modal, rating } = setup();
+    const settle = captureDrain(rating);
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    await modal.close();
+    settle('synced');
+    expect(reload).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it('reloads a synced drain that lands after the closing animation on the same page', async () => {
+    const { modal, rating } = setup();
+    const settle = captureDrain(rating);
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    await modal.close();
+    await vi.advanceTimersByTimeAsync(400);
+    settle('synced');
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it('does not reload after the user navigated to another page', async () => {
+    const { modal, rating } = setup();
+    const settle = captureDrain(rating);
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    await modal.close();
+    window.history.pushState({}, '', '/anime/999');
+    settle('synced');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('does not reload when another Astra view has opened since the close', async () => {
+    const { modal, rating } = setup();
+    const settle = captureDrain(rating);
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    await modal.close();
+    Object.assign(modal, { overlay: document.createElement('div') });
+    settle('synced');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('does not reload while a form field has focus', async () => {
+    const { modal, rating } = setup();
+    const settle = captureDrain(rating);
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+    await modal.close();
+    field.focus();
+    settle('synced');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('does not reload when the close asked to suppress it', async () => {
+    const { modal, rating } = setup();
+    const settle = captureDrain(rating);
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    await modal.close({ suppressReload: true });
+    settle('synced');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('shows the queued notice only once the drain reports it', async () => {
+    const { modal, rating, toast } = setup();
+    const settle = captureDrain(rating);
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    await modal.close();
+    expect(toast.info).not.toHaveBeenCalled();
+    settle('queued');
+    expect(toast.info).toHaveBeenCalledOnce();
+    expect(toast.info).toHaveBeenCalledWith('Saved locally. AniList synchronization is queued.');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('keeps the queued notice for an explicit Save', async () => {
+    const { modal, rating, toast } = setup();
+    rating.saveAndSync.mockResolvedValue('queued');
+    await inspect(modal).save();
+    expect(toast.info).toHaveBeenCalledWith('Saved locally. AniList synchronization is queued.');
+  });
+
+  it('never reloads for a local-only save of an unlisted title', async () => {
+    const { modal, rating } = setup();
+    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
+    rating.saveAndSync.mockResolvedValue('local');
+    inspect(modal).needsListStatus = true;
+    await modal.close();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ skipSync: true });
+    expect(reload).not.toHaveBeenCalled();
+  });
+});
+
 describe('AstraRatingModal quick-edit data protection', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -275,15 +396,38 @@ describe('AstraRatingModal quick-edit data protection', () => {
     expect(overlay.querySelector('[data-ep="5"]')?.getAttribute('data-edited')).toBeNull();
   });
 
-  it('closes a new-title draft without attempting a save that cannot succeed', async () => {
+  it('saves a new-title draft in Astra only and closes without queuing an AniList write', async () => {
     const { modal, overlay, rating, toast } = setup();
+    rating.saveAndSync.mockResolvedValue('local');
     inspect(modal).needsListStatus = true;
     await modal.close();
     await vi.advanceTimersByTimeAsync(400);
     expect(overlay.isConnected).toBe(false);
-    expect(rating.saveAndSync).not.toHaveBeenCalled();
+    expect(rating.saveAndSync).toHaveBeenCalledTimes(1);
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ skipSync: true });
+    expect(rating.saveAndSync.mock.calls[0][1]).not.toHaveProperty('dispatch');
     expect(toast.error).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith('Not saved: choose a list status to add this title.');
+    expect(toast.info).toHaveBeenCalledWith('Saved in Astra only: this title is not on your AniList list. Pick a status to add it.');
+  });
+
+  it('explicit Save on an unlisted title commits locally and clears the draft without an AniList write', async () => {
+    const { modal, state, rating, toast } = setup();
+    rating.saveAndSync.mockResolvedValue('local');
+    inspect(modal).needsListStatus = true;
+    await inspect(modal).save();
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ skipSync: true });
+    expect(state.isDirty).toBe(false);
+    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('Saved in Astra only'));
+  });
+
+  it('auto-saves on close with background dispatch so a slow AniList round-trip cannot hold the modal open', async () => {
+    const { modal, overlay, rating } = setup();
+    rating.saveAndSync.mockImplementation(async (_work: AstraWork, extra: AstraSaveOptions): Promise<AstraSaveResult> =>
+      extra.dispatch === 'background' ? 'queued' : new Promise<AstraSaveResult>(() => {}));
+    await modal.close();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ dispatch: 'background' });
+    expect(overlay.isConnected).toBe(false);
   });
 
   it('does not reload the host when closing hands off to the dashboard after a synced save', async () => {

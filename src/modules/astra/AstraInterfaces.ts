@@ -61,6 +61,8 @@ export interface AstraSeason {
   notes?: string;
   isSeriesFinale?: boolean;
   episodeNotes?: Record<number, AstraEpisodeNote>;
+  /** Overall score set by hand (0.1-10 with one decimal, or 11 for the lode). Absent or null uses the weighted average. */
+  manualScore?: number | null;
 }
 
 export interface AstraEpisodeNote {

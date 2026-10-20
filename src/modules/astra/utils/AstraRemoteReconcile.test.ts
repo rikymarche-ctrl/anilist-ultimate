@@ -96,6 +96,19 @@ describe('reconcileWithRemote', () => {
     expect(latest(result.work).scores).toEqual({});
   });
 
+  it('takes General thoughts from the text outside a frameless Astra block', () => {
+    const source = makeWork({ scores: { story: 8 } });
+    const remoteNotes = new AstraParserService().inject('My outside note', source, DEFAULT_SECTIONS);
+    const result = reconcileWithRemote(
+      makeWork(),
+      { notes: remoteNotes, score: 80 },
+      { sections: DEFAULT_SECTIONS, appendAstraToComment: true }
+    );
+    expect(result.work.notes).toBe('My outside note');
+    expect(latest(result.work).notes).toBe('My outside note');
+    expect(latest(result.work).scores).toMatchObject({ story: 8 });
+  });
+
   it('never mutates the input work', () => {
     const work = makeWork({ scores: { story: 8 } });
     const before = JSON.stringify(work);
@@ -118,5 +131,28 @@ describe('reconcileWithRemote', () => {
     );
     expect(result.changed).toBe(false);
     expect(result.work).toEqual(work);
+  });
+});
+
+describe('reconcileWithRemote manual overall score', () => {
+  it('deletes a local manual score when AniList is unrated', () => {
+    const work = makeWork({ manualScore: 6 });
+    const result = reconcileWithRemote(
+      work,
+      { notes: '', score: 0 },
+      { sections: DEFAULT_SECTIONS, appendAstraToComment: false }
+    );
+    expect(result.changed).toBe(true);
+    expect('manualScore' in latest(result.work)).toBe(false);
+  });
+
+  it('keeps a local manual score when AniList is rated', () => {
+    const work = makeWork({ manualScore: 6 });
+    const result = reconcileWithRemote(
+      work,
+      { notes: '', score: 8 },
+      { sections: DEFAULT_SECTIONS, appendAstraToComment: false }
+    );
+    expect(latest(result.work).manualScore).toBe(6);
   });
 });

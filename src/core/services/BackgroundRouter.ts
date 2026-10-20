@@ -90,9 +90,10 @@ export function createBackgroundMessageHandler(
           if (typeof message.sessionId !== 'string' || message.sessionId !== status.sessionId) throw new Error('API account changed');
           if (request.method === 'mutate' && !status.authenticated) throw new Error('Authentication required');
           const client = api();
-          const data = request.method === 'queryRaw' ? await client.queryRaw(request.query, request.variables)
+          const options = { priority: request.priority };
+          const data = request.method === 'queryRaw' ? await client.queryRaw(request.query, request.variables, options)
             : request.method === 'mutate' ? await client.mutate(request.query, request.variables)
-            : await client.query(request.query, request.variables, true);
+            : await client.query(request.query, request.variables, true, options);
           if ((await auth().getStatus()).sessionId !== message.sessionId) throw new Error('API account changed');
           return respond({ success: true, data });
         }

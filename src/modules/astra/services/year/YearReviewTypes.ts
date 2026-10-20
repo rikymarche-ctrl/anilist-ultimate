@@ -212,7 +212,13 @@ export interface YearReviewReport {
   weekdays: number[];
   /** List updates per local hour. */
   hours: number[];
-  statuses: { completed: number; dropped: number; paused: number; planned: number; repeated: number };
+  statuses: {
+    completed: number;
+    dropped: number;
+    paused: number;
+    planned: number;
+    repeated: number;
+  };
   first: ReviewTitle | null;
   last: ReviewTitle | null;
   titles: ReviewTitle[];
@@ -235,7 +241,11 @@ export interface YearReviewReport {
     generous: ReviewPercentile | null;
     tough: ReviewPercentile | null;
   };
-  popularity: { mostPopular: ReviewTitle | null; hiddenGem: ReviewTitle | null; median: number | null };
+  popularity: {
+    mostPopular: ReviewTitle | null;
+    hiddenGem: ReviewTitle | null;
+    median: number | null;
+  };
   voiceActors: ReviewVoiceActor[];
   studios: ReviewCreator[];
   directors: ReviewCreator[];

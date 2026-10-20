@@ -2,6 +2,8 @@ import type { AstraSection, AstraWork } from '../AstraInterfaces';
 
 export interface ParsedAstraReport {
   overallScore?: number;
+  /** Set when the block's OVERALL SCORE line is marked "(manual)". */
+  manualScore?: number;
   sectionScores: Record<string, number>;
   subSectionScores: Record<string, number>;
   generalNotes?: string;
@@ -14,9 +16,14 @@ export interface ParsedAstraReport {
  * Represents text decomposed into Astra-specific compartments.
  */
 export interface AstraDecomposition {
-  top: string;      // Text before the Astra block
-  block: string;    // The Astra metadata block itself
-  bottom: string;   // Text after the Astra block
+  top: string; // Text before the Astra block
+  block: string; // The Astra metadata block itself
+  bottom: string; // Text after the Astra block
+}
+
+export interface AstraInjectOptions {
+  /** General thoughts were edited: the text outside the Astra block is replaced by them. */
+  replaceNotes?: boolean;
 }
 
 /**
@@ -45,12 +52,18 @@ export interface IAstraParser {
   merge(work: AstraWork, parsed: ParsedAstraReport): boolean;
 
   /**
-   * Serializes a work object into a metadata block string.
+   * Serializes a work object into a frameless metadata block string.
+   * `carriedNotes` is legacy NOTES text kept verbatim; season notes are never written.
    */
-  serialize(work: AstraWork, sections: AstraSection[]): string;
+  serialize(work: AstraWork, sections: AstraSection[], carriedNotes?: string): string;
 
   /**
    * Injects or replaces the Astra metadata block in a text string.
    */
-  inject(text: string, work: AstraWork, sections: AstraSection[], moveNotesIntoBlock?: boolean): string;
+  inject(
+    text: string,
+    work: AstraWork,
+    sections: AstraSection[],
+    options?: AstraInjectOptions
+  ): string;
 }

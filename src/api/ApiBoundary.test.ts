@@ -8,6 +8,11 @@ describe('privileged API boundary', () => {
     expect(request('query($id:Int){ a:Media(id:$id){id} ...UserDetails } fragment UserDetails on Query { Viewer { id } }', 'queryRaw', { id: 1 }).method).toBe('queryRaw');
     expect(request('mutation($id:Int,$notes:String){ SaveMediaListEntry(mediaId:$id,notes:$notes){id} }', 'mutate', { id: 1, notes: 'Notes containing $id' }).variables.notes).toBe('Notes containing $id');
   });
+  it('accepts only a boolean priority hint and defaults it to background', () => {
+    expect(validateApiRequest({ query: 'query { Viewer { id } }', method: 'query', variables: {}, priority: true }).priority).toBe(true);
+    expect(validateApiRequest({ query: 'query { Viewer { id } }', method: 'query', variables: {} }).priority).toBe(false);
+    expect(() => validateApiRequest({ query: 'query { Viewer { id } }', method: 'query', variables: {}, priority: 'yes' })).toThrow('Invalid API request');
+  });
   it('allows the activity union discriminator required by notification enrichment', () => {
     expect(request(NOTIFICATION_ACTIVITY_QUERY, 'queryRaw', { id: 7 }).query).toBe(NOTIFICATION_ACTIVITY_QUERY);
     expect(request('query { Activity(id:7) { kind:__typename ... on ListActivity { id } } }')).toBeDefined();

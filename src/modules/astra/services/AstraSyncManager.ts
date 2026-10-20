@@ -108,7 +108,7 @@ export class AstraSyncManager {
       const sections = this.repository.getSections();
       const settings = this.repository.getSettings();
       if (!settings.appendAstraToComment) return;
-      const updatedNotes = this.parser.inject(baseNotes, work, sections, settings.appendAstraToComment);
+      const updatedNotes = this.parser.inject(baseNotes, work, sections);
 
       // 3. Send mutation
       if (updatedNotes !== baseNotes) {

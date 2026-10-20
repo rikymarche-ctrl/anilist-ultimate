@@ -17,6 +17,7 @@ import type {
   IRatingInitialData,
 } from '../interfaces/IAstraRatingService';
 import type { AstraWork } from '../AstraInterfaces';
+import { anilistScore } from '../services/AstraRatingService';
 
 const malicious = '</textarea><img data-injected src=x onerror="alert(1)">';
 async function setup(
@@ -51,7 +52,12 @@ async function setup(
     hasFinaleSection: () => Boolean(finale),
     getSections: () => sections,
     calcSectionScore: () => 8,
-    calcSeasonScore: () => 8,
+    calcSeasonScore: (season: { scores: Record<string, unknown>; manualScore?: unknown }) =>
+      typeof season.manualScore === 'number'
+        ? season.manualScore
+        : Object.values(season.scores).some((score) => typeof score === 'number')
+          ? 8
+          : null,
   };
   const rating = {
     getMediaRatingData: async () => structuredClone(data),
@@ -144,7 +150,74 @@ describe('Astra form consumer data preservation and safe rendering', () => {
     expect(f.root.querySelector('[data-id="finale"] .astra-weight-tag')?.textContent).toBe('w0.5');
   });
 
-  it('starts unlisted works at Add to List across redraws and requires an explicit status before saving', async () => {
+  it('shows the AniList score in the overall box when no section is rated yet', async () => {
+    const f = await setup((raw) => {
+      if (raw.Media.mediaListEntry) raw.Media.mediaListEntry.score = 83;
+    });
+    modals.push(f.modal);
+    const value = f.root.querySelector<HTMLElement>('.astra-overall-val')!;
+    expect(value.textContent).toBe('8.3');
+    expect(value.classList.contains('astra-overall-val--anilist')).toBe(true);
+    expect(value.title).toBe('AniList score — rate the sections to replace it');
+    expect(f.root.querySelector<HTMLElement>('.astra-overall-caption')?.hidden).toBe(false);
+  });
+
+  it('replaces the AniList stand-in as soon as a section is rated', async () => {
+    const f = await setup((raw) => {
+      if (raw.Media.mediaListEntry) raw.Media.mediaListEntry.score = 83;
+    });
+    modals.push(f.modal);
+    (
+      f.modal as unknown as {
+        state: { setScore(index: number, id: string, value: number | null): void };
+      }
+    ).state.setScore(0, 'story', 7);
+    (f.modal as unknown as { performLivePreview(): void }).performLivePreview();
+    const value = f.root.querySelector<HTMLElement>('.astra-overall-val')!;
+    expect(value.textContent).toBe('8.0');
+    expect(value.classList.contains('astra-overall-val--anilist')).toBe(false);
+    expect(value.hasAttribute('title')).toBe(false);
+    expect(f.root.querySelector<HTMLElement>('.astra-overall-caption')?.hidden).toBe(true);
+  });
+
+  it('shows a dash when AniList has no score either', async () => {
+    const f = await setup((raw) => {
+      if (raw.Media.mediaListEntry) raw.Media.mediaListEntry.score = 0;
+    });
+    modals.push(f.modal);
+    const value = f.root.querySelector<HTMLElement>('.astra-overall-val')!;
+    expect(value.textContent).toBe('—');
+    expect(value.classList.contains('astra-overall-val--anilist')).toBe(false);
+  });
+
+  it('prefers the queued AniList score over the remote one for the stand-in', async () => {
+    const f = await setup(
+      (raw) => {
+        if (raw.Media.mediaListEntry) raw.Media.mediaListEntry.score = 83;
+      },
+      (data) => {
+        data.pendingScore = 90;
+      }
+    );
+    modals.push(f.modal);
+    expect(f.root.querySelector<HTMLElement>('.astra-overall-val')?.textContent).toBe('9.0');
+  });
+
+  it('saves without touching scores and sends no AniList score', async () => {
+    const f = await setup((raw) => {
+      if (raw.Media.mediaListEntry) raw.Media.mediaListEntry.score = 83;
+    });
+    modals.push(f.modal);
+    (f.modal as unknown as { state: { isDirty: boolean } }).state.isDirty = true;
+    await f.save();
+    expect(f.rating.saveAndSync).toHaveBeenCalledOnce();
+    expect(f.rating.saveAndSync.mock.calls[0][1]).toMatchObject({
+      overallScore: 0,
+      syncScore: false,
+    });
+  });
+
+  it('starts unlisted works at Add to List and saves them in Astra only until a status is chosen', async () => {
     const f = await open((raw) => {
       Object.assign(raw.Media, { mediaListEntry: null });
     });
@@ -158,13 +231,41 @@ describe('Astra form consumer data preservation and safe rendering', () => {
     expect(document.querySelector('#astra-save, #astra-nav-save')).toBeNull();
     f.toggle();
     expect(document.querySelector('#astra-status-label')?.textContent).toBe('Add to List');
-    await expect(f.save()).rejects.toThrow('Choose a list status');
-    expect(f.rating.saveAndSync).not.toHaveBeenCalled();
+    await f.save();
+    expect(f.rating.saveAndSync).toHaveBeenCalledTimes(1);
+    expect(f.rating.saveAndSync.mock.calls[0][1]).toMatchObject({ skipSync: true });
     document.querySelector<HTMLElement>('.astra-status-option[data-value="PLANNING"]')!.click();
     f.toggle();
     expect(document.querySelector('#astra-status-label')?.textContent).toBe('Planning');
     await f.save();
-    expect(f.rating.saveAndSync.mock.calls[0][0].status).toBe('PLANNING');
+    expect(f.rating.saveAndSync).toHaveBeenCalledTimes(2);
+    expect(f.rating.saveAndSync.mock.calls[1][1]).not.toHaveProperty('skipSync');
+    expect(f.rating.saveAndSync.mock.calls[1][0].status).toBe('PLANNING');
+  });
+
+  it('opens an existing local work without a remote entry as Add to List', async () => {
+    const f = await setup(
+      (raw) => {
+        Object.assign(raw.Media, { mediaListEntry: null });
+      },
+      undefined,
+      undefined,
+      {
+        id: 'work_1',
+        mediaId: 1,
+        title: 'Local only',
+        type: 'anime',
+        status: MediaListStatus.CURRENT,
+        notes: '',
+        updatedAt: 100,
+        progress: 0,
+        customLists: [],
+        tags: [],
+        seasons: [{ id: 's_1', name: 'Season 1', scores: {}, notes: '' }],
+      } as AstraWork
+    );
+    modals.push(f.modal);
+    expect(f.root.querySelector('#astra-status-label')?.textContent).toBe('Add to List');
   });
 
   it('uses durable queued status before asking for a status on a not-yet-created entry', async () => {
@@ -640,5 +741,154 @@ describe('Astra form consumer data preservation and safe rendering', () => {
     day.click();
     await save();
     expect(rating.saveAndSync.mock.calls[1][1].startedAt).toEqual({ year: 2026, month: 1, day: 2 });
+  });
+});
+
+describe('Astra manual overall score in the rating modal', () => {
+  const modals: AstraRatingModal[] = [];
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    Object.assign(chrome.runtime, { id: 'test' });
+  });
+  afterEach(async () => {
+    for (const modal of modals.splice(0)) await modal.close();
+    await vi.runOnlyPendingTimersAsync();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    document.body.innerHTML = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+  });
+  const open = async (...args: Parameters<typeof setup>) => {
+    const f = await setup(...args);
+    modals.push(f.modal);
+    return f;
+  };
+  type Form = Awaited<ReturnType<typeof setup>>;
+  const rate = (f: Form, value: number) => {
+    (
+      f.modal as unknown as {
+        state: { setScore(index: number, id: string, value: number | null): void };
+      }
+    ).state.setScore(0, 'story', value);
+    (f.modal as unknown as { performLivePreview(): void }).performLivePreview();
+  };
+  const workOf = (f: Form) => (f.modal as unknown as { state: { data: AstraWork } }).state.data;
+  const isDirty = (f: Form) =>
+    (f.modal as unknown as { state: { isDirty: boolean } }).state.isDirty;
+  const startEdit = (f: Form) => {
+    f.root.querySelector<HTMLElement>('.astra-overall-box')!.click();
+    return f.root.querySelector<HTMLInputElement>('.astra-overall-input')!;
+  };
+  const pressKey = (target: Element, key: string) =>
+    target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  const sentOptions = (f: Form) => f.rating.saveAndSync.mock.calls[0][1];
+
+  it('opens an input prefilled with the displayed value, and Enter stores the manual score', async () => {
+    const f = await open();
+    rate(f, 8);
+    expect(startEdit(f).value).toBe('8.0');
+  });
+
+  it('stores a typed manual score, marks the work dirty and syncs it on save', async () => {
+    const f = await open();
+    const input = startEdit(f);
+    input.value = '3';
+    pressKey(input, 'Enter');
+
+    expect(f.root.querySelector('.astra-overall-input')).toBeNull();
+    expect(f.root.querySelector('.astra-overall-val')?.textContent).toBe('3.0');
+    expect(workOf(f).seasons[0].manualScore).toBe(3);
+    expect(isDirty(f)).toBe(true);
+    expect(f.root.querySelector<HTMLElement>('.astra-overall-caption--manual')?.hidden).toBe(false);
+
+    await f.save();
+    expect(sentOptions(f).syncScore).toBe(true);
+    expect(sentOptions(f).overallScore).toBe(3);
+    expect(anilistScore(sentOptions(f).overallScore)).toBe(30);
+  });
+
+  it('Escape cancels the edit and keeps the modal open', async () => {
+    const f = await open();
+    const input = startEdit(f);
+    input.value = '5';
+    pressKey(input, 'Escape');
+
+    expect(f.root.querySelector('.astra-overall-input')).toBeNull();
+    expect(workOf(f).seasons[0].manualScore).toBeUndefined();
+    expect(document.querySelector('.astra-modal-overlay')).not.toBeNull();
+  });
+
+  it('a blank value clears the manual score', async () => {
+    const f = await open();
+    const first = startEdit(f);
+    first.value = '4';
+    pressKey(first, 'Enter');
+    expect(workOf(f).seasons[0].manualScore).toBe(4);
+
+    const second = startEdit(f);
+    second.value = '';
+    pressKey(second, 'Enter');
+    expect(workOf(f).seasons[0].manualScore).toBeNull();
+    expect(f.root.querySelector<HTMLElement>('.astra-overall-caption--manual')?.hidden).toBe(true);
+  });
+
+  it('keeps the previous value and the edit open for an invalid entry', async () => {
+    const f = await open();
+    const first = startEdit(f);
+    first.value = '4';
+    pressKey(first, 'Enter');
+
+    const second = startEdit(f);
+    second.value = '11.5';
+    pressKey(second, 'Enter');
+    expect(f.root.querySelector('.astra-overall-input--invalid')).not.toBeNull();
+    expect(workOf(f).seasons[0].manualScore).toBe(4);
+  });
+
+  it('blur commits the typed value', async () => {
+    const f = await open();
+    const input = startEdit(f);
+    input.value = '6';
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    expect(workOf(f).seasons[0].manualScore).toBe(6);
+  });
+
+  it('the reset button returns the overall to the weighted average', async () => {
+    const f = await open();
+    rate(f, 8);
+    const input = startEdit(f);
+    input.value = '3';
+    pressKey(input, 'Enter');
+    expect(f.root.querySelector('.astra-overall-val')?.textContent).toBe('3.0');
+
+    f.root.querySelector<HTMLButtonElement>('.astra-overall-reset')!.click();
+    expect(workOf(f).seasons[0].manualScore).toBeNull();
+    expect(f.root.querySelector('.astra-overall-val')?.textContent).toBe('8.0');
+    expect(f.root.querySelector<HTMLButtonElement>('.astra-overall-reset')?.hidden).toBe(true);
+  });
+
+  it('with no sections configured, hides the grid and radar, shows the hint and still sets the score', async () => {
+    const f = await open();
+    (f.astra as unknown as { getSections: () => AstraWork['seasons'] }).getSections = () => [];
+    f.toggle();
+    // A redraw replaces the overlay element, so the handle captured at open is stale.
+    f.root = document.querySelector<HTMLElement>('.astra-modal-overlay')!;
+
+    expect(f.root.querySelector('.astra-form-layout')?.hasAttribute('hidden')).toBe(true);
+    expect(f.root.querySelector('.astra-radar-container')?.hasAttribute('hidden')).toBe(true);
+    expect(f.root.querySelector('.astra-overall-area--solo')).not.toBeNull();
+    expect(f.root.querySelector('.astra-overall-hint')?.textContent).toBe(
+      'No sections configured: set the score manually.'
+    );
+
+    const input = startEdit(f);
+    input.value = '7';
+    pressKey(input, 'Enter');
+    await f.save();
+    expect(sentOptions(f).overallScore).toBe(7);
   });
 });

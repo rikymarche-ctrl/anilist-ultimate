@@ -59,11 +59,12 @@ export function reconcileWithRemote(
   }
 
   const remoteRated = typeof remote.score === 'number' && remote.score > 0;
-  if (
-    !remoteRated &&
-    Object.values(season.scores).some((value) => typeof value === 'number' && value > 0)
-  ) {
-    season.scores = {};
+  if (!remoteRated) {
+    // The manual overall is local-only like the sub-scores, so an unrated AniList entry clears it too.
+    if (season.manualScore !== undefined) delete season.manualScore;
+    if (Object.values(season.scores).some((value) => typeof value === 'number' && value > 0)) {
+      season.scores = {};
+    }
   }
 
   const changed =

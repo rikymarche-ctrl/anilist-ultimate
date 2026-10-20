@@ -164,6 +164,25 @@
   overflow-wrap: anywhere;
 }
 
+/* Same custom scrollbar as the hover tooltip, instead of the browser default */
+.au-comment-reader-content::-webkit-scrollbar {
+  width: 5px;
+}
+
+.au-comment-reader-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.au-comment-reader-content::-webkit-scrollbar-thumb {
+  background: var(--au-primary);
+  border-radius: 10px;
+}
+
+.au-comment-reader-content::-webkit-scrollbar-thumb:hover {
+  background: #60adff;
+}
+
 .au-comment-reader--fullscreen {
   width: 100%;
   height: calc(100dvh - 48px);

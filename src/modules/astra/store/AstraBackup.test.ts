@@ -150,3 +150,27 @@ describe('parseAstraBackup covers and capacity', () => {
     expect(parseAstraBackup(json).manifest).toHaveLength(10_000);
   });
 });
+
+describe('parseAstraBackup manual season score', () => {
+  const backupWith = (season: Record<string, unknown>) => JSON.stringify({
+    schemaVersion: 1, manifest: [{ mediaId: 1 }], sections: [], settings: {}, works: {
+      1: { id: 'w_1', mediaId: 1, title: 'Manual fixture', type: 'anime', status: 'CURRENT', notes: '', updatedAt: 1,
+        tags: [], seasons: [{ scores: {}, ...season }] },
+    },
+  });
+
+  it.each([null, 0.1, 7.3, 10, 11])('accepts manualScore %s', (manualScore) => {
+    expect(parseAstraBackup(backupWith({ manualScore })).works[1].seasons[0].manualScore).toBe(manualScore);
+  });
+
+  it('accepts a season without manualScore', () => {
+    expect(parseAstraBackup(backupWith({})).works[1].seasons[0].manualScore).toBeUndefined();
+  });
+
+  it.each([0, 0.05, 11.5, -1, '7', 'high', true])('rejects manualScore %j with the SCORES field', (manualScore) => {
+    let failure: unknown;
+    try { parseAstraBackup(backupWith({ manualScore })); } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(AstraWorkValidationError);
+    expect((failure as AstraWorkValidationError).validationField).toBe('SCORES');
+  });
+});

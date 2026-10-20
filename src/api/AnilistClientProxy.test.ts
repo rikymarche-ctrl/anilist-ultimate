@@ -25,7 +25,8 @@ describe('shared API client without credential exposure', () => {
     const clients = [new AnilistClientProxy(metadata() as never, new EventBus()), new AnilistClientProxy(metadata() as never, new EventBus())];
     const requests = Array.from({ length: 30 }, (_, i) => clients[i % 2].query('query { Viewer { id name } }'));
     await vi.advanceTimersByTimeAsync(45000);
-    expect(raw).toHaveBeenCalledTimes(25);
+    // Background reads keep 5 window slots free for priority work, so 20 dispatch in the first minute.
+    expect(raw).toHaveBeenCalledTimes(20);
     await vi.advanceTimersByTimeAsync(25000);
     expect(await Promise.all(requests)).toHaveLength(30);
     expect(raw).toHaveBeenCalledTimes(30);

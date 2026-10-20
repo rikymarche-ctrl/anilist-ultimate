@@ -119,6 +119,58 @@ describe('AstraRatingService safe persistence and sync', () => {
     expect(queue.enqueue).not.toHaveBeenCalled();
   });
 
+  it('returns queued for background dispatch once the write is durable, without awaiting the AniList round-trip', async () => {
+    const { queue, service } = setup();
+    vi.spyOn(queue, 'process').mockReturnValue(new Promise<void>(() => {}));
+    await expect(service.saveAndSync(work(), { overallScore: 8, dispatch: 'background' })).resolves.toBe('queued');
+    expect(vi.mocked(queue.enqueue).mock.calls[0][0]).toBe('ASTRA_SAVE');
+    expect(queue.process).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports synced to onDispatched once the background drain finishes', async () => {
+    const { queue, service } = setup();
+    vi.mocked(queue.enqueue).mockResolvedValue();
+    let finish!: () => void;
+    vi.spyOn(queue, 'process').mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+    vi.spyOn(queue, 'getQueue').mockResolvedValue([]);
+    const onDispatched = vi.fn();
+    await expect(service.saveAndSync(work(), { overallScore: 8, dispatch: 'background', onDispatched })).resolves.toBe('queued');
+    expect(onDispatched).not.toHaveBeenCalled();
+    finish();
+    await vi.waitFor(() => expect(onDispatched).toHaveBeenCalledOnce());
+    expect(onDispatched).toHaveBeenCalledWith('synced');
+  });
+
+  it('reports queued to onDispatched when the save is still pending after the drain', async () => {
+    const { queue, service } = setup();
+    vi.spyOn(queue, 'process').mockResolvedValue();
+    vi.spyOn(queue, 'getQueue').mockResolvedValue([
+      { id: 'save', type: 'ASTRA_SAVE', userId: 42, payload: { mediaId: 1 }, retries: 0 } as never,
+    ]);
+    const onDispatched = vi.fn();
+    await service.saveAndSync(work(), { overallScore: 8, dispatch: 'background', onDispatched });
+    await vi.waitFor(() => expect(onDispatched).toHaveBeenCalledOnce());
+    expect(onDispatched).toHaveBeenCalledWith('queued');
+  });
+
+  it('reports queued and keeps the caller unaffected when the background drain throws', async () => {
+    const { queue, service } = setup();
+    vi.spyOn(queue, 'process').mockRejectedValue(new Error('Offline'));
+    const onDispatched = vi.fn();
+    await expect(service.saveAndSync(work(), { overallScore: 8, dispatch: 'background', onDispatched })).resolves.toBe('queued');
+    await vi.waitFor(() => expect(onDispatched).toHaveBeenCalledOnce());
+    expect(onDispatched).toHaveBeenCalledWith('queued');
+  });
+
+  it('survives a throwing onDispatched callback without an unhandled rejection', async () => {
+    const { queue, service } = setup();
+    vi.spyOn(queue, 'process').mockResolvedValue();
+    vi.spyOn(queue, 'getQueue').mockResolvedValue([]);
+    const onDispatched = vi.fn(() => { throw new Error('Callback failed'); });
+    await service.saveAndSync(work(), { overallScore: 8, dispatch: 'background', onDispatched });
+    await vi.waitFor(() => expect(onDispatched).toHaveBeenCalledOnce());
+  });
+
   it('respects cleared notes, zero progress and explicitly empty lists', async () => {
     const { api, service } = setup();
     await service.saveAndSync(work(), { overallScore: 0, notes: '', progress: 0, customLists: [] });
@@ -190,12 +242,29 @@ describe('AstraRatingService safe persistence and sync', () => {
     const { api, queue, service } = setup(true);
     await service.saveAndSync(work(), { overallScore: 8 });
     expect(api.mutate.mock.calls[0][1]!.notes).toContain('Remote text');
-    expect(api.mutate.mock.calls[0][1]!.notes).toContain('New notes');
+    // General thoughts reach AniList only when they were edited (replaceNotes).
+    expect(api.mutate.mock.calls[0][1]!.notes).not.toContain('New notes');
     expect(vi.mocked(queue.enqueue).mock.calls[0][1]).toMatchObject({
       expectedNotes: 'Remote text',
       astraNotesUpdatedAt: 0,
     });
     expect(api.mutate.mock.calls[0][1]).not.toHaveProperty('expectedNotes');
+  });
+
+  it('replaces the text outside the Astra block with edited General thoughts', async () => {
+    const { api, service } = setup(true);
+    await service.saveAndSync(work(), { overallScore: 8, replaceNotes: true });
+    expect(api.mutate.mock.calls[0][1]!.notes).toBe('New notes\n\nBREAKDOWN:\n• Story: 8/10');
+  });
+
+  it('sends edited General thoughts on a notes-only save even when the report is unchanged', async () => {
+    const { api, service } = setup(true);
+    await service.saveAndSync(work(), {
+      overallScore: 8,
+      syncAstraNotes: false,
+      replaceNotes: true,
+    });
+    expect(api.mutate.mock.calls[0][1]!.notes).toBe('New notes\n\nBREAKDOWN:\n• Story: 8/10');
   });
 
   it.each(['incomplete block', 'oversized report', 'reserved marker'])(
@@ -210,7 +279,9 @@ describe('AstraRatingService safe persistence and sync', () => {
       } else
         draft.seasons[0].notes =
           failure === 'oversized report' ? 'x'.repeat(6000) : `Review\n${ASTRA_MARKERS.FOOTER}`;
-      await expect(service.saveAndSync(draft, { overallScore: 8 })).rejects.toMatchObject({
+      await expect(
+        service.saveAndSync(draft, { overallScore: 8, replaceNotes: true })
+      ).rejects.toMatchObject({
         stage: 'NOTES',
         localCommitted: true,
       });
@@ -366,13 +437,15 @@ describe('AstraRatingService safe persistence and sync', () => {
     }
   );
 
-  it('uses confirmed null notes as an empty base without losing the local note', async () => {
-    const { api, service } = setup(true);
+  it('uses confirmed null notes as an empty base and writes only the Astra block', async () => {
+    const { api, astra, service } = setup(true);
     const response = ratingResponse();
     Object.assign(response.Media.mediaListEntry, { notes: null });
     api.query.mockResolvedValueOnce(response);
     expect(await service.saveAndSync(work(), { overallScore: 8 })).toBe('synced');
-    expect(api.mutate.mock.calls[0][1]!.notes).toContain('New notes');
+    expect(api.mutate.mock.calls[0][1]!.notes).toBe('BREAKDOWN:\n• Story: 8/10');
+    // The local General thoughts stay saved locally even though a score save does not send them.
+    expect(astra.saveWork.mock.calls[0][0].seasons[0].notes).toBe('New notes');
   });
   it('persists explicit fuzzy dates locally before queueing, retaining Clear and omitted legacy fields', async () => {
     const f = setup();
