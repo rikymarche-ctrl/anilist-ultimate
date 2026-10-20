@@ -9,7 +9,7 @@ Feature areas and source locations.
 | Wrapped       | `src/modules/astra/services/year/` and `ui/wrapped/` | Yearly provider-driven reports and stories; seasonal model/services live beside the year services.                   |
 | Activity      | `src/modules/activity/`                              | Feed filters, rendered context and activity score enrichment.                                                        |
 | Notifications | `src/modules/notifications/`                         | Grouping/enrichment of native notifications and the independent local Friend Alerts feature.                         |
-| Social        | `src/modules/social/`                                | Custom audiences, Following progress, note tooltips, profile and media social panels.                                |
+| Social        | `src/modules/social/`                                | Custom audiences, Following progress, Following groups (Social tab and title Overview, local), note tooltips, profile and media social panels. |
 | Bulk Editor   | `src/modules/bulk/`                                  | Sequential status/custom-list edits on the authenticated user's own anime/manga lists.                               |
 | Media         | `src/modules/media/`                                 | Public metadata and theme lists; external links are distinct from account writes.                                    |
 | Reviews       | `src/modules/reviews/`                               | Review score enrichment.                                                                                             |

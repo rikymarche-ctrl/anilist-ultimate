@@ -25,6 +25,8 @@ import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { EventSubscription, IEventBus } from '@core/interfaces/IEventBus';
 import type { ApiContext, IApiClient } from '@core/interfaces/IApiClient';
 import type { ToastService } from '@core/services/ToastService';
+import { FollowingGroupsService } from '../FollowingGroupsService';
+import { FollowingGroupsSettings } from './FollowingGroupsSettings';
 
 type Scope = { version: number; context: ApiContext | undefined; authenticated: boolean };
 type UserGroup = {
@@ -61,13 +63,15 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
   private listSubscription: (() => void) | null = null;
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private unavailableGroups: RemoteGroup[] = [];
+  private followingSettings: FollowingGroupsSettings | null = null;
 
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
     @inject(TOKENS.CustomListService) private listService: CustomListClient,
     @inject(TOKENS.ApiClient) private api: IApiClient,
     @inject(TOKENS.EventBus) private bus: IEventBus,
-    @inject(TOKENS.ToastService) private toast: ToastService
+    @inject(TOKENS.ToastService) private toast: ToastService,
+    @inject(FollowingGroupsService) private groupService: FollowingGroupsService
   ) {
     super({});
   }
@@ -89,6 +93,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
   protected override onUnmount(): void {
     this.version++;
     this.viewVersion++;
+    this.disposeFollowingSettings();
     this.authSubscription?.unsubscribe();
     this.authSubscription = null;
     this.listSubscription?.();
@@ -133,6 +138,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
   private beginSession(): void {
     this.version++;
     this.viewVersion++;
+    this.disposeFollowingSettings();
     this.clearViewEvents();
     this.allFollowings = [];
     this.allFollowers = [];
@@ -171,6 +177,11 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     }
   }
 
+  private disposeFollowingSettings(): void {
+    this.followingSettings?.unmount();
+    this.followingSettings = null;
+  }
+
   private clearGridEvents(): void {
     this.gridEvents.splice(0).forEach((remove) => remove());
   }
@@ -201,6 +212,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
 
     this.clearViewEvents();
     this.viewVersion++;
+    this.disposeFollowingSettings();
     container.replaceChildren();
     container.appendChild(html`
       <div style="display: contents;">
@@ -241,6 +253,8 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
           })}
         </div>
 
+        <div class="au-fg-slot"></div>
+
         <div class="au-cl-content" style="display: none;">
           <div class="au-cl-loading-overlay">
             <i class="fa-solid fa-spinner fa-spin au-cl-loading-spinner"></i>
@@ -249,6 +263,12 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
         </div>
       </div>
     `);
+    this.followingSettings = new FollowingGroupsSettings(
+      this.groupService,
+      this.toast,
+      Object.keys(lists)
+    );
+    this.followingSettings.mount(container.querySelector<HTMLElement>('.au-fg-slot')!);
   }
 
   private loadUsers(scope: Scope): Promise<void> {
@@ -390,6 +410,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     const header = this.element.querySelector<HTMLElement>('.au-cl-header');
     if (!content || !header) return;
     if (overview) overview.style.display = 'none';
+    this.followingSettings?.getElement().style.setProperty('display', 'none');
     content.style.display = 'block';
     header.replaceChildren();
     header.appendChild(html`

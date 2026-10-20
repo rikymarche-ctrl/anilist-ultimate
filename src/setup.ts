@@ -75,6 +75,10 @@ import {
   FollowingProgressModule,
   isFollowingProgressRoute,
 } from '@/modules/social/FollowingProgressModule';
+import {
+  FollowingGroupsModule,
+  isFollowingGroupsPageRoute,
+} from '@/modules/social/FollowingGroupsModule';
 import { NotificationCleanerModule } from '@/modules/notifications/NotificationCleanerModule';
 import { ReviewEnhancerModule } from '@/modules/reviews/ReviewEnhancerModule';
 import { ActivityEnhancerModule } from '@/modules/activity/ActivityEnhancerModule';
@@ -219,9 +223,13 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
     container.register(TOKENS.AstraNotesSyncPolicy, {
       useValue: async (mediaId: number, updatedAt: number, sessionId: string) => {
         const host = container.resolve(AstraRepositoryHost);
-        const snapshot = await host.dispatch('getSnapshot', [], sessionId) as { settings: { appendAstraToComment: boolean } };
+        const snapshot = (await host.dispatch('getSnapshot', [], sessionId)) as {
+          settings: { appendAstraToComment: boolean };
+        };
         if (!snapshot.settings.appendAstraToComment) return false;
-        const current = await host.dispatch('getFullWork', [mediaId], sessionId) as { updatedAt: number } | undefined;
+        const current = (await host.dispatch('getFullWork', [mediaId], sessionId)) as
+          | { updatedAt: number }
+          | undefined;
         return current?.updatedAt === updatedAt;
       },
     });
@@ -286,8 +294,7 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
   if (isBackground) {
     container.registerSingleton(CustomListHost);
     container.registerSingleton(FriendAlertsHost);
-  }
-  else {
+  } else {
     container.registerSingleton(TOKENS.CustomListService, CustomListClient);
     // Construct in the document owner before a feature scope can borrow this singleton.
     container.resolve<CustomListClient>(TOKENS.CustomListService);
@@ -476,6 +483,13 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
       enabled: config.isFeatureEnabled('friendActivity'),
       factory: (scope) => scope.resolve(FollowingProgressModule),
       pageMatch: isFollowingProgressRoute,
+    },
+    {
+      name: 'followingGroups',
+      description: 'Custom groups in the Social tab Following column',
+      enabled: config.isFeatureEnabled('friendActivity'),
+      factory: (scope) => scope.resolve(FollowingGroupsModule),
+      pageMatch: isFollowingGroupsPageRoute,
     },
     {
       name: 'calendar',

@@ -75,12 +75,21 @@ describe('custom list manager ownership and mutations', () => {
       }),
     };
     const toast = { error: vi.fn() };
+    const groups = {
+      init: vi.fn(async (): Promise<void> => undefined),
+      getConfig: () => ({ groups: [], collapsed: [], othersCollapsed: false }),
+      onChange: vi.fn(() => () => undefined),
+      setGroupEnabled: vi.fn(async (): Promise<void> => undefined),
+      moveGroup: vi.fn(async (): Promise<void> => undefined),
+      setCollapsed: vi.fn(async (): Promise<void> => undefined),
+    };
     const view = new CustomListManager(
       social as never,
       lists as never,
       api as never,
       bus,
-      toast as never
+      toast as never,
+      groups as never
     );
     views.push(view);
     if (mount) view.mount(document.body);

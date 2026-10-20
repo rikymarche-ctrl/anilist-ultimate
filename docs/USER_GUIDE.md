@@ -41,6 +41,8 @@ Notification Cleaner groups consecutive compatible notifications and adds filter
 
 Activity tools add feed filters and score/context information. Social features include custom audiences, Following progress, avatar overlays and note tooltips. Hover Comments reads list Notes where AniList exposes them; it does not make private information available. User lists created inside the extension are distinct from AniList's anime/manga custom lists.
 
+**Following groups.** On a title's Social tab you can split the Following column into groups. Open the custom lists settings, check the lists you want as groups and order them with the arrows. Each user goes to the first checked list that contains them; everyone else goes to Others, which is always last. Groups have no user limit and can be collapsed from their header. On the title's Overview the Following box keeps its five rows: group members come first, and the viewer's followings for that title are read once per visit when a group has members. This is a local display preference: nothing changes on AniList.
+
 Media pages can show public metadata, review scores and opening/ending theme links. These depend on external services and may be unavailable without affecting your local Astra archive.
 
 ## Bulk Editor

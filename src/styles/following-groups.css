@@ -1,0 +1,99 @@
+/* Following groups. Headers and clones are appended to the native Following column and ordered with CSS `order`;
+   AniList's own nodes are never moved, so Vue's DOM bookkeeping stays intact. */
+.au-following-grouped-flex {
+  display: flex !important;
+  flex-direction: column;
+}
+
+/* Header spacing equals row spacing: --au-fg-gap is set on the column from the first row's bottom margin. */
+.au-following-group-header {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--au-fg-gap, 10px) 0;
+}
+
+.au-following-group-header--first {
+  margin-top: 0;
+}
+
+.au-following-group-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(var(--color-foreground));
+  color: rgb(var(--color-text));
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.au-following-group-toggle:focus-visible {
+  outline: 2px solid rgb(var(--color-blue));
+  outline-offset: 2px;
+}
+
+.au-following-group-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Subtle pill after the label. */
+.au-following-group-count {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 0.85em;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+/* Points down when expanded; the collapsed state turns it by -90deg (pointing right). */
+.au-following-group-chevron {
+  flex: none;
+  margin-left: auto;
+  width: 0.45em;
+  height: 0.45em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.au-following-group-toggle[aria-expanded="false"] .au-following-group-chevron {
+  transform: rotate(-45deg);
+}
+
+.au-following-group-hidden {
+  display: none !important;
+}
+
+/* Gear: only in the first header, opens the custom lists settings. */
+.au-following-groups-edit {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: rgb(var(--color-blue));
+  text-decoration: none;
+}
+
+.au-following-groups-edit:hover,
+.au-following-groups-edit:focus-visible {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
