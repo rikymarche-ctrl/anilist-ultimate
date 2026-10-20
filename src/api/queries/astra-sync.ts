@@ -6,7 +6,7 @@ export const ASTRA_SYNC_COLLECTION = `
       hasNextChunk
       lists {
         entries {
-          id userId mediaId status score(format: POINT_10) progress notes
+          id userId mediaId status score(format: POINT_10_DECIMAL) progress notes
           customLists private hiddenFromStatusLists
           startedAt { year month day } completedAt { year month day }
           media {

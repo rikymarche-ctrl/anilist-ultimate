@@ -5,7 +5,14 @@
  */
 
 import type { AstraWork } from '../AstraInterfaces';
-import type { MediaListStatus, AniListDate, MediaType, MediaFormat, MediaStatus, AniListCoverImage } from '@/api/AnilistTypes';
+import type {
+  MediaListStatus,
+  AniListDate,
+  MediaType,
+  MediaFormat,
+  MediaStatus,
+  AniListCoverImage,
+} from '@/api/AnilistTypes';
 
 export type AstraSaveResult = 'synced' | 'queued' | 'local';
 
@@ -28,6 +35,8 @@ export interface AstraSaveOptions {
   notes?: string;
   /** Skip rewriting the Astra report comment when a save only changes AniList list fields. */
   syncAstraNotes?: boolean;
+  /** Send the Astra overall score to AniList. False leaves AniList's score untouched. Defaults to true. */
+  syncScore?: boolean;
   customLists?: string[];
   startedAt?: AniListDate | null;
   completedAt?: AniListDate | null;
@@ -75,6 +84,8 @@ export interface IRatingInitialData {
   /** Latest queued list fields for a new entry that has not reached AniList yet. */
   pendingListState?: AstraPendingListState;
   pendingDeletion?: boolean;
+  /** A queued ASTRA_SAVE for this entry still carries score or notes: the local report is newer than AniList. */
+  pendingReport?: boolean;
 }
 
 /** Durable AniList list-field intent that must take precedence over a stale remote read. */

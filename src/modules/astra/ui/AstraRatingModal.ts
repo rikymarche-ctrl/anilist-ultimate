@@ -20,7 +20,13 @@
 import { injectable, singleton, inject, container } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { AstraService } from '../AstraService';
-import type { AstraSection, AstraSubSection, AstraWork, AstraSeason, AstraEpisodeNote } from '../AstraInterfaces';
+import type {
+  AstraSection,
+  AstraSubSection,
+  AstraWork,
+  AstraSeason,
+  AstraEpisodeNote,
+} from '../AstraInterfaces';
 import { AstraRadarChart } from './AstraRadarChart';
 import type { IApiClient, ApiContext } from '@core/interfaces/IApiClient';
 import type { ToastService } from '@core/services/ToastService';
@@ -35,20 +41,43 @@ import { AstraRatingViewScope } from './AstraRatingViewScope';
 import { ASTRA_JOURNAL_PAGE_SIZE, journalPage } from './AstraJournalPage';
 import { AstraRatingState } from './AstraRatingState';
 import { AstraRatingHeader } from './components/AstraRatingHeader';
-import type { IAstraRatingService, IRatingInitialData, AstraRatingMedia } from '../interfaces/IAstraRatingService';
+import type {
+  IAstraRatingService,
+  IRatingInitialData,
+  AstraRatingMedia,
+} from '../interfaces/IAstraRatingService';
 import { captureApiContext, assertApiContext } from '@/api/ApiContext';
 import { escapeHtml } from '@core/utils/Template';
 import { parseWebUrl } from '@core/utils/WebUrl';
-import { AstraRatingFormDraft, formatRatingDate, parseRatingDate, steppedCount, type AstraRatingFormValues } from './AstraRatingFormDraft';
+import {
+  AstraRatingFormDraft,
+  formatRatingDate,
+  parseRatingDate,
+  steppedCount,
+  type AstraRatingFormValues,
+} from './AstraRatingFormDraft';
 import { astraSaveFailureMessage } from '../services/AstraSaveFailure';
 import { stampAstraProgress } from '../utils/AstraProgressHistory';
+import { reconcileWithRemote } from '../utils/AstraRemoteReconcile';
 import { AstraOverlayService } from '../services/AstraOverlayService';
 
-import { bindRatingDatePicker, bindEpisodeDatePicker, formatDateDisplay, formatEpisodeDate, formatEpisodeTime, miniCalendarDateParts } from './AstraDatePicker';
+import {
+  bindRatingDatePicker,
+  bindEpisodeDatePicker,
+  formatDateDisplay,
+  formatEpisodeDate,
+  formatEpisodeTime,
+  miniCalendarDateParts,
+} from './AstraDatePicker';
 
 const NEEDS_LIST_STATUS_NOTICE = 'Not saved: choose a list status to add this title.';
 
-interface RatingMeta { progress: number; totalEpisodes: number | null; airedEpisodes: number | null; isManga: boolean; }
+interface RatingMeta {
+  progress: number;
+  totalEpisodes: number | null;
+  airedEpisodes: number | null;
+  isManga: boolean;
+}
 
 @injectable()
 @singleton()
@@ -70,6 +99,8 @@ export class AstraRatingModal {
   /** Snapshot used to avoid rewriting AniList notes during list-only edits. */
   private initialSeasonNotes: string[] = [];
   private initialReportSnapshot = '';
+  /** Scores as loaded; a save only sends the Astra score to AniList when the user changed it. */
+  private initialScoresSnapshot = '';
   private needsListStatus = false;
   private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
   private livePreviewRaf: number | null = null; // Coalesces live-preview redraws during slider drag
@@ -78,7 +109,12 @@ export class AstraRatingModal {
   private documentClickHandler: (() => void) | null = null;
   private documentEscHandler: ((e: KeyboardEvent) => void) | null = null;
   private openVersion = 0;
-  private pendingOpen: { mediaId: number; tab: string; context: ApiContext | undefined; promise: Promise<void> } | null = null;
+  private pendingOpen: {
+    mediaId: number;
+    tab: string;
+    context: ApiContext | undefined;
+    promise: Promise<void>;
+  } | null = null;
   private loadingOverlay: HTMLElement | null = null;
   private loadingController: AbortController | null = null;
   private viewScope: AstraRatingViewScope | null = null;
@@ -91,7 +127,9 @@ export class AstraRatingModal {
   private closeInFlight: { root: HTMLElement; promise: Promise<void> } | null = null;
   private closingTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
   private opener: HTMLElement | null = null;
-  private readonly resizeHandler = () => { if (this.overlay && !this.isClosing) this.updateLivePreview(); };
+  private readonly resizeHandler = () => {
+    if (this.overlay && !this.isClosing) this.updateLivePreview();
+  };
 
   constructor(
     @inject(TOKENS.AstraService) private astraService: AstraService,
@@ -118,12 +156,24 @@ export class AstraRatingModal {
   public open(mediaId: number, initialTab: 'rating' | 'journal' = 'rating'): Promise<void> {
     const context = this.api.getContext?.();
     const pending = this.pendingOpen;
-    if (pending?.mediaId === mediaId && pending.tab === initialTab
-      && pending.context?.sessionId === context?.sessionId && pending.context?.userId === context?.userId) return pending.promise;
+    if (
+      pending?.mediaId === mediaId &&
+      pending.tab === initialTab &&
+      pending.context?.sessionId === context?.sessionId &&
+      pending.context?.userId === context?.userId
+    )
+      return pending.promise;
     const promise = this.openView(mediaId, initialTab);
-    const request = { mediaId, tab: initialTab, context: context ? { ...context } : undefined, promise };
+    const request = {
+      mediaId,
+      tab: initialTab,
+      context: context ? { ...context } : undefined,
+      promise,
+    };
     this.pendingOpen = request;
-    const clear = () => { if (this.pendingOpen === request) this.pendingOpen = null; };
+    const clear = () => {
+      if (this.pendingOpen === request) this.pendingOpen = null;
+    };
     void promise.then(clear, clear);
     return promise;
   }
@@ -138,12 +188,14 @@ export class AstraRatingModal {
       if (this.overlay && this.state && !this.isClosing) {
         const previousState = this.state;
         await this.save();
-        if (version !== this.openVersion || this.state !== previousState || previousState.isDirty) return;
+        if (version !== this.openVersion || this.state !== previousState || previousState.isDirty)
+          return;
       }
       const context = await captureApiContext(this.api);
       if (version !== this.openVersion) return;
       const [data, existingWork] = await Promise.all([
-        this.fetchAniListData(mediaId), this.astraService.getFullWork(mediaId),
+        this.fetchAniListData(mediaId),
+        this.astraService.getFullWork(mediaId),
       ]);
       if (version !== this.openVersion) return;
       assertApiContext(this.api, context);
@@ -153,7 +205,9 @@ export class AstraRatingModal {
         return;
       }
       if (data.pendingDeletion) {
-        this.toast.info('This entry is queued for deletion. Wait for AniList synchronization before editing it.');
+        this.toast.info(
+          'This entry is queued for deletion. Wait for AniList synchronization before editing it.'
+        );
         if (!this.overlay) this.releaseAuthSubscription();
         return;
       }
@@ -167,7 +221,7 @@ export class AstraRatingModal {
           : (media.type.toLowerCase() as 'anime' | 'manga');
 
       const listMemberships = media.mediaListEntry?.customLists ?? {};
-      const customLists = Object.keys(listMemberships).filter(name => listMemberships[name]);
+      const customLists = Object.keys(listMemberships).filter((name) => listMemberships[name]);
 
       assertApiContext(this.api, context, existingWork?.ownerId);
       const worksCount = this.astraService.getWorks().length;
@@ -187,37 +241,75 @@ export class AstraRatingModal {
           ...(media.episodes !== null ? { episodes: media.episodes } : {}),
           ...(media.chapters !== null ? { chapters: media.chapters } : {}),
         };
-        if (remoteEntry) Object.assign(remoteFields, {
-          status: pending.status ?? remoteEntry.status,
-          progress: pending.progress ?? remoteEntry.progress,
-          customLists: pending.customLists ? [...pending.customLists]
-            : Object.keys(remoteEntry.customLists).filter(name => remoteEntry.customLists[name]),
-          isPrivate: pending.private ?? remoteEntry.private,
-          isHidden: pending.hidden ?? remoteEntry.hiddenFromStatusLists,
-          startedAt: Object.prototype.hasOwnProperty.call(pending, 'startedAt') ? pending.startedAt : remoteEntry.startedAt,
-          completedAt: Object.prototype.hasOwnProperty.call(pending, 'completedAt') ? pending.completedAt : remoteEntry.completedAt,
-        });
-        else Object.assign(remoteFields, {
-          ...(pending.status !== undefined ? { status: pending.status } : {}),
-          ...(pending.progress !== undefined ? { progress: pending.progress } : {}),
-          ...(pending.customLists !== undefined ? { customLists: [...pending.customLists] } : {}),
-          ...(pending.private !== undefined ? { isPrivate: pending.private } : {}),
-          ...(pending.hidden !== undefined ? { isHidden: pending.hidden } : {}),
-          ...(Object.prototype.hasOwnProperty.call(pending, 'startedAt') ? { startedAt: pending.startedAt } : {}),
-          ...(Object.prototype.hasOwnProperty.call(pending, 'completedAt') ? { completedAt: pending.completedAt } : {}),
-        });
+        if (remoteEntry)
+          Object.assign(remoteFields, {
+            status: pending.status ?? remoteEntry.status,
+            progress: pending.progress ?? remoteEntry.progress,
+            customLists: pending.customLists
+              ? [...pending.customLists]
+              : Object.keys(remoteEntry.customLists).filter(
+                  (name) => remoteEntry.customLists[name]
+                ),
+            isPrivate: pending.private ?? remoteEntry.private,
+            isHidden: pending.hidden ?? remoteEntry.hiddenFromStatusLists,
+            startedAt: Object.prototype.hasOwnProperty.call(pending, 'startedAt')
+              ? pending.startedAt
+              : remoteEntry.startedAt,
+            completedAt: Object.prototype.hasOwnProperty.call(pending, 'completedAt')
+              ? pending.completedAt
+              : remoteEntry.completedAt,
+          });
+        else
+          Object.assign(remoteFields, {
+            ...(pending.status !== undefined ? { status: pending.status } : {}),
+            ...(pending.progress !== undefined ? { progress: pending.progress } : {}),
+            ...(pending.customLists !== undefined ? { customLists: [...pending.customLists] } : {}),
+            ...(pending.private !== undefined ? { isPrivate: pending.private } : {}),
+            ...(pending.hidden !== undefined ? { isHidden: pending.hidden } : {}),
+            ...(Object.prototype.hasOwnProperty.call(pending, 'startedAt')
+              ? { startedAt: pending.startedAt }
+              : {}),
+            ...(Object.prototype.hasOwnProperty.call(pending, 'completedAt')
+              ? { completedAt: pending.completedAt }
+              : {}),
+          });
         workData = {
           ...existingWork,
           ...remoteFields,
         };
         // AniList is the source of truth for list metadata. Persist that pull
         // locally without triggering the reverse notes sync; the partial patch
-        // lets the repository preserve scores and journal from its newest copy.
-        const changed = Object.entries(remoteFields).some(([key, value]) =>
-          JSON.stringify(existingWork[key as keyof AstraWork]) !== JSON.stringify(value));
-        if (changed) {
+        // lets the repository preserve the journal from its newest copy.
+        const changed = Object.entries(remoteFields).some(
+          ([key, value]) =>
+            JSON.stringify(existingWork[key as keyof AstraWork]) !== JSON.stringify(value)
+        );
+        // A queued local save is newer than AniList, so its report must not be replaced by the remote copy.
+        const reconciled =
+          remoteEntry && !data.pendingReport
+            ? reconcileWithRemote(
+                workData,
+                { notes: remoteEntry.notes, score: remoteEntry.score },
+                {
+                  sections: this.astraService.getSections(),
+                  appendAstraToComment: this.astraService.getSettings().appendAstraToComment,
+                }
+              )
+            : { work: workData, changed: false };
+        workData = reconciled.work;
+        if (changed || reconciled.changed) {
           assertApiContext(this.api, context, existingWork.ownerId);
-          workData = await this.astraService.saveWork({ mediaId, ...remoteFields }, true);
+          // Report fields travel in the patch only when AniList actually changed them.
+          workData = await this.astraService.saveWork(
+            {
+              mediaId,
+              ...remoteFields,
+              ...(reconciled.changed
+                ? { notes: reconciled.work.notes, seasons: reconciled.work.seasons }
+                : {}),
+            },
+            true
+          );
           assertApiContext(this.api, context, workData.ownerId);
         }
       } else {
@@ -241,10 +333,16 @@ export class AstraRatingModal {
           progress: pending.progress ?? media.mediaListEntry?.progress ?? 0,
           isPrivate: pending.private ?? media.mediaListEntry?.private,
           isHidden: pending.hidden ?? media.mediaListEntry?.hiddenFromStatusLists,
-          ...(media.mediaListEntry ? {
-            startedAt: Object.prototype.hasOwnProperty.call(pending, 'startedAt') ? pending.startedAt : media.mediaListEntry.startedAt,
-            completedAt: Object.prototype.hasOwnProperty.call(pending, 'completedAt') ? pending.completedAt : media.mediaListEntry.completedAt,
-          } : {}),
+          ...(media.mediaListEntry
+            ? {
+                startedAt: Object.prototype.hasOwnProperty.call(pending, 'startedAt')
+                  ? pending.startedAt
+                  : media.mediaListEntry.startedAt,
+                completedAt: Object.prototype.hasOwnProperty.call(pending, 'completedAt')
+                  ? pending.completedAt
+                  : media.mediaListEntry.completedAt,
+              }
+            : {}),
           updatedAt: Date.now(),
           seasons: [
             {
@@ -262,8 +360,9 @@ export class AstraRatingModal {
         // Any logic needed when dirty state changes (e.g., UI indicators)
         logger.debug(`[AstraRatingModal] State dirty: ${isDirty}`);
       });
-      this.initialSeasonNotes = workData.seasons.map(season => season.notes ?? '');
+      this.initialSeasonNotes = workData.seasons.map((season) => season.notes ?? '');
       this.initialReportSnapshot = this.reportContentSnapshot(workData);
+      this.initialScoresSnapshot = this.scoresSnapshot(workData);
 
       this.activeTab = initialTab;
       this.viewContext = context;
@@ -271,7 +370,12 @@ export class AstraRatingModal {
       this.journalPageIndex = 0;
       this.unlockedNotAiredEpisodes.clear();
       this.media = media;
-      this.formDraft = new AstraRatingFormDraft(media.mediaListEntry, workData, data.pendingDates, pending);
+      this.formDraft = new AstraRatingFormDraft(
+        media.mediaListEntry,
+        workData,
+        data.pendingDates,
+        pending
+      );
       this.formEditVersion = 0;
       this.initialProgress = media.mediaListEntry?.progress || 0; // Save initial progress
       rendering = true;
@@ -291,7 +395,10 @@ export class AstraRatingModal {
       if (version === this.openVersion) {
         const loading = this.loadingOverlay;
         this.clearLoading();
-        if (!this.overlay) { this.releaseAuthSubscription(); this.restoreHostState(loading); }
+        if (!this.overlay) {
+          this.releaseAuthSubscription();
+          this.restoreHostState(loading);
+        }
       }
     }
   }
@@ -299,8 +406,14 @@ export class AstraRatingModal {
   private showLoading(): void {
     if (this.loadingOverlay) return;
     if (this.isClosing) {
-      for (const [root, timer] of this.closingTimers) { clearTimeout(timer); root.remove(); }
-      this.closingTimers.clear(); this.overlay?.remove(); this.overlay = null; this.isClosing = false;
+      for (const [root, timer] of this.closingTimers) {
+        clearTimeout(timer);
+        root.remove();
+      }
+      this.closingTimers.clear();
+      this.overlay?.remove();
+      this.overlay = null;
+      this.isClosing = false;
     }
     const root = document.createElement('div');
     root.className = 'astra-modal-overlay astra-modal-overlay--open';
@@ -309,31 +422,56 @@ export class AstraRatingModal {
       <button type="button" class="astra-rating-loading__close" aria-label="Close Quick Edit">×</button>
       <p role="status" aria-live="polite">Loading entry…</p>
     </section>`;
-    if (!this.opener) this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!this.opener)
+      this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.loadingOverlay = root;
-    const controller = new AbortController(); this.loadingController = controller;
+    const controller = new AbortController();
+    this.loadingController = controller;
     const current = () => this.loadingOverlay === root;
     const close = root.querySelector<HTMLButtonElement>('button')!;
-    close.addEventListener('click', () => { if (current()) void this.close(); }, { signal: controller.signal });
-    root.addEventListener('click', event => { if (current() && event.target === root) void this.close(); }, { signal: controller.signal });
+    close.addEventListener(
+      'click',
+      () => {
+        if (current()) void this.close();
+      },
+      { signal: controller.signal }
+    );
+    root.addEventListener(
+      'click',
+      (event) => {
+        if (current() && event.target === root) void this.close();
+      },
+      { signal: controller.signal }
+    );
     const onKeyDown = (event: KeyboardEvent) => {
       if (!current()) return;
-      if (event.key === 'Escape') { event.preventDefault(); void this.close(); }
-      else if (event.key === 'Tab') { event.preventDefault(); close.focus(); }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        void this.close();
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        close.focus();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
-    controller.signal.addEventListener('abort', () => document.removeEventListener('keydown', onKeyDown), { once: true });
-    document.body.append(root); this.overlayService.acquireScrollLock('rating-modal'); close.focus({ preventScroll: true });
+    controller.signal.addEventListener(
+      'abort',
+      () => document.removeEventListener('keydown', onKeyDown),
+      { once: true }
+    );
+    document.body.append(root);
+    this.overlayService.acquireScrollLock('rating-modal');
+    close.focus({ preventScroll: true });
   }
 
   private clearLoading(): void {
-    this.loadingController?.abort(); this.loadingController = null;
-    this.loadingOverlay?.remove(); this.loadingOverlay = null;
+    this.loadingController?.abort();
+    this.loadingController = null;
+    this.loadingOverlay?.remove();
+    this.loadingOverlay = null;
   }
 
-  private async fetchAniListData(
-    mediaId: number
-  ): Promise<IRatingInitialData | null> {
+  private async fetchAniListData(mediaId: number): Promise<IRatingInitialData | null> {
     return this.ratingService.getMediaRatingData(mediaId);
   }
 
@@ -349,31 +487,44 @@ export class AstraRatingModal {
     this.overlay = document.createElement('div');
     this.overlay.className = 'astra-modal-overlay';
     document.body.appendChild(this.overlay);
-    const state = this.state!; const context = this.viewContext; const root = this.overlay;
-    const scope: AstraRatingViewScope = new AstraRatingViewScope(root, () => this.matchesView(scope, state, context), error => {
-      logger.error('[AstraRatingModal] Form action failed', error);
-      this.toast.error('The action failed. Your edits remain open; retry.');
-    });
+    const state = this.state!;
+    const context = this.viewContext;
+    const root = this.overlay;
+    const scope: AstraRatingViewScope = new AstraRatingViewScope(
+      root,
+      () => this.matchesView(scope, state, context),
+      (error) => {
+        logger.error('[AstraRatingModal] Form action failed', error);
+        this.toast.error('The action failed. Your edits remain open; retry.');
+      }
+    );
     this.viewScope = scope;
     this.listen(window, 'resize', this.resizeHandler);
     if (!this.opener) {
-      this.opener = document.activeElement instanceof HTMLElement && !root.contains(document.activeElement) ? document.activeElement : null;
+      this.opener =
+        document.activeElement instanceof HTMLElement && !root.contains(document.activeElement)
+          ? document.activeElement
+          : null;
     }
     this.overlayService.acquireScrollLock('rating-modal');
-    for (const [closingRoot, timer] of this.closingTimers) { clearTimeout(timer); closingRoot.remove(); }
+    for (const [closingRoot, timer] of this.closingTimers) {
+      clearTimeout(timer);
+      closingRoot.remove();
+    }
     this.closingTimers.clear();
 
     const work = this.state!.data;
     const season = work.seasons[this.currentSeasonIdx];
     const sections = this.astraService.getSections();
-    const entry = this.formDraft?.values ?? new AstraRatingFormDraft(media.mediaListEntry, work).values;
+    const entry =
+      this.formDraft?.values ?? new AstraRatingFormDraft(media.mediaListEntry, work).values;
 
     const isManga = media.type === 'MANGA';
     const meta = {
       progress: entry?.progress || 0,
       totalEpisodes: isManga ? media.chapters : media.episodes,
       airedEpisodes: isManga
-        ? media.chapters ?? null
+        ? (media.chapters ?? null)
         : media.nextAiringEpisode
           ? media.nextAiringEpisode.episode - 1
           : media.status === 'FINISHED'
@@ -382,7 +533,7 @@ export class AstraRatingModal {
       isManga,
     };
 
-    const entryCustomLists = Object.fromEntries(entry.customLists.map(name => [name, true]));
+    const entryCustomLists = Object.fromEntries(entry.customLists.map((name) => [name, true]));
 
     this.overlay.innerHTML = `
       <div class="astra-rating-workspace ${this.activeTab === 'journal' ? 'astra-rating-workspace--journal' : ''}">
@@ -427,7 +578,12 @@ export class AstraRatingModal {
     const cover = this.overlay.querySelector('#astra-cover');
     if (cover) {
       this.listen(cover, 'click', () => {
-        if (this.overlay !== renderedOverlay || !renderedOverlay.isConnected || !this.state?.data.cover) return;
+        if (
+          this.overlay !== renderedOverlay ||
+          !renderedOverlay.isConnected ||
+          !this.state?.data.cover
+        )
+          return;
         const hiResCover = parseWebUrl(this.state.data.cover.replace('/medium/', '/large/'));
         if (!hiResCover) return;
         this.coverOverlay?.remove();
@@ -629,12 +785,12 @@ export class AstraRatingModal {
       <div id="astra-tab-journal" class="astra-tab-content ${this.activeTab === 'journal' ? 'astra-tab-content--active' : ''}">
         <div class="astra-ep-log-header">
           <div class="astra-journal-title-box">
-            <h3>${meta.isManga ? "Chapter" : "Episode"} Journal</h3>
-            <p class="astra-muted">Track your thoughts for every single ${meta.isManga ? "chapter" : "episode"}.</p>
+            <h3>${meta.isManga ? 'Chapter' : 'Episode'} Journal</h3>
+            <p class="astra-muted">Track your thoughts for every single ${meta.isManga ? 'chapter' : 'episode'}.</p>
           </div>
         </div>
         <div class="astra-ep-list">
-          ${this.renderEpisodeList(meta.progress, meta.totalEpisodes, season.episodeNotes || {}, meta.airedEpisodes, meta.isManga ? "CH" : "EP")}
+          ${this.renderEpisodeList(meta.progress, meta.totalEpisodes, season.episodeNotes || {}, meta.airedEpisodes, meta.isManga ? 'CH' : 'EP')}
         </div>
       </div>
     `;
@@ -758,32 +914,60 @@ export class AstraRatingModal {
    */
   public close(options: { suppressReload?: boolean } = {}): Promise<void> {
     if (this.deletingEntry) return Promise.resolve();
-    if (this.loadingOverlay && !this.overlay) { this.dispose(); return Promise.resolve(); }
+    if (this.loadingOverlay && !this.overlay) {
+      this.dispose();
+      return Promise.resolve();
+    }
     if (this.closeInFlight?.root === this.overlay) return this.closeInFlight.promise;
     this.pendingOpen = null;
     const version = ++this.openVersion;
-    const root = this.overlay; const state = this.state; const scope = this.viewScope; const context = this.viewContext;
+    const root = this.overlay;
+    const state = this.state;
+    const scope = this.viewScope;
+    const context = this.viewContext;
     if (!root || !state || this.isClosing) {
       if (!root) this.releaseAuthSubscription();
       return Promise.resolve();
     }
-    const promise = this.closeView(root, state, scope, context, version, options.suppressReload === true);
+    const promise = this.closeView(
+      root,
+      state,
+      scope,
+      context,
+      version,
+      options.suppressReload === true
+    );
     this.closeInFlight = { root, promise };
-    const clear = () => { if (this.closeInFlight?.promise === promise) this.closeInFlight = null; };
+    const clear = () => {
+      if (this.closeInFlight?.promise === promise) this.closeInFlight = null;
+    };
     void promise.then(clear, clear);
     return promise;
   }
 
-  private async closeView(root: HTMLElement, state: AstraRatingState, scope: AstraRatingViewScope | null,
-    context: ApiContext | undefined, version: number, suppressReload: boolean): Promise<void> {
-    const current = () => this.overlay === root && this.state === state && this.viewScope === scope && this.openVersion === version
-      && (!scope || scope.active);
+  private async closeView(
+    root: HTMLElement,
+    state: AstraRatingState,
+    scope: AstraRatingViewScope | null,
+    context: ApiContext | undefined,
+    version: number,
+    suppressReload: boolean
+  ): Promise<void> {
+    const current = () =>
+      this.overlay === root &&
+      this.state === state &&
+      this.viewScope === scope &&
+      this.openVersion === version &&
+      (!scope || scope.active);
     try {
       if (this.saveInFlight && this.savingState === state) await this.saveInFlight;
       if (!current()) return;
       const progressInput = root.querySelector<HTMLInputElement>('#astra-progress');
       // An emptied count field is an unfinished edit, not a request to store 0.
-      const progressEdited = !!progressInput && progressInput.value.trim() !== '' && Number(progressInput.value) !== this.initialProgress;
+      const progressEdited =
+        !!progressInput &&
+        progressInput.value.trim() !== '' &&
+        Number(progressInput.value) !== this.initialProgress;
       if (state.isDirty || progressEdited) {
         if (this.needsListStatus) {
           // A title not yet on the list cannot be saved until a status is chosen: discard the draft instead of blocking close.
@@ -803,17 +987,32 @@ export class AstraRatingModal {
     }
     if (!current()) return;
     const reload = this.reloadAfterClose && !suppressReload;
-    scope?.release(); this.viewScope = null;
-    this.coverOverlay?.remove(); this.coverOverlay = null;
-    this.header.unmount(); this.releaseGlobalHandlers(); this.releaseAuthSubscription();
-    this.isClosing = true; this.state = null; this.formDraft = null;
-    root.classList.add('astra-modal-overlay--closing'); root.classList.remove('astra-modal-overlay--open');
+    scope?.release();
+    this.viewScope = null;
+    this.coverOverlay?.remove();
+    this.coverOverlay = null;
+    this.header.unmount();
+    this.releaseGlobalHandlers();
+    this.releaseAuthSubscription();
+    this.isClosing = true;
+    this.state = null;
+    this.formDraft = null;
+    root.classList.add('astra-modal-overlay--closing');
+    root.classList.remove('astra-modal-overlay--open');
     const timer = setTimeout(() => {
-      this.closingTimers.delete(root); root.remove();
+      this.closingTimers.delete(root);
+      root.remove();
       if (this.overlay !== root) return;
-      this.overlay = null; this.isClosing = false; this.restoreHostState(root);
+      this.overlay = null;
+      this.isClosing = false;
+      this.restoreHostState(root);
       if (reload && version === this.openVersion) {
-        try { assertApiContext(this.api, context); this.reloadHost(); } catch { /* Session moved on; no stale reload. */ }
+        try {
+          assertApiContext(this.api, context);
+          this.reloadHost();
+        } catch {
+          /* Session moved on; no stale reload. */
+        }
       }
     }, 350);
     this.closingTimers.set(root, timer);
@@ -825,51 +1024,103 @@ export class AstraRatingModal {
     this.pendingOpen = null;
     const root = this.overlay ?? this.loadingOverlay;
     this.clearLoading();
-    this.viewScope?.release(); this.viewScope = null;
-    this.releaseGlobalHandlers(); this.releaseAuthSubscription(); this.header.unmount();
-    this.coverOverlay?.remove(); this.coverOverlay = null;
-    for (const [closingRoot, timer] of this.closingTimers) { clearTimeout(timer); closingRoot.remove(); }
-    this.closingTimers.clear(); root?.remove();
-    this.overlay = null; this.state = null; this.formDraft = null; this.media = null; this.initialSeasonNotes = []; this.initialReportSnapshot = '';
-    this.isClosing = false; this.closeInFlight = null; this.deletingEntry = false;
+    this.viewScope?.release();
+    this.viewScope = null;
+    this.releaseGlobalHandlers();
+    this.releaseAuthSubscription();
+    this.header.unmount();
+    this.coverOverlay?.remove();
+    this.coverOverlay = null;
+    for (const [closingRoot, timer] of this.closingTimers) {
+      clearTimeout(timer);
+      closingRoot.remove();
+    }
+    this.closingTimers.clear();
+    root?.remove();
+    this.overlay = null;
+    this.state = null;
+    this.formDraft = null;
+    this.media = null;
+    this.initialSeasonNotes = [];
+    this.initialReportSnapshot = '';
+    this.initialScoresSnapshot = '';
+    this.isClosing = false;
+    this.closeInFlight = null;
+    this.deletingEntry = false;
     this.restoreHostState(root);
   }
 
-  private reloadHost(): void { window.location.reload(); }
+  private reloadHost(): void {
+    window.location.reload();
+  }
 
   private restoreHostState(root: HTMLElement | null): void {
     this.overlayService.releaseScrollLock('rating-modal');
-    if (this.opener?.isConnected && (document.activeElement === document.body || (root && root.contains(document.activeElement)))) {
+    if (
+      this.opener?.isConnected &&
+      (document.activeElement === document.body || (root && root.contains(document.activeElement)))
+    ) {
       this.opener.focus({ preventScroll: true });
     }
     this.opener = null;
   }
 
   private ensureAuthSubscription(): void {
-    this.authSubscription ??= this.eventBus.on?.(EVENT_TYPES.AUTH_STATE_CHANGED, () => this.dispose()) ?? null;
-    this.navigationSubscription ??= this.eventBus.on?.(EVENT_TYPES.PAGE_CHANGED, () => this.handleNavigation()) ?? null;
+    this.authSubscription ??=
+      this.eventBus.on?.(EVENT_TYPES.AUTH_STATE_CHANGED, () => this.dispose()) ?? null;
+    this.navigationSubscription ??=
+      this.eventBus.on?.(EVENT_TYPES.PAGE_CHANGED, () => this.handleNavigation()) ?? null;
   }
   /** Navigation keeps the account, so an open form closes through the auto-saving path; a changed account discards it. */
   private handleNavigation(): void {
-    if (!this.overlay) { this.dispose(); return; }
-    try { assertApiContext(this.api, this.viewContext); }
-    catch { this.dispose(); return; }
-    void this.close().catch((error: unknown) => logger.error('[AstraRatingModal] Auto-save on navigation failed', error));
+    if (!this.overlay) {
+      this.dispose();
+      return;
+    }
+    try {
+      assertApiContext(this.api, this.viewContext);
+    } catch {
+      this.dispose();
+      return;
+    }
+    void this.close().catch((error: unknown) =>
+      logger.error('[AstraRatingModal] Auto-save on navigation failed', error)
+    );
   }
   private releaseAuthSubscription(): void {
-    this.authSubscription?.unsubscribe(); this.authSubscription = null;
-    this.navigationSubscription?.unsubscribe(); this.navigationSubscription = null;
+    this.authSubscription?.unsubscribe();
+    this.authSubscription = null;
+    this.navigationSubscription?.unsubscribe();
+    this.navigationSubscription = null;
   }
 
-  private matchesView(scope: AstraRatingViewScope, state: AstraRatingState, context: ApiContext | undefined): boolean {
-    if (this.viewScope !== scope || this.state !== state || this.overlay !== scope.root || this.isClosing) return false;
-    try { assertApiContext(this.api, context, state.data.ownerId); return true; }
-    catch { this.dispose(); return false; }
+  private matchesView(
+    scope: AstraRatingViewScope,
+    state: AstraRatingState,
+    context: ApiContext | undefined
+  ): boolean {
+    if (
+      this.viewScope !== scope ||
+      this.state !== state ||
+      this.overlay !== scope.root ||
+      this.isClosing
+    )
+      return false;
+    try {
+      assertApiContext(this.api, context, state.data.ownerId);
+      return true;
+    } catch {
+      this.dispose();
+      return false;
+    }
   }
 
-  private listen<K extends keyof HTMLElementEventMap>(target: EventTarget | null | undefined, type: K,
-    callback: (event: HTMLElementEventMap[K]) => unknown): void {
-    this.viewScope?.listen(target, type, event => {
+  private listen<K extends keyof HTMLElementEventMap>(
+    target: EventTarget | null | undefined,
+    type: K,
+    callback: (event: HTMLElementEventMap[K]) => unknown
+  ): void {
+    this.viewScope?.listen(target, type, (event) => {
       if (!this.deletingEntry) return callback(event);
       return undefined;
     });
@@ -877,21 +1128,32 @@ export class AstraRatingModal {
 
   private frame(callback: FrameRequestCallback): number {
     if (this.viewScope) return this.viewScope.frame(callback);
-    const root = this.overlay; const state = this.state;
-    return requestAnimationFrame(time => { if (root === this.overlay && state === this.state && !this.isClosing) callback(time); });
+    const root = this.overlay;
+    const state = this.state;
+    return requestAnimationFrame((time) => {
+      if (root === this.overlay && state === this.state && !this.isClosing) callback(time);
+    });
   }
 
   private async handleDocumentEscape(e: KeyboardEvent): Promise<void> {
     if (e.key === 'Escape') {
-      if (this.coverOverlay?.isConnected) { this.coverOverlay.remove(); this.coverOverlay = null; return; }
+      if (this.coverOverlay?.isConnected) {
+        this.coverOverlay.remove();
+        this.coverOverlay = null;
+        return;
+      }
       await this.close();
     }
   }
 
   private releaseGlobalHandlers(): void {
-    this.journalScope?.release(); this.journalScope = null;
+    this.journalScope?.release();
+    this.journalScope = null;
     window.removeEventListener('resize', this.resizeHandler);
-    if (this.livePreviewRaf !== null) { cancelAnimationFrame(this.livePreviewRaf); this.livePreviewRaf = null; }
+    if (this.livePreviewRaf !== null) {
+      cancelAnimationFrame(this.livePreviewRaf);
+      this.livePreviewRaf = null;
+    }
     if (this.documentEscHandler) {
       document.removeEventListener('keydown', this.documentEscHandler);
       this.documentEscHandler = null;
@@ -903,7 +1165,11 @@ export class AstraRatingModal {
   }
 
   private findScoreElement(selector: string, id: string): HTMLElement | null {
-    return [...this.overlay?.querySelectorAll<HTMLElement>(selector) ?? []].find(element => element.dataset.id === id) ?? null;
+    return (
+      [...(this.overlay?.querySelectorAll<HTMLElement>(selector) ?? [])].find(
+        (element) => element.dataset.id === id
+      ) ?? null
+    );
   }
 
   /**
@@ -917,13 +1183,29 @@ export class AstraRatingModal {
     const workspace = this.overlay.querySelector('.astra-rating-workspace');
     if (!workspace) return [];
 
-    return Array.from(workspace.querySelectorAll<HTMLElement>(selectors)).filter(element => {
-      if (element.matches('input[type="hidden"]') || element.closest('[hidden], [aria-hidden="true"], .astra-tab-content:not(.astra-tab-content--active)')) return false;
+    return Array.from(workspace.querySelectorAll<HTMLElement>(selectors)).filter((element) => {
+      if (
+        element.matches('input[type="hidden"]') ||
+        element.closest(
+          '[hidden], [aria-hidden="true"], .astra-tab-content:not(.astra-tab-content--active)'
+        )
+      )
+        return false;
       const menu = element.closest('.astra-dropdown-menu, .astra-ep-date-menu');
-      if (menu && !menu.closest('.astra-dropdown.active, .astra-ep-date-picker.active')) return false;
-      for (let current: HTMLElement | null = element; current && current !== this.overlay; current = current.parentElement) {
+      if (menu && !menu.closest('.astra-dropdown.active, .astra-ep-date-picker.active'))
+        return false;
+      for (
+        let current: HTMLElement | null = element;
+        current && current !== this.overlay;
+        current = current.parentElement
+      ) {
         const style = getComputedStyle(current);
-        if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+        if (
+          style.display === 'none' ||
+          style.visibility === 'hidden' ||
+          style.visibility === 'collapse'
+        )
+          return false;
       }
       return true;
     });
@@ -965,7 +1247,9 @@ export class AstraRatingModal {
     // Dashboard link
     const dashboardLink = this.overlay.querySelector('#astra-dashboard-link');
     this.listen(dashboardLink, 'click', async () => {
-      const root = this.overlay; const focusMediaId = this.media?.id; const context = this.viewContext;
+      const root = this.overlay;
+      const focusMediaId = this.media?.id;
+      const context = this.viewContext;
       await this.close({ suppressReload: true });
       if (this.overlay !== root || !this.isClosing) return;
       assertApiContext(this.api, context);
@@ -978,8 +1262,9 @@ export class AstraRatingModal {
     const repeatInput = this.overlay!.querySelector('#astra-repeat') as HTMLInputElement;
     const accordions = this.overlay!.querySelectorAll('.astra-accordion-toggle');
 
-    this.listen(this.overlay, 'click', event => {
-      if (event.target instanceof Element && event.target.closest('#astra-delete-entry')) return this.handleDeleteEntry();
+    this.listen(this.overlay, 'click', (event) => {
+      if (event.target instanceof Element && event.target.closest('#astra-delete-entry'))
+        return this.handleDeleteEntry();
       return undefined;
     });
 
@@ -990,18 +1275,19 @@ export class AstraRatingModal {
       });
     });
 
-    this.overlay!.querySelectorAll<HTMLButtonElement>('.astra-lode-btn').forEach(button => {
-      this.listen(button, 'click', event => {
+    this.overlay!.querySelectorAll<HTMLButtonElement>('.astra-lode-btn').forEach((button) => {
+      this.listen(button, 'click', (event) => {
         event.preventDefault();
         event.stopPropagation();
         this.toggleLode(button);
       });
     });
 
-
     // A text-selection drag that starts inside the form and ends on the backdrop must not dismiss it.
     let backdropPressed = false;
-    this.listen(this.overlay, 'mousedown', (e) => { backdropPressed = e.target === this.overlay; });
+    this.listen(this.overlay, 'mousedown', (e) => {
+      backdropPressed = e.target === this.overlay;
+    });
     this.listen(this.overlay, 'click', async (e) => {
       const pressedOnBackdrop = backdropPressed;
       backdropPressed = false;
@@ -1010,16 +1296,20 @@ export class AstraRatingModal {
 
     // ESC key to close modal (accessibility)
     this.documentEscHandler = (e: KeyboardEvent) => {
-      void this.handleDocumentEscape(e).catch((error: unknown) => logger.error('[AstraRatingModal] Escape key handling failed', error));
+      void this.handleDocumentEscape(e).catch((error: unknown) =>
+        logger.error('[AstraRatingModal] Escape key handling failed', error)
+      );
     };
     this.listen(document, 'keydown', this.documentEscHandler);
 
     // Global document click to close active dropdowns
     this.documentClickHandler = () => {
       if (this.overlay) {
-        this.overlay.querySelectorAll('.astra-dropdown.active, .astra-ep-date-picker.active').forEach((d) => {
-          d.classList.remove('active');
-        });
+        this.overlay
+          .querySelectorAll('.astra-dropdown.active, .astra-ep-date-picker.active')
+          .forEach((d) => {
+            d.classList.remove('active');
+          });
       }
     };
     this.listen(document, 'click', this.documentClickHandler);
@@ -1049,8 +1339,13 @@ export class AstraRatingModal {
         }
 
         this.activeTab = tab;
-        this.overlay!.querySelector('.astra-rating-workspace')?.classList.toggle('astra-rating-workspace--journal', tab === 'journal');
-        const customListPanel = this.overlay!.querySelector<HTMLElement>('#astra-custom-list-panel');
+        this.overlay!.querySelector('.astra-rating-workspace')?.classList.toggle(
+          'astra-rating-workspace--journal',
+          tab === 'journal'
+        );
+        const customListPanel = this.overlay!.querySelector<HTMLElement>(
+          '#astra-custom-list-panel'
+        );
         customListPanel?.setAttribute('aria-hidden', String(tab === 'journal'));
         customListPanel?.toggleAttribute('hidden', tab === 'journal');
         this.overlay!.querySelectorAll('.astra-nav-item').forEach((i) =>
@@ -1074,7 +1369,8 @@ export class AstraRatingModal {
     // textareas, progress & rewatches) are only read at save time, so without
     // this their changes wouldn't flip isDirty and wouldn't persist.
     const markDirty = (event: Event) => {
-      if (event.target instanceof HTMLElement && event.target.matches('[data-astra-journal-jump]')) return;
+      if (event.target instanceof HTMLElement && event.target.matches('[data-astra-journal-jump]'))
+        return;
       this.formEditVersion++;
       if (this.state) this.state.isDirty = true;
     };
@@ -1096,7 +1392,9 @@ export class AstraRatingModal {
         statusDropdown?.classList.add('active');
       }
     });
-    this.listen(statusDropdown?.querySelector('.astra-dropdown-menu'), 'click', (e) => e.stopPropagation());
+    this.listen(statusDropdown?.querySelector('.astra-dropdown-menu'), 'click', (e) =>
+      e.stopPropagation()
+    );
     statusDropdown?.querySelectorAll('.astra-status-option').forEach((opt) => {
       this.listen(opt, 'click', () => {
         const value = (opt as HTMLElement).dataset.value as MediaListStatus;
@@ -1203,7 +1501,10 @@ export class AstraRatingModal {
       finaleBtn.classList.toggle('active', newState);
       finaleBtn.textContent = newState ? 'Series Finale' : 'Season Finale';
       finaleBtn.setAttribute('aria-pressed', String(newState));
-      finaleBtn.setAttribute('aria-label', `${newState ? 'Series Finale' : 'Season Finale'}. Toggle between season and series finale.`);
+      finaleBtn.setAttribute(
+        'aria-label',
+        `${newState ? 'Series Finale' : 'Season Finale'}. Toggle between season and series finale.`
+      );
 
       // Reflect the new effective weight on the Finale section's weight tag.
       const settings = this.astraService.getSettings();
@@ -1214,7 +1515,10 @@ export class AstraRatingModal {
         const eff = newState
           ? finaleSection.weight * (settings.finaleWeightMultiplier || 2)
           : finaleSection.weight;
-        const tag = this.findScoreElement('.astra-score-group', finaleSection.id)?.querySelector<HTMLElement>('.astra-weight-tag');
+        const tag = this.findScoreElement(
+          '.astra-score-group',
+          finaleSection.id
+        )?.querySelector<HTMLElement>('.astra-weight-tag');
         if (tag) tag.textContent = `w${eff % 1 === 0 ? eff.toFixed(0) : eff.toFixed(1)}`;
       }
 
@@ -1229,9 +1533,12 @@ export class AstraRatingModal {
         if (!this.state) return;
         const field = (btn as HTMLElement).dataset.stepField;
         const step = parseInt((btn as HTMLElement).dataset.step || '0');
-        if (field === 'progress') this.captureEpisodeInputs(this.state.data.seasons[this.currentSeasonIdx]);
+        if (field === 'progress')
+          this.captureEpisodeInputs(this.state.data.seasons[this.currentSeasonIdx]);
         const input = field === 'progress' ? progressInput : repeatInput;
-        const lastValid = this.formDraft?.values[field === 'progress' ? 'progress' : 'repeat'] ?? (field === 'progress' ? this.initialProgress : 0);
+        const lastValid =
+          this.formDraft?.values[field === 'progress' ? 'progress' : 'repeat'] ??
+          (field === 'progress' ? this.initialProgress : 0);
         const newVal = steppedCount(input.value, lastValid, step);
         input.value = newVal.toString();
 
@@ -1252,14 +1559,21 @@ export class AstraRatingModal {
         }
       });
     });
-
   }
 
   private async handleDeleteEntry(): Promise<void> {
     if (!this.overlay || !this.state || !this.media || this.deletingEntry) return;
-    if (!window.confirm('Delete this entry from your AniList list and remove its Astra ratings and journal?')) return;
-    const root = this.overlay; const state = this.state; const scope = this.viewScope;
-    const context = this.viewContext; const mediaId = this.media.id;
+    if (
+      !window.confirm(
+        'Delete this entry from your AniList list and remove its Astra ratings and journal?'
+      )
+    )
+      return;
+    const root = this.overlay;
+    const state = this.state;
+    const scope = this.viewScope;
+    const context = this.viewContext;
+    const mediaId = this.media.id;
     const current = () => this.overlay === root && this.state === state && (!scope || scope.active);
     this.deletingEntry = true;
     root.inert = true;
@@ -1273,7 +1587,8 @@ export class AstraRatingModal {
       if (!current()) return;
       assertApiContext(this.api, context, state.data.ownerId);
       this.dispose();
-      if (result === 'queued') this.toast.info('Deletion queued. It will finish when AniList is available.');
+      if (result === 'queued')
+        this.toast.info('Deletion queued. It will finish when AniList is available.');
       else {
         this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId, timestamp: new Date() });
         this.reloadHost();
@@ -1284,7 +1599,10 @@ export class AstraRatingModal {
         this.toast.error('Unable to delete this entry. Your edits remain open; retry.');
       }
     } finally {
-      if (this.overlay === root) { root.inert = false; this.deletingEntry = false; }
+      if (this.overlay === root) {
+        root.inert = false;
+        this.deletingEntry = false;
+      }
     }
   }
 
@@ -1303,7 +1621,12 @@ export class AstraRatingModal {
     const saving = this.persistChanges();
     this.saveInFlight = saving;
     this.savingState = state;
-    const clear = () => { if (this.saveInFlight === saving) { this.saveInFlight = null; this.savingState = null; } };
+    const clear = () => {
+      if (this.saveInFlight === saving) {
+        this.saveInFlight = null;
+        this.savingState = null;
+      }
+    };
     void saving.then(clear, clear);
     return saving;
   }
@@ -1311,7 +1634,8 @@ export class AstraRatingModal {
   private async persistChanges(): Promise<void> {
     if (!this.state || !this.overlay) return;
 
-    const scope = this.viewScope; const context = this.viewContext;
+    const scope = this.viewScope;
+    const context = this.viewContext;
     if (scope && !scope.active) return;
     assertApiContext(this.api, context, this.state.data.ownerId);
 
@@ -1334,13 +1658,17 @@ export class AstraRatingModal {
       const originalWork = this.state.data;
       const originalSeason = originalWork.seasons[seasonIndex];
       const reportBaseline = this.initialReportSnapshot || this.reportContentSnapshot(originalWork);
+      const scoresBaseline = this.initialScoresSnapshot;
       const notesInput = this.overlay.querySelector<HTMLTextAreaElement>('#astra-general-notes');
       const notesValue = notesInput?.value ?? originalSeason?.notes ?? originalWork.notes ?? '';
-      const notesBaseline = this.initialSeasonNotes[seasonIndex] ?? originalSeason?.notes ?? originalWork.notes ?? '';
+      const notesBaseline =
+        this.initialSeasonNotes[seasonIndex] ?? originalSeason?.notes ?? originalWork.notes ?? '';
       const notesToSync = notesValue === notesBaseline ? undefined : notesValue;
       const values = this.captureFormInputs();
       const currentWork = this.state.data;
       const syncAstraNotes = this.reportContentSnapshot(currentWork) !== reportBaseline;
+      // Unchanged scores must not push a score derived from a local cache back to AniList.
+      const syncScore = this.scoresSnapshot(currentWork) !== scoresBaseline;
       const currentSeason = currentWork.seasons[this.currentSeasonIdx];
       const savedStatus = currentWork.status;
       const previousProgress = this.initialProgress;
@@ -1357,39 +1685,54 @@ export class AstraRatingModal {
       const draft = structuredClone(currentWork);
       let result;
       let unchanged = false;
-      try { result = await this.ratingService.saveAndSync(draft, {
-        overallScore: overall,
-        progress,
-        repeat,
-        private: privateEntry,
-        hidden,
-        startedAt,
-        completedAt,
-        customLists,
-        syncAstraNotes,
-        ...(notesToSync === undefined ? {} : { notes: notesToSync }),
-      }); } finally {
-        unchanged = JSON.stringify(currentWork) === snapshot && this.formEditVersion === editVersion;
+      try {
+        result = await this.ratingService.saveAndSync(draft, {
+          overallScore: overall,
+          progress,
+          repeat,
+          private: privateEntry,
+          hidden,
+          startedAt,
+          completedAt,
+          customLists,
+          syncAstraNotes,
+          syncScore,
+          ...(notesToSync === undefined ? {} : { notes: notesToSync }),
+        });
+      } finally {
+        unchanged =
+          JSON.stringify(currentWork) === snapshot && this.formEditVersion === editVersion;
         // A local commit may have succeeded even when remote synchronization
         // fails. Advance only concurrency metadata, preserving edits made while
         // the save was pending and keeping them dirty for the next save.
         if (this.state === state) {
           let belongs = true;
-          try { assertApiContext(this.api, context, draft.ownerId); } catch { belongs = false; }
-          if (belongs) { currentWork.updatedAt = draft.updatedAt; currentWork.ownerId = draft.ownerId; }
+          try {
+            assertApiContext(this.api, context, draft.ownerId);
+          } catch {
+            belongs = false;
+          }
+          if (belongs) {
+            currentWork.updatedAt = draft.updatedAt;
+            currentWork.ownerId = draft.ownerId;
+          }
         }
       }
       if (this.state !== state || (scope && !scope.active)) return;
       if (notesToSync !== undefined) this.initialSeasonNotes[seasonIndex] = notesToSync;
       this.initialReportSnapshot = this.reportContentSnapshot(draft);
+      this.initialScoresSnapshot = this.scoresSnapshot(draft);
       if (unchanged) state.resetDirty();
       this.reloadAfterClose = result === 'synced';
       if (result === 'queued') this.toast.info('Saved locally. AniList synchronization is queued.');
 
       // Recheck the view after the optional asynchronous owner lookup.
-      const userId = draft.ownerId ?? await this.api.getCurrentUserId().catch(() => 0);
+      const userId = draft.ownerId ?? (await this.api.getCurrentUserId().catch(() => 0));
       if (this.state !== state || (scope && !scope.active)) return;
-      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId: currentWork.mediaId, timestamp: new Date() });
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, {
+        mediaId: currentWork.mediaId,
+        timestamp: new Date(),
+      });
 
       logger.info('[AstraRatingModal] Emitting PROGRESS_UPDATED', {
         mediaId: currentWork.mediaId,
@@ -1423,11 +1766,19 @@ export class AstraRatingModal {
 
   private reportContentSnapshot(work: AstraWork): string {
     const season = work.seasons[work.seasons.length - 1];
-    return JSON.stringify(season ? {
-      scores: season.scores,
-      notes: season.notes ?? '',
-      episodeNotes: season.episodeNotes ?? {},
-    } : null);
+    return JSON.stringify(
+      season
+        ? {
+            scores: season.scores,
+            notes: season.notes ?? '',
+            episodeNotes: season.episodeNotes ?? {},
+          }
+        : null
+    );
+  }
+
+  private scoresSnapshot(work: AstraWork): string {
+    return JSON.stringify(work.seasons[work.seasons.length - 1]?.scores ?? {});
   }
 
   private captureFormInputs(): AstraRatingFormValues {
@@ -1440,7 +1791,8 @@ export class AstraRatingModal {
     const statusSelect = this.overlay.querySelector<HTMLInputElement>('#astra-status');
     const generalNotes = this.overlay.querySelector<HTMLTextAreaElement>('#astra-general-notes');
     // Update work status and general info
-    if (statusSelect?.value) this.state.updateField('status', statusSelect.value as MediaListStatus);
+    if (statusSelect?.value)
+      this.state.updateField('status', statusSelect.value as MediaListStatus);
     if (generalNotes)
       this.state.updateSeasonField(this.currentSeasonIdx, 'notes', generalNotes.value);
 
@@ -1472,7 +1824,9 @@ export class AstraRatingModal {
 
     // Only dates the user committed or cleared are written back. Untouched pickers keep auto-stamped history,
     // and committed dates apply to any episode, including aired episodes beyond the watched progress.
-    const epDates = this.overlay.querySelectorAll<HTMLElement>('.astra-ep-date-picker[data-edited="1"]');
+    const epDates = this.overlay.querySelectorAll<HTMLElement>(
+      '.astra-ep-date-picker[data-edited="1"]'
+    );
     epDates.forEach((picker) => {
       delete picker.dataset.edited;
       const epNum = parseInt(picker.dataset.ep || '0');
@@ -1489,8 +1843,13 @@ export class AstraRatingModal {
   }
 
   /** Section values shown on the radar: sub-sectioned sections use their computed average, never a stale stored parent. */
-  private radarScores(scores: Record<string, number | null>, sections: AstraSection[]): Record<string, number | null> {
-    return Object.fromEntries(sections.map((section) => [section.id, this.astraService.calcSectionScore(section, scores)]));
+  private radarScores(
+    scores: Record<string, number | null>,
+    sections: AstraSection[]
+  ): Record<string, number | null> {
+    return Object.fromEntries(
+      sections.map((section) => [section.id, this.astraService.calcSectionScore(section, scores)])
+    );
   }
 
   private formatDateForInput(date?: AniListDate | null): string {
@@ -1502,7 +1861,11 @@ export class AstraRatingModal {
     // An AniList fuzzy date the form cannot parse (e.g. 2023-02-30) shows as empty; the hidden input keeps the raw
     // value so an untouched date is not rewritten on save.
     let displayIso = iso;
-    try { parseRatingDate(iso); } catch { displayIso = ''; }
+    try {
+      parseRatingDate(iso);
+    } catch {
+      displayIso = '';
+    }
     const date = miniCalendarDateParts(displayIso);
     const display = formatDateDisplay(displayIso);
     return `
@@ -1560,11 +1923,12 @@ export class AstraRatingModal {
     if (!this.state) return;
     const season = this.state.data.seasons[this.currentSeasonIdx];
     if (capture) this.captureEpisodeInputs(season);
-    this.journalScope?.release(); this.journalScope = null;
+    this.journalScope?.release();
+    this.journalScope = null;
 
     const isManga = this.media.type === 'MANGA';
     const airedEpisodes = isManga
-      ? this.media.chapters ?? null
+      ? (this.media.chapters ?? null)
       : this.media.nextAiringEpisode
         ? this.media.nextAiringEpisode.episode - 1
         : this.media.status === 'FINISHED'
@@ -1585,7 +1949,11 @@ export class AstraRatingModal {
    * Summarizes calendar progress without implying that unreleased episodes are
    * available. The optional middle value is the number already aired.
    */
-  private formatProgressCounter(progress: number, airedEpisodes?: number | null, totalEpisodes?: number | null): string {
+  private formatProgressCounter(
+    progress: number,
+    airedEpisodes?: number | null,
+    totalEpisodes?: number | null
+  ): string {
     const watched = Math.max(0, progress || 0);
     const aired = Math.max(0, airedEpisodes || 0);
     const hasTotal = typeof totalEpisodes === 'number' && totalEpisodes > 0;
@@ -1604,25 +1972,30 @@ export class AstraRatingModal {
     total: number | null,
     notes: Record<number, AstraEpisodeNote>,
     airedCount: number | null,
-    unitLabel: 'EP' | 'CH' = 'EP'): string {
+    unitLabel: 'EP' | 'CH' = 'EP'
+  ): string {
     const page = journalPage(progress, total, notes, airedCount, this.journalPageIndex);
     this.journalPageIndex = page.pageIndex;
-    let html = page.pageCount > 1 ? `
+    let html =
+      page.pageCount > 1
+        ? `
       <div class="astra-journal-pagination">
         <button type="button" class="astra-btn" data-astra-journal-page="previous" ${page.pageIndex === 0 ? 'disabled' : ''}>Previous</button>
         <span aria-live="polite">${unitLabel} ${page.start}–${page.end} / ${page.count}</span>
         <button type="button" class="astra-btn" data-astra-journal-page="next" ${page.pageIndex + 1 >= page.pageCount ? 'disabled' : ''}>Next</button>
         <label>Go to ${unitLabel} <input type="number" min="1" max="${page.count}" step="1" data-astra-journal-jump value="${page.start}" aria-label="Go to ${unitLabel}"></label>
-      </div>` : '';
+      </div>`
+        : '';
 
     for (let i = page.start; page.count > 0 && i <= page.end; i++) {
       const note = notes[i]?.text || '';
       const timestamp = notes[i]?.timestamp;
       const hasAired = airedCount === null || i <= airedCount;
       const isNotAired = !hasAired;
-      const isUnlocked = isNotAired && (
-        this.unlockedNotAiredEpisodes.has(`${this.currentSeasonIdx}:${i}`) || note.trim().length > 0
-      );
+      const isUnlocked =
+        isNotAired &&
+        (this.unlockedNotAiredEpisodes.has(`${this.currentSeasonIdx}:${i}`) ||
+          note.trim().length > 0);
       const isLocked = isNotAired && !isUnlocked;
       const showDate = hasAired;
       const episodeDate = formatEpisodeDate(timestamp);
@@ -1640,19 +2013,23 @@ export class AstraRatingModal {
               <span class="astra-label-sm">${unitLabel}</span>
               <span class="astra-ep-digit">${i}</span>
             </div>
-            ${showDate ? `
+            ${
+              showDate
+                ? `
               <div class="astra-ep-date-picker${timestamp ? ' has-date' : ''}" data-ep="${i}" data-timestamp="${timestamp || ''}">
                 <button type="button" class="astra-ep-date-trigger" title="Edit watched date">
-                  ${timestamp ? "" : "<i class=\"fa-solid fa-calendar\"></i>"}
+                  ${timestamp ? '' : '<i class="fa-solid fa-calendar"></i>'}
                   <span class="astra-ep-date-values"><span class="astra-ep-date-day">${timestamp ? episodeDate : '-- / --'}</span>${timestamp ? `<span class="astra-ep-date-time">${episodeTime}</span>` : ''}</span>
                 </button>
                 <div class="astra-ep-date-menu"></div>
-              </div>` : ''}            ${isNotAired ? `<span class="astra-ep-badge astra-ep-badge--not-aired"${isUnlocked ? ` data-astra-tooltip="${escapeHtml(rowTooltip)}" role="note" aria-label="${escapeHtml(rowTooltip)}"` : ''}>N/A</span>` : ''}
+              </div>`
+                : ''
+            }            ${isNotAired ? `<span class="astra-ep-badge astra-ep-badge--not-aired"${isUnlocked ? ` data-astra-tooltip="${escapeHtml(rowTooltip)}" role="note" aria-label="${escapeHtml(rowTooltip)}"` : ''}>N/A</span>` : ''}
           </div>
           <div class="astra-ep-body">
             ${isLocked ? `<span class="astra-ep-lock-indicator" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span>` : ''}
             <textarea class="astra-ep-textarea" data-ep="${i}"
-              placeholder="${isNotAired ? isUnlocked ? `Notes for episode ${i} (not yet aired)...` : 'Episode not yet aired' : isLocked ? 'Watch this episode to add notes' : `Notes for episode ${i}...`}"
+              placeholder="${isNotAired ? (isUnlocked ? `Notes for episode ${i} (not yet aired)...` : 'Episode not yet aired') : isLocked ? 'Watch this episode to add notes' : `Notes for episode ${i}...`}"
               ${isLocked ? 'disabled' : ''}>${'\n'}${escapeHtml(note)}</textarea>
           </div>
         </div>
@@ -1662,25 +2039,32 @@ export class AstraRatingModal {
   }
 
   private bindEpisodeDatePickers(): void {
-    this.journalScope?.release(); this.journalScope = null;
+    this.journalScope?.release();
+    this.journalScope = null;
     const list = this.overlay?.querySelector<HTMLElement>('.astra-ep-list');
     const parent = this.viewScope;
     if (!list || !parent) return;
-    const scope = new AstraRatingViewScope(list, () => parent.active, error => {
-      logger.error('[AstraRatingModal] Journal action failed', error);
-      this.toast.error('The journal action failed. Your edits remain open; retry.');
-    });
+    const scope = new AstraRatingViewScope(
+      list,
+      () => parent.active,
+      (error) => {
+        logger.error('[AstraRatingModal] Journal action failed', error);
+        this.toast.error('The journal action failed. Your edits remain open; retry.');
+      }
+    );
     this.journalScope = scope;
-    list.querySelectorAll<HTMLButtonElement>('[data-astra-journal-page]').forEach(button => {
+    list.querySelectorAll<HTMLButtonElement>('[data-astra-journal-page]').forEach((button) => {
       scope.listen(button, 'click', () => {
         this.journalPageIndex += button.dataset.astraJournalPage === 'next' ? 1 : -1;
         this.renderEpisodeJournal();
-        const replacement = this.overlay?.querySelector<HTMLButtonElement>(`[data-astra-journal-page="${button.dataset.astraJournalPage}"]`);
+        const replacement = this.overlay?.querySelector<HTMLButtonElement>(
+          `[data-astra-journal-page="${button.dataset.astraJournalPage}"]`
+        );
         if (replacement && !replacement.disabled) replacement.focus();
         else this.overlay?.querySelector<HTMLElement>('[data-astra-journal-jump]')?.focus();
       });
     });
-    list.querySelectorAll<HTMLElement>('.astra-ep-row--not-aired').forEach(row => {
+    list.querySelectorAll<HTMLElement>('.astra-ep-row--not-aired').forEach((row) => {
       if (row.classList.contains('astra-ep-row--unlocked')) return;
       let tooltip = row.querySelector<HTMLElement>('.astra-journal-tooltip');
       if (!tooltip) {
@@ -1705,7 +2089,8 @@ export class AstraRatingModal {
         if (left + tooltipRect.width > rowRect.width - 8) left = pointerX - tooltipRect.width - gap;
         left = Math.max(8, Math.min(left, rowRect.width - tooltipRect.width - 8));
         let top = pointerY + gap;
-        if (top + tooltipRect.height > rowRect.height - 8) top = pointerY - tooltipRect.height - gap;
+        if (top + tooltipRect.height > rowRect.height - 8)
+          top = pointerY - tooltipRect.height - gap;
         top = Math.max(8, Math.min(top, rowRect.height - tooltipRect.height - 8));
         tooltip.style.left = `${left}px`;
         tooltip.style.top = `${top}px`;
@@ -1713,7 +2098,9 @@ export class AstraRatingModal {
       };
       scope.listen(row, 'pointerenter', moveTooltip);
       scope.listen(row, 'pointermove', moveTooltip);
-      scope.listen(row, 'pointerleave', () => tooltip?.classList.remove('astra-journal-tooltip--visible'));
+      scope.listen(row, 'pointerleave', () =>
+        tooltip?.classList.remove('astra-journal-tooltip--visible')
+      );
 
       let clickCount = 0;
       let lastClickAt = 0;
@@ -1730,7 +2117,8 @@ export class AstraRatingModal {
         row.classList.remove('astra-ep-row--locked');
         row.classList.add('astra-ep-row--unlocked');
         row.querySelector('.astra-ep-lock-indicator')?.remove();
-        row.dataset.astraTooltip = 'Not aired yet. Notes are unlocked; this episode remains marked N/A until your watched progress changes.';
+        row.dataset.astraTooltip =
+          'Not aired yet. Notes are unlocked; this episode remains marked N/A until your watched progress changes.';
         const badge = row.querySelector<HTMLElement>('.astra-ep-badge--not-aired');
         badge?.setAttribute('data-astra-tooltip', row.dataset.astraTooltip);
         badge?.setAttribute('aria-label', row.dataset.astraTooltip);
@@ -1750,13 +2138,14 @@ export class AstraRatingModal {
       if (!jump) return;
       const episode = Number(jump.value);
       if (!Number.isInteger(episode) || episode < 1 || episode > Number(jump.max)) {
-        jump.value = String(this.journalPageIndex * ASTRA_JOURNAL_PAGE_SIZE + 1); return;
+        jump.value = String(this.journalPageIndex * ASTRA_JOURNAL_PAGE_SIZE + 1);
+        return;
       }
       this.journalPageIndex = Math.floor((episode - 1) / ASTRA_JOURNAL_PAGE_SIZE);
       this.renderEpisodeJournal();
       this.overlay?.querySelector<HTMLElement>('[data-astra-journal-jump]')?.focus();
     });
-    list.querySelectorAll<HTMLElement>('.astra-ep-date-picker').forEach(picker => {
+    list.querySelectorAll<HTMLElement>('.astra-ep-date-picker').forEach((picker) => {
       bindEpisodeDatePicker(picker, scope, () => {
         this.formEditVersion++;
         if (this.state) this.state.isDirty = true;
@@ -1780,9 +2169,11 @@ export class AstraRatingModal {
     const season = this.state.data.seasons[this.currentSeasonIdx];
     this.state.setScore(this.currentSeasonIdx, id, value);
     if (value !== 10 && season) {
-      const parent = this.astraService.getSections().find(section =>
-        section.subSections?.some(sub => `${section.id}_${sub.id}` === id));
-      if (parent && season.scores[parent.id] === 11) this.state.setScore(this.currentSeasonIdx, parent.id, null);
+      const parent = this.astraService
+        .getSections()
+        .find((section) => section.subSections?.some((sub) => `${section.id}_${sub.id}` === id));
+      if (parent && season.scores[parent.id] === 11)
+        this.state.setScore(this.currentSeasonIdx, parent.id, null);
     }
     this.refreshLodeButtons(id);
   }
@@ -1795,7 +2186,7 @@ export class AstraRatingModal {
     if (!season || !id) return;
 
     if (kind === 'main') {
-      const section = this.astraService.getSections().find(item => item.id === id);
+      const section = this.astraService.getSections().find((item) => item.id === id);
       if (!section) return;
       if (season.scores[id] === 11) {
         this.state.setScore(this.currentSeasonIdx, id, section.subSections?.length ? null : 10);
@@ -1812,7 +2203,10 @@ export class AstraRatingModal {
     this.updateLivePreview();
   }
 
-  private isMainLodeEligible(section: AstraSection, scores: Record<string, number | null>): boolean {
+  private isMainLodeEligible(
+    section: AstraSection,
+    scores: Record<string, number | null>
+  ): boolean {
     const value = this.astraService.calcSectionScore(section, scores);
     return value !== null && value >= 10;
   }
@@ -1824,18 +2218,20 @@ export class AstraRatingModal {
     const sections = this.astraService.getSections();
     const relatedIds = changedId ? new Set([changedId]) : null;
     if (changedId) {
-      const parent = sections.find(section => section.subSections?.some(sub => `${section.id}_${sub.id}` === changedId));
+      const parent = sections.find((section) =>
+        section.subSections?.some((sub) => `${section.id}_${sub.id}` === changedId)
+      );
       if (parent) relatedIds!.add(parent.id);
     }
 
-    this.overlay.querySelectorAll<HTMLButtonElement>('.astra-lode-btn').forEach(button => {
+    this.overlay.querySelectorAll<HTMLButtonElement>('.astra-lode-btn').forEach((button) => {
       const id = button.dataset.lodeId;
       if (!id) return;
       if (relatedIds && !relatedIds.has(id)) return;
       const active = season.scores[id] === 11;
       let eligible = active;
       if (!active && button.dataset.lodeKind === 'main') {
-        const section = sections.find(item => item.id === id);
+        const section = sections.find((item) => item.id === id);
         eligible = !!section && this.isMainLodeEligible(section, season.scores);
       } else if (!active && button.dataset.lodeKind === 'sub') {
         eligible = (season.scores[id] ?? 0) >= 10;
@@ -1877,7 +2273,10 @@ export class AstraRatingModal {
       const val = this.astraService.calcSectionScore(s, season.scores);
 
       // Update group avg if exists
-      const groupAvg = this.findScoreElement('.astra-score-group', s.id)?.querySelector<HTMLElement>('.astra-group-avg');
+      const groupAvg = this.findScoreElement(
+        '.astra-score-group',
+        s.id
+      )?.querySelector<HTMLElement>('.astra-group-avg');
       if (groupAvg) {
         groupAvg.textContent = val === null || val === undefined ? '—' : val.toFixed(1);
         groupAvg.style.color = AstraRadarChart.getScoreColor(val);

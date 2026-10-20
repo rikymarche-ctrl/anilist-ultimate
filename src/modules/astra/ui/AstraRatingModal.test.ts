@@ -8,11 +8,18 @@ import { MediaListStatus } from '@/api/AnilistTypes';
 import type { AstraWork } from '../AstraInterfaces';
 import { ratingResponse } from '@/test/astra-rating-fixtures';
 import { ratingInitialResponse } from '../services/AstraRatingResponse';
+import { DEFAULT_SECTIONS, DEFAULT_SETTINGS } from '../utils/AstraConstants';
 import type { AstraService } from '../AstraService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import type { ToastService } from '@core/services/ToastService';
-import type { IAstraRatingService, AstraSaveOptions, AstraSaveResult, AstraRatingMedia, IRatingInitialData } from '../interfaces/IAstraRatingService';
+import type {
+  IAstraRatingService,
+  AstraSaveOptions,
+  AstraSaveResult,
+  AstraRatingMedia,
+  IRatingInitialData,
+} from '../interfaces/IAstraRatingService';
 
 /** Access only the controller seams exercised by these isolated persistence tests. */
 interface ModalTestAccess {
@@ -27,20 +34,53 @@ interface ModalTestAccess {
 const inspect = (modal: AstraRatingModal): ModalTestAccess => modal as unknown as ModalTestAccess;
 
 function setup() {
-  const astra = { calcSeasonScore: () => 8, getFullWork: vi.fn(async () => undefined), getWorks: () => [] };
+  const astra = {
+    calcSeasonScore: () => 8,
+    getFullWork: vi.fn(async () => undefined),
+    getWorks: () => [],
+  };
   const api = { getCurrentUserId: vi.fn(async () => 42) };
   const bus = { emit: vi.fn() };
   const toast = { error: vi.fn(), info: vi.fn() };
-  const rating = { saveAndSync: vi.fn(async (_work: AstraWork, _extra: AstraSaveOptions): Promise<AstraSaveResult> => 'synced'),
-    getMediaRatingData: vi.fn(async () => ratingInitialResponse(ratingResponse(), 1, 42)!) };
-  const modal = new AstraRatingModal(astra as unknown as AstraService, api as unknown as IApiClient, bus as unknown as IEventBus,
-    toast as unknown as ToastService, rating as unknown as IAstraRatingService, new AstraOverlayService());
-  const state = new AstraRatingState({ id: 'work_1', title: 'Synthetic work', type: 'anime', updatedAt: 100, mediaId: 1, status: MediaListStatus.COMPLETED, notes: '',
-    seasons: [{ id: 'season_1', name: 'Season 1', scores: {}, notes: 'New note', episodeNotes: { 3: { text: 'Watched', score: 9, timestamp: 123 } } }],
-    tags: [], customLists: [], progress: 2 });
+  const rating = {
+    saveAndSync: vi.fn(
+      async (_work: AstraWork, _extra: AstraSaveOptions): Promise<AstraSaveResult> => 'synced'
+    ),
+    getMediaRatingData: vi.fn(async () => ratingInitialResponse(ratingResponse(), 1, 42)!),
+  };
+  const modal = new AstraRatingModal(
+    astra as unknown as AstraService,
+    api as unknown as IApiClient,
+    bus as unknown as IEventBus,
+    toast as unknown as ToastService,
+    rating as unknown as IAstraRatingService,
+    new AstraOverlayService()
+  );
+  const state = new AstraRatingState({
+    id: 'work_1',
+    title: 'Synthetic work',
+    type: 'anime',
+    updatedAt: 100,
+    mediaId: 1,
+    status: MediaListStatus.COMPLETED,
+    notes: '',
+    seasons: [
+      {
+        id: 'season_1',
+        name: 'Season 1',
+        scores: {},
+        notes: 'New note',
+        episodeNotes: { 3: { text: 'Watched', score: 9, timestamp: 123 } },
+      },
+    ],
+    tags: [],
+    customLists: [],
+    progress: 2,
+  });
   state.isDirty = true;
   const overlay = document.createElement('div');
-  overlay.innerHTML = '<input id="astra-progress" value="2"><textarea id="astra-general-notes">New note</textarea><div class="astra-ep-date-picker" data-ep="3" data-timestamp="0"></div>';
+  overlay.innerHTML =
+    '<input id="astra-progress" value="2"><textarea id="astra-general-notes">New note</textarea><div class="astra-ep-date-picker" data-ep="3" data-timestamp="0"></div>';
   document.body.appendChild(overlay);
   Object.assign(modal, { overlay, state, initialProgress: 1 });
   return { modal, state, overlay, rating, toast, api };
@@ -54,7 +94,10 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
     // Constructor resize callbacks are irrelevant to these isolated save tests.
     vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
   });
-  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it('keeps the modal and unsaved edits open when persistence fails', async () => {
     const { modal, state, overlay, rating, toast } = setup();
@@ -69,7 +112,11 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
   it('uses durable sync and retains watch history when progress is reduced', async () => {
     const { modal, state, rating } = setup();
     await inspect(modal).save();
-    expect(rating.saveAndSync.mock.calls[0][0].seasons[0].episodeNotes![3]).toEqual({ text: 'Watched', score: 9, timestamp: 123 });
+    expect(rating.saveAndSync.mock.calls[0][0].seasons[0].episodeNotes![3]).toEqual({
+      text: 'Watched',
+      score: 9,
+      timestamp: 123,
+    });
     expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ progress: 2, overallScore: 8 });
     expect(rating.saveAndSync.mock.calls[0][1]).not.toHaveProperty('notes');
     expect(state.isDirty).toBe(false);
@@ -87,7 +134,11 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
   it('shares an in-flight save and retains edits made during that save', async () => {
     const { modal, state, rating } = setup();
     let complete!: (result: AstraSaveResult) => void;
-    rating.saveAndSync.mockReturnValue(new Promise<AstraSaveResult>(resolve => { complete = resolve; }));
+    rating.saveAndSync.mockReturnValue(
+      new Promise<AstraSaveResult>((resolve) => {
+        complete = resolve;
+      })
+    );
     const first = inspect(modal).save();
     const second = inspect(modal).save();
     state.updateSeasonField(0, 'notes', 'Edited during save');
@@ -101,7 +152,11 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
   it('waits for an in-flight save before closing', async () => {
     const { modal, overlay, rating } = setup();
     let complete!: (result: AstraSaveResult) => void;
-    rating.saveAndSync.mockReturnValue(new Promise<AstraSaveResult>(resolve => { complete = resolve; }));
+    rating.saveAndSync.mockReturnValue(
+      new Promise<AstraSaveResult>((resolve) => {
+        complete = resolve;
+      })
+    );
     const saving = inspect(modal).save();
     const closing = modal.close();
     expect(overlay.classList.contains('astra-modal-overlay--closing')).toBe(false);
@@ -138,7 +193,10 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
   });
   it('uses the committed draft version for subsequent saves, including a failed remote sync', async () => {
     const { modal, state, rating } = setup();
-    rating.saveAndSync.mockImplementationOnce(async draft => { draft.updatedAt = 200; throw new Error('Queue write failed'); });
+    rating.saveAndSync.mockImplementationOnce(async (draft) => {
+      draft.updatedAt = 200;
+      throw new Error('Queue write failed');
+    });
     await expect(inspect(modal).save()).rejects.toThrow('Queue write failed');
     expect(state.data.updatedAt).toBe(200);
     expect(state.isDirty).toBe(true);
@@ -147,18 +205,27 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
   });
   it('binds a new work draft to its opening account and ignores a closed pending open', async () => {
     const { modal, api, rating } = setup();
-    Object.assign(api, { ensureContext: async () => ({ sessionId: 'one', userId: 1 }), getContext: () => ({ sessionId: 'one', userId: 1 }) });
+    Object.assign(api, {
+      ensureContext: async () => ({ sessionId: 'one', userId: 1 }),
+      getContext: () => ({ sessionId: 'one', userId: 1 }),
+    });
     const render = vi.spyOn(inspect(modal), 'render').mockImplementation(() => {});
     await modal.open(1);
     expect(inspect(modal).state.data.ownerId).toBe(1);
     let finish!: (value: IRatingInitialData) => void;
     const data = await rating.getMediaRatingData();
-    rating.getMediaRatingData.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    rating.getMediaRatingData.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
     const opening = modal.open(2);
     for (let i = 0; i < 6; i++) await Promise.resolve();
     Object.assign(modal, { overlay: null });
     await modal.close();
-    finish(data); await opening;
+    finish(data);
+    await opening;
     expect(render).toHaveBeenCalledTimes(1);
   });
 });
@@ -170,7 +237,10 @@ describe('AstraRatingModal quick-edit data protection', () => {
     document.body.innerHTML = '';
     vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
   });
-  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it('saves the previous progress instead of zero when the progress field is emptied', async () => {
     const { modal, overlay, rating } = setup();
@@ -196,7 +266,10 @@ describe('AstraRatingModal quick-edit data protection', () => {
 
   it('saves a date committed on an aired episode beyond the watched progress and clears its marker', async () => {
     const { modal, state, overlay } = setup();
-    overlay.insertAdjacentHTML('beforeend', '<div class="astra-ep-date-picker" data-ep="5" data-edited="1" data-timestamp="555"></div>');
+    overlay.insertAdjacentHTML(
+      'beforeend',
+      '<div class="astra-ep-date-picker" data-ep="5" data-edited="1" data-timestamp="555"></div>'
+    );
     await inspect(modal).save();
     expect(state.data.seasons[0].episodeNotes?.[5]?.timestamp).toBe(555);
     expect(overlay.querySelector('[data-ep="5"]')?.getAttribute('data-edited')).toBeNull();
@@ -216,7 +289,8 @@ describe('AstraRatingModal quick-edit data protection', () => {
   it('does not reload the host when closing hands off to the dashboard after a synced save', async () => {
     const { modal, state, overlay } = setup();
     const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
-    inspect(modal).reloadAfterClose = true; state.isDirty = false;
+    inspect(modal).reloadAfterClose = true;
+    state.isDirty = false;
     (overlay.querySelector('#astra-progress') as HTMLInputElement).value = '1';
     await modal.close({ suppressReload: true });
     await vi.advanceTimersByTimeAsync(400);
@@ -228,5 +302,84 @@ describe('AstraRatingModal quick-edit data protection', () => {
     const { modal } = setup();
     const html = inspect(modal).renderDateField('astra-start-date', 'START DATE', '2023-02-30');
     expect(html).toContain('id="astra-start-date" value="2023-02-30"');
+  });
+});
+
+describe('AstraRatingModal reconciliation with AniList on open', () => {
+  const REMOTE_NOTES = 'Story 8 | Characters 7.8';
+  beforeEach(() => {
+    vi.useFakeTimers();
+    chrome.runtime.id = 'test';
+    document.body.innerHTML = '';
+    vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('shows AniList notes, clears stale local scores, and saves without pushing an Astra score', async () => {
+    const existing: AstraWork = {
+      id: 'work_1',
+      mediaId: 1,
+      title: 'Test',
+      type: 'anime',
+      status: MediaListStatus.CURRENT,
+      customLists: [],
+      tags: [],
+      notes: '',
+      updatedAt: 100,
+      seasons: [{ id: 'season_1', name: 'Season 1', scores: { story: 8 }, notes: '' }],
+    };
+    const response = ratingResponse();
+    Object.assign(response.Media.mediaListEntry, { score: 0, notes: REMOTE_NOTES });
+    const astra = {
+      calcSeasonScore: () => 0,
+      calcSectionScore: () => null,
+      getFullWork: vi.fn(async () => structuredClone(existing)),
+      getWorks: () => [],
+      getSections: () => DEFAULT_SECTIONS,
+      getSettings: () => DEFAULT_SETTINGS,
+      saveWork: vi.fn(async (patch: Partial<AstraWork>) => ({
+        ...structuredClone(existing),
+        ...patch,
+      })),
+    };
+    const api = { getCurrentUserId: vi.fn(async () => 42) };
+    const bus = { emit: vi.fn() };
+    const toast = { error: vi.fn(), info: vi.fn() };
+    const rating = {
+      saveAndSync: vi.fn(
+        async (_work: AstraWork, _extra: AstraSaveOptions): Promise<AstraSaveResult> => 'synced'
+      ),
+      getMediaRatingData: vi.fn(async () => ratingInitialResponse(response, 1, 42)!),
+    };
+    const modal = new AstraRatingModal(
+      astra as unknown as AstraService,
+      api as unknown as IApiClient,
+      bus as unknown as IEventBus,
+      toast as unknown as ToastService,
+      rating as unknown as IAstraRatingService,
+      new AstraOverlayService()
+    );
+
+    await modal.open(1);
+
+    expect(document.querySelector<HTMLTextAreaElement>('#astra-general-notes')!.value).toContain(
+      REMOTE_NOTES
+    );
+    expect(astra.saveWork).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaId: 1,
+        notes: REMOTE_NOTES,
+        seasons: [expect.objectContaining({ scores: {}, notes: REMOTE_NOTES })],
+      }),
+      true
+    );
+
+    inspect(modal).state.isDirty = true;
+    await inspect(modal).save();
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ syncScore: false });
+    expect(rating.saveAndSync.mock.calls[0][1]).not.toHaveProperty('notes');
   });
 });

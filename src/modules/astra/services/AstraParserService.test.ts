@@ -45,16 +45,18 @@ describe('AstraParserService — serialize/parse round-trip', () => {
   });
 
   it('formats calculated review scores to one decimal place', () => {
-    const sound: AstraSection[] = [{
-      id: 'sound',
-      name: 'Sound',
-      weight: 1,
-      subSections: [
-        { id: 'intro', name: 'Intro', weight: 1 },
-        { id: 'outro', name: 'Outro', weight: 1 },
-        { id: 'all', name: 'All', weight: 1 },
-      ],
-    }];
+    const sound: AstraSection[] = [
+      {
+        id: 'sound',
+        name: 'Sound',
+        weight: 1,
+        subSections: [
+          { id: 'intro', name: 'Intro', weight: 1 },
+          { id: 'outro', name: 'Outro', weight: 1 },
+          { id: 'all', name: 'All', weight: 1 },
+        ],
+      },
+    ];
     const work = makeWork({ scores: { sound_intro: 4.9, sound_outro: 4, sound_all: 4.4 } });
 
     const text = parser.serialize(work, sound);
@@ -88,16 +90,24 @@ describe('AstraParserService — serialize/parse round-trip', () => {
   });
 
   it('round-trips multiline prose without interpreting its labels as scores or other episodes', () => {
-    const journal = 'First line\n\nNOTES:\nEp 99: just a quotation\n  indentation\n-----\nLast line';
+    const journal =
+      'First line\n\nNOTES:\nEp 99: just a quotation\n  indentation\n-----\nLast line';
     const review = 'My review\nJOURNAL:\nRating: quoted text\n\nEnd';
-    const original = makeWork({ notes: review, episodeNotes: { 1: { text: journal, score: 9, timestamp: 123 } } });
+    const original = makeWork({
+      notes: review,
+      episodeNotes: { 1: { text: journal, score: 9, timestamp: 123 } },
+    });
     const parsed = parser.parse(parser.serialize(original, sections), sections)!;
     expect(parsed.journal).toEqual({ 1: journal });
     expect(parsed.ratingNotes).toBe(review);
     const restored = makeWork({ episodeNotes: { 1: { text: '', score: 9, timestamp: 123 } } });
     parser.merge(restored, parsed);
     expect(restored.seasons[0].notes).toBe(review);
-    expect(restored.seasons[0].episodeNotes![1]).toEqual({ text: journal, score: 9, timestamp: 123 });
+    expect(restored.seasons[0].episodeNotes![1]).toEqual({
+      text: journal,
+      score: 9,
+      timestamp: 123,
+    });
   });
 
   it('does not absorb personal surrounding text into the managed review across repeated pull/push cycles', () => {
@@ -148,7 +158,11 @@ describe('AstraParserService — decompose / inject preserve user text', () => {
 
   it('does not move or remove personal prose that happens to contain the local review', () => {
     const personal = 'Before Great show After\nGreat show\n';
-    expect(parser.inject(personal, makeWork({ notes: 'Great show' }), sections, true).startsWith(personal)).toBe(true);
+    expect(
+      parser
+        .inject(personal, makeWork({ notes: 'Great show' }), sections, true)
+        .startsWith(personal)
+    ).toBe(true);
   });
 
   it.each([
@@ -157,8 +171,10 @@ describe('AstraParserService — decompose / inject preserve user text', () => {
     ASTRA_MARKERS.HEADER + '\n' + ASTRA_MARKERS.FOOTER + '\n' + ASTRA_MARKERS.FOOTER,
     ASTRA_MARKERS.FOOTER + '\n' + ASTRA_MARKERS.HEADER,
     '--- [ ASTRA REVIEW ] ---\nUnknown historical format\n-----',
-  ])('refuses an incomplete, duplicated or unrecognized managed block: %s', original => {
-    expect(() => parser.inject(original, makeWork({ scores: { art: 8 } }), sections)).toThrow(/boundary|boundaries|block/);
+  ])('refuses an incomplete, duplicated or unrecognized managed block: %s', (original) => {
+    expect(() => parser.inject(original, makeWork({ scores: { art: 8 } }), sections)).toThrow(
+      /boundary|boundaries|block/
+    );
   });
 
   it('does not erase a remote block when the local work has no report data', () => {
@@ -166,10 +182,21 @@ describe('AstraParserService — decompose / inject preserve user text', () => {
     expect(parser.inject(original, makeWork(), sections)).toBe(original);
   });
 
-  it.each([ASTRA_MARKERS.HEADER, ASTRA_MARKERS.FOOTER])('rejects marker injection from a review or Journal: %s', marker => {
-    expect(() => parser.inject('Personal', makeWork({ notes: `Text\n${marker}\nTail` }), sections)).toThrow(/reserved/);
-    expect(() => parser.inject('Personal', makeWork({ episodeNotes: { 1: { text: `Text\n${marker}\nTail` } } }), sections)).toThrow(/reserved/);
-  });
+  it.each([ASTRA_MARKERS.HEADER, ASTRA_MARKERS.FOOTER])(
+    'rejects marker injection from a review or Journal: %s',
+    (marker) => {
+      expect(() =>
+        parser.inject('Personal', makeWork({ notes: `Text\n${marker}\nTail` }), sections)
+      ).toThrow(/reserved/);
+      expect(() =>
+        parser.inject(
+          'Personal',
+          makeWork({ episodeNotes: { 1: { text: `Text\n${marker}\nTail` } } }),
+          sections
+        )
+      ).toThrow(/reserved/);
+    }
+  );
 
   it('refuses an oversized result without truncating any personal text', () => {
     const report = makeWork({ notes: 'Report' });
@@ -205,6 +232,16 @@ describe('AstraParserService — decompose / inject preserve user text', () => {
     const reparsed = parser.parse(injected, sections);
     expect(reparsed!.sectionScores.art).toBe(5);
   });
+
+  it('does not copy a plain note into the block when the note already stays above it', () => {
+    const note = 'Story 8 | Characters 7.8';
+    const work = makeWork({ scores: { art: 8 }, notes: note });
+    const result = parser.inject(note, work, sections);
+    expect(result.split(note)).toHaveLength(2);
+    expect(result).toContain(ASTRA_MARKERS.HEADER);
+    expect(parser.parse(result, sections)!.sectionScores.art).toBe(8);
+    expect(work.seasons[0].notes).toBe(note);
+  });
 });
 
 describe('AstraParserService.merge', () => {
@@ -237,31 +274,56 @@ describe('AstraParserService.merge', () => {
   });
 
   it('preserves local episode scores and timestamps when replacing synced text', () => {
-    const work = makeWork({ notes: '', episodeNotes: { 1: { text: 'Old', score: 8, timestamp: 123 } } });
-    parser.merge(work, { sectionScores: {}, subSectionScores: {}, journal: { 1: 'New' }, cleanText: '' });
+    const work = makeWork({
+      notes: '',
+      episodeNotes: { 1: { text: 'Old', score: 8, timestamp: 123 } },
+    });
+    parser.merge(work, {
+      sectionScores: {},
+      subSectionScores: {},
+      journal: { 1: 'New' },
+      cleanText: '',
+    });
     expect(work.seasons[0].episodeNotes![1]).toEqual({ text: 'New', score: 8, timestamp: 123 });
   });
 
   it('keeps local journal entries that the remote text omits, never deleting or blanking them', () => {
-    const work = makeWork({ notes: '', episodeNotes: { 1: { text: 'Old', score: 8, timestamp: 123 }, 2: { text: 'Remove' } } });
-    expect(parser.merge(work, { sectionScores: {}, subSectionScores: {}, journal: {}, cleanText: '' })).toBe(false);
-    expect(work.seasons[0].episodeNotes).toEqual({ 1: { text: 'Old', score: 8, timestamp: 123 }, 2: { text: 'Remove' } });
+    const work = makeWork({
+      notes: '',
+      episodeNotes: { 1: { text: 'Old', score: 8, timestamp: 123 }, 2: { text: 'Remove' } },
+    });
+    expect(
+      parser.merge(work, { sectionScores: {}, subSectionScores: {}, journal: {}, cleanText: '' })
+    ).toBe(false);
+    expect(work.seasons[0].episodeNotes).toEqual({
+      1: { text: 'Old', score: 8, timestamp: 123 },
+      2: { text: 'Remove' },
+    });
   });
 
   it('derives a sectioned score from its sub-scores, ignoring a stale parent value unless it is the lode', () => {
-    expect(parser.serialize(makeWork({ scores: { story: 3, story_pacing: 7 } }), sections)).toContain('• Story: 7/10');
-    expect(parser.serialize(makeWork({ scores: { story: 11, story_pacing: 7 } }), sections)).toContain('• Story: 11/10');
+    expect(
+      parser.serialize(makeWork({ scores: { story: 3, story_pacing: 7 } }), sections)
+    ).toContain('• Story: 7/10');
+    expect(
+      parser.serialize(makeWork({ scores: { story: 11, story_pacing: 7 } }), sections)
+    ).toContain('• Story: 11/10');
   });
 
-  it.each([null, 0])('round-trips sub-section scores when the parent score is unset (%s)', parent => {
-    const work = makeWork({ scores: { story: parent, story_pacing: 7 } });
-    const parsed = parser.parse(parser.serialize(work, sections), sections);
-    expect(parsed?.subSectionScores.story_pacing).toBe(7);
-  });
+  it.each([null, 0])(
+    'round-trips sub-section scores when the parent score is unset (%s)',
+    (parent) => {
+      const work = makeWork({ scores: { story: parent, story_pacing: 7 } });
+      const parsed = parser.parse(parser.serialize(work, sections), sections);
+      expect(parsed?.subSectionScores.story_pacing).toBe(7);
+    }
+  );
 
   it('ignores an empty season list without mutating or crashing', () => {
     const work = makeWork();
     work.seasons = [];
-    expect(parser.merge(work, { sectionScores: {}, subSectionScores: {}, journal: {}, cleanText: '' })).toBe(false);
+    expect(
+      parser.merge(work, { sectionScores: {}, subSectionScores: {}, journal: {}, cleanText: '' })
+    ).toBe(false);
   });
 });

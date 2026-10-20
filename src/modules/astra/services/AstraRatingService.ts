@@ -9,7 +9,13 @@ import { TOKENS } from '@core/di/tokens';
 import { logger } from '@core/logger';
 import { AstraService } from '../AstraService';
 import type { AstraWork } from '../AstraInterfaces';
-import type { IAstraRatingService, IRatingInitialData, AstraSaveOptions, AstraSaveResult, AstraProgressResult } from '../interfaces/IAstraRatingService';
+import type {
+  IAstraRatingService,
+  IRatingInitialData,
+  AstraSaveOptions,
+  AstraSaveResult,
+  AstraProgressResult,
+} from '../interfaces/IAstraRatingService';
 import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ISyncQueueService } from '@core/interfaces/ISyncQueueService';
 import { ASTRA_RATING_QUERY } from '@/api/queries/astra-rating';
@@ -26,7 +32,9 @@ import { AstraSaveFailure, type AstraSaveStage } from './AstraSaveFailure';
  * Astra's lode value (11) is kept local and clamped to 10 for AniList.
  */
 export function anilistScore(overallScore: number): number | undefined {
-  return Number.isFinite(overallScore) && overallScore > 0 ? Math.round(Math.min(overallScore, 10) * 10) : undefined;
+  return Number.isFinite(overallScore) && overallScore > 0
+    ? Math.round(Math.min(overallScore, 10) * 10)
+    : undefined;
 }
 
 @injectable()
@@ -60,8 +68,19 @@ export class AstraRatingService implements IAstraRatingService {
         assertApiContext(this.api, context);
         if (before.revision !== after.revision) continue;
         if (result) {
-          result.pendingDeletion = after.entries.some(entry => entry.userId === userId
-            && entry.type === 'ASTRA_DELETE' && entry.payload.mediaId === mediaId);
+          result.pendingDeletion = after.entries.some(
+            (entry) =>
+              entry.userId === userId &&
+              entry.type === 'ASTRA_DELETE' &&
+              entry.payload.mediaId === mediaId
+          );
+          result.pendingReport = after.entries.some(
+            (entry) =>
+              entry.userId === userId &&
+              entry.type === 'ASTRA_SAVE' &&
+              entry.payload.mediaId === mediaId &&
+              (entry.payload.notes !== undefined || entry.payload.score !== undefined)
+          );
           const dates = queuedAstraDates(after.entries, mediaId, userId);
           const pendingListState = queuedAstraListState(after.entries, mediaId, userId);
           if (result.media.mediaListEntry) {
@@ -70,9 +89,12 @@ export class AstraRatingService implements IAstraRatingService {
             if (pendingListState.progress !== undefined) entry.progress = pendingListState.progress;
             if (pendingListState.repeat !== undefined) entry.repeat = pendingListState.repeat;
             if (pendingListState.private !== undefined) entry.private = pendingListState.private;
-            if (pendingListState.hidden !== undefined) entry.hiddenFromStatusLists = pendingListState.hidden;
+            if (pendingListState.hidden !== undefined)
+              entry.hiddenFromStatusLists = pendingListState.hidden;
             if (pendingListState.customLists !== undefined) {
-              entry.customLists = Object.fromEntries(pendingListState.customLists.map(name => [name, true]));
+              entry.customLists = Object.fromEntries(
+                pendingListState.customLists.map((name) => [name, true])
+              );
             }
             Object.assign(entry, dates);
           }
@@ -90,10 +112,7 @@ export class AstraRatingService implements IAstraRatingService {
     }
   }
 
-  public async updateProgress(
-    mediaId: number,
-    progress?: number
-  ): Promise<AstraProgressResult> {
+  public async updateProgress(mediaId: number, progress?: number): Promise<AstraProgressResult> {
     try {
       const context = await captureApiContext(this.api);
       const result = await this.syncQueue.updateProgress(mediaId, progress, context?.sessionId);
@@ -108,26 +127,31 @@ export class AstraRatingService implements IAstraRatingService {
   public async deleteEntry(mediaId: number): Promise<'synced' | 'queued'> {
     if (!isSyncId(mediaId)) throw new Error('Invalid AniList media ID');
     const context = await captureApiContext(this.api);
-    const userId = context?.userId ?? await this.api.getCurrentUserId();
+    const userId = context?.userId ?? (await this.api.getCurrentUserId());
     assertApiContext(this.api, context);
     if (!isSyncId(userId)) throw new Error('AniList authentication required');
-    await this.syncQueue.enqueue('ASTRA_DELETE', { mediaId }, ...(context ? [context.sessionId] : []));
+    await this.syncQueue.enqueue(
+      'ASTRA_DELETE',
+      { mediaId },
+      ...(context ? [context.sessionId] : [])
+    );
     await this.syncQueue.process();
     assertApiContext(this.api, context);
     const pending = await this.syncQueue.getQueue();
     assertApiContext(this.api, context);
-    return pending.some(item => item.userId === userId && item.type === 'ASTRA_DELETE'
-      && item.payload.mediaId === mediaId) ? 'queued' : 'synced';
+    return pending.some(
+      (item) =>
+        item.userId === userId && item.type === 'ASTRA_DELETE' && item.payload.mediaId === mediaId
+    )
+      ? 'queued'
+      : 'synced';
   }
 
   /**
    * Persists work locally and durably queues its AniList mutation before dispatch.
    * A failed network sync stays queued; storage failures reject the save.
    */
-  public async saveAndSync(
-    work: AstraWork,
-    extra: AstraSaveOptions
-  ): Promise<AstraSaveResult> {
+  public async saveAndSync(work: AstraWork, extra: AstraSaveOptions): Promise<AstraSaveResult> {
     logger.debug(`[AstraRatingService] Saving work ${work.mediaId}...`);
 
     let stage: AstraSaveStage = 'VALIDATE';
@@ -136,11 +160,18 @@ export class AstraRatingService implements IAstraRatingService {
       if (!isSyncId(work.mediaId)) {
         throw new Error('Invalid AniList media ID');
       }
-      if (!Number.isFinite(extra.overallScore) || extra.overallScore < 0 || extra.overallScore > 11) {
+      if (
+        !Number.isFinite(extra.overallScore) ||
+        extra.overallScore < 0 ||
+        extra.overallScore > 11
+      ) {
         throw new Error('Astra score must be between 0 and 11');
       }
       for (const value of [extra.progress, extra.repeat]) {
-        if (value !== undefined && (!Number.isSafeInteger(value) || value < 0 || value > 2147483647)) {
+        if (
+          value !== undefined &&
+          (!Number.isSafeInteger(value) || value < 0 || value > 2147483647)
+        ) {
           throw new Error('Progress and repeat must be non-negative GraphQL integers');
         }
       }
@@ -180,7 +211,9 @@ export class AstraRatingService implements IAstraRatingService {
         const currentData = await this.getMediaRatingData(work.mediaId);
         assertApiContext(this.api, context, saved.ownerId);
         if (!currentData) {
-          throw new Error('Unable to read AniList notes safely; local data was saved. Retry synchronization.');
+          throw new Error(
+            'Unable to read AniList notes safely; local data was saved. Retry synchronization.'
+          );
         }
         if (this.astraService.getSettings().appendAstraToComment) {
           const currentNotes = currentData.media.mediaListEntry?.notes ?? '';
@@ -194,7 +227,7 @@ export class AstraRatingService implements IAstraRatingService {
         }
       }
 
-      const remoteScore = anilistScore(extra.overallScore);
+      const remoteScore = extra.syncScore === false ? undefined : anilistScore(extra.overallScore);
       const payload = {
         mediaId: work.mediaId,
         status: work.status,
@@ -220,7 +253,9 @@ export class AstraRatingService implements IAstraRatingService {
       assertApiContext(this.api, context, saved.ownerId);
       stage = 'VERIFY';
       const pending = await this.syncQueue.getQueue();
-      if (pending.some(item => item.type === 'ASTRA_SAVE' && item.payload.mediaId === work.mediaId)) {
+      if (
+        pending.some((item) => item.type === 'ASTRA_SAVE' && item.payload.mediaId === work.mediaId)
+      ) {
         return 'queued';
       }
       logger.success(`[AstraRatingService] Sync completed for ${work.mediaId}`);

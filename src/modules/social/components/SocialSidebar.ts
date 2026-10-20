@@ -403,7 +403,13 @@ export class SocialSidebar extends BaseComponent {
     if (content) {
       this.addEventListener(content, 'scroll', () => {
         const distanceToBottom = content.scrollHeight - content.scrollTop - content.clientHeight;
-        if (distanceToBottom < 100 && this.hasNextPage && !this.isLoading && !this.loadFailed && this.currentMediaId) {
+        if (
+          distanceToBottom < 100 &&
+          this.hasNextPage &&
+          !this.isLoading &&
+          !this.loadFailed &&
+          this.currentMediaId
+        ) {
           void this.loadData(this.currentMediaId, this.currentPage + 1);
         }
       });
@@ -478,7 +484,8 @@ export class SocialSidebar extends BaseComponent {
       if (!menu) return;
       menu.replaceChildren();
       const listNames = Object.keys(this.customListService.getLists());
-      if (this.currentCustomList && !listNames.includes(this.currentCustomList)) this.leaveDeletedCustomList();
+      if (this.currentCustomList && !listNames.includes(this.currentCustomList))
+        this.leaveDeletedCustomList();
       if (listNames.length === 0) {
         menu.appendChild(
           html`<div class="au-dropdown-item au-dropdown-empty">
@@ -523,7 +530,10 @@ export class SocialSidebar extends BaseComponent {
       f.classList.toggle('active', f.dataset.type === this.currentFilter)
     );
     this.syncTabs();
-    if (this.currentMediaId) void this.loadData(this.currentMediaId, 1).catch((error: unknown) => logger.error('[SocialSidebar] Load failed', error));
+    if (this.currentMediaId)
+      void this.loadData(this.currentMediaId, 1).catch((error: unknown) =>
+        logger.error('[SocialSidebar] Load failed', error)
+      );
   }
 
   private setListsMenuOpen(open: boolean): void {
@@ -547,7 +557,10 @@ export class SocialSidebar extends BaseComponent {
     this.syncTabs();
     this.setListsMenuOpen(false);
 
-    if (this.currentMediaId) void this.loadData(this.currentMediaId, 1).catch((error: unknown) => logger.error('[SocialSidebar] Load failed', error));
+    if (this.currentMediaId)
+      void this.loadData(this.currentMediaId, 1).catch((error: unknown) =>
+        logger.error('[SocialSidebar] Load failed', error)
+      );
   }
 
   public open(
@@ -592,7 +605,9 @@ export class SocialSidebar extends BaseComponent {
     }
 
     this.refreshCustomLists();
-    void this.loadData(mediaId, 1).catch((error: unknown) => logger.error('[SocialSidebar] Load failed', error));
+    void this.loadData(mediaId, 1).catch((error: unknown) =>
+      logger.error('[SocialSidebar] Load failed', error)
+    );
   }
 
   public close(): void {
@@ -656,7 +671,10 @@ export class SocialSidebar extends BaseComponent {
     });
     this.syncTabs();
 
-    if (this.currentMediaId) void this.loadData(this.currentMediaId, 1).catch((error: unknown) => logger.error('[SocialSidebar] Load failed', error));
+    if (this.currentMediaId)
+      void this.loadData(this.currentMediaId, 1).catch((error: unknown) =>
+        logger.error('[SocialSidebar] Load failed', error)
+      );
   }
 
   /** Mirrors the active tab into ARIA state, the sliding indicator and the lists label. */
@@ -708,7 +726,10 @@ export class SocialSidebar extends BaseComponent {
     this.hasNextPage = true;
     this.syncStatusChips();
 
-    if (this.currentMediaId) void this.loadData(this.currentMediaId, 1).catch((error: unknown) => logger.error('[SocialSidebar] Load failed', error));
+    if (this.currentMediaId)
+      void this.loadData(this.currentMediaId, 1).catch((error: unknown) =>
+        logger.error('[SocialSidebar] Load failed', error)
+      );
   }
 
   private setSearchQuery(value: string): void {
@@ -850,7 +871,14 @@ export class SocialSidebar extends BaseComponent {
    * While a search is active, load ahead (bounded per session) when the rows leave the panel unfilled.
    */
   private loadMoreForSearchIfUnfilled(): void {
-    if (!this.searchQuery || !this.hasNextPage || this.isLoading || this.loadFailed || !this.currentMediaId) return;
+    if (
+      !this.searchQuery ||
+      !this.hasNextPage ||
+      this.isLoading ||
+      this.loadFailed ||
+      !this.currentMediaId
+    )
+      return;
     if (this.searchAutoloadPages >= MAX_SEARCH_AUTOLOAD_PAGES) return;
     const content = this.$('#au-social-content');
     if (!content || content.scrollHeight - content.clientHeight > UNFILLED_PANEL_PX) return;
