@@ -1,0 +1,155 @@
+/* ==========================================================================
+   Astra Wrapped — year-in-review components (people spotlights, taste, community)
+   Builds on astra-wrapped.css: same tokens, glass material and motion.
+   ========================================================================== */
+
+/* --- Shared grids and tiles ------------------------------------------------ */
+
+.aw-year-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+.aw-year-panel { min-width: 0; padding: 20px 22px; }
+.aw-year-panel .aw-genre-list { gap: 12px; }
+.aw-year-panel .aw-genre-list li { grid-template-columns: minmax(0, 110px) minmax(0, 1fr) auto; font-size: 14px; }
+
+.aw-year-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; }
+.aw-year-tile {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 18px 20px; border-radius: 20px;
+  border: 1px solid var(--aw-glass-border); background: var(--aw-glass);
+  backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+.aw-year-tile strong { font: 900 clamp(30px, 4cqi, 48px)/1 var(--aw-font); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.aw-year-tile span { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--aw-ink-2); }
+.aw-year-tile small { font-size: 12px; color: var(--aw-ink-3); }
+
+/* --- People ---------------------------------------------------------------- */
+
+.aw-portrait { border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2); }
+.aw-portrait img { object-position: center 20%; }
+.aw-portrait--xl { width: clamp(120px, 17cqi, 210px); aspect-ratio: 1; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 255, 255, 0.3), 0 0 90px color-mix(in srgb, var(--aw-c3) 70%, transparent); }
+.aw-portrait--xl.is-empty span { font-size: clamp(48px, 7cqi, 84px); }
+.aw-portrait--md { width: 64px; height: 64px; }
+.aw-portrait--sm { width: 44px; height: 44px; }
+.aw-portrait--sm.is-empty span { font-size: 16px; }
+
+/* Spotlight: the #1 person's hero (portrait or covers) with runners-up under it, and cards on the right. */
+.aw-spot-stage { position: relative; isolation: isolate; display: flex; flex-direction: column; gap: clamp(18px, 3cqi, 30px); min-width: 0; }
+.aw-spot-stage > :not(.aw-spot-ghost) { position: relative; z-index: 1; }
+/* Rank numeral sits beside the eyebrow, with enough contrast to read over liquid backgrounds. */
+.aw-spot-stage > .aw-spot-ghost { top: -0.14em; right: -1%; left: auto; transform: none; font-size: clamp(170px, 25cqi, 350px); -webkit-text-stroke: 4px rgba(255, 255, 255, 0.38); }
+.aw-spot-figure { font-style: normal; font-variant-numeric: tabular-nums; color: var(--aw-accent); }
+.aw-spot-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; gap: clamp(24px, 4cqi, 56px); }
+.aw-spot-main { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+.aw-spot-hero { position: relative; isolation: isolate; display: flex; align-items: center; gap: clamp(20px, 3cqi, 36px); min-width: 0; }
+.aw-spot-hero > :not(.aw-ghost-number) { position: relative; z-index: 1; }
+.aw-spot-art { flex: none; display: grid; place-items: center; }
+/* A studio's cover stack is its hero, so it stays visible where the taste rankings hide their collage. */
+.aw-spot-art .aw-collage { display: block; }
+.aw-spot-name { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.aw-spot-name .aw-panel-title { margin: 0; }
+.aw-spot-hero .aw-spot-title { font-size: clamp(28px, 3.4cqi, 48px); overflow-wrap: normal; -webkit-line-clamp: 2; outline: none; }
+.aw-spot-works { font-size: 13px; color: var(--aw-ink-3); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.aw-cast-stats { font-size: clamp(16px, 2cqi, 22px); font-weight: 700; color: var(--aw-ink-2); }
+.aw-cast-stats b { font-size: 1.5em; font-weight: 900; color: var(--aw-accent); }
+
+.aw-characters { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(12px, 1.6cqi, 20px); }
+.aw-character { display: flex; flex-direction: column; gap: 6px; min-width: 0; text-align: center; }
+.aw-cover--character { width: 100%; aspect-ratio: 3 / 4; border-radius: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.14); }
+.aw-cover--character img { object-position: center 15%; }
+.aw-character b { font-size: 14px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aw-character small { font-size: 12px; color: var(--aw-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.aw-people-row { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.aw-people-row li { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.aw-people-row span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.aw-people-row b { font-size: 14px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aw-people-row small { font-size: 12px; color: var(--aw-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Runners-up: round-ish buttons, portrait (or first cover) plus the rank tag and name. */
+.aw-spot-runners { gap: 12px 14px; }
+.aw-spot-runner {
+  display: flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; padding: 6px 16px 6px 6px;
+  border-radius: 999px; border: 1px solid var(--aw-glass-border); background: var(--aw-glass); color: inherit;
+  font: inherit; text-align: left; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.aw-spot-runner:hover { border-color: rgba(255, 255, 255, 0.55); background: rgba(255, 255, 255, 0.14); }
+.aw-spot-runner span { min-width: 0; }
+.aw-spot-runner .aw-spot-rank { font-size: 11px; font-weight: 900; letter-spacing: 0.14em; color: var(--aw-accent); font-variant-numeric: tabular-nums; }
+.aw-spot-runner b { max-width: 160px; }
+
+.aw-fan { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 22px; padding: 20px 22px; }
+.aw-fan > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.aw-fan > span .aw-panel-title { margin: 0; }
+.aw-fan > span b { font-size: 22px; font-weight: 900; }
+.aw-fan > span small { font-size: 13px; color: var(--aw-ink-2); }
+.aw-fan .aw-people-row { flex: 1; justify-content: flex-end; }
+
+/* --- Journey ---------------------------------------------------------------- */
+
+.aw-bookends { display: flex; align-items: center; gap: clamp(16px, 3cqi, 40px); }
+.aw-bookend { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1; }
+.aw-bookend figcaption { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.aw-bookend figcaption span { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: var(--aw-accent); }
+.aw-bookend figcaption b { font-size: clamp(15px, 1.8cqi, 20px); font-weight: 900; line-height: 1.25; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.aw-cover--bookend { width: clamp(80px, 10cqi, 120px); aspect-ratio: 2 / 3; border-radius: 14px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
+.aw-bookend:first-child .aw-cover--bookend { transform: rotate(-4deg); }
+.aw-bookend:last-child .aw-cover--bookend { transform: rotate(4deg); }
+.aw-bookend-arrow { order: 1; flex: none; font-size: 28px; color: var(--aw-accent); }
+.aw-bookend:last-child { order: 2; }
+
+/* --- Taste ------------------------------------------------------------------- */
+
+.aw-cloud { list-style: none; padding: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; max-width: 980px; }
+.aw-cloud li {
+  font: 900 calc(14px + var(--s, 0.5) * clamp(14px, 3.2cqi, 40px))/1.15 var(--aw-font); letter-spacing: -0.02em;
+  opacity: calc(0.45 + var(--s, 0.5) * 0.55);
+}
+.aw-cloud li.is-top { color: transparent; -webkit-background-clip: text; background-clip: text; background-image: linear-gradient(100deg, #ffffff, var(--aw-accent) 60%, var(--aw-accent-2)); }
+
+.aw-versus { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.aw-versus-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'title gap' 'bars bars'; gap: 6px 12px; }
+.aw-versus-title { grid-area: title; min-width: 0; font-size: 14px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aw-versus-row > b { grid-area: gap; font: 900 15px var(--aw-font); color: var(--aw-accent); font-variant-numeric: tabular-nums; }
+.aw-versus-bars { grid-area: bars; display: flex; flex-direction: column; gap: 4px; }
+.aw-versus-bars i { display: block; width: var(--w, 0%); height: 8px; border-radius: 8px; transform-origin: left; }
+.aw-versus-bars .is-you { background: linear-gradient(90deg, #ffffff, var(--aw-accent)); }
+.aw-versus-bars .is-them { background: rgba(255, 255, 255, 0.3); }
+
+.aw-pop-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.aw-pop-card { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 18px; padding: 20px; }
+.aw-cover--pop { grid-row: 1 / 4; width: clamp(72px, 9cqi, 110px); aspect-ratio: 2 / 3; border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); }
+.aw-pop-card .aw-panel-title { margin-bottom: 8px; }
+.aw-pop-card h4 { font-size: clamp(17px, 2cqi, 22px); font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+.aw-pop-card p { align-self: end; margin-top: 10px; font-size: 13px; color: var(--aw-ink-2); }
+.aw-pop-card p b { font-size: 20px; font-weight: 900; color: var(--aw-accent); }
+
+.aw-clock .aw-bars, .aw-eras .aw-bars { height: clamp(150px, 26vh, 260px); }
+.aw-clock .aw-bars--dense .aw-bar-col:nth-child(even) .aw-bar-label { visibility: visible; }
+
+/* --- Motion ---------------------------------------------------------------- */
+
+.aw-slide.is-active .aw-versus-bars i { animation: aw-meter 1s var(--aw-ease) both; animation-delay: calc(0.45s + var(--i, 0) * 90ms); }
+.aw-story--static .aw-slide .aw-versus-bars i { animation: none; }
+
+/* A spotlight's contents are re-rendered on every runner swap: each part fades and lifts in. */
+.aw-slide.is-active .aw-spot-stage > * { animation: aw-spot-in 0.6s var(--aw-ease) both; }
+.aw-slide.is-active .aw-spot-stage > .aw-note { animation-delay: 0.12s; }
+.aw-story--static .aw-slide .aw-spot-stage > * { animation: none; }
+@keyframes aw-spot-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .aw-spot-stage > * { animation: none; }
+}
+
+/* --- Narrow layouts ---------------------------------------------------------- */
+
+@container aw-shell (max-width: 900px) {
+  .aw-spot-layout { grid-template-columns: minmax(0, 1fr); }
+  .aw-characters { max-width: 560px; }
+}
+
+@container aw-shell (max-width: 760px) {
+  .aw-spot-stage > .aw-spot-ghost { display: none; }
+  .aw-spot-hero { flex-direction: column; align-items: flex-start; }
+  .aw-pop-duo { grid-template-columns: minmax(0, 1fr); }
+  .aw-bookends { flex-direction: column; align-items: stretch; }
+  .aw-bookend-arrow { order: 1; transform: rotate(90deg); align-self: center; }
+  .aw-fan .aw-people-row { justify-content: flex-start; }
+}

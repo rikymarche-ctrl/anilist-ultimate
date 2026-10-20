@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090e18" />
+    <title>AniList Ultimate</title>
+    <link rel="stylesheet" href="src/popup/popup.css" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <header class="main-header">
+        <div class="brand-mark"><img src="icons/ultimate-mark.png" alt="AniList Ultimate" /></div>
+        <div class="header-info">
+          <div class="title-row">
+            <h1 class="main-title">AniList Ultimate</h1>
+            <span class="version-label" id="app-version">1.0.1</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <section class="auth-card" id="auth-card" aria-label="AniList account">
+          <div class="user-info hidden" id="user-info">
+            <div class="account-copy">
+              <span class="account-label">Connected account</span>
+              <strong class="user-name" id="user-name">AniList user</strong>
+            </div>
+            <button class="btn btn-danger" id="logout-btn" type="button">
+              <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+              <span>Log out</span>
+            </button>
+          </div>
+
+          <div class="auth-actions" id="login-container">
+            <p class="auth-prompt">Connect your AniList account to get started.</p>
+            <button class="btn btn-primary" id="login-btn" type="button">
+              <i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i>
+              <span>Continue with AniList</span>
+            </button>
+          </div>
+        </section>
+
+        <nav class="action-grid" aria-label="Quick links">
+          <a href="https://anilist.co" class="btn btn-primary action-open" target="_blank" rel="noreferrer">
+            <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+            <span>Open AniList</span>
+            <i class="fa-solid fa-arrow-right action-arrow" aria-hidden="true"></i>
+          </a>
+          <button class="btn btn-secondary" id="settings-btn" type="button">
+            <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+      </main>
+
+      <footer class="main-footer">
+        <span>Updates:</span>
+        <a href="https://chromewebstore.google.com/detail/anilist-ultimate/gogibdaaglfefnemakliohebmcjfdddo" target="_blank" rel="noreferrer">Chrome Web Store</a>
+        <span aria-hidden="true">·</span>
+        <a href="https://github.com/rikymarche-ctrl/anilist-ultimate" target="_blank" rel="noreferrer">GitHub</a>
+      </footer>
+    </div>
+
+    <script type="module" src="src/popup/popup.ts"></script>
+  </body>
+</html>

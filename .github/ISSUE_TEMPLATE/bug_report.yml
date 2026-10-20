@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible problem in AniList Ultimate.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the troubleshooting guide first. Do not include tokens, OAuth callback URLs, raw storage, private Notes or personal backup files. For vulnerabilities, follow SECURITY.md rather than disclosing details here.
+  - type: input
+    id: version
+    attributes:
+      label: Extension version or commit
+      description: Include whether this is a release package or a source build.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser version and operating system
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Name the feature and page type. Use demonstration data where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual behavior
+      description: Include any displayed diagnostic code and whether reloading changed the result.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Optional redacted screenshots or diagnostics
+      description: Review attachments for personal information before posting.

@@ -1,0 +1,260 @@
+/**
+ * Notification Cleaner Styles
+ * Anti-spam UI for notifications page
+ */
+
+/* Grouping Button Style */
+.au-compress-button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 20px;
+  background: var(--au-primary) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px;
+  font-size: 1.3rem;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: none !important;
+  user-select: none;
+}
+
+.au-compress-button:hover {
+  filter: brightness(1.1);
+}
+
+/* Active state (Action: Decompress) - subtle blue */
+.au-compress-button.compressed {
+  background: #151f2e !important;
+  color: var(--au-primary) !important;
+  border: 1px solid rgba(61, 180, 242, 0.2) !important;
+}
+
+.au-compress-button.compressed:hover {
+  background: #1c293d !important;
+}
+
+/* Virtual Grouped Notifications */
+.au-virtual-notification {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  min-width: 0;
+  min-height: 70px;
+  box-sizing: border-box;
+  position: relative;
+  cursor: pointer;
+  border-left: 4px solid var(--au-primary) !important;
+  background: rgba(74, 158, 255, 0.03) !important;
+  animation: au-fade-in 0.3s ease;
+}
+
+.au-virtual-notification b {
+  color: var(--au-primary);
+}
+
+/* Hidden original notifications */
+.au-hidden-notification {
+  display: none !important;
+}
+
+.au-notification-search-hidden { display: none !important; }
+.au-activity-context { display: inline; min-width: 0; max-width: 100%; box-sizing: border-box; line-height: inherit; white-space: normal; overflow-wrap: anywhere; }
+.au-activity-context .au-title {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+.au-activity-target { color: inherit; }
+.au-virtual-notification.au-notification-summary-with-image { grid-template-columns: 60px minmax(0, 1fr) !important; }
+.au-notification-summary-image { display: block; min-height: 70px; background-position: center; background-size: cover; }
+.au-notification-summary-content { position: relative; display: flex; flex-direction: column; justify-content: center; min-height: 70px; padding: 14px 116px 14px 16px; min-width: 0; }
+.au-notification-summary-time { position: absolute; top: 12px; right: 12px; color: rgb(var(--color-text-lighter)); font-size: 1.1rem; }
+.au-notification-summary-text { line-height: 1.6; white-space: normal; overflow-wrap: anywhere; }
+.au-notification-group-user .au-sub-notification:not(.hasMedia) { grid-template-columns: minmax(0, 1fr) !important; }
+.au-notification-group-user .au-sub-notification:not(.hasMedia) > .avatar { display: none !important; }
+.au-notification-group-user .au-sub-notification:not(.hasMedia) > .details { grid-column: 1; }
+.au-notification-group-user .au-sub-notification > .details .link { font-size: 0; }
+.au-notification-group-user .au-sub-notification > .details .link .context { font-size: 1.5rem; }
+.au-notification-group-site-added .au-sub-notification .details .context { display: none !important; }
+.notification .details:has(> .au-activity-context:not([hidden])) {
+  min-width: 0;
+  max-width: 100%;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: flex-start !important;
+  column-gap: 0.3em;
+  row-gap: 3px;
+}
+.notification .details:has(> .au-activity-context:not([hidden])) > div:first-child { display: contents; }
+.notification .details:has(> .au-activity-context:not([hidden])) > .au-activity-context { flex: 0 1 auto; min-width: 0; margin: 0; }
+.au-virtual-notification:focus-visible { outline: 2px solid var(--au-primary); outline-offset: 2px; }
+
+@keyframes au-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Settings Section */
+.au-clutterfree-settings {
+  padding: 15px;
+  margin-bottom: 20px;
+  background: var(--au-bg);
+  border-radius: var(--au-border-radius);
+  /* Squared borders */
+  border: 1px solid var(--au-border);
+}
+
+/* Activity count (clickable number) */
+.au-activity-count {
+  cursor: pointer;
+  transition: opacity var(--au-transition);
+  font-weight: 700;
+  text-decoration: none !important;
+}
+
+.au-activity-count:hover {
+  opacity: 0.7;
+}
+
+/* Dropdown container for expanded notifications */
+.au-notification-dropdown {
+  animation: au-dropdown-expand 0.3s ease;
+  margin-top: -17px;
+  margin-bottom: 24px;
+}
+
+.au-notification-dropdown-inner {
+  padding-left: 16px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-left: 3px solid rgba(74, 158, 255, 0.3);
+  margin-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.au-notification-dropdown .notification {
+  margin-bottom: 0 !important;
+  opacity: 0.95;
+  font-size: 0.95em;
+  transition: opacity var(--au-transition);
+}
+
+.au-notification-dropdown .notification:hover {
+  opacity: 1;
+}
+
+/* Keep AniList's native grid and scoped detail/reason styles in expanded cards. */
+.au-notification-dropdown .notification > .details { grid-column: 2; min-width: 0; overflow-wrap: anywhere; }
+
+.au-notification-dropdown .notification-item { margin-bottom: 0 !important; }
+
+/* Status and Title separation */
+.notification .au-activity-context[hidden] { display: none !important; }
+
+.notification .au-title {
+  color: var(--au-primary);
+  font-weight: 600;
+  margin-left: 0.25em;
+  /* Force spacing regardless of HTML text nodes collapse */
+}
+
+.au-notification-dropdown .notification .title,
+.notification .au-user-link {
+  color: var(--au-primary);
+  font-weight: 600;
+}
+
+.notification .au-user-link:hover,
+.notification .au-title:hover {
+  filter: brightness(1.2);
+}
+
+/* Ensure images don't shrink */
+.au-notification-dropdown .notification img {
+  flex-shrink: 0;
+}
+
+@keyframes au-dropdown-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+  }
+
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+.au-notification-search-wrapper {
+  margin-bottom: 25px;
+  width: 100%;
+  grid-column: 2 !important; /* Move to the list column, skipping sidebar */
+  display: block !important;
+  margin-left: 0 !important;
+}
+
+.au-notification-search-wrapper .au-search-container {
+  display: flex;
+  align-items: center;
+  background: var(--au-bg);
+  border-radius: 4px;
+  padding: 0 16px;
+  height: 40px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.au-notification-search-wrapper .au-search-icon {
+  color: var(--au-text-light);
+  margin-right: 12px;
+  font-size: 1.2rem;
+  opacity: 0.5;
+}
+
+.au-notification-search-wrapper .au-search-input {
+  flex: 1;
+  background: transparent;
+  border: none !important;
+  color: var(--au-text);
+  font-size: 1.3rem;
+  height: 100%;
+  padding: 0;
+}
+
+.au-notification-search-wrapper .au-search-input:focus {
+  outline: none;
+}
+
+.au-notification-search-wrapper .au-search-input::placeholder {
+  color: var(--au-text-light);
+  opacity: 0.5;
+}
+
+/* High Contrast override */
+.site-theme-contrast .au-notifications-search .au-search-input::placeholder,
+.high-contrast .au-notifications-search .au-search-input::placeholder,
+.theme-contrast .au-notifications-search .au-search-input::placeholder,
+.au-theme-contrast .au-notifications-search .au-search-input::placeholder {
+  color: var(--au-text);
+  opacity: 1;
+}

@@ -1,0 +1,85 @@
+/* Native Following rows: fixed destinations prevent optional notes from
+   shifting the score or the absolute comment replacement covering it. */
+.au-following-section {
+  container-type: inline-size;
+}
+
+.au-following-section a.follow.au-following-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) minmax(0, max-content) 32px 64px;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.au-following-section .au-following-row > .avatar {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.au-following-section .au-following-row > .name {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.au-following-section .au-following-row > .status {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.au-following-progress {
+  white-space: nowrap;
+}
+
+.au-following-section .au-following-row > .score {
+  grid-column: 5;
+  grid-row: 1;
+  justify-self: end;
+  position: static !important;
+  white-space: nowrap;
+}
+
+.au-following-section .au-following-row > .hover-icon:has(svg[data-icon="comment"]),
+.au-following-section .au-following-row > .comment-icon-ghost {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: center;
+  position: static !important;
+  inset: auto !important;
+  width: 32px;
+  height: 32px !important;
+  min-width: 0;
+}
+
+/* Preserve the profile and full state on narrow sidebars by allowing a second
+   text line; the comment and score still have separate, stable columns. */
+@container (max-width: 420px) {
+  .au-following-section a.follow.au-following-row {
+    grid-template-columns: 30px minmax(0, 1fr) 32px 64px;
+    row-gap: 4px;
+  }
+
+  .au-following-section .au-following-row > .avatar {
+    grid-row: 1 / 3;
+  }
+
+  .au-following-section .au-following-row > .status {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .au-following-section .au-following-row > .score {
+    grid-column: 4;
+    grid-row: 1 / 3;
+  }
+
+  .au-following-section .au-following-row > .hover-icon:has(svg[data-icon="comment"]),
+  .au-following-section .au-following-row > .comment-icon-ghost {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+}

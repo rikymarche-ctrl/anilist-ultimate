@@ -1,0 +1,308 @@
+/**
+ * @file AnilistTypes.ts
+ * @description TypeScript interfaces mirroring the AniList GraphQL schema
+ *
+ * Organized by domain:
+ *   - Common: AniListDate, AniListTitle, AniListCoverImage, AniListUser
+ *   - Media: MediaType, MediaFormat, MediaStatus, AniListMedia
+ *   - MediaList: AniListMediaListEntry, AniListMediaListItem, AniListMediaListGroup
+ *   - Collection: AniListMediaListCollection, AniListViewer
+ *   - Query responses: MediaWithViewerResponse, MediaListCollectionResponse, etc.
+ *   - Helpers: GraphQLResponse<T> generic wrapper
+ *
+ * @see AnilistClient.ts for query execution
+ * @see docs/ARCHITECTURE.md#api-layer
+ */
+
+// ============================================================================
+// Common Types
+// ============================================================================
+
+export interface AniListDate {
+  year: number | null;
+  month: number | null;
+  day: number | null;
+}
+
+export interface AniListTitle {
+  romaji?: string;
+  english?: string;
+  native?: string;
+  userPreferred: string;
+}
+
+export interface AniListCoverImage {
+  large?: string;
+  extraLarge?: string;
+  medium?: string;
+  color?: string;
+}
+
+export interface AniListUser {
+  id: number;
+  name: string;
+  avatar: {
+    medium: string;
+    large?: string;
+  };
+  options?: {
+    titleLanguage: string;
+  };
+  mediaListOptions?: {
+    scoreFormat: ScoreFormat;
+    rowOrder: string;
+  };
+}
+
+// ============================================================================
+// Media Types
+// ============================================================================
+
+export type MediaType = 'ANIME' | 'MANGA';
+export type MediaFormat = 'TV' | 'TV_SHORT' | 'MOVIE' | 'SPECIAL' | 'OVA' | 'ONA' | 'MUSIC' | 'MANGA' | 'NOVEL' | 'ONE_SHOT';
+export type MediaStatus = 'FINISHED' | 'RELEASING' | 'NOT_YET_RELEASED' | 'CANCELLED' | 'HIATUS';
+export type ScoreFormat = 'POINT_100' | 'POINT_10_DECIMAL' | 'POINT_10' | 'POINT_5' | 'POINT_3';
+
+export enum MediaListStatus {
+  CURRENT = 'CURRENT',
+  PLANNING = 'PLANNING',
+  COMPLETED = 'COMPLETED',
+  DROPPED = 'DROPPED',
+  PAUSED = 'PAUSED',
+  REPEATING = 'REPEATING',
+  // Internal/Virtual statuses
+  WATCHING = 'WATCHING',
+  READING = 'READING',
+  REWATCHING = 'REWATCHING',
+  REREADING = 'REREADING',
+  PLAN_TO_WATCH = 'PLAN_TO_WATCH',
+  PLAN_TO_READ = 'PLAN_TO_READ',
+}
+
+export interface AniListMediaListEntry {
+  status: MediaListStatus;
+  progress: number;
+  score: number;
+  notes?: string;
+  repeat?: number;
+  private?: boolean;
+  hiddenFromStatusLists?: boolean;
+  startedAt?: AniListDate;
+  completedAt?: AniListDate;
+  customLists?: Record<string, boolean> | string[];
+}
+
+export interface AniListNextAiringEpisode {
+  episode: number;
+  airingAt: number;
+  timeUntilAiring: number;
+}
+
+export interface AniListMedia {
+  id: number;
+  title: AniListTitle;
+  type: MediaType;
+  format?: MediaFormat;
+  episodes?: number | null;
+  chapters?: number | null;
+  duration?: number | null;
+  status?: MediaStatus;
+  countryOfOrigin?: string;
+  nextAiringEpisode?: AniListNextAiringEpisode;
+  coverImage: AniListCoverImage;
+  genres?: string[];
+  siteUrl?: string;
+  mediaListEntry?: AniListMediaListEntry | null;
+}
+
+// ============================================================================
+// MediaList Types
+// ============================================================================
+
+export interface AniListMediaListOptions {
+  animeList?: {
+    customLists?: string[];
+  };
+  mangaList?: {
+    customLists?: string[];
+  };
+}
+
+export interface AniListViewer {
+  id: number;
+  name?: string;
+  mediaListOptions?: AniListMediaListOptions;
+}
+
+// ============================================================================
+// Collection Types
+// ============================================================================
+
+export interface AniListMediaListItem {
+  id: number;
+  mediaId: number;
+  status: MediaListStatus;
+  progress: number;
+  progressVolumes?: number;
+  score: number;
+  repeat: number;
+  priority: number;
+  private: boolean;
+  notes?: string;
+  hiddenFromStatusLists: boolean;
+  customLists?: Record<string, boolean>;
+  startedAt?: AniListDate;
+  completedAt?: AniListDate;
+  updatedAt: number;
+  createdAt: number;
+  media: AniListMedia;
+  user: AniListUser;
+}
+
+export interface AniListMediaListGroup {
+  name: string;
+  isCustomList: boolean;
+  isSplitCompletedList: boolean;
+  status?: MediaListStatus;
+  entries: AniListMediaListItem[];
+}
+
+export interface AniListMediaListCollection {
+  lists: AniListMediaListGroup[];
+  user: AniListUser;
+  hasNextChunk: boolean;
+}
+
+// ============================================================================
+// Query Response Types
+// ============================================================================
+
+/**
+ * Response for fetching media with viewer data
+ * Used in: AstraRatingModal.fetchAniListData
+ */
+export interface MediaWithViewerResponse {
+  Media: AniListMedia;
+  Viewer?: AniListViewer;
+}
+
+/**
+ * Response for fetching user's media list collection
+ * Used in: AstraService.syncWithAniList, CalendarService
+ */
+export interface MediaListCollectionResponse {
+  MediaListCollection: AniListMediaListCollection;
+}
+
+/**
+ * Response for fetching single media list entry
+ * Used in: CalendarService.updateProgress
+ */
+export interface SaveMediaListEntryResponse {
+  SaveMediaListEntry: AniListMediaListItem;
+}
+
+/**
+ * Response for batched media list queries
+ * Used in: SocialService.getFriendActivityBatch
+ */
+export interface MediaListResponse {
+  Page: {
+    mediaList: Array<{
+      user: AniListUser;
+      status: MediaListStatus;
+      progress: number;
+      score: number;
+    }>;
+  };
+}
+
+/**
+ * Response for fetching viewer ID
+ * Used in: AnilistClient.getCurrentUserId
+ */
+export interface ViewerResponse {
+  Viewer: {
+    id: number;
+    name: string;
+  };
+}
+
+/**
+ * Response for fetching user by name
+ * Used in: SocialService.getUserByName
+ */
+export interface UserByNameResponse {
+  User: {
+    id: number;
+    name: string;
+    avatar: {
+      medium: string;
+    };
+  } | null;
+}
+
+/**
+ * Response for detailed activity (Social Sidebar)
+ */
+export interface DetailedActivityResponse {
+  Page: {
+    pageInfo: {
+      hasNextPage: boolean;
+    };
+    mediaList: Array<{
+      id: number;
+      status: MediaListStatus;
+      progress: number;
+      score: number;
+      notes: string | null;
+      updatedAt: number;
+      user: AniListUser & {
+        mediaListOptions: {
+          scoreFormat: ScoreFormat;
+        };
+      };
+    }>;
+  };
+}
+
+/**
+ * Response for friend activity batch query
+ */
+export interface FriendActivityResponse {
+  Page: {
+    mediaList: Array<{
+      user: AniListUser;
+      status: MediaListStatus;
+      progress: number;
+      score: number;
+    }>;
+  };
+}
+
+/**
+ * Response for followings list
+ */
+export interface FollowingsResponse {
+  Page: {
+    pageInfo: {
+      hasNextPage: boolean;
+    };
+    following: Array<{
+      id: number;
+      name: string;
+      avatar: {
+        medium: string;
+      };
+    }>;
+  };
+}
+
+// ============================================================================
+// Helper Types
+// ============================================================================
+
+/**
+ * Generic GraphQL response wrapper
+ */
+export type { GraphQLResponse, GraphQLError } from './GraphQLResponse';

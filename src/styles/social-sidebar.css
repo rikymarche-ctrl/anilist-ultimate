@@ -1,0 +1,877 @@
+/**
+ * @file social-sidebar.css
+ * @description Social Activity sidebar opened from calendar, Astra and media cards.
+ */
+
+/* --- Social Sidebar ---------------------------------------------------------
+ * Floating glass panel: cover-tinted header, segmented scope tabs, status chips
+ * and activity cards. Everything is scoped to the panel so AniList's own styles
+ * and other modules cannot leak in (or out).
+ */
+.au-social-sidebar {
+  --sb-panel: color-mix(in srgb, var(--au-bg, #151f2e) 80%, #03060b);
+  --sb-panel-top: color-mix(in srgb, var(--au-bg, #151f2e) 90%, #03060b);
+  --sb-text: var(--au-text, #e5e7eb);
+  --sb-muted: var(--au-text-light, #9ca3af);
+  --sb-accent: var(--au-primary, #4a9eff);
+  --sb-line: rgba(255, 255, 255, 0.08);
+  --sb-fill: rgba(255, 255, 255, 0.035);
+  --sb-fill-hover: rgba(255, 255, 255, 0.07);
+  --sb-sunken: rgba(0, 0, 0, 0.24);
+  --sb-glass: rgba(8, 13, 21, 0.5);
+  --sb-tint: #ffffff;
+  --sb-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --sb-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 9999;
+  width: min(372px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  color: var(--sb-text);
+  background: linear-gradient(180deg, var(--sb-panel-top), var(--sb-panel) 40%);
+  border: 1px solid var(--sb-line);
+  border-radius: 22px;
+  box-shadow: var(--sb-shadow);
+  backdrop-filter: blur(24px) saturate(140%);
+  transform: translateX(calc(100% + 32px));
+  visibility: hidden;
+  transition: transform 0.55s var(--sb-ease), visibility 0s linear 0.55s;
+}
+
+.au-social-sidebar.active {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.55s var(--sb-ease), visibility 0s;
+}
+
+.au-social-sidebar *,
+.au-social-sidebar *::before,
+.au-social-sidebar *::after {
+  box-sizing: border-box;
+}
+
+.au-social-sidebar button {
+  appearance: none;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.au-social-sidebar :focus-visible {
+  outline: 2px solid var(--sb-accent);
+  outline-offset: 2px;
+}
+
+/* Header: cover thumbnail over its own blurred artwork */
+.au-social-sidebar .au-social-header {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 14px 16px 18px;
+  overflow: hidden;
+}
+
+.au-social-sidebar .au-social-backdrop {
+  position: absolute;
+  inset: -48px;
+  z-index: -2;
+  background: radial-gradient(90% 80% at 10% 10%, color-mix(in srgb, var(--sb-accent) 26%, transparent), transparent 70%);
+  background-size: cover;
+  background-position: center 30%;
+  filter: blur(28px) saturate(160%);
+  opacity: 0.85;
+}
+
+.au-social-sidebar .au-social-header.has-cover .au-social-backdrop {
+  opacity: 0.6;
+}
+
+.au-social-sidebar .au-social-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sb-panel-top) 30%, transparent), var(--sb-panel-top) 96%);
+}
+
+.au-social-sidebar .au-social-cover {
+  width: 54px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--sb-accent) 85%, #fff), color-mix(in srgb, var(--sb-accent) 40%, #160b2e));
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.au-social-sidebar .au-social-cover-initial {
+  font-size: 24px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.au-social-sidebar .has-cover .au-social-cover-initial {
+  display: none;
+}
+
+.au-social-sidebar .au-social-heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.au-social-sidebar .au-social-eyebrow {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--sb-accent) 75%, var(--sb-tint));
+}
+
+.au-social-sidebar .au-social-title {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--sb-text);
+}
+
+.au-social-sidebar .au-social-summary {
+  min-height: 1.35em;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--sb-muted);
+}
+
+.au-social-sidebar .au-social-close {
+  align-self: start;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--sb-text);
+  background: var(--sb-glass);
+  border: 1px solid var(--sb-line);
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.3s var(--sb-ease);
+}
+
+.au-social-sidebar .au-social-close:hover {
+  color: #fff;
+  background: color-mix(in srgb, var(--au-error, #ff4d4d) 30%, transparent);
+  border-color: color-mix(in srgb, var(--au-error, #ff4d4d) 55%, transparent);
+  transform: rotate(90deg);
+}
+
+/* Controls */
+.au-social-sidebar .au-social-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 16px 14px;
+  border-bottom: 1px solid var(--sb-line);
+}
+
+.au-social-sidebar .au-social-tabs {
+  --au-tab-index: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 4px;
+  background: var(--sb-sunken);
+  border: 1px solid var(--sb-line);
+  border-radius: 13px;
+}
+
+.au-social-sidebar .au-social-tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 4);
+  border-radius: 9px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sb-accent) 88%, #fff), color-mix(in srgb, var(--sb-accent) 72%, #06122a));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--sb-accent) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  opacity: 0;
+  transform: translateX(calc(var(--au-tab-index) * 100%));
+  transition: transform 0.4s var(--sb-ease), opacity 0.2s;
+}
+
+.au-social-sidebar .au-social-tabs.has-active .au-social-tab-indicator {
+  opacity: 1;
+}
+
+.au-social-sidebar .au-filter {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--sb-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.au-social-sidebar .au-filter:hover {
+  color: var(--sb-text);
+}
+
+.au-social-sidebar .au-filter.active {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* Custom lists: the menu anchors to the whole tab bar, not the narrow tab */
+.au-social-sidebar .au-filter-dropdown {
+  position: static;
+}
+
+.au-social-sidebar .au-filter-dropdown > .au-filter-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.au-social-sidebar .au-filter-caret {
+  flex-shrink: 0;
+  font-size: 9px;
+  opacity: 0.75;
+  transition: transform 0.25s var(--sb-ease);
+}
+
+.au-social-sidebar .au-filter-dropdown[aria-expanded='true'] .au-filter-caret {
+  transform: rotate(180deg);
+}
+
+.au-social-sidebar .au-filter-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  max-height: 280px;
+  padding: 6px;
+  overflow-y: auto;
+  text-shadow: none;
+  white-space: normal;
+  background: color-mix(in srgb, var(--sb-panel-top) 97%, transparent);
+  border: 1px solid var(--sb-line);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  cursor: default;
+  animation: au-sb-pop 0.2s var(--sb-ease);
+}
+
+.au-social-sidebar .au-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sb-text);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.au-social-sidebar .au-dropdown-item > svg {
+  font-size: 12px;
+  color: var(--sb-muted);
+}
+
+.au-social-sidebar .au-dropdown-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.au-social-sidebar .au-dropdown-item-count {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--sb-muted);
+  background: var(--sb-fill-hover);
+  border-radius: 999px;
+}
+
+.au-social-sidebar .au-dropdown-item:hover,
+.au-social-sidebar .au-dropdown-item:focus-visible {
+  background: var(--sb-fill-hover);
+}
+
+.au-social-sidebar .au-dropdown-item.active {
+  background: color-mix(in srgb, var(--sb-accent) 18%, transparent);
+}
+
+.au-social-sidebar .au-dropdown-item.active > svg {
+  color: var(--sb-accent);
+}
+
+.au-social-sidebar .au-dropdown-item.au-dropdown-empty {
+  justify-content: center;
+  padding: 14px 10px;
+  font-weight: 500;
+  color: var(--sb-muted);
+  cursor: default;
+}
+
+.au-social-sidebar .au-dropdown-item.au-dropdown-empty:hover {
+  background: transparent;
+}
+
+/* Status chips: one colour per AniList status, a spectrum dot for "All" */
+.au-social-sidebar .au-status-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.au-social-sidebar .au-status--all {
+  --status-color: var(--sb-accent);
+}
+
+.au-social-sidebar .au-status--repeating {
+  --status-color: #a78bfa;
+}
+
+.au-social-sidebar .au-status-filter {
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: var(--sb-muted);
+  background: var(--sb-fill);
+  border: 1px solid var(--sb-line);
+  border-radius: 9px;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.au-social-sidebar .au-status-filter::before {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-color, var(--sb-muted));
+  transition: box-shadow 0.2s;
+}
+
+.au-social-sidebar .au-status-filter.au-status--all::before {
+  background: conic-gradient(#3db4f2 0 25%, #68d639 0 50%, #e89e3a 0 75%, #f14242 0);
+}
+
+.au-social-sidebar .au-status-filter:hover {
+  color: var(--sb-text);
+  background: var(--sb-fill-hover);
+}
+
+.au-social-sidebar .au-status-filter.active {
+  color: var(--sb-text);
+  background: color-mix(in srgb, var(--status-color) 16%, transparent);
+  border-color: color-mix(in srgb, var(--status-color) 55%, transparent);
+}
+
+.au-social-sidebar .au-status-filter.active::before {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-color) 22%, transparent), 0 0 10px var(--status-color);
+}
+
+/* Search */
+.au-social-sidebar .au-social-search-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.au-social-sidebar .au-social-search-icon {
+  position: absolute;
+  left: 13px;
+  font-size: 13px;
+  color: var(--sb-muted);
+  pointer-events: none;
+  transition: color 0.2s;
+}
+
+.au-social-sidebar .au-social-search-input {
+  width: 100%;
+  height: 38px;
+  margin: 0;
+  padding: 0 38px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sb-text);
+  background: var(--sb-sunken);
+  border: 1px solid var(--sb-line);
+  border-radius: 12px;
+  outline: none;
+  box-shadow: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.au-social-sidebar .au-social-search-input::placeholder {
+  color: var(--sb-muted);
+  opacity: 0.85;
+}
+
+.au-social-sidebar .au-social-search-input:focus {
+  border-color: color-mix(in srgb, var(--sb-accent) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-accent) 20%, transparent);
+}
+
+.au-social-sidebar .au-social-search-inner:focus-within .au-social-search-icon {
+  color: var(--sb-accent);
+}
+
+.au-social-sidebar .au-social-search-clear {
+  position: absolute;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--sb-muted);
+  background: var(--sb-fill-hover);
+  border: 0;
+  border-radius: 50%;
+  transition: color 0.2s, background 0.2s;
+}
+
+.au-social-sidebar .au-social-search-clear[hidden] {
+  display: none;
+}
+
+.au-social-sidebar .au-social-search-clear:hover {
+  color: var(--sb-text);
+  background: color-mix(in srgb, var(--sb-text) 16%, transparent);
+}
+
+/* Activity list */
+.au-social-sidebar .au-social-content {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 10px 28px 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sb-text) 18%, transparent) transparent;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 32px), transparent 100%);
+}
+
+@keyframes au-sb-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes au-sb-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes au-sb-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.au-social-sidebar .au-friend-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 12px 12px 12px 13px;
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--status-color, transparent) 10%, transparent), transparent 55%),
+    var(--sb-fill);
+  border: 1px solid var(--sb-line);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.25s, transform 0.25s var(--sb-ease);
+}
+
+.au-social-sidebar .au-social-content--animated .au-friend-row {
+  animation: au-sb-row-in 0.45s var(--sb-ease) backwards;
+}
+
+.au-social-sidebar .au-friend-row:hover {
+  z-index: 1;
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--status-color, transparent) 16%, transparent), transparent 60%),
+    var(--sb-fill-hover);
+  border-color: color-mix(in srgb, var(--status-color, var(--sb-accent)) 38%, var(--sb-line));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  transform: translateY(-1px);
+}
+
+.au-social-sidebar .au-friend-avatar-link {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.au-social-sidebar .au-friend-avatar-link img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  background: var(--sb-fill-hover);
+  border: 0;
+  border-radius: 12px;
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+  outline-offset: -1px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s var(--sb-ease);
+}
+
+.au-social-sidebar .au-friend-avatar-link:hover img {
+  transform: scale(1.06);
+}
+
+.au-social-sidebar .au-friend-status-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 13px;
+  height: 13px;
+  background: var(--status-color, var(--sb-muted));
+  border: 2.5px solid var(--sb-panel);
+  border-radius: 50%;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--status-color, transparent) 55%, transparent);
+}
+
+.au-social-sidebar .au-friend-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.au-social-sidebar .au-friend-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+}
+
+.au-social-sidebar .au-friend-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--sb-text);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.au-social-sidebar .au-friend-name:hover {
+  color: var(--sb-accent);
+}
+
+.au-social-sidebar .au-friend-date {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sb-muted);
+}
+
+.au-social-sidebar .au-friend-date:empty {
+  display: none;
+}
+
+.au-social-sidebar .au-friend-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.au-social-sidebar .au-friend-status {
+  height: 22px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--status-color, var(--sb-muted)) 78%, var(--sb-tint));
+  background: color-mix(in srgb, var(--status-color, var(--sb-muted)) 15%, transparent);
+  border-radius: 999px;
+}
+
+.au-social-sidebar .au-friend-score {
+  height: 22px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--au-score-color, var(--sb-accent)) 72%, var(--sb-tint));
+  background: color-mix(in srgb, var(--au-score-color, var(--sb-accent)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--au-score-color, var(--sb-accent)) 35%, transparent);
+  border-radius: 999px;
+}
+
+.au-social-sidebar .au-friend-note {
+  position: relative;
+  margin-top: 2px;
+  padding: 9px 12px 9px 30px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: color-mix(in srgb, var(--sb-text) 92%, transparent);
+  background: var(--sb-sunken);
+  border: 1px solid var(--sb-line);
+  border-radius: 4px 12px 12px 12px;
+}
+
+.au-social-sidebar .au-friend-note::before {
+  content: '\201C';
+  position: absolute;
+  top: 5px;
+  left: 10px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--au-warning, #ffb84d);
+}
+
+/* Loading, empty and error states */
+.au-social-sidebar .au-social-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.au-social-sidebar .au-skeleton-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 13px;
+  background: var(--sb-fill);
+  border: 1px solid var(--sb-line);
+  border-radius: 16px;
+}
+
+.au-social-sidebar .au-skeleton-row:nth-child(3) {
+  opacity: 0.7;
+}
+
+.au-social-sidebar .au-skeleton-row:nth-child(4) {
+  opacity: 0.4;
+}
+
+.au-social-sidebar .au-skeleton-avatar,
+.au-social-sidebar .au-skeleton-lines > span {
+  background: linear-gradient(90deg, var(--sb-fill-hover) 0%, color-mix(in srgb, var(--sb-text) 14%, transparent) 40%, var(--sb-fill-hover) 80%) 0 0 / 200% 100%;
+  animation: au-sb-shimmer 1.4s linear infinite;
+}
+
+.au-social-sidebar .au-skeleton-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.au-social-sidebar .au-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 3px;
+}
+
+.au-social-sidebar .au-skeleton-lines > span {
+  height: 10px;
+  border-radius: 6px;
+}
+
+.au-social-sidebar .au-skeleton-lines > span:nth-child(1) {
+  width: 46%;
+  height: 12px;
+}
+
+.au-social-sidebar .au-skeleton-lines > span:nth-child(2) {
+  width: 72%;
+}
+
+.au-social-sidebar .au-skeleton-lines > span:nth-child(3) {
+  width: 30%;
+}
+
+.au-social-sidebar .au-social-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sb-muted);
+}
+
+.au-social-sidebar .au-social-more > svg {
+  color: var(--sb-accent);
+}
+
+.au-social-sidebar .au-social-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 44px 18px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--sb-muted);
+}
+
+.au-social-sidebar .au-social-empty-icon {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  color: var(--sb-accent);
+  background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--sb-accent) 30%, transparent), color-mix(in srgb, var(--sb-accent) 6%, transparent));
+  border: 1px solid color-mix(in srgb, var(--sb-accent) 30%, transparent);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--sb-accent) 18%, transparent);
+}
+
+.au-social-sidebar .au-social-error .au-social-empty-icon {
+  --sb-accent: var(--au-error, #ff4d4d);
+}
+
+.au-social-sidebar .au-social-empty-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--sb-text);
+}
+
+.au-social-sidebar .au-social-empty-text {
+  max-width: 260px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.au-social-sidebar .au-social-retry {
+  margin-top: 8px;
+  height: 34px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--sb-text);
+  background: var(--sb-fill-hover);
+  border: 1px solid var(--sb-line);
+  border-radius: 10px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.au-social-sidebar .au-social-retry:hover {
+  background: color-mix(in srgb, var(--sb-text) 12%, transparent);
+  border-color: color-mix(in srgb, var(--sb-text) 22%, transparent);
+}
+
+/* AniList light and high-contrast themes */
+.au-theme-light .au-social-sidebar,
+.au-theme-contrast .au-social-sidebar {
+  --sb-panel: #f3f5f9;
+  --sb-panel-top: #ffffff;
+  --sb-line: rgba(92, 114, 138, 0.16);
+  --sb-fill: rgba(92, 114, 138, 0.05);
+  --sb-fill-hover: rgba(92, 114, 138, 0.1);
+  --sb-sunken: rgba(92, 114, 138, 0.08);
+  --sb-glass: rgba(255, 255, 255, 0.65);
+  --sb-tint: #1d2633;
+  --sb-shadow: 0 30px 80px rgba(30, 45, 70, 0.22), 0 0 0 1px rgba(30, 45, 70, 0.05);
+}
+
+.au-theme-light .au-social-sidebar .au-friend-row:hover,
+.au-theme-contrast .au-social-sidebar .au-friend-row:hover {
+  box-shadow: 0 12px 28px rgba(30, 45, 70, 0.12);
+}
+
+/* Phones: a full-screen sheet */
+@media (max-width: 560px) {
+  .au-social-sidebar {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    border: 0;
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .au-social-sidebar,
+  .au-social-sidebar * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

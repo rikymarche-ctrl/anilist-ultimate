@@ -1,0 +1,310 @@
+/**
+ * Hover Comments Styles - Step 3: Final Restoration
+ * Implementation of the "Ghost Container" strategy.
+ */
+
+.anilist-comment-icon {
+  color: var(--au-text-light);
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.8;
+  vertical-align: middle;
+  transition: all var(--au-transition);
+  display: flex;
+  align-items: center;
+}
+
+/* The Ghost Container Strategy (Fixed Middle Position) */
+.comment-icon-ghost {
+  position: absolute !important;
+  right: 122px;
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+
+.comment-icon-ghost.au-in-social-feed {
+  right: 102px;
+}
+
+.comment-icon-ghost.au-comment-above-tooltip {
+  z-index: calc(var(--z-tooltip, 2000) + 1);
+}
+
+.comment-icon-ghost .anilist-comment-icon {
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all var(--au-transition);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.comment-icon-ghost .anilist-comment-icon .au-comment-svg {
+  width: 20px !important;
+  height: 20px !important;
+  shape-rendering: geometricPrecision;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Row Hover Effect */
+.anilist-comment-icon.row-hover {
+  color: var(--au-primary);
+  opacity: 1;
+}
+
+.comment-icon-ghost .anilist-comment-icon:hover {
+  color: var(--au-primary);
+}
+
+.comment-icon-ghost .anilist-comment-icon:focus-visible {
+  outline: 2px solid var(--au-primary, #4a9eff);
+  outline-offset: 2px;
+}
+
+/* Scoped to native comment controls replaced by this module; restored on OFF. */
+.au-comment-native-suppressed {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.au-comment-reader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.au-comment-reader {
+  display: flex;
+  flex-direction: column;
+  width: min(960px, 100%);
+  max-height: calc(100dvh - 48px);
+  min-height: 180px;
+  border-radius: 10px;
+  overflow: hidden;
+  color: var(--au-text, rgb(var(--color-text, 159, 173, 189)));
+  background: var(--au-bg, rgb(var(--color-background, 11, 22, 34)));
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45);
+  font-family: inherit;
+}
+
+.au-comment-reader-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 20px;
+  background: rgb(var(--color-foreground, 21, 31, 46));
+  border-bottom: 1px solid var(--au-border, rgba(159, 173, 189, 0.15));
+}
+
+.au-comment-reader-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.au-comment-reader-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.au-comment-reader-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 26px;
+  cursor: pointer;
+}
+
+.au-comment-reader-actions button:hover,
+.au-comment-reader-actions button:focus-visible {
+  color: var(--au-primary, #4a9eff);
+  background: rgba(159, 173, 189, 0.12);
+}
+
+.au-comment-reader-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 70dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+  font-size: 15px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.au-comment-reader--fullscreen {
+  width: 100%;
+  height: calc(100dvh - 48px);
+}
+
+.au-comment-reader--fullscreen .au-comment-reader-content {
+  max-height: none;
+}
+
+@media (max-width: 600px) {
+  .au-comment-reader-overlay { padding: 10px; }
+  .au-comment-reader { max-height: calc(100dvh - 20px); }
+  .au-comment-reader--fullscreen { height: calc(100dvh - 20px); }
+  .au-comment-reader-header { padding: 10px 14px; gap: 10px; }
+  .au-comment-reader-content { padding: 18px; }
+}
+
+/* Row Stability */
+.user-status-row,
+.following-list-item,
+.following-item {
+  white-space: nowrap !important;
+  flex-wrap: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+/* Refresh All Button Styling */
+.au-refresh-all-comments {
+  cursor: pointer;
+  color: var(--au-text-light);
+  opacity: 0.6;
+  transition: all var(--au-transition) cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.au-refresh-all-comments:hover {
+  color: var(--au-primary);
+  opacity: 1;
+  transform: rotate(180deg);
+}
+
+/* Tooltip - Premium Styles */
+#anilist-tooltip {
+  width: 275px;
+  max-height: 500px;
+  overflow-y: auto;
+  position: absolute;
+  z-index: var(--z-tooltip);
+  background: var(--au-bg);
+  opacity: 0.95;
+  backdrop-filter: blur(10px);
+  color: var(--au-text);
+  box-shadow: var(--au-shadow);
+  border-radius: var(--au-border-radius);
+  border-left: 5px solid var(--au-primary);
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--au-transition);
+  transform: translateX(10px);
+  pointer-events: none;
+}
+
+/* Custom Scrollbar for Tooltip */
+#anilist-tooltip::-webkit-scrollbar {
+  width: 5px;
+}
+
+#anilist-tooltip::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+#anilist-tooltip::-webkit-scrollbar-thumb {
+  background: var(--au-primary);
+  border-radius: 10px;
+}
+
+#anilist-tooltip::-webkit-scrollbar-thumb:hover {
+  background: #60adff;
+}
+
+#anilist-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--au-border);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+}
+
+.tooltip-user {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--au-primary);
+}
+
+.tooltip-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tooltip-age {
+  font-size: 12px;
+  color: var(--au-text-light);
+  opacity: 0.8;
+}
+
+.tooltip-content {
+  line-height: 1.6;
+  font-size: 15px;
+  word-wrap: break-word;
+}
+
+.tooltip-refresh-btn {
+  background: rgba(74, 158, 255, 0.1);
+  border: none;
+  border-radius: var(--au-border-radius);
+  padding: 4px;
+  color: var(--au-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--au-transition);
+}
+
+.tooltip-refresh-btn:hover {
+  background: var(--au-primary);
+  color: white;
+}

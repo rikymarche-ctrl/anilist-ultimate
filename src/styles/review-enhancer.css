@@ -1,0 +1,92 @@
+/**
+ * Review Enhancer Styles
+ * Styles for numeric ratings on review cards (IMDb-style green scale)
+ * Uses theme-aware background with colored text
+ */
+
+.au-review-rating {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: var(--au-border-radius);
+  font-weight: 700;
+  font-size: 13px;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  box-shadow: var(--au-shadow);
+  min-width: 32px;
+  background: var(--au-bg);
+  border: 2px solid currentColor;
+  transition: all var(--au-transition);
+}
+
+/* Perfect rating (95-100) - Success token */
+.au-review-rating--perfect {
+  color: var(--au-success);
+}
+
+/* Excellent rating (85-94) */
+.au-review-rating--excellent {
+  color: var(--au-success);
+  filter: brightness(0.9);
+}
+
+/* High rating (75-84) */
+.au-review-rating--high {
+  color: var(--au-success);
+  filter: brightness(0.8);
+}
+
+/* Good rating (65-74) */
+.au-review-rating--good {
+  color: var(--au-success);
+  filter: brightness(0.7);
+}
+
+/* Decent rating (60-64) - Warning token */
+.au-review-rating--decent {
+  color: var(--au-warning);
+}
+
+/* Medium rating (50-59) */
+.au-review-rating--medium {
+  color: var(--au-warning);
+  filter: brightness(0.9);
+}
+
+/* Poor rating (40-49) - Error token */
+.au-review-rating--poor {
+  color: var(--au-error);
+}
+
+/* Bad rating (30-39) */
+.au-review-rating--bad {
+  color: var(--au-error);
+  filter: brightness(0.8);
+}
+
+/* Terrible rating (<30) */
+.au-review-rating--terrible {
+  color: #9370db;
+}
+
+
+/* Ensure the review card and its image container have relative positioning */
+.review-card {
+  position: relative !important;
+}
+
+.review-card .cover,
+.review-card .image,
+.review-card [class*="cover"],
+.review-card [class*="banner"] {
+  position: relative !important;
+}
+
+/* Make sure rating is visible on hover */
+.review-card:hover .au-review-rating {
+  opacity: 1;
+}

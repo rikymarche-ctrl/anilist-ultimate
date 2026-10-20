@@ -1,0 +1,306 @@
+/**
+ * Social Activity Styles
+ * Avatars on cards and the Social Sidebar
+ */
+
+@import './social-sidebar.css';
+
+/* Friend Activity Container on Cards */
+.friend-activity-container {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  pointer-events: auto;
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* Social wrapper for native cards - bubble style above card */
+.au-social-wrapper {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  /* Position above card with 3px gap */
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--au-bg-glass);
+  backdrop-filter: var(--au-blur, blur(20px));
+  padding: 12px 16px;
+  border-radius: 24px;
+  box-shadow: var(--au-shadow-lg);
+  border: 1px solid var(--au-border);
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 10px !important;
+  pointer-events: auto;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+/* Stack inside wrapper should not be width-constrained */
+.au-social-wrapper .au-social-stack {
+  width: auto !important;
+  min-width: max-content !important;
+}
+
+/* Portal bubbles use fixed positioning - no clipping needed */
+
+/* Social bubble portal - created via JavaScript with position: absolute */
+.au-social-bubble-portal {
+  position: absolute !important;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  /* Keep the card bubble behind the Social Activity window when they overlap. */
+  z-index: 9998 !important;
+  background: var(--au-bg-glass);
+  backdrop-filter: var(--au-blur, blur(20px));
+  padding: 12px 16px;
+  border-radius: 24px;
+  box-shadow: var(--au-shadow-lg);
+  border: 1px solid var(--au-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* Invisible bridge to prevent bubble from closing when mouse moves from card to bubble */
+.au-social-bubble-portal::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.au-social-bubble-portal.visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.au-social-stack {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 360px !important;
+  /* Fit ~8 larger avatars */
+}
+
+/* Show wrapper on card hover */
+.media-preview-card:hover .au-social-wrapper,
+.media-card:hover .au-social-wrapper {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.media-preview-card:hover .au-social-stack,
+.media-card:hover .au-social-stack,
+.anime-card:hover .au-social-stack {
+  padding: 4px 0;
+}
+
+.au-social-avatar-extra {
+  display: none !important;
+}
+
+/* Magnification: Reveal extra friends when the bubble is hovered */
+.au-social-bubble-portal:hover .au-social-avatar-extra,
+.au-social-wrapper:hover .au-social-avatar-extra {
+  display: block !important;
+}
+
+.au-social-bubble-portal:hover .extra-count,
+.au-social-wrapper:hover .extra-count {
+  display: none !important;
+}
+
+.au-social-bubble-portal:hover .au-social-stack,
+.au-social-wrapper:hover .au-social-stack {
+  gap: 10px !important;
+}
+
+.au-social-button {
+  width: 32px;
+  height: 32px;
+  background: var(--au-primary);
+  opacity: 0.95;
+  color: white;
+  border-radius: 50%;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: all var(--au-transition);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.au-social-button:hover {
+  background: var(--au-primary);
+  filter: brightness(1.1);
+  transform: scale(1.1);
+}
+
+.friend-activity-container {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  gap: -8px;
+  /* Negative gap for stack effect */
+  z-index: 5;
+  transition: opacity var(--au-transition);
+  pointer-events: auto;
+}
+
+.friend-activity-container.loading {
+  opacity: 0.5;
+}
+
+.friend-avatar,
+.au-social-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--au-bg);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all var(--au-transition);
+  margin-right: 0;
+}
+
+.friend-avatar:hover,
+.au-social-avatar:hover {
+  transform: translateY(-2px) scale(1.1);
+  z-index: 100 !important;
+  border-color: var(--au-primary);
+}
+
+/* Extra count badge */
+.friend-avatar.extra-count,
+.au-social-avatar.extra-count {
+  background: var(--au-bg);
+  opacity: 0.95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--au-primary);
+  border-color: rgba(74, 158, 255, 0.3);
+}
+
+/* Tooltip Portal */
+.au-friend-tooltip-portal {
+  pointer-events: auto !important;
+}
+
+/* Media Social Page Custom Lists Dropdown */
+.au-media-social-custom-list {
+  position: relative;
+  display: inline-block;
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+.au-media-social-cl-btn {
+  padding: 8px 14px;
+  background: rgba(74, 158, 255, 0.1);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  border-radius: var(--au-border-radius);
+  color: var(--au-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--au-transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.au-media-social-cl-btn:hover {
+  background: rgba(74, 158, 255, 0.2);
+  border-color: var(--au-primary);
+  transform: translateY(-1px);
+}
+
+.au-media-social-cl-btn .fa-caret-down {
+  font-size: 11px;
+  transition: transform 0.2s;
+}
+
+.au-media-social-cl-btn:hover .fa-caret-down {
+  transform: translateY(2px);
+}
+
+.au-media-social-cl-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--au-bg);
+  opacity: 0.98;
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-border-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: 180px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+}
+
+.au-media-social-cl-item {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--au-text-light);
+  cursor: pointer;
+  transition: all var(--au-transition);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.au-media-social-cl-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--au-text);
+}
+
+.au-media-social-cl-item.active {
+  background: rgba(74, 158, 255, 0.2);
+  color: var(--au-primary);
+  font-weight: 700;
+}
+
+.au-media-social-cl-item.au-media-social-cl-empty {
+  cursor: default;
+  color: var(--au-text-light);
+  opacity: 0.3;
+  font-style: italic;
+}
+
+.au-media-social-cl-item.au-media-social-cl-empty:hover {
+  background: transparent;
+}

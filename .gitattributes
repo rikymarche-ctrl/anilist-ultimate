@@ -1,0 +1,2 @@
+# Keep generated output identical to the generator on every platform.
+src/core/ui/IconDefinitions.ts text eol=lf

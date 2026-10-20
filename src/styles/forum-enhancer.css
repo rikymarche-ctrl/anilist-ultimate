@@ -1,0 +1,21 @@
+/**
+ * Forum Enhancer Styles
+ */
+
+.au-title-link {
+  color: inherit !important;
+  text-decoration: none !important;
+  transition: color var(--au-transition);
+  cursor: pointer;
+}
+
+.au-title-link:hover,
+.au-title-link:focus-visible {
+  color: #3db4f2 !important;
+  text-decoration: underline !important;
+}
+
+/* Remove the specific button styling as requested */
+.au-media-link-btn {
+  display: none;
+}

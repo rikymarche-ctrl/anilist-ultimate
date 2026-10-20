@@ -1,0 +1,113 @@
+/* ==========================================================================
+   Wrapped library (Astra dashboard) — one liquid poster per recap.
+   A poster is a black page blended with `multiply` over a liquid painting, so
+   only its white type shows the liquid (same trick as the story intro slides).
+   ========================================================================== */
+
+.astra-modal--dashboard .aw-hub {
+  --hub-ink: #ffffff;
+  --hub-ink-2: rgba(255, 255, 255, 0.74);
+  --hub-ink-3: rgba(255, 255, 255, 0.52);
+  --hub-line: rgba(255, 255, 255, 0.14);
+  --hub-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hub-font: 'Overpass', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  container: aw-hub / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 30px 30px 40px;
+  color: var(--hub-ink);
+  font-family: var(--hub-font);
+}
+/* The dashboard layout sets spacing with !important; the hub needs its own rhythm. */
+.astra-modal--dashboard .astra-dashboard-layout.aw-hub { gap: 26px !important; padding: 30px 30px 40px !important; }
+.aw-hub *, .aw-hub *::before, .aw-hub *::after { box-sizing: border-box; }
+.aw-hub h2, .aw-hub h3, .aw-hub p, .aw-hub ul { margin: 0; }
+
+.aw-hub-head { display: flex; flex-direction: column; gap: 12px; }
+.aw-hub-eyebrow, .aw-hub-kicker {
+  display: inline-flex; align-items: center; gap: 10px; align-self: flex-start;
+  font: 800 12px/1 var(--hub-font); letter-spacing: 0.3em; text-transform: uppercase; color: #c9b6ff;
+}
+.aw-hub-eyebrow::before { content: ''; width: 28px; height: 2px; border-radius: 2px; background: currentColor; }
+.aw-hub-head h2 { font: 900 clamp(32px, 6cqi, 58px)/1.02 var(--hub-font); letter-spacing: -0.03em; }
+.aw-hub-head p { max-width: 620px; font-size: 14px; line-height: 1.6; color: var(--hub-ink-2); }
+
+.aw-hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+
+.aw-hub-card {
+  --hub-glow: #6a2ad0;
+  /* One headline size for every poster (both cards share it), so the copy rows line up. */
+  --hub-word: min(19cqi, 118px);
+  container: aw-hub-card / inline-size;
+  position: relative; isolation: isolate; overflow: hidden;
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 520px; border-radius: 28px; border: 1px solid var(--hub-line);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--hub-glow) 70%, #000), #07060d 70%);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  transition: transform 0.6s var(--hub-ease), box-shadow 0.6s var(--hub-ease), border-color 0.3s;
+}
+.aw-hub-card:hover, .aw-hub-card:focus-within {
+  transform: translateY(-4px); border-color: rgba(255, 255, 255, 0.26);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55), 0 0 60px color-mix(in srgb, var(--hub-glow) 26%, transparent);
+}
+.aw-hub-liquid { position: absolute; inset: 0; z-index: -2; display: block; width: 100%; height: 100%; }
+.aw-hub-poster {
+  /* In flow above the copy with a fixed height (identical in both cards), so the copy below starts on the same line. */
+  flex: none; height: calc(var(--hub-word) * 0.9 + 32px); display: flex; align-items: flex-start;
+  padding: 22px 26px 10px; background: #07060d; mix-blend-mode: multiply; pointer-events: none;
+}
+/* Long words tighten their tracking instead of shrinking, so every poster shares one size. */
+.aw-hub-poster span {
+  display: block; margin-left: -0.04em; color: #ffffff; white-space: nowrap;
+  font: 900 var(--hub-word)/0.82 var(--hub-font);
+  letter-spacing: calc(-0.05em - 0.012em * max(0, var(--chars, 4) - 4));
+  transform-origin: left top; transition: transform 0.8s var(--hub-ease);
+}
+.aw-hub-card:hover .aw-hub-poster span { transform: translateY(-3px) scale(1.025); }
+
+.aw-hub-body { position: relative; flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 10px 28px 28px; margin-top: -1px; background: #07060d; }
+/* Three paragraph lines are always reserved, so the chips and CTAs align across cards. */
+.aw-hub-body h3 { font: 900 clamp(26px, 6cqi, 38px)/1.05 var(--hub-font); letter-spacing: -0.02em; }
+.aw-hub-body p { min-height: 4.8em; max-width: 520px; font-size: 14px; line-height: 1.6; color: var(--hub-ink-2); }
+
+.aw-hub-features { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.aw-hub-features li {
+  padding: 7px 12px; border-radius: 999px; border: 1px solid var(--hub-line); background: rgba(255, 255, 255, 0.06);
+  font-size: 12px; font-weight: 700; color: var(--hub-ink);
+}
+
+.aw-hub-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: auto; padding-top: 4px; }
+.aw-hub-actions small { font-size: 12px; color: var(--hub-ink-3); }
+.aw-hub-cta {
+  appearance: none; display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 24px;
+  border: 0; border-radius: 999px; background: #ffffff; color: #0d0a1c; cursor: pointer;
+  font: 800 14px/1 var(--hub-font);
+  /* Resting: a tight, neutral shadow only. The tinted glow appears on hover and keyboard focus. */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  transition: transform 0.25s var(--hub-ease), background 0.2s, box-shadow 0.25s var(--hub-ease);
+}
+.aw-hub-cta:hover, .aw-hub-cta:focus-visible {
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--hub-glow) 40%, transparent);
+}
+.aw-hub-cta:hover { transform: translateY(-2px); background: #ede6ff; }
+.aw-hub-cta:focus-visible { outline: 2px solid #c9b6ff; outline-offset: 3px; }
+
+.aw-hub-badge {
+  /* Sits on the kicker row under the poster, so it never covers the giant word. */
+  position: absolute; top: calc(var(--hub-word) * 0.9 + 35px); right: 28px; padding: 7px 12px; border-radius: 999px;
+  background: #ffffff; color: #0d0a1c; font: 900 11px/1 var(--hub-font); letter-spacing: 0.16em; text-transform: uppercase;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6); animation: aw-hub-pulse 2.4s ease-out infinite;
+}
+@keyframes aw-hub-pulse { 70% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .aw-hub-card, .aw-hub-poster span, .aw-hub-cta { transition: none; }
+  .aw-hub-badge { animation: none; }
+}
+
+@container aw-hub (max-width: 820px) {
+  .astra-modal--dashboard .astra-dashboard-layout.aw-hub { padding: 22px 18px 32px !important; }
+  .aw-hub-grid { grid-template-columns: minmax(0, 1fr); }
+  .aw-hub-card { min-height: 440px; }
+}

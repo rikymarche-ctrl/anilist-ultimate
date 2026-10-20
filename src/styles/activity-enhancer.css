@@ -1,0 +1,503 @@
+/**
+ * Activity Enhancer Styles
+ * Final Hex-Perfect version for all themes
+ */
+
+.au-activity-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-radius: var(--au-border-radius);
+  box-sizing: border-box;
+  border: none;
+  animation: au-slide-down 0.2s ease-out;
+  background: var(--au-bg) !important;
+  flex: 0 0 100% !important;
+  flex-basis: 100% !important;
+  margin: 4px 0 10px 0;
+  clear: both !important;
+  width: 100% !important;
+}
+
+.au-activity-bar__left {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Filter Buttons */
+.au-filter-btn {
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--au-border-radius);
+  color: var(--au-text-light);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--au-transition);
+  text-transform: capitalize;
+}
+
+.au-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--au-text);
+}
+
+.au-filter-btn.active {
+  background: rgba(74, 158, 255, 0.15) !important;
+  color: var(--au-primary) !important;
+}
+
+/* Animated Search Bar */
+.au-search-container {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: var(--au-border-radius);
+  padding: 3px 10px;
+  transition: all var(--au-transition);
+  width: 150px;
+  margin-left: auto;
+  /* Anchor right, expand left */
+}
+
+.au-search-container:focus-within {
+  width: 180px;
+  /* Max 30px expansion */
+  border-color: var(--au-primary);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.au-search-icon {
+  color: var(--au-text-light);
+  font-size: 1.1rem;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+}
+
+.au-search-icon svg {
+  display: block;
+  stroke: var(--au-text-light);
+}
+
+.au-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--au-text);
+  font-size: 1.2rem;
+  width: 100%;
+}
+
+/* Hide activities */
+.au-activity-hidden {
+  display: none !important;
+}
+
+@keyframes au-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* "Squeezed" Container - More specific to avoid breaking native overview layout */
+.feed-type-toggle {
+  height: auto !important;
+  min-height: 20px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  width: auto !important;
+}
+
+.feed-type-toggle>* {
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 4px 14px !important;
+  min-width: max-content !important;
+  overflow: visible !important;
+}
+
+/* Custom Tab Styling */
+.au-custom-list-btn {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 12px !important;
+  height: 100%;
+  border-radius: 0;
+  transition: all var(--au-transition);
+  font-weight: 400;
+  font-size: 1.2rem !important;
+  color: var(--au-text-light) !important;
+  background: transparent;
+  white-space: nowrap;
+}
+
+/* Fix for misaligned icons in media activities */
+.activities .activity-entry .replies,
+.activities .activity-entry .likes {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+.activities .activity-entry .replies .fa,
+.activities .activity-entry .likes .fa,
+.activities .activity-entry .replies svg,
+.activities .activity-entry .likes svg {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 1.2rem !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Active state color */
+.au-custom-list-btn.active {
+  background: rgba(15, 22, 31, 0.8) !important;
+  border-radius: 0 4px 4px 0 !important;
+}
+
+/* Mutual Exclusivity: When Custom is active, FORCE EVERY OTHER CHILD to INACTIVE */
+.feed-type-toggle.au-custom-active>*:not(.au-custom-list-btn) {
+  background: transparent !important;
+  color: var(--au-text-light) !important;
+  opacity: 0.6 !important;
+  font-weight: 500 !important;
+}
+
+/* Hover state */
+.au-custom-list-btn:hover,
+.au-custom-list-btn:hover .au-custom-list-label {
+  color: var(--au-primary) !important;
+}
+
+.au-custom-list-label {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.au-custom-list-btn .fa-caret-down {
+  font-size: 1rem;
+  transition: transform 0.2s;
+  opacity: 0.6;
+}
+
+.au-custom-list-btn:hover .fa-caret-down,
+.au-custom-list-btn.active .fa-caret-down {
+  opacity: 1;
+}
+
+.au-custom-list-menu {
+  position: fixed !important;
+  background: rgba(21, 31, 46, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+  width: 130px !important;
+  min-width: 130px !important;
+  max-height: 400px;
+  right: 115px;
+  overflow-y: auto;
+  z-index: var(--z-custom-list-menu) !important;
+  padding: 6px 0 !important;
+  backdrop-filter: blur(10px);
+  animation: au-fade-in 0.2s ease-out;
+}
+
+.au-custom-list-item {
+  padding: 6px 12px !important;
+  font-size: 1.2rem !important;
+  font-weight: 400 !important;
+  color: var(--color-text-light) !important;
+  background: transparent !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+
+.au-custom-list-item.selected {
+  color: rgb(var(--color-blue)) !important;
+  font-weight: 700 !important;
+}
+
+.au-custom-list-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: rgb(var(--color-blue)) !important;
+  padding-left: 20px !important;
+  /* Subtle slide effect */
+}
+
+.au-custom-list-item.active {
+  color: var(--color-blue) !important;
+  font-weight: 600 !important;
+  background: rgba(61, 180, 242, 0.05) !important;
+}
+
+.au-custom-list-item.active::after {
+  content: '\f00c';
+  font-family: 'Font Awesome 7 Free';
+  font-weight: 900;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+/* Clear Option Special Styling */
+.au-custom-list-clear {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  margin-bottom: 4px;
+  padding-bottom: 10px !important;
+  color: var(--color-text-lighter) !important;
+  opacity: 0.8;
+}
+
+.au-custom-list-clear i {
+  color: #e85d75;
+  /* Soft red */
+}
+
+.au-custom-list-clear:hover {
+  background: rgba(232, 93, 117, 0.08) !important;
+  color: #ff8080 !important;
+  padding-left: 20px !important;
+}
+
+.au-custom-list-item.au-custom-list-empty {
+  cursor: default;
+  color: var(--au-text-light);
+  font-style: italic;
+  opacity: 0.6;
+}
+
+.au-custom-list-item.au-custom-list-empty:hover {
+  background: transparent;
+  color: var(--au-text-light);
+}
+
+.au-custom-list-item i {
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+/* Score Badge */
+
+/* Loader and Empty States */
+.au-custom-activities-container {
+  animation: au-fade-in 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* Let activity-entry handle spacing */
+  margin-bottom: 20px;
+}
+
+/* Custom Activity Fallback Styles (Safety Net) */
+.au-custom-activity.activity-entry {
+  background: rgb(var(--color-foreground)) !important;
+  border-radius: 4px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  position: relative;
+  margin-bottom: 16px !important;
+  display: block !important;
+  border: none !important;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.au-custom-activity.activity-entry:hover {
+  background: var(--color-foreground-hover, var(--color-foreground)) !important;
+  filter: brightness(1.05);
+}
+
+.au-custom-activity .wrap {
+  position: relative;
+  display: flex !important;
+  min-height: 85px;
+  padding: 0 !important;
+}
+
+.au-custom-activity .list {
+  display: flex !important;
+  width: 100%;
+}
+
+.au-custom-activity .cover {
+  width: 64px !important;
+  min-width: 64px !important;
+  height: 100% !important;
+  min-height: 85px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px 0 0 4px;
+  flex-shrink: 0;
+}
+
+.au-custom-activity .details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px !important;
+  position: relative;
+}
+
+.au-custom-activity .name {
+  font-weight: 600 !important;
+  font-size: 1.4rem !important;
+  color: rgb(var(--color-blue)) !important;
+  text-decoration: none;
+  margin-bottom: 4px;
+}
+
+.au-custom-activity .status {
+  font-size: 1.3rem !important;
+  color: var(--color-text-light) !important;
+  line-height: 1.4;
+}
+
+.au-custom-activity .status strong {
+  color: var(--color-text) !important;
+  font-weight: 700;
+}
+
+.au-custom-activity .avatar {
+  width: 35px !important;
+  height: 35px !important;
+  border-radius: 4px !important;
+  background-size: cover;
+  background-position: center;
+  margin-top: 10px;
+  display: block;
+}
+
+.au-custom-activity .time {
+  position: absolute !important;
+  top: 12px;
+  right: 16px;
+  font-size: 1.1rem !important;
+  color: var(--color-text-lighter) !important;
+  font-weight: 700 !important;
+  white-space: nowrap;
+}
+
+.au-custom-activity .actions {
+  position: absolute !important;
+  bottom: 12px;
+  right: 16px;
+  display: flex !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+.au-custom-activity .action {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font-size: 1.2rem !important;
+  color: rgb(139, 160, 178) !important;
+}
+
+.au-custom-activity .action .count {
+  color: rgb(139, 160, 178) !important;
+  font-weight: 600;
+}
+
+.au-custom-activity .action .fa {
+  font-size: 1.2rem !important;
+}
+
+/* Specific adjustment for text activities */
+.au-custom-activity .text-activity .details {
+  padding-left: 0;
+}
+
+.au-custom-activity .text {
+  margin-top: 8px;
+  font-size: 1.3rem;
+  color: var(--color-text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+@keyframes au-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Filter Bar Adjustments for Media Pages */
+.media-social-filter+.au-activity-bar {
+  margin-top: 20px !important;
+  margin-bottom: 15px !important;
+}
+
+/* Static Search Bar for the compact media social page. Home keeps its expansion. */
+.au-media-social-page-bar .au-search-container,
+.au-media-social-page-bar .au-search-container:focus-within {
+  width: 150px !important;
+  margin-right: 0 !important;
+}
+
+/* Home Page Symmetry */
+.home-page-container {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* Stable replacement for AniList's transient lazy-load control. */
+.au-persistent-load-more {
+  display: block;
+  width: 100%;
+  margin: 20px 0;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: var(--au-border-radius);
+  background: var(--au-bg) !important;
+  color: var(--au-text-light);
+  font-family: inherit;
+  font-size: 1.3rem;
+  line-height: 1.4;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--au-transition), color var(--au-transition);
+}
+
+.au-persistent-load-more:hover,
+.au-persistent-load-more:focus-visible {
+  background: var(--au-bg-elev) !important;
+  color: var(--au-primary);
+  outline: none;
+}

@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest a focused improvement to AniList Ultimate.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the current workflow and what gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain what should change and how you would use it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or relevant examples
+      description: Optional. Remove personal data from examples.

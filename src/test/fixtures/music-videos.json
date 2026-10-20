@@ -1,0 +1,23 @@
+{
+  "manifest": [{ "id": 4988, "malID": 61578 }, { "id": 5009, "malID": 63382 }],
+  "4988": {
+    "id": 4988,
+    "resources": { "nodes": [{ "site": "MAL", "externalId": 61578 }] },
+    "animethemes": [
+      { "type": "OP", "song": { "title": { "romaji": "Kaze no Naka wa Hashiru kkya Nai!", "native": "風の中は走るっきゃないっ!" } },
+        "animethemeentries": [{ "videos": { "nodes": [{ "link": "https://v.animethemes.moe/NamaAnaru-OP1.webm", "resolution": 720, "nc": false }] } }] },
+      { "type": "ED", "song": { "title": { "romaji": "Pi", "native": "ぴ" } },
+        "animethemeentries": [{ "videos": { "nodes": [{ "link": "https://v.animethemes.moe/NamaAnaru-ED1.webm", "resolution": 720, "nc": false }] } }] }
+    ]
+  },
+  "5009": {
+    "id": 5009,
+    "resources": { "nodes": [{ "site": "MAL", "externalId": 63382 }] },
+    "animethemes": [
+      { "type": "OP", "song": { "title": { "romaji": "RESPAWN!!", "native": "リスポーン!!" } },
+        "animethemeentries": [{ "videos": { "nodes": [{ "link": "https://v.animethemes.moe/NiaListon-OP1.webm", "resolution": 720, "nc": false }] } }] },
+      { "type": "ED", "song": { "title": { "romaji": "Tokimeki Un Deux Trois♪", "native": "ときめきアン・ドゥ・トロワ♪" } },
+        "animethemeentries": [{ "videos": { "nodes": [{ "link": "https://v.animethemes.moe/NiaListon-ED1.webm", "resolution": 720, "nc": false }] } }] }
+    ]
+  }
+}
