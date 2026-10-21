@@ -78,9 +78,9 @@
   font-size: 14px;
   cursor: pointer;
 }
-.au-friend-alerts-watch:hover,
 .au-friend-alerts-watch.is-watched {
-  color: rgb(var(--color-blue, 61, 180, 242));
+  color: white;
+  background: rgb(var(--color-blue, 61, 180, 242));
 }
 .au-friend-alerts button,
 .au-friend-alerts select {
