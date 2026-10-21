@@ -27,21 +27,21 @@ interface AstraLine {
 const SECTION_LABELS = new Map<string, SectionKind>([
   [ASTRA_MARKERS.LABELS.BREAKDOWN, 'breakdown'],
   [ASTRA_MARKERS.LABELS.JOURNAL, 'journal'],
-  // NOTES is a legacy section: it is read and carried, never generated from season notes.
+  // Existing NOTES sections are read and carried, never generated from season notes.
   [ASTRA_MARKERS.LABELS.NOTES, 'notes'],
 ]);
 
 const BREAKDOWN_LINES: readonly RegExp[] = [
   /^OVERALL SCORE: \d+(\.\d+)?\/10( \(manual\))?$/,
   /^• .+: \d+(\.\d+)?\/10$/,
-  /^  └ .+: \d+(\.\d+)?\/10$/,
-  /^    ★ Lode Astra assegnata a .+$/,
-  /^  ★ Lode Astra assegnata a tutti i sottocampi di .+$/,
+  /^ {2}└ .+: \d+(\.\d+)?\/10$/,
+  /^ {4}★ Lode Astra assegnata a .+$/,
+  /^ {2}★ Lode Astra assegnata a tutti i sottocampi di .+$/,
 ];
 const JOURNAL_ENTRY = /^Ep \d+: ?.*$/;
 const RATING_LINE = /^Rating: ?.*$/;
 
-/** Finds every frameless block in `text`, in order. Legacy framed blocks are not reported here. */
+/** Finds every frameless block in `text`, in order. Framed blocks are not reported here. */
 export function findFramelessBlocks(text: string): AstraBlockRange[] {
   const lines = splitLines(text);
   const blocks: AstraBlockRange[] = [];

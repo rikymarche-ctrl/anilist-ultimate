@@ -53,7 +53,7 @@ export interface IAstraParser {
 
   /**
    * Serializes a work object into a frameless metadata block string.
-   * `carriedNotes` is legacy NOTES text kept verbatim; season notes are never written.
+   * `carriedNotes` is existing NOTES text kept verbatim; season notes are never written.
    */
   serialize(work: AstraWork, sections: AstraSection[], carriedNotes?: string): string;
 

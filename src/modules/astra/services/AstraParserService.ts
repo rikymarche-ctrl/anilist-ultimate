@@ -58,20 +58,20 @@ function splitAt(text: string, range: AstraBlockRange): AstraDecomposition {
 export class AstraParserService implements IAstraParser {
   /**
    * Decomposes a string into Top, Astra Block, and Bottom compartments.
-   * Recognizes the frameless block format and the legacy framed block still found on AniList.
+   * Recognizes both frameless and framed blocks stored on AniList.
    *
    * @param text The raw AniList notes string.
    * @returns An object containing the separated compartments.
    */
   public decompose(text: string): AstraDecomposition {
-    const legacy = this.locateLegacyBlock(text);
+    const framed = this.locateFramedBlock(text);
     const frameless = findFramelessBlocks(text);
-    if (legacy) {
+    if (framed) {
       // A frameless block inside the framed one belongs to it; any other one makes the Notes ambiguous.
-      if (frameless.some((range) => range.start < legacy.start || range.end > legacy.end)) {
+      if (frameless.some((range) => range.start < framed.start || range.end > framed.end)) {
         throw new Error(AMBIGUOUS_BLOCK_ERROR);
       }
-      return splitAt(text, legacy);
+      return splitAt(text, framed);
     }
     if (frameless.length === 0) return { top: text, block: '', bottom: '' };
     if (frameless.length > 1) throw new Error(AMBIGUOUS_BLOCK_ERROR);
@@ -106,7 +106,7 @@ export class AstraParserService implements IAstraParser {
       cleanText: [top.trim(), bottom.trim()].filter(Boolean).join('\n\n'),
     };
 
-    // Only a framed (legacy) block has boundary lines to drop; a frameless block starts with its label.
+    // Only a framed block has boundary lines to drop; a frameless block starts with its label.
     const rawLines = block.replace(/\r/g, '').split('\n');
     const framed = rawLines[0].trim().toUpperCase() === ASTRA_MARKERS.HEADER.toUpperCase();
     const lines = framed ? rawLines.slice(1, -1) : rawLines;
@@ -442,14 +442,14 @@ export class AstraParserService implements IAstraParser {
     return result;
   }
 
-  /** Legacy NOTES text (rating and general lines) of an existing block, in merge order. */
+  /** Existing NOTES text (rating and general lines) of a block, in merge order. */
   private carriedNotesOf(block: string, sections: AstraSection[]): string {
     const parsed = this.parse(block, sections);
     return [parsed?.ratingNotes, parsed?.generalNotes].filter(Boolean).join('\n');
   }
 
-  /** Locates the legacy framed block (header line through footer line), or null when there is none. */
-  private locateLegacyBlock(text: string): AstraBlockRange | null {
+  /** Locates a framed block (header line through footer line), or null when there is none. */
+  private locateFramedBlock(text: string): AstraBlockRange | null {
     const headers: AstraBlockRange[] = [];
     const footers: AstraBlockRange[] = [];
     for (const line of text.matchAll(/[^\r\n]+/g)) {
