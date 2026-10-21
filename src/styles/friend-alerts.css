@@ -1,3 +1,42 @@
+.au-friend-alerts-nav-host {
+  margin-right: calc(var(--au-friend-alerts-nav-margin, 0px) + var(--au-friend-alerts-nav-reserve, 0px)) !important;
+}
+.au-friend-alerts-nav-host.au-friend-alerts-nav-positioned {
+  position: relative !important;
+}
+.au-friend-alerts-nav-host > .au-friend-alerts-nav-badge {
+  position: absolute;
+  left: calc(100% + var(--au-friend-alerts-nav-offset, 32px));
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #3db4f2;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  z-index: 1;
+}
+.au-friend-alerts-nav-host > .au-friend-alerts-nav-badge:hover {
+  background: #269bd7;
+  color: #fff;
+}
+.au-friend-alerts-nav-badge:focus-visible {
+  outline: 2px solid #3db4f2;
+  outline-offset: 3px;
+}
+
 .au-friend-alerts {
   font-size: 14px;
   color: rgb(var(--color-text, 159, 173, 189));
@@ -34,15 +73,14 @@
   padding: 0;
   border: 0;
   border-radius: 4px;
-  background: rgb(var(--color-foreground, 21, 31, 46));
+  background: transparent;
   color: rgb(var(--color-text, 159, 173, 189));
   font-size: 14px;
   cursor: pointer;
 }
 .au-friend-alerts-watch:hover,
 .au-friend-alerts-watch.is-watched {
-  color: white;
-  background: rgb(var(--color-blue, 61, 180, 242));
+  color: rgb(var(--color-blue, 61, 180, 242));
 }
 .au-friend-alerts button,
 .au-friend-alerts select {

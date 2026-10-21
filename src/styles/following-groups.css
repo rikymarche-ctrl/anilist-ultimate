@@ -79,21 +79,3 @@
 .au-following-group-hidden {
   display: none !important;
 }
-
-/* Gear: only in the first header, opens the custom lists settings. */
-.au-following-groups-edit {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  color: rgb(var(--color-blue));
-  text-decoration: none;
-}
-
-.au-following-groups-edit:hover,
-.au-following-groups-edit:focus-visible {
-  background: color-mix(in srgb, currentColor 12%, transparent);
-}

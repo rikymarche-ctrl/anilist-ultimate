@@ -62,22 +62,6 @@ export function createHeader(name: string | null, onToggle: () => void): GroupHe
   };
 }
 
-/** The edit gear lives only in the first header, so one link serves the whole column. */
-export function setGear(header: HTMLElement, on: boolean): void {
-  const gear = header.querySelector('.au-following-groups-edit');
-  if (on && !gear)
-    header.appendChild(
-      html`<a
-        class="au-following-groups-edit"
-        href="/settings#au-custom-lists"
-        title="Edit groups"
-        aria-label="Edit groups"
-        ><i class="fa-solid fa-gear" aria-hidden="true"></i
-      ></a>`
-    );
-  else if (!on && gear) gear.remove();
-}
-
 /**
  * Clones a native row for a group member the Overview did not render. cloneNode keeps AniList's scoped
  * data-v attributes, so the clone takes the same styling. Our badges, bubbles and ids are stripped.

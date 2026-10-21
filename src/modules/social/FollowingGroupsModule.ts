@@ -18,7 +18,6 @@ import {
   createClone,
   createHeader,
   setClass,
-  setGear,
   setOrder,
   setText,
   syncGapVar,
@@ -298,7 +297,6 @@ export class FollowingGroupsModule extends BaseModule {
       if (header.toggle.getAttribute('aria-expanded') !== expanded)
         header.toggle.setAttribute('aria-expanded', expanded);
       setClass(header.element, 'au-following-group-header--first', index === 0);
-      setGear(header.element, index === 0);
       setOrder(header.element, String(2 * index));
       if (header.element.parentElement !== parent) parent.appendChild(header.element);
     });

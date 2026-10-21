@@ -28,6 +28,28 @@ describe('Following progress response', () => {
 });
 
 describe('Following progress cache', () => {
+  it('invalidates one cached user without dropping the other cached users', async () => {
+    const f = fixture();
+    await f.service.getProgress('Friend', 1);
+    f.query.mockResolvedValueOnce({ ...entry(2), mediaId: 2 });
+    await f.service.getProgress('Friend', 2);
+    f.service.invalidate('friend', 1);
+    f.query.mockResolvedValueOnce(entry(0));
+    expect(await f.service.getProgress('Friend', 1)).toBe(0);
+    expect(await f.service.getProgress('Friend', 2)).toBe(2);
+    expect(f.query).toHaveBeenCalledTimes(3);
+  });
+  it('does not let a superseded request refill the cache with an outdated episode count', async () => {
+    const f = fixture(); let finish!: (value: unknown) => void;
+    f.query.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const old = f.service.getProgress('Friend', 1);
+    f.service.invalidate('Friend', 1);
+    f.query.mockResolvedValueOnce(entry(0));
+    expect(await f.service.getProgress('Friend', 1)).toBe(0);
+    finish(entry(1)); expect(await old).toBeUndefined();
+    expect(await f.service.getProgress('Friend', 1)).toBe(0);
+    expect(f.query).toHaveBeenCalledTimes(2);
+  });
   it('uses the real alias batcher for multiple visible users with no six-user or viewer filter', async () => {
     vi.useFakeTimers();
     const context = { sessionId: 'A', userId: 1 };

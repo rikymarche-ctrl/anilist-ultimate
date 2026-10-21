@@ -481,3 +481,75 @@ describe('friend alerts inbox regressions', () => {
     await f.module.destroy();
   });
 });
+
+describe('friend alerts global unread indicator', () => {
+  beforeEach(() => {
+    vi.clearAllMocks(); vi.useFakeTimers();
+    history.replaceState({}, '', '/home');
+    document.body.innerHTML = '<nav class="nav"><div class="user"><a class="avatar" href="/user/Me">Me</a>'
+      + '<a class="notification-dot" href="/notifications">2</a></div></nav>';
+  });
+  afterEach(() => { vi.useRealTimers(); document.body.replaceChildren(); });
+  const unreadAlert = (id: number) => ({ id, mediaId: 10, userId: 2, userName: 'Friend', title: 'Title',
+    status: 'watched', progress: '1', createdAt: 1050, read: false });
+
+  it('shows persisted unread alerts on the home page and refreshes from background broadcasts', async () => {
+    const f = fixture(); f.state.alerts.push(unreadAlert(1));
+    await f.module.init();
+    expect(document.querySelector('.au-friend-alerts-nav-badge')?.textContent).toBe('1');
+    expect(document.querySelector('.au-friend-alerts')).toBeNull();
+    f.state.alerts.push(unreadAlert(2));
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0][0];
+    listener({ type: MSG.LOCAL_CHANGED, keys: ['friend_alerts_account_1'] }, {}, () => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(document.querySelector('.au-friend-alerts-nav-badge')?.textContent).toBe('2');
+    await f.setEnabled(false);
+    expect(document.querySelector('.au-friend-alerts-nav-badge')).toBeNull();
+    await f.setEnabled(true);
+    expect(document.querySelector('.au-friend-alerts-nav-badge')?.textContent).toBe('2');
+    f.state.alerts.forEach(alert => { alert.read = true; });
+    listener({ type: MSG.LOCAL_CHANGED, keys: ['friend_alerts_account_1'] }, {}, () => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(document.querySelector('.au-friend-alerts-nav-badge')).toBeNull();
+    expect(document.querySelector('.notification-dot')?.textContent).toBe('2');
+    await f.module.destroy();
+  });
+  it('refreshes the unread count when returning to a visible tab', async () => {
+    const f = fixture();
+    await f.module.init();
+    f.state.alerts.push(unreadAlert(1));
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(document.querySelector('.au-friend-alerts-nav-badge')?.textContent).toBe('1');
+    await f.module.destroy();
+    vi.restoreAllMocks();
+  });
+  it('opens a closed inbox on the notifications page without marking anything read', async () => {
+    history.replaceState({}, '', '/notifications/#friend-alerts');
+    document.body.insertAdjacentHTML('beforeend', '<div class="notifications"></div>');
+    const f = fixture(); f.state.alerts.push(unreadAlert(1));
+    await f.module.init();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.querySelector('.au-friend-alerts-panel')).toBeNull();
+    document.querySelector<HTMLAnchorElement>('.au-friend-alerts-nav-badge')!.click();
+    expect(document.querySelector('.au-friend-alerts-panel')).not.toBeNull();
+    expect(f.state.alerts[0].read).toBe(false);
+    click('Mark all read');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(document.querySelector('.au-friend-alerts-nav-badge')).toBeNull();
+    expect(document.querySelector('.notification-dot')?.textContent).toBe('2');
+    await f.module.destroy();
+  });
+  it('clears the previous account immediately on logout and removes its UI when disabled', async () => {
+    const f = fixture(); f.state.alerts.push(unreadAlert(1));
+    await f.module.init();
+    f.logout(); f.bus.emit(EVENT_TYPES.AUTH_STATE_CHANGED, { isAuthenticated: false, timestamp: new Date() });
+    expect(document.querySelector('.au-friend-alerts-nav-badge')).toBeNull();
+    expect(document.querySelector('.user')?.className).toBe('user');
+    await f.setEnabled(false);
+    expect(document.querySelector('.notification-dot')?.textContent).toBe('2');
+    expect(vi.getTimerCount()).toBe(0);
+    await f.module.destroy();
+  });
+});

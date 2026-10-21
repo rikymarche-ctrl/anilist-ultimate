@@ -43,13 +43,40 @@ describe('Following progress rows and lifecycle', () => {
     section.replaceChildren(...[...section.children].map(child => child.cloneNode(true))); scan(); await settle();
     expect(badges()).toHaveLength(1); expect(query).toHaveBeenCalledOnce();
   });
-  it('hides episodes for Completed and restores them on a native status change without refetching', async () => {
+  it('hides episodes for Completed and rereads actual progress when the native status changes', async () => {
     await module.init(); await settle(); document.querySelector('.status')!.textContent = 'Completed';
     scan(); await settle(); expect(badges()).toHaveLength(0);
     expect(document.querySelector('.status')?.textContent).toBe('Completed');
     document.querySelector('.status')!.firstChild!.textContent = 'Watching';
     await vi.advanceTimersByTimeAsync(300);
-    expect(document.querySelector('.status')?.textContent).toBe('Watching · 8 ep'); expect(query).toHaveBeenCalledOnce();
+    expect(document.querySelector('.status')?.textContent).toBe('Watching · 8 ep'); expect(query).toHaveBeenCalledTimes(3);
+  });
+  it('does not turn a new Watching state with zero progress into a watched first episode', async () => {
+    document.querySelector('.status')!.textContent = 'Planning';
+    query.mockResolvedValueOnce({ id: 90, mediaId: 1, userId: 2, user: { id: 2, name: 'Friend' }, progress: 1 });
+    await module.init(); await settle();
+    const waiting = deferred<unknown>(); query.mockReturnValueOnce(waiting.promise);
+    document.querySelector('.status')!.textContent = 'Watching'; scan();
+    expect(document.querySelector('.status')?.textContent).toBe('Watching');
+    waiting.resolve({ id: 90, mediaId: 1, userId: 2, user: { id: 2, name: 'Friend' }, progress: 0 });
+    await settle();
+    expect(document.querySelector('.status')?.textContent).toBe('Watching');
+    expect(badges()).toHaveLength(0);
+  });
+  it('shows a first episode when AniList confirms progress one', async () => {
+    query.mockResolvedValueOnce({ id: 90, mediaId: 1, userId: 2, user: { id: 2, name: 'Friend' }, progress: 1 });
+    await module.init(); await settle();
+    expect(document.querySelector('.status')?.textContent).toBe('Watching · 1 ep');
+  });
+  it('discards an old in-flight progress result after a native status change', async () => {
+    const old = deferred<unknown>(); query.mockReturnValueOnce(old.promise);
+    await module.init();
+    query.mockResolvedValueOnce({ id: 90, mediaId: 1, userId: 2, user: { id: 2, name: 'Friend' }, progress: 0 });
+    document.querySelector('.status')!.textContent = 'Paused'; scan(); await settle();
+    old.resolve({ id: 90, mediaId: 1, userId: 2, user: { id: 2, name: 'Friend' }, progress: 1 });
+    await settle();
+    expect(document.querySelector('.status')?.textContent).toBe('Paused');
+    expect(badges()).toHaveLength(0);
   });
   it('keeps Completed entries without an episode suffix when progress arrives late', async () => {
     document.querySelector('.status')!.textContent = 'Completed'; await module.init(); await settle();

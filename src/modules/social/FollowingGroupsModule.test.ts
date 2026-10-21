@@ -121,7 +121,7 @@ describe('Following groups module on the social tab', () => {
     ).toEqual(['ann', 'bob', 'carol']);
   });
 
-  it('builds each header as a toggle plus, in the first header only, the edit gear', async () => {
+  it('builds each header as a full-width toggle without a settings shortcut', async () => {
     await module.init();
     await settle();
     const headers = [...document.querySelectorAll<HTMLElement>('.au-following-group-header')];
@@ -129,10 +129,7 @@ describe('Following groups module on the social tab', () => {
     expect(
       headers.map((header) => header.querySelector('.au-following-group-toggle')?.getAttribute('aria-expanded'))
     ).toEqual(['true', 'true', 'true']);
-    const gear = headers[0].querySelector<HTMLAnchorElement>('.au-following-groups-edit');
-    expect(gear?.getAttribute('href')).toBe('/settings#au-custom-lists');
-    expect(gear?.getAttribute('aria-label')).toBe('Edit groups');
-    expect(document.querySelectorAll('.au-following-groups-edit')).toHaveLength(1);
+    expect(document.querySelector('.au-following-groups-edit')).toBeNull();
     expect(headers[0].classList.contains('au-following-group-header--first')).toBe(true);
     expect(headers.slice(1).some((header) => header.classList.contains('au-following-group-header--first'))).toBe(
       false

@@ -30,6 +30,14 @@ interface FollowingRow {
   progress?: number;
   pending: boolean;
   refreshAt: number;
+  nativeStatus: string;
+  revision: number;
+}
+
+function nativeStatus(element: HTMLElement): string {
+  return [...element.childNodes]
+    .filter(node => !(node instanceof Element && node.classList.contains('au-following-progress')))
+    .map(node => node.textContent ?? '').join('').trim();
 }
 
 /** Enhances native Following rows independently of note/tooltip availability. */
@@ -177,6 +185,8 @@ export class FollowingProgressModule extends BaseModule {
           path: location.pathname,
           pending: false,
           refreshAt: 0,
+          nativeStatus: nativeStatus(status),
+          revision: 0,
         });
       if (link.matches('a.follow') && link.contains(status)) link.classList.add('au-following-row');
     });
@@ -192,19 +202,23 @@ export class FollowingProgressModule extends BaseModule {
       if (!owned.has(node as HTMLElement)) node.remove();
     });
     this.rows.forEach((row) => {
-      if (this.valid(row)) this.renderProgress(row);
+      if (!this.valid(row)) return;
+      const status = nativeStatus(row.status);
+      if (status !== row.nativeStatus) {
+        this.progress.invalidate(row.username, row.mediaId);
+        row.nativeStatus = status;
+        row.revision++;
+        row.progress = undefined;
+        row.pending = false;
+        row.refreshAt = 0;
+      }
+      this.renderProgress(row);
     });
     this.pump();
   }
 
   private renderProgress(row: FollowingRow): void {
-    // Use the displayed native state so a Vue status change takes effect even
-    // while progress is cached. Ignore our own text when reading that state.
-    const status = [...row.status.childNodes]
-      .filter((node) => node !== row.badge)
-      .map((node) => node.textContent ?? '')
-      .join('')
-      .trim();
+    const status = nativeStatus(row.status);
     if (/^completed\b/i.test(status) || row.progress === undefined || row.progress <= 0) {
       row.badge?.remove();
       row.badge = undefined;
@@ -224,19 +238,20 @@ export class FollowingProgressModule extends BaseModule {
       if (this.activeReads >= 8) break;
       if (row.pending || row.refreshAt > Date.now() || !this.valid(row)) continue;
       const version = this.version;
+      const revision = row.revision;
       row.pending = true;
       this.activeReads++;
       void this.progress
         .getProgress(row.username, row.mediaId)
         .then((value) => {
-          if (version !== this.version || this.rows.get(row.status) !== row || !this.valid(row))
+          if (version !== this.version || revision !== row.revision || this.rows.get(row.status) !== row || !this.valid(row))
             return;
           row.refreshAt = Date.now() + (value === undefined ? 30000 : FOLLOWING_PROGRESS_TTL);
           row.progress = value;
           this.renderProgress(row);
         })
         .finally(() => {
-          row.pending = false;
+          if (revision === row.revision) row.pending = false;
           this.activeReads--;
           this.pump();
         });

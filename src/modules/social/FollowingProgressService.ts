@@ -38,6 +38,12 @@ export class FollowingProgressService {
 
   clear(): void { this.version++; this.cache.clear(); this.pending.clear(); }
 
+  invalidate(username: string, mediaId: number): void {
+    const key = JSON.stringify([mediaId, username.toLowerCase()]);
+    this.cache.delete(key);
+    this.pending.delete(key);
+  }
+
   async getProgress(username: string, mediaId: number): Promise<number | undefined> {
     const context = this.api.getContext?.();
     if (context?.sessionId !== this.context?.sessionId || context?.userId !== this.context?.userId || !this.api.isAuthenticated()) {
@@ -60,7 +66,7 @@ export class FollowingProgressService {
       task = (async () => {
         try {
           const response = await this.batcher.query<unknown>(FOLLOWING_PROGRESS_QUERY, { userName: username, mediaId });
-          if (!current()) return undefined;
+          if (!current() || this.pending.get(key) !== task) return undefined;
           const progress = parseFollowingProgress(response, username, mediaId);
           this.cache.set(key, { progress, timestamp: Date.now() });
           while (this.cache.size > 500) this.cache.delete(this.cache.keys().next().value!);

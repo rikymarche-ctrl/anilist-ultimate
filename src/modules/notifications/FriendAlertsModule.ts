@@ -16,6 +16,7 @@ import {
   type FriendAlertsState,
 } from './FriendAlerts';
 import '@/styles/friend-alerts.css';
+import { FriendAlertsNavbar } from './FriendAlertsNavbar';
 
 function node<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -71,6 +72,21 @@ export class FriendAlertsModule extends BaseModule {
   /** The #friend-alerts hash opens the inbox once per navigation, not on every root rebuild. */
   private hashConsumed = false;
   private timer: ReturnType<typeof setInterval> | undefined;
+  private readonly navbar = new FriendAlertsNavbar(event => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+      || !/^\/notifications\/?$/.test(location.pathname)) return;
+    event.preventDefault();
+    this.hashConsumed = true;
+    this.open = true;
+    this.inboxTab = 'activity';
+    this.reconcile();
+    this.render();
+    this.bell?.focus();
+    this.root?.scrollIntoView?.({ block: 'nearest' });
+  });
+  private readonly visible = (): void => {
+    if (document.visibilityState === 'visible') void this.refresh();
+  };
   private readonly runtimeEvents = chrome.runtime.onMessage;
   private readonly listener = (value: unknown): void => {
     const signal = value as { type?: string; keys?: unknown[] } | null;
@@ -161,6 +177,7 @@ export class FriendAlertsModule extends BaseModule {
     this.active = true;
     this.runtimeEvents.addListener(this.listener);
     document.addEventListener('keydown', this.keydown);
+    document.addEventListener('visibilitychange', this.visible);
     this.observer.register(this.getName(), () => this.reconcile());
     this.timer = setInterval(() => {
       if (document.visibilityState === 'visible') void this.refresh();
@@ -247,6 +264,7 @@ export class FriendAlertsModule extends BaseModule {
   }
   private reconcile(): void {
     if (!this.active) return;
+    this.navbar.update(this.auth.hasToken() ? this.state.alerts.filter(alert => !alert.read).length : 0);
     const notifications = /^\/notifications\/?$/.test(location.pathname)
       ? document.querySelector<HTMLElement>('.notifications')
       : null;
@@ -349,6 +367,8 @@ export class FriendAlertsModule extends BaseModule {
   }
   private render(): void {
     if (!this.active) return;
+    const unread = this.state.alerts.filter((alert) => !alert.read).length;
+    this.navbar.update(this.auth.hasToken() ? unread : 0);
     const watched = this.state.rules.some((rule) => rule.mediaId === this.media()?.id);
     this.watchButton?.setAttribute('aria-pressed', String(watched));
     this.watchButton?.classList.toggle('is-watched', watched);
@@ -363,7 +383,6 @@ export class FriendAlertsModule extends BaseModule {
       : undefined;
     this.panel?.remove();
     this.panel = null;
-    const unread = this.state.alerts.filter((alert) => !alert.read).length;
     if (this.bell) {
       const glyph = node('span', '', 'au-friend-alerts-header-icon');
       glyph.append(icon('fa-bell'));
@@ -710,6 +729,8 @@ export class FriendAlertsModule extends BaseModule {
     this.observer.unregister(this.getName());
     this.runtimeEvents.removeListener(this.listener);
     document.removeEventListener('keydown', this.keydown);
+    document.removeEventListener('visibilitychange', this.visible);
+    this.navbar.clear();
     this.clearWatchButton();
     this.root?.remove();
     this.watchButton = null;

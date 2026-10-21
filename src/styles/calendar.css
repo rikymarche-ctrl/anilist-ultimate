@@ -37,13 +37,6 @@
 }
 
 .au-calendar-title {
-  font-family: 'JetBrains Mono', 'Roboto Mono', 'Fira Code', monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  /* Increased spacing for techy feel */
-  font-size: 1.3rem !important;
-  font-weight: 700 !important;
-  color: var(--cal-text) !important;
   display: flex;
   align-items: center;
   gap: 15px;
