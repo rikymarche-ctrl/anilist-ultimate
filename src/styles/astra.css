@@ -7474,10 +7474,23 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 .astra-modal--rating .astra-overall-area {
+  position: relative;
   width: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   align-self: stretch !important;
+}
+
+/* Metadata sits inside the score area so it never reserves an empty row below the box. */
+.astra-modal--rating .astra-overall-meta {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 6px;
+  margin-top: 0;
+}
+
+.astra-modal--rating .astra-overall-meta:not(:has(> :not([hidden]))) {
+  display: none;
 }
 
 .astra-modal--rating .astra-overall-box {
