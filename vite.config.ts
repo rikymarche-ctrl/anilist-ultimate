@@ -23,10 +23,13 @@ export default defineConfig({
     // Let imports load their dependencies without cross-world module preloads.
     modulePreload: false,
     rollupOptions: {
+      // No content hashes: an unpacked extension keeps the manifest it loaded, so a
+      // rebuild that renamed files left the old content loader and worker importing
+      // deleted chunks until the extension itself was reloaded.
       output: {
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]',
+        chunkFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]',
       },
     },
     minify: 'terser',

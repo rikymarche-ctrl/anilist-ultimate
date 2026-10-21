@@ -26,6 +26,7 @@ import type { IConfigManager } from '@core/interfaces/IConfigManager';
 import type { ModuleRegistry } from '@core/modules/ModuleRegistry';
 import type { AstraNavigationService } from './modules/astra/services/AstraNavigationService';
 import { setupDI } from './setup';
+import { waitForBackground } from '@core/services/BackgroundWake';
 
 declare global {
   interface Window {
@@ -75,6 +76,8 @@ function setupDebugExposure(config: IConfigManager, registry: ModuleRegistry): v
  */
 async function init(): Promise<void> {
   try {
+    // Wake the MV3 worker (it may be asleep or mid-shutdown) before setup depends on it.
+    await waitForBackground();
     await setupDI();
 
     // High Priority: Inject Astra Navigation Link immediately
