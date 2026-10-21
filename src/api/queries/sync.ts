@@ -1,6 +1,6 @@
 export const SYNC_PROGRESS_QUERY = `query($mediaId: Int!, $userId: Int!) {
   MediaList(mediaId: $mediaId, userId: $userId) {
-    id mediaId userId progress status media { id title { userPreferred } }
+    id mediaId userId progress status media { id type episodes chapters title { userPreferred } }
   }
 }`;
 export const SYNC_NOTES_QUERY = `query($mediaId: Int!, $userId: Int!) {

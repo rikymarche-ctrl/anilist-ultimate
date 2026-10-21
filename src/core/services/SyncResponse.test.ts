@@ -19,6 +19,55 @@ function fixture() {
 beforeEach(() => vi.useFakeTimers()); afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('progress command response boundary', () => {
+  it.each([11, 12, 13])('completes a watching entry only when progress %i reaches the known total', async progress => {
+    const f = fixture(); const row = syncListEntry(7, 1, 11);
+    f.api.query.mockResolvedValue({ MediaList: { ...row, media: { ...row.media, episodes: 12 } } });
+    const result = await f.queue.updateProgress(7, progress, 'one');
+    expect(result.status).toBe(progress >= 12 ? 'COMPLETED' : 'CURRENT');
+    expect(f.api.mutate.mock.calls[0][1]).toEqual({ mediaId: 7, progress,
+      ...(progress >= 12 ? { status: 'COMPLETED' } : {}) });
+  });
+  it.each([null, 0])('keeps watching when the total is unknown or zero (%s)', async episodes => {
+    const f = fixture(); const row = syncListEntry(7, 1, 11);
+    f.api.query.mockResolvedValue({ MediaList: { ...row, media: { ...row.media, episodes } } });
+    expect(await f.queue.updateProgress(7, undefined, 'one')).toMatchObject({ progress: 12, status: 'CURRENT' });
+    expect(f.api.mutate.mock.calls[0][1]).toEqual({ mediaId: 7, progress: 12 });
+  });
+  it.each(['PAUSED', 'DROPPED', 'PLANNING', 'REPEATING', 'COMPLETED'])('preserves an explicitly different status %s', async status => {
+    const f = fixture(); const row = syncListEntry(7, 1, 11);
+    f.api.query.mockResolvedValue({ MediaList: { ...row, status, media: { ...row.media, episodes: 12 } } });
+    expect(await f.queue.updateProgress(7, undefined, 'one')).toMatchObject({ progress: 12, status });
+    expect(f.api.mutate.mock.calls[0][1]).toEqual({ mediaId: 7, progress: 12 });
+  });
+  it('uses chapters for manga completion', async () => {
+    const f = fixture(); const row = syncListEntry(7, 1, 9);
+    f.api.query.mockResolvedValue({ MediaList: { ...row, media: { ...row.media, type: 'MANGA', episodes: null, chapters: 10 } } });
+    expect(await f.queue.updateProgress(7, undefined, 'one')).toMatchObject({ progress: 10, status: 'COMPLETED' });
+    expect(f.api.mutate.mock.calls[0][1]).toEqual({ mediaId: 7, progress: 10, status: 'COMPLETED' });
+  });
+  it('durably queues completion offline and preserves it on subsequent increments', async () => {
+    const f = fixture(); const row = syncListEntry(7, 1, 11);
+    f.api.query.mockResolvedValue({ MediaList: { ...row, media: { ...row.media, episodes: 12 } } });
+    f.api.mutate.mockRejectedValue(new Error('Offline'));
+    expect(await f.queue.updateProgress(7, undefined, 'one')).toMatchObject({ progress: 12, status: 'COMPLETED', syncState: 'queued' });
+    expect((await f.queue.getQueue())[0].payload).toMatchObject({ progress: 12, status: 'COMPLETED' });
+    expect(await f.queue.updateProgress(7, undefined, 'one')).toMatchObject({ progress: 13, status: 'COMPLETED', syncState: 'queued' });
+    expect((await f.queue.getQueue())[0].payload).toMatchObject({ progress: 13, status: 'COMPLETED' });
+  });
+  it('honors a pending paused status when the remote entry is still watching', async () => {
+    const f = fixture(); const row = syncListEntry(7, 1, 11);
+    f.api.query.mockResolvedValue({ MediaList: { ...row, media: { ...row.media, episodes: 12 } } });
+    await f.queue.enqueue('ASTRA_SAVE', { mediaId: 7, status: 'PAUSED' }, 'one');
+    expect(await f.queue.updateProgress(7, undefined, 'one')).toMatchObject({ progress: 12, status: 'PAUSED' });
+    expect(f.api.mutate.mock.calls[0][1]).toEqual({ mediaId: 7, progress: 12, status: 'PAUSED' });
+  });
+  it.each([-1, '12', 2147483648])('rejects malformed completion totals %s before writing', async episodes => {
+    const f = fixture(); const row = syncListEntry();
+    f.api.query.mockResolvedValue({ MediaList: { ...row, media: { ...row.media, episodes } } });
+    await expect(f.queue.updateProgress(7, 12, 'one')).rejects.toThrow('progress total');
+    expect(f.api.mutate).not.toHaveBeenCalled();
+    expect(await f.queue.getQueue()).toEqual([]);
+  });
   it.each([{ userId: 2 }, { mediaId: 8 }, { id: 0 }, { progress: -1 }, { progress: 2147483648 },
     { progress: '3' }, { status: 'WATCHING' }, { media: { id: 8, title: { userPreferred: 'Other' } } },
     { media: { id: 7, title: { userPreferred: {} } } }])('rejects unrelated or malformed progress before enqueue: %j', async patch => {

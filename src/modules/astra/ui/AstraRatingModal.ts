@@ -36,6 +36,7 @@ import { logger } from '@core/logger';
 import type { AstraDashboard } from './AstraDashboard';
 import { MediaListStatus, type AniListDate } from '@/api/AnilistTypes';
 import { getStatusLabel } from '@core/utils/UIHelpers';
+import { statusAfterProgress } from '@core/utils/ProgressStatus';
 import * as EventBusTypes from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 
@@ -1415,6 +1416,8 @@ export class AstraRatingModal {
         return;
       this.formEditVersion++;
       if (this.state) this.state.isDirty = true;
+      if (event.target === progressInput && progressInput.value.trim() !== '')
+        this.completeProgress(Number(progressInput.value));
     };
     this.listen(this.overlay, 'input', markDirty);
     this.listen(this.overlay, 'change', markDirty);
@@ -1440,25 +1443,7 @@ export class AstraRatingModal {
     statusDropdown?.querySelectorAll('.astra-status-option').forEach((opt) => {
       this.listen(opt, 'click', () => {
         const value = (opt as HTMLElement).dataset.value as MediaListStatus;
-        const hidden = this.overlay!.querySelector('#astra-status') as HTMLInputElement;
-        const label = this.overlay!.querySelector('#astra-status-label');
-        const icon = this.overlay!.querySelector('#astra-status-icon');
-        if (hidden) hidden.value = value;
-        if (label) label.textContent = (opt.textContent || '').trim();
-        if (icon) {
-          // AniList can replace Font Awesome <i> nodes with SVGs, whose
-          // className property is read-only. Replace the node so both the
-          // icon shape and the selection update correctly in either mode.
-          const nextIcon = document.createElement('i');
-          nextIcon.id = 'astra-status-icon';
-          nextIcon.className = `fa-solid ${this.statusIcon(value)}`;
-          nextIcon.setAttribute('aria-hidden', 'true');
-          icon.replaceWith(nextIcon);
-        }
-        statusDropdown
-          .querySelectorAll('.astra-status-option')
-          .forEach((o) => o.classList.remove('active'));
-        opt.classList.add('active');
+        this.setStatus(value);
         statusDropdown.classList.remove('active');
         const hadNoStatus = this.needsListStatus;
         this.needsListStatus = false;
@@ -1588,6 +1573,7 @@ export class AstraRatingModal {
         // but for now we manually update the state since these inputs don't have change listeners attached here yet
         if (field === 'progress') {
           this.state.updateField('progress', newVal);
+          this.completeProgress(newVal);
           if (step > 0) {
             const currentSeason = this.state.data.seasons[this.currentSeasonIdx];
             if (!currentSeason.episodeNotes) currentSeason.episodeNotes = {};
@@ -2053,10 +2039,40 @@ export class AstraRatingModal {
 
     this.captureEpisodeInputs(currentSeason);
     this.state.updateField('progress', values.progress);
+    this.completeProgress(values.progress);
     this.state.updateField('isPrivate', values.private);
     this.state.updateField('isHidden', values.hidden);
     this.state.updateField('customLists', values.customLists);
     return values;
+  }
+
+  private completeProgress(progress: number): void {
+    if (!this.state || this.needsListStatus) return;
+    const work = this.state.data;
+    const total = work.type === 'anime' ? (this.media ? this.media.episodes : work.episodes)
+      : (this.media ? this.media.chapters : work.chapters);
+    const status = statusAfterProgress(work.status, progress, total);
+    if (status !== work.status) this.setStatus(status);
+  }
+
+  private setStatus(status: MediaListStatus): void {
+    if (!this.overlay || !this.state) return;
+    const hidden = this.overlay.querySelector<HTMLInputElement>('#astra-status');
+    const label = this.overlay.querySelector('#astra-status-label');
+    const icon = this.overlay.querySelector('#astra-status-icon');
+    if (hidden) hidden.value = status;
+    if (label) label.textContent = getStatusLabel(status, this.state.data.type);
+    if (icon) {
+      // AniList may replace the original <i> with an SVG; replace either node.
+      const nextIcon = document.createElement('i');
+      nextIcon.id = 'astra-status-icon';
+      nextIcon.className = `fa-solid ${this.statusIcon(status)}`;
+      nextIcon.setAttribute('aria-hidden', 'true');
+      icon.replaceWith(nextIcon);
+    }
+    this.overlay.querySelectorAll<HTMLElement>('.astra-status-option').forEach(option =>
+      option.classList.toggle('active', option.dataset.value === status));
+    this.state.updateField('status', status);
   }
 
   private captureEpisodeInputs(currentSeason: AstraSeason): void {

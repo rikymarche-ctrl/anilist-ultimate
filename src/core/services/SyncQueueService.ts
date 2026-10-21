@@ -24,6 +24,7 @@ import { SYNC_PROGRESS_QUERY, SYNC_NOTES_QUERY, SYNC_DELETE_ENTRY_QUERY } from '
 import { isSyncId, isNotFoundFailure, syncProgressResponse, syncNotesResponse, assertSyncAcknowledgement,
   syncDeletionEntryResponse, assertDeletionAcknowledgement } from './SyncResponse';
 import type { GraphQLResponse } from '@/api/GraphQLResponse';
+import { statusAfterProgress } from '@core/utils/ProgressStatus';
 
 /** Queue entry plus internal replacement-chain evidence (not part of the public QueuedMutation contract). */
 type ChainedMutation = QueuedMutation & { supersededNotes?: string[] };
@@ -226,7 +227,10 @@ export class SyncQueueService implements ISyncQueueService {
       const previousProgress = baseline?.payload.progress ?? entry.progress;
       const next = progress ?? previousProgress + 1;
       validateSyncPayload('ASTRA_SAVE', { mediaId, progress: next });
-      await this.enqueue('ASTRA_SAVE', { mediaId, progress: next }, session);
+      const previousStatus = (baseline?.payload.status ?? entry.status) as typeof entry.status;
+      const status = statusAfterProgress(previousStatus, next, entry.total);
+      await this.enqueue('ASTRA_SAVE', { mediaId, progress: next,
+        ...(status !== previousStatus ? { status } : {}) }, session);
       await this.process();
       this.assertOwner(owner, session);
       const pending = await this.getQueue();
@@ -236,7 +240,7 @@ export class SyncQueueService implements ISyncQueueService {
       // A newer durable save can supersede this increment while its mutation is in flight.
       const desired = latest ? latest.payload : undefined;
       return { mediaId, progress: desired?.progress ?? next, previousProgress, userId: owner,
-        status: (desired?.status ?? entry.status) as typeof entry.status, title: entry.title,
+        status: (desired?.status ?? status) as typeof entry.status, title: entry.title,
         syncState: latest ? 'queued' : 'synced' };
     });
   }

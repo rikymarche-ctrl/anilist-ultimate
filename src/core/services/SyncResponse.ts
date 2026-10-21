@@ -18,14 +18,22 @@ function entry(value: unknown, field: string, mediaId: number, userId?: number):
   return row;
 }
 
-/** Project only the identity, baseline progress/status and nullable display title needed by the action. */
-export function syncProgressResponse(value: unknown, mediaId: number, userId: number): { progress: number; status: MediaListStatus; title: string } {
+/** Project the identity, progress/status and known total needed by the action. */
+export function syncProgressResponse(value: unknown, mediaId: number, userId: number): { progress: number; status: MediaListStatus; title: string; total: number | null } {
   const row = entry(value, 'MediaList', mediaId, userId);
   if ((row.progress !== null && (!Number.isInteger(row.progress) || (row.progress as number) < 0 || (row.progress as number) > 2147483647))
     || !statuses.has(row.status)) throw new Error('Invalid AniList progress response');
   let title = `Media ${mediaId}`;
+  let total: number | null = null;
   if (row.media !== null) {
     if (!record(row.media) || row.media.id !== mediaId) throw new Error('Unrelated AniList media response');
+    const count = row.media.type === 'MANGA' ? row.media.chapters : row.media.episodes;
+    if (count !== undefined && count !== null) {
+      if (!Number.isInteger(count) || (count as number) < 0 || (count as number) > 2147483647) {
+        throw new Error('Invalid AniList progress total');
+      }
+      total = count as number;
+    }
     if (row.media.title !== null) {
       if (!record(row.media.title) || (row.media.title.userPreferred !== null && typeof row.media.title.userPreferred !== 'string')) {
         throw new Error('Invalid AniList title response');
@@ -33,7 +41,7 @@ export function syncProgressResponse(value: unknown, mediaId: number, userId: nu
       title = row.media.title.userPreferred as string || title;
     }
   }
-  return { progress: row.progress === null ? 0 : row.progress as number, status: row.status as MediaListStatus, title };
+  return { progress: row.progress === null ? 0 : row.progress as number, status: row.status as MediaListStatus, title, total };
 }
 
 /** A transport 404 for the notes lookup is AniList's answer for a viewer without a list entry. */

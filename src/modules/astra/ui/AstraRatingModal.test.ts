@@ -4,6 +4,7 @@ vi.mock('./AstraDashboard', () => ({ AstraDashboard: class {} }));
 import { AstraRatingModal } from './AstraRatingModal';
 import { AstraOverlayService } from '../services/AstraOverlayService';
 import { AstraRatingState } from './AstraRatingState';
+import { AstraRatingViewScope } from './AstraRatingViewScope';
 import { MediaListStatus } from '@/api/AnilistTypes';
 import type { AstraWork } from '../AstraInterfaces';
 import { ratingResponse } from '@/test/astra-rating-fixtures';
@@ -30,6 +31,7 @@ interface ModalTestAccess {
   needsListStatus: boolean;
   reloadHost(): void;
   renderDateField(id: string, label: string, iso: string): string;
+  attachEvents(): void;
 }
 const inspect = (modal: AstraRatingModal): ModalTestAccess => modal as unknown as ModalTestAccess;
 
@@ -361,6 +363,69 @@ describe('AstraRatingModal quick-edit data protection', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  function completionSetup() {
+    const f = setup();
+    f.state.updateField('status', MediaListStatus.CURRENT);
+    f.state.updateField('episodes', 10);
+    f.state.updateField('progress', 9);
+    f.overlay.innerHTML = `<input id="astra-progress" value="9"><input id="astra-repeat" value="0">
+      <button class="astra-step-btn" data-step-field="progress" data-step="1">+</button>
+      <div id="astra-status-dropdown"><span id="astra-status-label">Watching</span>
+        <svg id="astra-status-icon"></svg><div class="astra-dropdown-menu">
+          <div class="astra-status-option active" data-value="CURRENT">Watching</div>
+          <div class="astra-status-option" data-value="COMPLETED">Completed</div>
+        </div></div><input id="astra-status" value="CURRENT">`;
+    // Keep these isolated tests focused on the form controls, without rendering the journal.
+    Object.assign(f.modal, { renderEpisodeJournal: () => {},
+      viewScope: new AstraRatingViewScope(f.overlay, () => true, error => { throw error; }) });
+    inspect(f.modal).attachEvents();
+    return f;
+  }
+
+  it.each(['input', 'change', 'stepper'])('completes the visible form and saved entry at the total via %s', async action => {
+    const { modal, state, overlay, rating } = completionSetup();
+    if (action === 'stepper') overlay.querySelector<HTMLButtonElement>('.astra-step-btn')!.click();
+    else {
+      const input = overlay.querySelector<HTMLInputElement>('#astra-progress')!;
+      input.value = '10';
+      input.dispatchEvent(new Event(action, { bubbles: true }));
+    }
+    expect(state.data.status).toBe(MediaListStatus.COMPLETED);
+    expect(overlay.querySelector('#astra-status-label')!.textContent).toBe('Completed');
+    expect(overlay.querySelector<HTMLInputElement>('#astra-status')!.value).toBe('COMPLETED');
+    expect(overlay.querySelector('.astra-status-option.active')!.getAttribute('data-value')).toBe('COMPLETED');
+    expect(overlay.querySelector('#astra-status-icon')!.tagName).toBe('I');
+    await inspect(modal).save();
+    expect(rating.saveAndSync.mock.calls[0][0].status).toBe(MediaListStatus.COMPLETED);
+    expect(rating.saveAndSync.mock.calls[0][1].progress).toBe(10);
+  });
+
+  it('also completes when the progress value is captured during save', async () => {
+    const { modal, overlay, rating } = completionSetup();
+    overlay.querySelector<HTMLInputElement>('#astra-progress')!.value = '10';
+    await inspect(modal).save();
+    expect(rating.saveAndSync.mock.calls[0][0].status).toBe(MediaListStatus.COMPLETED);
+  });
+
+  it('keeps watching when caught up with aired episodes but the final total is unknown', async () => {
+    const { modal, state, overlay, rating } = completionSetup();
+    // A fresh AniList response overrides a stale total in the local cache.
+    Object.assign(modal, { media: { episodes: null, chapters: null, nextAiringEpisode: { episode: 11 } } });
+    overlay.querySelector<HTMLInputElement>('#astra-progress')!.value = '10';
+    await inspect(modal).save();
+    expect(state.data.status).toBe(MediaListStatus.CURRENT);
+    expect(rating.saveAndSync.mock.calls[0][0].status).toBe(MediaListStatus.CURRENT);
+  });
+
+  it('does not add an unlisted title through automatic completion', async () => {
+    const { modal, state, overlay, rating } = completionSetup();
+    inspect(modal).needsListStatus = true;
+    overlay.querySelector<HTMLInputElement>('#astra-progress')!.value = '10';
+    await inspect(modal).save();
+    expect(state.data.status).toBe(MediaListStatus.CURRENT);
+    expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ skipSync: true });
   });
 
   it('saves the previous progress instead of zero when the progress field is emptied', async () => {
