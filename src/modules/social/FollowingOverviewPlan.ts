@@ -13,14 +13,15 @@ export interface OverviewCandidate {
   index: number;
 }
 
-/** Group index first (Others is always last), then native before fetched, then source order. */
+/** The viewer first, then group index (Others last), native before fetched, and source order. */
 export function rankOverview(
   candidates: OverviewCandidate[],
   assignment: Map<string, number>,
-  limit: number
+  limit: number,
+  viewerKey: string | null = null
 ): OverviewCandidate[] {
   const rankOf = (candidate: OverviewCandidate) =>
-    assignment.get(candidate.key) ?? Number.MAX_SAFE_INTEGER;
+    candidate.key === viewerKey ? -1 : assignment.get(candidate.key) ?? Number.MAX_SAFE_INTEGER;
   return [...candidates]
     .sort(
       (a, b) =>

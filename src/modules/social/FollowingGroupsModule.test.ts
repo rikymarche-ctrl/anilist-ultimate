@@ -24,6 +24,8 @@ describe('Following groups module on the social tab', () => {
   let data: Record<string, unknown>;
   let lists: CustomLists;
   let listeners: Set<() => void>;
+  let viewerName: string;
+  let viewerId: number;
   const media = {
     read: vi.fn(
       async (_mediaId: number): Promise<FollowingMediaResult> => ({ entries: [], scoreFormat: 'POINT_100' })
@@ -67,7 +69,9 @@ describe('Following groups module on the social tab', () => {
     });
     lists = { Trusted: [user('bob', 2)], Friends: [user('ann'), user('dave', 4)] };
     listeners = new Set();
-    const api = { isAuthenticated: () => true, getContext: () => ({ sessionId: 'A', userId: 1 }) };
+    viewerName = 'Viewer'; viewerId = 1;
+    const api = { isAuthenticated: () => true, getContext: () => ({ sessionId: `session-${viewerId}`, userId: viewerId }),
+      getCurrentUser: async () => ({ id: viewerId, name: viewerName }) };
     const listService = {
       init: vi.fn(async () => undefined),
       getLists: () => structuredClone(lists),
@@ -119,6 +123,56 @@ describe('Following groups module on the social tab', () => {
         (element) => element.querySelector('.name')?.textContent
       )
     ).toEqual(['ann', 'bob', 'carol']);
+  });
+
+  it('pins the signed-in viewer before every category and preserves their original comment control', async () => {
+    viewerName = 'ANN';
+    const self = rowOf('ann'); const comment = self.querySelector('.hover-icon')!;
+    const clicked = vi.fn(); comment.addEventListener('click', clicked);
+    const parent = self.parentElement;
+    await module.init(); await settle();
+    expect(self.style.order).toBe('-1');
+    expect(self.parentElement).toBe(parent);
+    expect(headerOf('Friends')).toBeUndefined();
+    expect(headerOf('Trusted').style.order).toBe('0');
+    expect(headerOf('Others').querySelector('.au-following-group-count')?.textContent).toBe('1');
+    expect(document.querySelector('[data-au-group="Self"]')).toBeNull();
+    comment.dispatchEvent(new MouseEvent('click'));
+    expect(clicked).toHaveBeenCalledOnce();
+    expect(self.querySelector('.hover-icon')).toBe(comment);
+  });
+
+  it('keeps the viewer outside a collapsed Others category and excludes them from its count', async () => {
+    viewerName = 'carol';
+    document.querySelector('.users')!.insertAdjacentHTML('beforeend', row('stranger'));
+    data[FOLLOWING_GROUPS_KEY] = { groups: ['Trusted', 'Friends'], collapsed: [], othersCollapsed: true };
+    await module.init(); await settle();
+    expect(rowOf('carol').style.order).toBe('-1');
+    expect(rowOf('carol').classList.contains('au-following-group-hidden')).toBe(false);
+    expect(rowOf('stranger').classList.contains('au-following-group-hidden')).toBe(true);
+    expect(headerOf('Others').querySelector('.au-following-group-count')?.textContent).toBe('1');
+  });
+
+  it('pins the viewer without creating a category even when no lists are configured', async () => {
+    viewerName = 'bob'; delete data[FOLLOWING_GROUPS_KEY];
+    await module.init(); await settle();
+    expect(rowOf('bob').style.order).toBe('-1');
+    expect(document.querySelector('.au-following-group-header')).toBeNull();
+    expect(document.querySelectorAll('.follow')).toHaveLength(3);
+    await module.destroy();
+    expect(rowOf('bob').style.order).toBe('');
+  });
+
+  it('pins each account’s own row after an account change', async () => {
+    viewerName = 'ann';
+    await module.init(); await settle();
+    expect(rowOf('ann').style.order).toBe('-1');
+    viewerName = 'carol'; viewerId = 3;
+    bus.emit(EVENT_TYPES.AUTH_STATE_CHANGED, { isAuthenticated: true, userId: 3, timestamp: new Date() });
+    await settle();
+    expect(rowOf('carol').style.order).toBe('-1');
+    expect(rowOf('ann').style.order).not.toBe('-1');
+    expect(headerOf('Friends').querySelector('.au-following-group-count')?.textContent).toBe('1');
   });
 
   it('builds each header as a full-width toggle without a settings shortcut', async () => {

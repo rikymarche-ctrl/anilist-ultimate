@@ -70,6 +70,7 @@ export class FollowingGroupsModule extends BaseModule {
   private unsubscribers: Array<() => void> = [];
   private fetchState: FetchState = 'idle';
   private fetched: FollowingMediaResult | null = null;
+  private viewerName: string | null = null;
 
   constructor(
     @inject(TOKENS.ApiClient) private api: IApiClient,
@@ -104,6 +105,7 @@ export class FollowingGroupsModule extends BaseModule {
     this.snapshot = null;
     this.fetchState = 'idle';
     this.fetched = null;
+    this.viewerName = null;
     this.clear();
   }
 
@@ -112,7 +114,14 @@ export class FollowingGroupsModule extends BaseModule {
     const version = this.version;
     if (!this.active || !isFollowingGroupsPageRoute(location.pathname) || !this.api.isAuthenticated()) return;
     try {
-      await Promise.all([this.listService.init(), this.groupService.init()]);
+      const [, , viewer] = await Promise.all([
+        this.listService.init(), this.groupService.init(),
+        this.api.getCurrentUser?.().catch(() => null),
+      ]);
+      if (!this.active || version !== this.version || !this.api.isAuthenticated()) return;
+      const context = this.api.getContext?.();
+      if (viewer && (!context || viewer.id === context.userId) && viewer.name?.trim())
+        this.viewerName = viewer.name.toLowerCase();
     } catch (error) {
       logger.warn('[FollowingGroups] Groups unavailable; Following column left unchanged', error);
       return;
@@ -160,9 +169,10 @@ export class FollowingGroupsModule extends BaseModule {
 
   private scanSocial(parent: HTMLElement, rows: Row[], snapshot: Snapshot): void {
     this.removeClones();
-    const plan = planFollowingGroups(rows.map(({ username }) => username), snapshot.lists, snapshot.config);
+    const plan = planFollowingGroups(rows.filter(({ username }) => username.toLowerCase() !== this.viewerName)
+      .map(({ username }) => username), snapshot.lists, snapshot.config);
     if (!plan.active) {
-      this.clear();
+      this.pinViewer(parent, rows);
       return;
     }
     this.setGroupedClasses(true);
@@ -170,16 +180,20 @@ export class FollowingGroupsModule extends BaseModule {
     this.syncHeaders(parent, plan);
     const orders = new Map<HTMLElement, NativeOrder>();
     for (const { row, username } of rows) {
+      if (username.toLowerCase() === this.viewerName) {
+        orders.set(row, { order: '-1', hidden: false });
+        continue;
+      }
       const group = plan.assignment.get(username.toLowerCase()) ?? plan.groups.length - 1;
       orders.set(row, { order: String(2 * group + 1), hidden: plan.groups[group].collapsed });
     }
     this.native.apply(parent, orders, String(2 * plan.groups.length + 1), this.ownNodes());
   }
 
-  /** Overview: no headers. At most OVERVIEW_LIMIT rows, group members first, fetched members cloned in. */
+  /** Overview: no headers. The viewer comes first, then groups, up to OVERVIEW_LIMIT rows. */
   private scanOverview(parent: HTMLElement, rows: Row[], snapshot: Snapshot): void {
     if (!hasEnabledMembers(snapshot.lists, snapshot.config)) {
-      this.clear();
+      this.pinViewer(parent, rows);
       return;
     }
     if (this.fetchState === 'idle') this.startFetch();
@@ -188,19 +202,20 @@ export class FollowingGroupsModule extends BaseModule {
     const nativeKeys = new Set(rows.map(({ username }) => username.toLowerCase()));
     const extras = (result?.entries ?? []).filter((entry) => !nativeKeys.has(entry.name.toLowerCase()));
     const plan = planFollowingGroups(
-      [...rows.map(({ username }) => username), ...extras.map((entry) => entry.name)],
+      [...rows.map(({ username }) => username), ...extras.map((entry) => entry.name)]
+        .filter(name => name.toLowerCase() !== this.viewerName),
       snapshot.lists,
       snapshot.config
     );
     if (!plan.active) {
-      this.clear();
+      this.pinViewer(parent, rows);
       return;
     }
     const candidates: OverviewCandidate[] = [
       ...rows.map((row, index) => ({ key: row.username.toLowerCase(), kind: 'native' as const, index })),
       ...extras.map((entry, index) => ({ key: entry.name.toLowerCase(), kind: 'fetched' as const, index })),
     ];
-    const ranked = rankOverview(candidates, plan.assignment, OVERVIEW_LIMIT);
+    const ranked = rankOverview(candidates, plan.assignment, OVERVIEW_LIMIT, this.viewerName);
     const rank = new Map<string, number>(
       ranked.map((candidate, position): [string, number] => [candidate.key, position])
     );
@@ -217,6 +232,23 @@ export class FollowingGroupsModule extends BaseModule {
       if (candidate.kind !== 'fetched') continue;
       this.placeClone(parent, rows[0].row, extras[candidate.index], format, rank.get(candidate.key) ?? 0);
     }
+  }
+
+  /** Keep the viewer first even when there are no other members to group. */
+  private pinViewer(parent: HTMLElement, rows: Row[]): void {
+    if (!rows.some(({ username }) => username.toLowerCase() === this.viewerName)) {
+      this.clear();
+      return;
+    }
+    this.headers.forEach(header => header.element.remove());
+    this.headers.clear();
+    this.removeClones();
+    this.setGroupedClasses(true);
+    const orders = new Map<HTMLElement, NativeOrder>();
+    rows.forEach(({ row, username }, index) => orders.set(row, {
+      order: username.toLowerCase() === this.viewerName ? '-1' : String(index), hidden: false,
+    }));
+    this.native.apply(parent, orders, String(rows.length), this.ownNodes());
   }
 
   private placeClone(

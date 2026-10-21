@@ -5,7 +5,7 @@
   flex-direction: column;
 }
 
-/* Header spacing equals row spacing: --au-fg-gap is set on the column from the first row's bottom margin. */
+/* Keep the usual gap below each heading; the previous row supplies the gap between lists. */
 .au-following-group-header {
   grid-column: 1 / -1;
   box-sizing: border-box;
@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: var(--au-fg-gap, 10px) 0;
+  margin: 0 0 var(--au-fg-gap, 10px);
 }
 
 .au-following-group-header--first {

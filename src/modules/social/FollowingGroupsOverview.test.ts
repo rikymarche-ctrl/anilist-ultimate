@@ -23,6 +23,7 @@ describe('Following groups on the title overview', () => {
   let bus: EventBus;
   let data: Record<string, unknown>;
   let lists: CustomLists;
+  let viewerName: string;
   const media = {
     read: vi.fn(
       async (_mediaId: number): Promise<FollowingMediaResult> => ({ entries: [], scoreFormat: 'POINT_100' })
@@ -60,7 +61,9 @@ describe('Following groups on the title overview', () => {
     document.body.innerHTML = `<section><div class="section-header">Following</div><div class="users">${NAMES.map(row).join('')}</div></section>`;
     data = storage({ [FOLLOWING_GROUPS_KEY]: { groups: ['Team'], collapsed: [], othersCollapsed: false } });
     lists = { Team: [user('zed', 9)] };
-    const api = { isAuthenticated: () => true, getContext: () => ({ sessionId: 'A', userId: 1 }) };
+    viewerName = 'Viewer';
+    const api = { isAuthenticated: () => true, getContext: () => ({ sessionId: 'A', userId: 1 }),
+      getCurrentUser: async () => ({ id: 1, name: viewerName }) };
     const listService = {
       init: vi.fn(async () => undefined),
       getLists: () => structuredClone(lists),
@@ -97,6 +100,21 @@ describe('Following groups on the title overview', () => {
     expect(rowOf('eve').classList.contains('au-following-group-hidden')).toBe(true);
     expect(document.querySelectorAll('.au-following-group-header')).toHaveLength(0);
     expect(media.read).toHaveBeenCalledTimes(1);
+  });
+
+  it('puts the viewer before group members while retaining the overview limit', async () => {
+    viewerName = 'EVE';
+    media.read.mockResolvedValueOnce({ entries: [entry('zed', 9)], scoreFormat: 'POINT_100' } as never);
+    await module.init(); await settle();
+    expect(namesOf(visibleRows())).toEqual(['eve', 'zed', 'ann', 'bob', 'carol']);
+    expect(document.querySelector('.au-following-group-header')).toBeNull();
+  });
+
+  it('pins a native viewer row without fetching any additional members when groups are disabled', async () => {
+    viewerName = 'eve'; delete data[FOLLOWING_GROUPS_KEY];
+    await module.init(); await settle();
+    expect(namesOf(visibleRows())).toEqual(['eve', 'ann', 'bob', 'carol', 'dan']);
+    expect(media.read).not.toHaveBeenCalled();
   });
 
   it('makes no fetch and changes nothing when no enabled group is configured', async () => {
