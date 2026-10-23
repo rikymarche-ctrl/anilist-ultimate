@@ -4,14 +4,20 @@ An unofficial browser extension bringing a calendar, personal ratings, Wrapped r
 
 ## Features
 
-- **Airing calendar:** a weekly anime schedule with layout preferences, countdowns, progress controls and friend activity.
-- **Astra:** configurable scoring sections and weights, season ratings, a local Journal, list synchronization and JSON backups.
-- **Astra Wrapped:** yearly, monthly or custom-period stories built from AniList list activity, with favorites, genres, studios, people and a downloadable PNG card.
-- **Seasonal Wrapped:** broadcast-season rankings, personal awards, leftovers and continuing titles.
-- **Friend Alerts:** a local inbox for public list updates from your chosen audience on titles you follow.
-- **Activity and notifications:** feed filters, grouped notifications, scores and custom friend lists.
-- **Bulk Editor:** status and custom-list edits for selected entries on your own anime/manga lists.
-- **Media tools:** Following progress, available list Notes, public metadata, theme links, review scores and forum improvements.
+- **Calendar with social activity:** a customizable weekly anime airing calendar with countdowns, episode progress (watched/available/total), quick progress actions and friends' activity on each title.
+- **Activity and profile filters:** filter or search activities on the home feed, user profiles and anime/manga Social pages; distinguish activity types and watching/reading states (including rewatches/rereads), and browse activity from selected custom user lists.
+- **Reviews and ratings in activities:** show available users' media scores directly on supported list-activity cards and add review-score badges to supported review cards, including those appearing in feeds. Like and reply counts are preserved in extension-rendered activities. Scores only appear when the corresponding public AniList data exists and can be retrieved.
+- **Forum navigation enhancements:** turn media-related forum-thread titles into direct links to the associated anime or manga, reducing unnecessary navigation.
+- **Astra rating calculator:** calculate personal ratings from configurable scoring sections and weights; manage season ratings, tracked works, quick edits, a local Journal, AniList synchronization and JSON backups.
+- **Astra Wrapped:** yearly, monthly or custom-period recaps of logged AniList list activity, including favorites, genres, studios and people, with downloadable PNG share cards.
+- **Seasonal Wrapped:** broadcast-season rankings, personal awards, continuing titles and unfinished/leftover shows.
+- **Custom user lists and list ordering:** create and edit your own groups of people for activity filtering, and choose and reorder the Following groups displayed on a title's Social and Overview sections. These local user groups are separate from AniList's native anime/manga custom lists.
+- **Notifications:** search/filter and group compatible AniList notifications; Friend Alerts adds an independent local inbox for public progress/status updates from chosen people on titles you follow (not system push notifications).
+- **Enhanced anime/manga pages:** add a Reddit/subreddit link, MyAnimeList (MAL) score and link when available, additional public metadata, review-score badges, and anime opening/ending music and theme links.
+- **Episode counters and social context:** see friends' episode progress in a title's Following area, calendar episode counts, Following groups, available list Notes on hover and other social context.
+- **Navigation and state restoration:** on supported Back/Forward navigation, recover the previous scroll position and loaded feed content; on anime/manga list pages also restore filters, search, sorting and list view where possible.
+- **Bulk Editor:** select multiple entries on your own anime/manga lists and update statuses or AniList custom-list memberships with explicit save results.
+
 
 Choose the modules you want in settings. Account features use the extension's AniList OAuth login. The Bulk Editor works for every authenticated user on their own lists and stays inactive on other people's lists.
 
