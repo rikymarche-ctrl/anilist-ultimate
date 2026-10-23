@@ -19,7 +19,7 @@ An unofficial browser extension bringing a calendar, personal ratings, Wrapped r
 - **Bulk Editor:** select multiple entries on your own anime/manga lists and update statuses or AniList custom-list memberships with explicit save results.
 
 
-Choose the modules you want in settings. Account features use the extension's AniList OAuth login. The Bulk Editor works for every authenticated user on their own lists and stays inactive on other people's lists.
+**Modular by design:** individual feature modules can be enabled or disabled independently in the extension's settings, so you can tailor AniList Ultimate to your preferences. Some modules also offer their own additional controls. Account features use the extension's AniList OAuth login. The Bulk Editor works for every authenticated user on their own lists and stays inactive on other people's lists.
 
 ## Screenshots
 
