@@ -1,5 +1,12 @@
 # Release notes
 
+## Unreleased
+
+### Security
+
+- Update Vitest, its UI and V8 coverage provider to 4.1.12, including the patched mocker tooling for [GHSA-qxg6-89mg-rqv8](https://github.com/advisories/GHSA-qxg6-89mg-rqv8) and [GHSA-xp26-3454-mjgp](https://github.com/advisories/GHSA-xp26-3454-mjgp).
+- Fix the test UI command to use Vitest's supported API host option while keeping the server bound to localhost.
+
 ## 1.0.1
 
 Beta listing package metadata for the Chrome Web Store.

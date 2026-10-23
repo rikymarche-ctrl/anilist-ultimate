@@ -33,9 +33,12 @@ npm run lint
 npm exec vitest run path/to/affected.test.ts
 npm run check
 npm run check:coverage
+npm audit --audit-level=moderate
 ```
 
 The check script runs legacy-contract checks, icon inventory validation, TypeScript, ESLint, tests, production build and package-resource validation. The coverage variant also gathers coverage. A passing run is evidence for that checkout, not a claim about every AniList integration path.
+
+CI also audits runtime and development dependencies at moderate severity or above. Run the audit after dependency changes and keep Vitest, its UI and the coverage provider on matching patched versions.
 
 `npm run smoke:mv3` requires a Chromium runtime supporting unpacked extensions. Details and optional fixture flags are in [testing](docs/TESTING.md). For UI changes, inspect the actual states and narrow layouts. Update docs when a flow or limitation changes.
 

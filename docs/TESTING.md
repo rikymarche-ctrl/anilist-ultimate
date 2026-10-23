@@ -10,9 +10,12 @@ npm run lint
 npm exec vitest run path/to/affected.test.ts
 npm run check
 npm run check:coverage
+npm audit --audit-level=moderate
 ```
 
 The complete check runs runtime-contract checks, the icon inventory, TypeScript, ESLint, Vitest, a production build and package-resource validation. The coverage variant gathers V8 coverage. `npm test` starts the interactive runner; use `run` for a bounded invocation.
+
+The separate dependency audit matches the CI security gate and includes development tools. After updating dependencies, use a clean `npm ci` install before running the checks and audit.
 
 ## Browser checks
 
