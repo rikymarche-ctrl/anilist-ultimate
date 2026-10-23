@@ -23,11 +23,67 @@ An unofficial browser extension bringing a calendar, personal ratings, Wrapped r
 
 ## Screenshots
 
-![Astra Wrapped – intro](docs/screenshots/wrapped-intro.webp)
-![Astra Wrapped – binger](docs/screenshots/wrapped-binger.webp)
-![Astra Wrapped – voice actors](docs/screenshots/wrapped-voice-actor.webp)
-![Astra Wrapped – genres](docs/screenshots/wrapped-genres.webp)
-![Astra Wrapped – journey](docs/screenshots/wrapped-journey.webp)
+### Calendar and social activity
+
+A weekly airing calendar with episode progress and in-progress anime and manga, with friends' activity for each title.
+
+**AU Calendar** — weekly airing schedule and in-progress lists.
+
+![AU Calendar showing the weekly airing schedule and in-progress anime and manga](docs/screenshots/calendar-overview.webp)
+
+**Calendar + Social Activity** — friends' activity, progress and scores alongside the calendar.
+
+![AU Calendar with the Social Activity sidebar open, showing activity filters, friends' progress and scores](docs/screenshots/calendar-social-activity.webp)
+
+### Activity filters, reviews and ratings
+
+Filter activity by type or search by user, content or title. Review cards show available scores alongside the feed.
+
+![AniList activity feed with activity filters, search and recent reviews with score badges](docs/screenshots/activity-filters-reviews-scores.webp)
+
+### Enriched anime and manga pages
+
+See media links and metadata, episode counts, staff, themes, score distribution, trailer and friends' progress on title pages.
+
+![Anime page with enriched metadata, episode counts, social activity and Following groups](docs/screenshots/work-title-page-social-enhancements.webp)
+
+![Anime page with openings, endings, staff, score distribution, trailer and friends' progress](docs/screenshots/work-title-page-metadata-and-progress.webp)
+
+### Notifications and friend alerts
+
+Search and filter AniList notifications, review friend activity in the local inbox, and choose which friends to follow for alerts on a title.
+
+![Notifications page with filters and the Friend Alerts activity inbox](docs/screenshots/notifications-center-friend-activity.webp)
+
+![Friend Alerts settings for choosing which people to follow on a title](docs/screenshots/friend-alerts-per-title.webp)
+
+### Astra dashboard and ratings
+
+Organize anime and manga, track progress and rate titles using configurable scoring sections.
+
+![Astra Dashboard with library filters, status groups and rating columns](docs/screenshots/astra-dashboard.webp)
+
+![Astra rating entry with progress, custom scoring sections and list controls](docs/screenshots/astra-rating-entry.webp)
+
+### Astra Wrapped
+
+Explore a personal recap and shareable yearly highlights, including favorite voice actors and their characters.
+
+![Astra Wrapped yearly recap overview](docs/screenshots/astra-wrapped-overview-2026.webp)
+
+![Astra Wrapped ranking of favorite voice actors and characters](docs/screenshots/astra-wrapped-voice-actors-2026.webp)
+
+### Bulk Editor
+
+Select multiple list entries and update them together.
+
+![AniList Bulk Editor with several completed entries selected and batch actions available](docs/screenshots/bulk-editor-selection.webp)
+
+### Feature module settings
+
+Enable or disable feature modules independently from the extension's control panel.
+
+![AniList Ultimate control panel with independent feature module toggles](docs/screenshots/feature-module-settings.webp)
 
 ## Installation
 
