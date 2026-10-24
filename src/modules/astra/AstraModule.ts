@@ -70,7 +70,12 @@ export class AstraModule extends BaseModule {
     if (this.active) return;
     this.active = true;
     const generation = ++this.generation;
-    try { this.resolveDependencies(); } catch (error) { this.active = false; throw error; }
+    try {
+      this.resolveDependencies();
+    } catch (error) {
+      this.active = false;
+      throw error;
+    }
     const isCurrent = () => this.active && generation === this.generation;
     this.syncAstraState();
     // Keep shared card actions available while Astra-specific UI is disabled.
@@ -116,15 +121,20 @@ export class AstraModule extends BaseModule {
     });
 
     // 7. Safety Refresh Interval (Fail-safe for static loads)
-    this.intervals.push(window.setInterval(() => {
-      if (!isCurrent()) return;
-      this.enhancementService.enhanceCards(window.location.pathname);
-      if (this.astraActive) this.navService.injectNavbarButton();
-    }, 3000));
+    this.intervals.push(
+      window.setInterval(() => {
+        if (!isCurrent()) return;
+        this.enhancementService.enhanceCards(window.location.pathname);
+        if (this.astraActive) this.navService.injectNavbarButton();
+      }, 3000)
+    );
   }
 
   private setupNavbarPersistence(generation: number): void {
-    const inject = () => { if (this.active && this.astraActive && generation === this.generation) this.navService.injectNavbarButton(); };
+    const inject = () => {
+      if (this.active && this.astraActive && generation === this.generation)
+        this.navService.injectNavbarButton();
+    };
     inject();
 
     this.sharedObserver.register('astra-nav-persistence', () => inject());
@@ -188,7 +198,8 @@ export class AstraModule extends BaseModule {
   }
 
   public override async destroy(): Promise<void> {
-    this.active = false; this.generation++;
+    this.active = false;
+    this.generation++;
     this.astraActive = false;
     this.unsubscribeConfig?.();
     this.unsubscribeConfig = null;
