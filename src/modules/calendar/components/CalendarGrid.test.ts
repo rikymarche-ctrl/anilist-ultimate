@@ -22,6 +22,7 @@ function fixture(preferences: Partial<CalendarPreferences> = {}) {
   const scope = container.createChildContainer();
   scope.register(TOKENS.ComponentScope, { useFactory: child => child });
   scope.registerInstance(TOKENS.CalendarStore, store);
+  scope.registerInstance(TOKENS.Config, { isFeatureEnabled: () => true });
   scope.registerInstance(TOKENS.ApiClient, { getContext: () => ({ userId: 1, sessionId: 'one' }) });
   scope.registerInstance(TOKENS.CalendarService, { hasAired: () => false, isAiringSoon: () => false,
     formatAiringTime: () => '20:00', formatTimeUntilAiring: () => 'remaining' });

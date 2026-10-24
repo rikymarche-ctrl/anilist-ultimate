@@ -14,6 +14,7 @@ import { AstraDashboard } from './ui/AstraDashboard';
 import { PreferencesService } from '@core/services/PreferencesService';
 import { SocialMaskingService } from '@core/services/SocialMaskingService';
 import { EVENT_TYPES } from '@core/events/EventTypes';
+import type { IConfigManager } from '@core/interfaces/IConfigManager';
 
 /**
  * Main module for the Astra advanced scoring system.
@@ -35,6 +36,9 @@ export class AstraModule extends BaseModule {
   private generation = 0;
   private intervals: number[] = [];
   private unsubscribePreferences: (() => void) | null = null;
+  private unsubscribeConfig: (() => void) | null = null;
+  private config!: IConfigManager;
+  private astraActive = false;
 
   constructor(
     @inject(TOKENS.EventBus) protected eventBus: IEventBus
@@ -55,6 +59,7 @@ export class AstraModule extends BaseModule {
     this.pillManager = container.resolve(AstraPillManager);
     this.preferences = container.resolve(TOKENS.PreferencesService);
     this.bridge = container.resolve(AstraUIBridge);
+    this.config = container.resolve(TOKENS.Config);
     // Initialize Dashboard to start listening for global open events
     try {
       this.dashboard = container.resolve(AstraDashboard);
@@ -68,19 +73,20 @@ export class AstraModule extends BaseModule {
     this.active = true;
     const generation = ++this.generation;
     try { this.resolveDependencies(); } catch (error) { this.active = false; throw error; }
-    this.dashboard?.activate();
-    this.dashboard?.preloadAiringData?.();
-    this.navService.activate();
     const isCurrent = () => this.active && generation === this.generation;
-
-    // 0. Initialize Bridge (Static listeners for early clicks)
-    this.bridge.initGlobalListeners();
+    this.syncAstraState();
+    // Keep shared card actions available while Astra-specific UI is disabled.
+    this.unsubscribeConfig = this.config.onChange('features', () => {
+      if (!isCurrent()) return;
+      this.syncAstraState();
+      this.enhancementService.refreshAllPills();
+    });
 
     logger.info('[Astra] Module initializing...');
     await this.service.init().catch(() => { });
     if (!isCurrent()) return;
     this.maskingService.sync();
-    this.navService.hijackMediaButton(id => isCurrent() ? this.ratingModal.open(id) : undefined);
+    this.enhanceAstraNavigation();
 
     // 2. Initial Enhancement Pass
     this.enhancementService.enhanceCards(window.location.pathname);
@@ -96,8 +102,7 @@ export class AstraModule extends BaseModule {
       if (!isCurrent()) return;
       const path = window.location.pathname;
       this.enhancementService.enhanceCards(path);
-      this.navService.hijackMediaButton(id => isCurrent() ? this.ratingModal.open(id) : undefined);
-      this.navService.enhanceBrowseDropdown();
+      this.enhanceAstraNavigation();
     });
 
     // 6. Reactive Updates
@@ -112,12 +117,12 @@ export class AstraModule extends BaseModule {
     this.intervals.push(window.setInterval(() => {
       if (!isCurrent()) return;
       this.enhancementService.enhanceCards(window.location.pathname);
-      this.navService.injectNavbarButton();
+      if (this.astraActive) this.navService.injectNavbarButton();
     }, 3000));
   }
 
   private setupNavbarPersistence(generation: number): void {
-    const inject = () => { if (this.active && generation === this.generation) this.navService.injectNavbarButton(); };
+    const inject = () => { if (this.active && this.astraActive && generation === this.generation) this.navService.injectNavbarButton(); };
     inject();
 
     this.sharedObserver.register('astra-nav-persistence', () => inject());
@@ -132,8 +137,39 @@ export class AstraModule extends BaseModule {
 
   public getName(): string { return 'astra'; }
 
+  private syncAstraState(): void {
+    const enabled = this.config.isFeatureEnabled('astra');
+    if (enabled === this.astraActive) return;
+    this.astraActive = enabled;
+    if (enabled) {
+      this.dashboard?.activate();
+      this.dashboard?.preloadAiringData?.();
+      this.navService.activate();
+      this.bridge.initGlobalListeners();
+      this.enhanceAstraNavigation();
+      this.navService.injectNavbarButton();
+    } else {
+      this.dashboard?.deactivate();
+      this.bridge.deactivate();
+      this.navService.deactivate();
+      this.ratingModal.dispose();
+    }
+  }
+
+  private enhanceAstraNavigation(): void {
+    if (!this.astraActive) return;
+    const generation = this.generation;
+    this.navService.hijackMediaButton(id =>
+      this.active && this.astraActive && generation === this.generation && this.config.isFeatureEnabled('astra')
+        ? this.ratingModal.open(id) : undefined);
+    this.navService.enhanceBrowseDropdown();
+  }
+
   public override async destroy(): Promise<void> {
     this.active = false; this.generation++;
+    this.astraActive = false;
+    this.unsubscribeConfig?.();
+    this.unsubscribeConfig = null;
     this.dashboard?.deactivate();
     this.bridge?.deactivate();
     this.navService?.deactivate();

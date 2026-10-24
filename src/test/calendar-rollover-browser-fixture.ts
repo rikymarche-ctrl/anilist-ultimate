@@ -18,7 +18,8 @@ export async function runCalendarRolloverBrowserFixture(): Promise<string[]> {
   const entry = { ...calendarEntry(1), episode: 4, progress: 3, totalEpisodes: 12, airingAt: new Date(now + 1000) };
   const options: CardOptions = { ...DEFAULT_CALENDAR_PREFERENCES, astraEnabled: true, onMarkWatched: async () => {} };
   const card = new AnimeCard({ anime: entry, options: { ...options, timeFormat: 'countdown' } }, store, service,
-    { attachPortal: () => new AbortController() } as never, { open: async () => {} } as never, { getContext: () => context } as never);
+    { attachPortal: () => new AbortController() } as never, { open: async () => {} } as never, { getContext: () => context } as never,
+    { isFeatureEnabled: () => true } as never);
   try {
     card.mount(parent); const root = card.getElement(); const control = root.querySelector('[data-action="mark-watched"]');
     assert(!root.classList.contains('anime-card--is-behind'), 'future episode must not appear behind');

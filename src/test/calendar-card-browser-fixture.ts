@@ -39,6 +39,7 @@ export async function runCalendarCardBrowserFixture(): Promise<string[]> {
   const child = container.createChildContainer();
   child.registerInstance('AnimeCardProps', { anime, options });
   child.registerInstance(TOKENS.CalendarStore, store);
+  child.registerInstance(TOKENS.Config, { isFeatureEnabled: () => true });
   child.registerInstance(TOKENS.ApiClient, { getContext: () => context });
   child.registerInstance(TOKENS.CalendarService, { hasAired: () => false, isAiringSoon: () => false,
     formatAiringTime: (date: Date) => date.toISOString(), formatTimeUntilAiring: (seconds: number) => `${seconds}` });

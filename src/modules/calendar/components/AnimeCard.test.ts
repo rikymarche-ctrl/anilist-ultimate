@@ -8,6 +8,7 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { SocialRenderer } from '@modules/social/SocialRenderer';
 import type { AstraRatingModal } from '@modules/astra/ui/AstraRatingModal';
 import { formatAiringDay } from '../CalendarAiring';
+import { installNativeListEditorBridge } from '@core/navigation/NativeListEditor';
 
 function deferred() {
   let resolve!: () => void;
@@ -34,11 +35,12 @@ function fixture(options: Partial<CardOptions> = {}, anime: Partial<AnimeEntry> 
   const rating = { open: vi.fn(async () => {}) };
   let context = { userId: 1, sessionId: 'one' };
   const api = { getContext: () => context };
+  const config = { isFeatureEnabled: vi.fn(() => props.options.astraEnabled) };
   const card = new AnimeCard(props, store, service as unknown as ICalendarService, social as unknown as SocialRenderer,
-    rating as unknown as AstraRatingModal, api as IApiClient);
+    rating as unknown as AstraRatingModal, api as IApiClient, config as never);
   cards.push(card); card.mount(document.body);
   const button = (action = 'mark-watched') => card.getElement().querySelector<HTMLElement>(`[data-action="${action}"]`)!;
-  return { card, store, mark, props, button, rating, social, service, portals, changeAccount: () => { context = { userId: 2, sessionId: 'two' }; } };
+  return { card, store, mark, props, button, rating, social, service, portals, config, changeAccount: () => { context = { userId: 2, sessionId: 'two' }; } };
 }
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-08T19:00:00Z')); history.replaceState({}, '', '/home'); });
@@ -134,6 +136,24 @@ describe('AnimeCard links and surgical updates', () => {
 });
 
 describe('AnimeCard actions and lifecycle', () => {
+  it.each(['standard', 'compact', 'extended'] as const)('retains the pencil with Astra OFF and opens AniList in %s layout', layoutMode => {
+    const f = fixture({ astraEnabled: false, layoutMode });
+    const app = document.createElement('div'); app.id = 'app'; document.body.append(app);
+    const dispatch = vi.fn().mockResolvedValue(undefined);
+    Object.assign(app, { __vue__: { $store: { dispatch } } });
+    const release = installNativeListEditorBridge();
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    try {
+      expect(f.button('edit-entry').querySelector('.fa-pencil')).not.toBeNull();
+      f.button('edit-entry').click();
+      expect(dispatch).toHaveBeenCalledExactlyOnceWith('medialistEditor/open', 10);
+      expect(f.rating.open).not.toHaveBeenCalled(); expect(open).not.toHaveBeenCalled();
+      f.config.isFeatureEnabled.mockReturnValue(true); f.button('edit-entry').click();
+      expect(f.rating.open).toHaveBeenCalledExactlyOnceWith(10);
+      f.config.isFeatureEnabled.mockReturnValue(false); f.button('edit-entry').click();
+      expect(dispatch).toHaveBeenCalledTimes(2); expect(f.rating.open).toHaveBeenCalledOnce();
+    } finally { release(); }
+  });
   it('blocks repeat mark clicks while the accepted action is pending and then permits another', async () => {
     const f = fixture(); const gate = deferred(); f.mark.mockReturnValueOnce(gate.promise);
     f.button().click(); f.button().click();

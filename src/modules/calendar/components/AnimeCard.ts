@@ -24,6 +24,8 @@ import type { AnimeEntry, CardOptions } from '@core/types';
 import type { ApiContext, IApiClient } from '@core/interfaces/IApiClient';
 import { parseWebUrl } from '@core/utils/WebUrl';
 import { availableEpisodes, formatAiringDay, isBeyondWeek } from '../CalendarAiring';
+import type { IConfigManager } from '@core/interfaces/IConfigManager';
+import { openNativeListEditor } from '@core/navigation/NativeListEditor';
 
 interface AnimeCardProps {
   anime: AnimeEntry;
@@ -48,6 +50,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     @inject(delay(() => SocialRenderer)) private socialRenderer: SocialRenderer,
     @inject(delay(() => AstraRatingModal)) private ratingController: AstraRatingModal,
     @inject(TOKENS.ApiClient) private api: IApiClient,
+    @inject(TOKENS.Config) private config: IConfigManager,
   ) {
     super(props);
     // Re-render now that this.store is assigned (BaseComponent constructor calls render BEFORE this assignment)
@@ -339,14 +342,12 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
       </div>
     `;
 
-    if (this.props.options.astraEnabled) {
-      pill.appendChild(html`<div class="pill-separator" aria-hidden="true"></div>`);
-      pill.appendChild(html`
-        <button type="button" class="pill-section" data-action="edit-entry" aria-label="Edit entry">
-          <i class="fa-solid fa-pencil" aria-hidden="true"></i>
-        </button>
-      `);
-    }
+    pill.appendChild(html`<div class="pill-separator" aria-hidden="true"></div>`);
+    pill.appendChild(html`
+      <button type="button" class="pill-section" data-action="edit-entry" aria-label="Edit entry">
+        <i class="fa-solid fa-pencil" aria-hidden="true"></i>
+      </button>
+    `);
 
     if (personalPlan && this.props.options.onManagePersonalPlan) {
       pill.appendChild(html`<div class="pill-separator" aria-hidden="true"></div>`);
@@ -532,7 +533,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
             : `Mark episode ${this.props.anime.episode} as watched`;
           this.showCardTooltip(text, event); break;
         }
-        case 'edit-entry': this.showCardTooltip('Quick edit', event); break;
+        case 'edit-entry': this.showCardTooltip(this.config.isFeatureEnabled('astra') ? 'Quick edit' : 'Edit entry', event); break;
         case 'social-activity': this.showCardTooltip('Social Activity', event); break;
         case 'manage-personal-plan': this.showCardTooltip('Manage personal plan', event); break;
       }
@@ -566,7 +567,11 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   private handleEditEntry(): void {
     const { anime } = this.props;
-    try { void Promise.resolve(this.ratingController.open(anime.mediaId)).catch(error => logger.error('[AnimeCard] Edit failed', error)); }
+    try {
+      if (this.config.isFeatureEnabled('astra')) {
+        void Promise.resolve(this.ratingController.open(anime.mediaId)).catch(error => logger.error('[AnimeCard] Edit failed', error));
+      } else openNativeListEditor(anime.mediaId);
+    }
     catch (error) { logger.error('[AnimeCard] Edit failed', error); }
   }
 

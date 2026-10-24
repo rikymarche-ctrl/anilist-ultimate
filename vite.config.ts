@@ -8,7 +8,7 @@ export default defineConfig({
   // against chrome-extension://<id>/ instead of the host page's origin
   // when injected by a content script.
   base: '',
-  plugins: [crx({ manifest })],
+  plugins: [crx({ manifest, contentScripts: { standaloneFiles: ['src/native-list-editor.ts'] } })],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

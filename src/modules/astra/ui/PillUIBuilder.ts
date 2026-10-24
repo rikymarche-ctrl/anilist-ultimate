@@ -29,11 +29,11 @@ export class PillUIBuilder {
       </div>
     ` : null;
 
-    const ratingHTML = astraEnabled ? html`
-      <div class="pill-section" data-action="edit-entry" title="Astra Rating">
+    const ratingHTML = html`
+      <div class="pill-section" data-action="edit-entry" title="${astraEnabled ? 'Astra Rating' : 'Edit entry'}">
         <i class="fa-solid fa-pencil"></i>
       </div>
-    ` : null;
+    `;
 
     const socialHTML = socialEnabled ? html`
       <div class="pill-section" data-action="social-activity" title="Social Activity">

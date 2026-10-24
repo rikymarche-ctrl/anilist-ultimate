@@ -19,7 +19,7 @@ describe('AstraModule lifecycle', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
-  function setup() {
+  function setup(enabled = true) {
     const bus = new EventBus();
     const module = new AstraModule(bus);
     const refresh = vi.fn();
@@ -32,6 +32,7 @@ describe('AstraModule lifecycle', () => {
     const pill = { start: vi.fn(), stop: vi.fn() };
     const preferences = { onChanges: vi.fn((_callback: () => void) => unsubscribe) };
     const enhancement = { enhanceCards: vi.fn(), refreshAllPills: refresh };
+    const config = { isFeatureEnabled: vi.fn(() => enabled), onChange: vi.fn((_key: string, _callback: () => void) => vi.fn()) };
     const navigation = { activate: vi.fn(), deactivate: vi.fn(), injectNavbarButton: vi.fn(), hijackMediaButton: vi.fn(), enhanceBrowseDropdown: vi.fn() };
     vi.spyOn(module as unknown as { resolveDependencies(): void }, 'resolveDependencies').mockImplementation(() => {
       Object.assign(module, {
@@ -44,10 +45,43 @@ describe('AstraModule lifecycle', () => {
         navService: navigation,
         sharedObserver: observer,
         preferences,
+        config,
       });
     });
-    return { bus, module, refresh, unsubscribe, disposeModal, dashboard, observer, service, bridge, pill, preferences, enhancement, navigation };
+    return { bus, module, refresh, unsubscribe, disposeModal, dashboard, observer, service, bridge, pill, preferences, enhancement, navigation, config };
   }
+
+  it('keeps pills available without activating Astra UI or intercepting native buttons when OFF', async () => {
+    const f = setup(false); await f.module.init();
+    f.observer.register.mock.calls.forEach(call => call[1]());
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(f.pill.start).toHaveBeenCalledOnce();
+    expect(f.enhancement.enhanceCards).toHaveBeenCalled();
+    expect(f.dashboard.activate).not.toHaveBeenCalled();
+    expect(f.dashboard.preloadAiringData).not.toHaveBeenCalled();
+    expect(f.bridge.initGlobalListeners).not.toHaveBeenCalled();
+    expect(f.navigation.hijackMediaButton).not.toHaveBeenCalled();
+    expect(f.navigation.injectNavbarButton).not.toHaveBeenCalled();
+    await f.module.destroy();
+  });
+
+  it('releases Astra UI on live OFF and reactivates it once on ON while preserving shared pills', async () => {
+    const f = setup(); await f.module.init();
+    const changed = f.config.onChange.mock.calls[0][1];
+    f.config.isFeatureEnabled.mockReturnValue(false); changed();
+    expect(f.disposeModal).toHaveBeenCalledOnce();
+    expect(f.navigation.deactivate).toHaveBeenCalledOnce();
+    expect(f.bridge.deactivate).toHaveBeenCalledOnce();
+    expect(f.dashboard.deactivate).toHaveBeenCalledOnce();
+    expect(f.pill.stop).not.toHaveBeenCalled();
+    f.config.isFeatureEnabled.mockReturnValue(true); changed(); changed();
+    expect(f.dashboard.activate).toHaveBeenCalledTimes(2);
+    expect(f.bridge.initGlobalListeners).toHaveBeenCalledTimes(2);
+    await f.module.destroy();
+    f.dashboard.activate.mockClear(); changed();
+    expect(f.dashboard.activate).not.toHaveBeenCalled();
+    expect(f.config.onChange.mock.results[0].value).toHaveBeenCalledOnce();
+  });
 
   it('releases reactive listeners and intervals when destroyed', async () => {
     const { bus, module, refresh, unsubscribe } = setup();

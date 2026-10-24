@@ -26,6 +26,7 @@ export async function runCalendarGridBrowserFixture(): Promise<string[]> {
     formatAiringTime: () => '20:00', formatTimeUntilAiring: () => 'remaining' });
   scope.registerInstance(SocialRenderer, { attachPortal: () => new AbortController() } as never);
   scope.registerInstance(AstraRatingModal, { open: async () => {} } as never);
+  scope.registerInstance(TOKENS.Config, { isFeatureEnabled: () => true });
   let marks = 0; let finish!: () => void;
   const mark = () => { marks++; return new Promise<void>(resolve => { finish = resolve; }); };
   scope.registerInstance('CalendarGridProps', { onMarkWatched: mark, astraEnabled: true });

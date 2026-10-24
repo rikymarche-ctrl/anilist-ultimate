@@ -4,6 +4,8 @@ import { AstraService } from '../AstraService';
 import { AstraRatingModal } from '../ui/AstraRatingModal';
 import type { ToastService } from '@core/services/ToastService';
 import { logger } from '@core/logger';
+import type { IConfigManager } from '@core/interfaces/IConfigManager';
+import { openNativeListEditor } from '@core/navigation/NativeListEditor';
 
 /**
  * Manager responsible for global click delegation of Astra UI elements (pills).
@@ -15,7 +17,8 @@ export class AstraPillManager {
   constructor(
     @inject(AstraService) private service: AstraService,
     @inject(AstraRatingModal) private ratingModal: AstraRatingModal,
-    @inject(TOKENS.ToastService) private toast: ToastService
+    @inject(TOKENS.ToastService) private toast: ToastService,
+    @inject(TOKENS.Config) private config: IConfigManager,
   ) {}
 
   /**
@@ -90,7 +93,11 @@ export class AstraPillManager {
         this.toast.error(message);
       }
     } else if (action === 'edit-entry') {
-      await this.ratingModal.open(mediaId);
+      if (this.config.isFeatureEnabled('astra')) await this.ratingModal.open(mediaId);
+      else {
+        try { openNativeListEditor(mediaId); }
+        catch { this.toast.error('AniList editor is unavailable. Reload the page and try again.'); }
+      }
     } else if (action === 'social-activity') {
       const card = section.closest<HTMLElement>('.au-astra-card');
       const title = card?.querySelector('.title')?.textContent?.trim() || 'Media';

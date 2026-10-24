@@ -20,6 +20,7 @@ function fixture() {
   scope.registerInstance(TOKENS.CalendarService, { hasAired: () => false, isAiringSoon: () => false, formatAiringTime: () => '20:00', formatTimeUntilAiring: () => 'remaining' });
   scope.registerInstance(SocialRenderer, { attachPortal: () => new AbortController() } as never);
   scope.registerInstance(AstraRatingModal, { open: async () => {} } as never);
+  scope.registerInstance(TOKENS.Config, { isFeatureEnabled: () => true });
   const service = new CalendarDomService(scope); services.push(service);
   const settings = vi.fn(); const mark = vi.fn(async () => {});
   return { service, store, scope, settings, mark,
