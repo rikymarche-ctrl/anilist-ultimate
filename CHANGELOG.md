@@ -1,10 +1,10 @@
 # Release notes
 
-## Unreleased
+## 1.0.3
 
 ### Quick Edit
 
-- Quick Edit asks once whether to score by sections or with a single score; the choice can be changed in Astra settings ("Detailed scoring").
+- Quick Edit asks once whether to score by sections or with a single score; the choice can be changed anytime in the Astra settings under Scoring Mode, and it is remembered for every entry.
 - The Quick Edit window now sizes to its content: a single score or a few sections no longer leave empty space, and the radar only takes room when it is drawn.
 
 ### Security

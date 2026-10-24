@@ -1,6 +1,6 @@
 {
   "name": "anilist-ultimate",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "The ultimate Anilist extension suite - Modern rewrite with TypeScript and Vite",
   "type": "module",
   "scripts": {

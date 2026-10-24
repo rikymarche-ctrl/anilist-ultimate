@@ -39,7 +39,7 @@ function harness(weight = 1) {
     subSections: [{ id: 'plot', name: 'Plot', weight: 0.5 }] }];
   const settings = { ...DEFAULT_SETTINGS };
   const service = {
-    getSections: () => structuredClone(sections), getSettings: () => ({ ...settings }), getScoringMode: () => (settings.detailedScoring === false ? 'simple' : 'detailed'), hasFinaleSection: () => false,
+    getSections: () => structuredClone(sections), getSettings: () => ({ ...settings }), getScoringMode: () => (settings.detailedScoring === undefined ? 'unset' : settings.detailedScoring ? 'detailed' : 'simple'), hasFinaleSection: () => false,
     updateSectionWeight: vi.fn(async (_id: string, value: number) => { await Promise.resolve(); sections[0].weight = value; }),
     updateSubSectionWeight: vi.fn(async (_id: string, _sub: string, value: number) => { await Promise.resolve(); sections[0].subSections![0].weight = value; }),
     updateSubSectionName: vi.fn(async () => {}), addSubSection: vi.fn(async () => {}), removeSubSection: vi.fn(async () => {}),
@@ -85,6 +85,22 @@ describe('Astra scoring configuration', () => {
   });
 });
 
+describe('Astra scoring mode choice', () => {
+  const selected = () => [...document.querySelectorAll<HTMLElement>('.astra-scoring-option--active')].map(option => option.dataset.scoringMode);
+  it('shows neither mode as chosen until one is picked, then saves and marks it', async () => {
+    const h = harness();
+    expect(selected()).toEqual([]);
+    click('[data-scoring-mode="simple"]');
+    await flush();
+    expect(h.service.updateSettings).toHaveBeenCalledWith({ detailedScoring: false });
+    expect(selected()).toEqual(['simple']);
+    expect(document.querySelector('[data-scoring-mode="simple"]')?.getAttribute('aria-pressed')).toBe('true');
+    click('[data-scoring-mode="detailed"]');
+    await flush();
+    expect(h.service.updateSettings).toHaveBeenLastCalledWith({ detailedScoring: true });
+    expect(selected()).toEqual(['detailed']);
+  });
+});
 describe('Astra configuration persistence and lifecycle', () => {
   it('places Separate Airing first in Global Preferences and updates the saved switch', () => {
     const { dashboardStore } = harness();

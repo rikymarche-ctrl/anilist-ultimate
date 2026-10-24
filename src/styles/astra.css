@@ -7787,7 +7787,7 @@ body.au-astra-enabled .section-header .friend-activity-button {
 }
 
 /* One-time question: score by sections or with a single score. */
-.astra-modal--rating .astra-scoring-choice {
+.astra-scoring-choice {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -7798,20 +7798,20 @@ body.au-astra-enabled .section-header .friend-activity-button {
   background: var(--astra-bg-elev);
 }
 
-.astra-modal--rating .astra-scoring-choice__title {
+.astra-scoring-choice__title {
   margin: 0;
   color: var(--astra-text);
   font-size: 14px;
   font-weight: 700;
 }
 
-.astra-modal--rating .astra-scoring-choice__options {
+.astra-scoring-choice__options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
 
-.astra-modal--rating .astra-scoring-option {
+.astra-scoring-option {
   /* Explicit areas and !important: host button styles otherwise reflow the grid. */
   display: grid !important;
   grid-template-columns: 20px minmax(0, 1fr) !important;
@@ -7830,47 +7830,47 @@ body.au-astra-enabled .section-header .friend-activity-button {
   transition: border-color 0.18s ease, transform 0.18s ease;
 }
 
-.astra-modal--rating .astra-scoring-option:hover {
+.astra-scoring-option:hover {
   border-color: var(--astra-accent);
   transform: translateY(-1px);
 }
 
-.astra-modal--rating .astra-scoring-option:focus-visible {
+.astra-scoring-option:focus-visible {
   outline: 2px solid var(--astra-accent);
   outline-offset: 2px;
 }
 
-.astra-modal--rating .astra-scoring-option i {
+.astra-scoring-option i {
   grid-area: icon !important;
   color: var(--astra-accent);
   font-size: 18px;
 }
 
-.astra-modal--rating .astra-scoring-option__name {
+.astra-scoring-option__name {
   grid-area: name !important;
   text-align: left !important;
   font-size: 13px;
   font-weight: 700;
 }
 
-.astra-modal--rating .astra-scoring-option__desc {
+.astra-scoring-option__desc {
   grid-area: desc !important;
   text-align: left !important;
 }
 
-.astra-modal--rating .astra-scoring-option__desc,
-.astra-modal--rating .astra-scoring-choice__foot {
+.astra-scoring-option__desc,
+.astra-scoring-choice__foot {
   color: var(--astra-muted);
   font-size: 12px;
   line-height: 1.4;
 }
 
-.astra-modal--rating .astra-scoring-choice__foot {
+.astra-scoring-choice__foot {
   margin: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .astra-modal--rating .astra-scoring-option:hover {
+  .astra-scoring-option:hover {
     transform: none;
   }
 }
@@ -7991,4 +7991,20 @@ body.au-astra-enabled .section-header .friend-activity-button {
   min-width: 72px !important;
   max-width: none !important;
   flex: 0 0 auto !important;
+}
+
+/* Selected scoring mode (Astra settings). */
+.astra-scoring-option.astra-scoring-option--active {
+  border-color: var(--astra-accent) !important;
+  background: var(--astra-accent-a20, rgba(139, 92, 246, 0.12)) !important;
+  box-shadow: inset 0 0 0 1px var(--astra-accent) !important;
+}
+
+.astra-settings-tab .astra-scoring-mode-desc {
+  display: block;
+  margin: 0 0 12px;
+}
+
+.astra-settings-tab .astra-scoring-option {
+  background: var(--astra-bg-elev) !important;
 }

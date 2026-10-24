@@ -181,6 +181,17 @@ export class AstraSettingsView extends AstraView {
           </div>
 
           <div class="astra-settings-section">
+            <h3 class="astra-section-title"><i class="fa-solid fa-star"></i> Scoring Mode</h3>
+            <p class="astra-settings-desc astra-scoring-mode-desc">
+              How Quick Edit asks for your score. Until you pick one, Quick Edit asks the first time
+              you open it.
+            </p>
+            <div class="astra-scoring-choice__options" role="group" aria-label="Scoring mode">
+              ${this.renderScoringOption('detailed')} ${this.renderScoringOption('simple')}
+            </div>
+          </div>
+
+          <div class="astra-settings-section">
             <div class="astra-settings-section-header">
               <h3 class="astra-section-title">
                 <i class="fa-solid fa-layer-group"></i> Scoring Configuration
@@ -188,21 +199,6 @@ export class AstraSettingsView extends AstraView {
               <button class="astra-btn astra-btn--secondary astra-btn--sm" id="astra-add-section">
                 <i class="fa-solid fa-plus"></i> Add Section
               </button>
-            </div>
-            <div class="astra-settings-item">
-              <div class="astra-settings-info">
-                <span class="astra-settings-label">Detailed scoring</span>
-                <span class="astra-settings-desc"
-                  >Rate each section below in Quick Edit, with weights and a radar chart. When off,
-                  Quick Edit asks for a single score.</span
-                >
-              </div>
-              <div
-                class="astra-toggle ${when(this.service.getScoringMode() === 'detailed', 'active')}"
-                data-setting="detailedScoring"
-              >
-                <div class="astra-toggle-handle"></div>
-              </div>
             </div>
             <div class="astra-sections-list">
               ${map(sections, (s) => this.renderSectionItem(s))}
@@ -269,6 +265,40 @@ export class AstraSettingsView extends AstraView {
   /**
    * Renders a single scoring section configuration card.
    */
+  /** The same two choices Quick Edit asks about on first use; neither is selected until one is picked. */
+  private renderScoringOption(mode: 'detailed' | 'simple'): HTMLElement {
+    const selected = this.service.getScoringMode() === mode;
+    const [icon, name, desc] =
+      mode === 'detailed'
+        ? [
+            'fa-sliders',
+            'By sections',
+            'Rate the sections below and get a weighted score with a radar chart.',
+          ]
+        : ['fa-star', 'Single score', 'One overall score, as on AniList. Notes stay available.'];
+    return html`
+      <button
+        type="button"
+        class="astra-scoring-option ${when(selected, 'astra-scoring-option--active')}"
+        data-scoring-mode="${mode}"
+        aria-pressed="${selected}"
+      >
+        <i class="fa-solid ${icon}" aria-hidden="true"></i>
+        <span class="astra-scoring-option__name">${name}</span>
+        <span class="astra-scoring-option__desc">${desc}</span>
+      </button>
+    `;
+  }
+
+  private refreshScoringOptions(): void {
+    const mode = this.service.getScoringMode();
+    this.$$('[data-scoring-mode]').forEach((option) => {
+      const selected = option.dataset.scoringMode === mode;
+      option.classList.toggle('astra-scoring-option--active', selected);
+      option.setAttribute('aria-pressed', String(selected));
+    });
+  }
+
   private renderSectionItem(section: AstraSection): HTMLElement {
     const subSections = section.subSections ?? [];
     const hasSubSections = subSections.length > 0;
@@ -404,20 +434,18 @@ export class AstraSettingsView extends AstraView {
         separateAiring.click();
       });
     }
+    this.$$('[data-scoring-mode]').forEach((option) => {
+      this.addEventListener(option, 'click', () => {
+        const detailedScoring = option.dataset.scoringMode === 'detailed';
+        this.save(
+          () => this.service.updateSettings({ detailedScoring }),
+          () => this.refreshScoringOptions()
+        );
+      });
+    });
     this.$$('.astra-toggle').forEach((toggle) => {
       this.addEventListener(toggle, 'click', () => {
         const setting = toggle.dataset.setting;
-        if (setting === 'detailedScoring') {
-          this.save(
-            async () => {
-              await this.service.updateSettings({
-                detailedScoring: this.service.getScoringMode() !== 'detailed',
-              });
-            },
-            () => toggle.classList.toggle('active', this.service.getScoringMode() === 'detailed')
-          );
-          return;
-        }
         if (setting !== 'enableSeriesFinale' && setting !== 'appendAstraToComment') return;
         this.save(
           async () => {
