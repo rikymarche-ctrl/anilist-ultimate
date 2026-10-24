@@ -4,7 +4,8 @@ import { logger } from '@core/logger';
 import { getMediaRoute } from '@core/navigation/MediaRoute';
 
 interface MediaButtonBinding {
-  button: HTMLElement; marker: string | null;
+  button: HTMLElement;
+  marker: string | null;
 }
 
 /**
@@ -17,6 +18,8 @@ export class AstraNavigationService implements Disposable {
   private mediaButton: MediaButtonBinding | null = null;
   private mediaClickListener: EventListener | null = null;
   private onMediaOpen: ((id: number) => void | Promise<void>) | null = null;
+  private mediaHoverListener: EventListener | null = null;
+  private onMediaPrefetch: { start(id: number): void; cancel(): void } | null = null;
   private navbarBinding: { link: HTMLElement; listener: EventListener } | null = null;
   private readonly navbarOwner = crypto.randomUUID();
   constructor(@inject(AstraRoutingService) private routing: AstraRoutingService) {}
@@ -26,7 +29,9 @@ export class AstraNavigationService implements Disposable {
    */
   public injectNavbarButton(): boolean {
     if (!this.active || this.disposed) return false;
-    const existing = document.querySelector(`[data-astra-nav-owner="${this.navbarOwner}"]`) || document.querySelector('.au-astra-nav');
+    const existing =
+      document.querySelector(`[data-astra-nav-owner="${this.navbarOwner}"]`) ||
+      document.querySelector('.au-astra-nav');
 
     // Core AniList Nav Containers (Aggressive List)
     const linksContainer =
@@ -201,20 +206,60 @@ export class AstraNavigationService implements Disposable {
   /**
    * Replaces the native 'Add to List' button with Astra rater.
    */
-  public hijackMediaButton(onOpen: (id: number) => void | Promise<void>): void {
+  public hijackMediaButton(
+    onOpen: (id: number) => void | Promise<void>,
+    onPrefetch?: { start(id: number): void; cancel(): void }
+  ): void {
     if (!this.active || this.disposed) return;
     this.onMediaOpen = onOpen;
+    this.onMediaPrefetch = onPrefetch ?? null;
+    if (!this.mediaHoverListener) {
+      // Hover intent warms the Quick Edit data so the click opens without a network wait.
+      const listener: EventListener = (event) => {
+        if (!this.active || this.disposed || this.mediaHoverListener !== listener) return;
+        const target = event.target;
+        const button =
+          target instanceof Element ? target.closest<HTMLElement>('.actions .list') : null;
+        if (!button) return;
+        try {
+          if (event.type === 'pointerout') {
+            const next = (event as PointerEvent).relatedTarget;
+            if (!(next instanceof Node && button.contains(next))) this.onMediaPrefetch?.cancel();
+            return;
+          }
+          const route = getMediaRoute(window.location.pathname);
+          if (route && route.id <= 2147483647) this.onMediaPrefetch?.start(route.id);
+        } catch {
+          /* Prefetch is best-effort; the click still loads. */
+        }
+      };
+      this.mediaHoverListener = listener;
+      window.addEventListener('pointerover', listener, { capture: true, passive: true });
+      window.addEventListener('pointerout', listener, { capture: true, passive: true });
+    }
     if (!this.mediaClickListener) {
-      const listener: EventListener = event => {
+      const listener: EventListener = (event) => {
         if (!this.active || this.disposed || this.mediaClickListener !== listener) return;
         const target = event.target;
-        const button = target instanceof Element ? target.closest<HTMLElement>('.actions .list') : null;
+        const button =
+          target instanceof Element ? target.closest<HTMLElement>('.actions .list') : null;
         const route = getMediaRoute(window.location.pathname);
-        if (!route || route.id > 2147483647 || !button?.isConnected
-          || document.querySelector('.actions .list') !== button) return;
-        event.preventDefault(); event.stopImmediatePropagation();
-        try { Promise.resolve(this.onMediaOpen?.(route.id)).catch(() => logger.error('[Astra] Rating open failed')); }
-        catch { logger.error('[Astra] Rating open failed'); }
+        if (
+          !route ||
+          route.id > 2147483647 ||
+          !button?.isConnected ||
+          document.querySelector('.actions .list') !== button
+        )
+          return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        try {
+          Promise.resolve(this.onMediaOpen?.(route.id)).catch(() =>
+            logger.error('[Astra] Rating open failed')
+          );
+        } catch {
+          logger.error('[Astra] Rating open failed');
+        }
       };
       this.mediaClickListener = listener;
       // Vue replaces/clones media buttons between routes. Delegate before its
@@ -223,7 +268,10 @@ export class AstraNavigationService implements Disposable {
     }
     const route = getMediaRoute(window.location.pathname);
     const button = document.querySelector<HTMLElement>('.actions .list');
-    if (!route || route.id > 2147483647 || !button) { this.releaseMediaButton(); return; }
+    if (!route || route.id > 2147483647 || !button) {
+      this.releaseMediaButton();
+      return;
+    }
     if (this.mediaButton?.button === button) return;
     this.releaseMediaButton();
     this.mediaButton = { button, marker: button.getAttribute('data-astra-hijacked') };
@@ -231,7 +279,8 @@ export class AstraNavigationService implements Disposable {
   }
 
   private releaseMediaButton(): void {
-    const binding = this.mediaButton; this.mediaButton = null;
+    const binding = this.mediaButton;
+    this.mediaButton = null;
     if (!binding) return;
     if (binding.button.getAttribute('data-astra-hijacked') === 'true') {
       if (binding.marker === null) binding.button.removeAttribute('data-astra-hijacked');
@@ -240,25 +289,43 @@ export class AstraNavigationService implements Disposable {
   }
 
   private releaseNavbarLink(): void {
-    const binding = this.navbarBinding; this.navbarBinding = null;
+    const binding = this.navbarBinding;
+    this.navbarBinding = null;
     if (binding) {
       binding.link.removeEventListener('click', binding.listener, true);
       if (binding.link.onclick === binding.listener) binding.link.onclick = null;
-      binding.link.removeAttribute('href'); binding.link.remove();
+      binding.link.removeAttribute('href');
+      binding.link.remove();
     }
-    document.querySelectorAll(`[data-astra-nav-owner="${this.navbarOwner}"]`).forEach(link => {
-      link.removeAttribute('href'); link.remove();
+    document.querySelectorAll(`[data-astra-nav-owner="${this.navbarOwner}"]`).forEach((link) => {
+      link.removeAttribute('href');
+      link.remove();
     });
   }
 
-  public activate(): void { if (!this.disposed) this.active = true; }
+  public activate(): void {
+    if (!this.disposed) this.active = true;
+  }
   public deactivate(): void {
     this.active = false;
     if (this.mediaClickListener) window.removeEventListener('click', this.mediaClickListener, true);
-    this.mediaClickListener = null; this.onMediaOpen = null;
-    this.releaseMediaButton(); this.releaseNavbarLink();
+    this.mediaClickListener = null;
+    this.onMediaOpen = null;
+    if (this.mediaHoverListener) {
+      window.removeEventListener('pointerover', this.mediaHoverListener, true);
+      window.removeEventListener('pointerout', this.mediaHoverListener, true);
+    }
+    this.mediaHoverListener = null;
+    this.onMediaPrefetch = null;
+    this.releaseMediaButton();
+    this.releaseNavbarLink();
   }
-  public dispose(): void { if (!this.disposed) { this.deactivate(); this.disposed = true; } }
+  public dispose(): void {
+    if (!this.disposed) {
+      this.deactivate();
+      this.disposed = true;
+    }
+  }
 
   private getCurrentSeason(): { season: string; year: number } {
     const date = new Date();

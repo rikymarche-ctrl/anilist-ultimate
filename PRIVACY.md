@@ -1,12 +1,12 @@
 # Privacy Policy
 
-**AniList Ultimate (Unofficial)** · Last updated: 2026-10-20
+**AniList Ultimate (Unofficial)** · Last updated: 2026-10-21
 
 ## Summary
 
 AniList Ultimate (Unofficial) is a Chrome extension by [ExAstra](https://anilist.co/user/ExAstra/) that enhances [anilist.co](https://anilist.co). It is not affiliated with or endorsed by AniList.
 
-- Astra archives, account credentials and pending edits are stored on your device. Interface preferences use Chrome sync storage and may sync through your browser account.
+- Astra archives, account credentials, pending edits and custom Following group display settings are stored on your device. Interface preferences use Chrome sync storage and may sync through your browser account.
 - Your AniList account is used to read lists, activity and social metadata, and to save the list edits you request on AniList.
 - The extension has no analytics or telemetry, shows no advertising, and does not sell your data. Requests to AniList and the public metadata providers are described below.
 - The Back Restore feature keeps a bounded, tab-scoped record of AniList page URLs, list filters and scroll positions so it can restore a page when you go back. It does not access Chrome's general browsing history.
@@ -22,6 +22,7 @@ The extension stores the following in Chrome's extension storage.
 - Your AniList access token, your AniList user ID and your AniList user name
 - Astra ratings, notes, Journal entries, sections, seasonal awards and backups
 - Your custom user lists
+- Names, ordering and collapsed state for your custom Following groups
 - Friend alert state
 - A pending sync queue of list edits that have not yet been sent to AniList
 - Short-lived caches of public AniList data

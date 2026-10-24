@@ -40,9 +40,7 @@ export class AstraModule extends BaseModule {
   private config!: IConfigManager;
   private astraActive = false;
 
-  constructor(
-    @inject(TOKENS.EventBus) protected eventBus: IEventBus
-  ) {
+  constructor(@inject(TOKENS.EventBus) protected eventBus: IEventBus) {
     super(eventBus);
   }
 
@@ -83,7 +81,7 @@ export class AstraModule extends BaseModule {
     });
 
     logger.info('[Astra] Module initializing...');
-    await this.service.init().catch(() => { });
+    await this.service.init().catch(() => {});
     if (!isCurrent()) return;
     this.maskingService.sync();
     this.enhanceAstraNavigation();
@@ -107,8 +105,12 @@ export class AstraModule extends BaseModule {
 
     // 6. Reactive Updates
     // Quick Edit saves emit these events; refresh Astra UI in place.
-    this.subscribe(EVENT_TYPES.ASTRA_DATA_UPDATED, () => { if (isCurrent()) this.enhancementService.refreshAllPills(); });
-    this.subscribe(EVENT_TYPES.PROGRESS_UPDATED, () => { if (isCurrent()) this.enhancementService.refreshAllPills(); });
+    this.subscribe(EVENT_TYPES.ASTRA_DATA_UPDATED, () => {
+      if (isCurrent()) this.enhancementService.refreshAllPills();
+    });
+    this.subscribe(EVENT_TYPES.PROGRESS_UPDATED, () => {
+      if (isCurrent()) this.enhancementService.refreshAllPills();
+    });
     this.unsubscribePreferences = this.preferences.onChanges(() => {
       if (isCurrent()) this.enhancementService.refreshAllPills();
     });
@@ -135,7 +137,9 @@ export class AstraModule extends BaseModule {
     }
   }
 
-  public getName(): string { return 'astra'; }
+  public getName(): string {
+    return 'astra';
+  }
 
   private syncAstraState(): void {
     const enabled = this.config.isFeatureEnabled('astra');
@@ -159,9 +163,27 @@ export class AstraModule extends BaseModule {
   private enhanceAstraNavigation(): void {
     if (!this.astraActive) return;
     const generation = this.generation;
-    this.navService.hijackMediaButton(id =>
-      this.active && this.astraActive && generation === this.generation && this.config.isFeatureEnabled('astra')
-        ? this.ratingModal.open(id) : undefined);
+    this.navService.hijackMediaButton(
+      (id) =>
+        this.active &&
+        this.astraActive &&
+        generation === this.generation &&
+        this.config.isFeatureEnabled('astra')
+          ? this.ratingModal.open(id)
+          : undefined,
+      {
+        start: (id) => {
+          if (
+            this.active &&
+            this.astraActive &&
+            generation === this.generation &&
+            this.config.isFeatureEnabled('astra')
+          )
+            this.ratingModal.prefetch(id);
+        },
+        cancel: () => this.ratingModal.cancelPrefetch(),
+      }
+    );
     this.navService.enhanceBrowseDropdown();
   }
 
@@ -174,7 +196,7 @@ export class AstraModule extends BaseModule {
     this.bridge?.deactivate();
     this.navService?.deactivate();
     this.ratingModal?.dispose();
-    this.intervals.forEach(id => window.clearInterval(id));
+    this.intervals.forEach((id) => window.clearInterval(id));
     this.intervals = [];
     this.unsubscribePreferences?.();
     this.unsubscribePreferences = null;

@@ -646,3 +646,69 @@ describe('AstraRatingService safe persistence and sync', () => {
     }
   );
 });
+
+describe('AstraRatingService hover prefetch', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+  const withContext = (f: ReturnType<typeof setup>, context = { sessionId: 's1', userId: 42 }) => {
+    const ctx = { current: context };
+    Object.assign(f.api, { getContext: () => ctx.current, ensureContext: async () => ctx.current });
+    return ctx;
+  };
+
+  it('opens from a settled prefetch without a second AniList read', async () => {
+    const f = setup();
+    withContext(f);
+    f.service.prefetchMediaRatingData(1);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(f.api.query).toHaveBeenCalledTimes(1);
+    expect((await f.service.getMediaRatingData(1))?.media.id).toBe(1);
+    expect(f.api.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends nothing when the hover leaves before the dwell elapses', async () => {
+    const f = setup();
+    withContext(f);
+    f.service.prefetchMediaRatingData(1);
+    await vi.advanceTimersByTimeAsync(100);
+    f.service.cancelPrefetch();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(f.api.query).not.toHaveBeenCalled();
+  });
+
+  it('caps prefetches per minute and keeps them out of the priority lane', async () => {
+    const f = setup();
+    withContext(f);
+    for (let id = 1; id <= 6; id++) {
+      f.service.prefetchMediaRatingData(id);
+      await vi.advanceTimersByTimeAsync(200);
+    }
+    expect(f.api.query).toHaveBeenCalledTimes(4);
+    expect(f.api.query.mock.calls.every((call) => call.length < 4)).toBe(true);
+  });
+
+  it('reads again when the account changed after the prefetch', async () => {
+    const f = setup();
+    const ctx = withContext(f);
+    f.service.prefetchMediaRatingData(1);
+    await vi.advanceTimersByTimeAsync(200);
+    ctx.current = { sessionId: 's2', userId: 42 };
+    await f.service.getMediaRatingData(1);
+    expect(f.api.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads again when the sync queue changed after the prefetch', async () => {
+    const f = setup();
+    withContext(f);
+    vi.spyOn(f.queue, 'getSnapshot')
+      .mockResolvedValue({ revision: 'two', entries: [] })
+      .mockResolvedValueOnce({ revision: 'one', entries: [] });
+    f.service.prefetchMediaRatingData(1);
+    await vi.advanceTimersByTimeAsync(200);
+    await f.service.getMediaRatingData(1);
+    expect(f.api.query).toHaveBeenCalledTimes(2);
+  });
+});

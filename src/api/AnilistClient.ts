@@ -34,10 +34,22 @@ import type { IErrorHandler } from '@core/errors/ErrorHandler';
 import type { AuthTokenService } from '@core/auth/AuthTokenService';
 import type { IEventBus, EventSubscription } from '@core/interfaces/IEventBus';
 import { EVENT_TYPES } from '@core/events/EventTypes';
-import { VIEWER_QUERY, viewerResponse, sameViewerContext, type ViewerCache } from './ViewerResponse';
+import {
+  VIEWER_QUERY,
+  viewerResponse,
+  sameViewerContext,
+  type ViewerCache,
+} from './ViewerResponse';
 import type { AniListUser } from '@/api/AnilistTypes';
-import { getErrorResponse, getResponseStatus, isRecord, parseGraphQLErrors, validateGraphQLResponse,
-  type GraphQLResponse, type GraphQLError } from './GraphQLResponse';
+import {
+  getErrorResponse,
+  getResponseStatus,
+  isRecord,
+  parseGraphQLErrors,
+  validateGraphQLResponse,
+  type GraphQLResponse,
+  type GraphQLError,
+} from './GraphQLResponse';
 
 /** AniList rejects these requests deterministically; replaying them only spends the shared rate budget. */
 function isDeterministicClientError(status: number | undefined): boolean {
@@ -111,8 +123,16 @@ export class AnilistClient implements IApiClient {
     });
   }
 
-  public getContext() { return { sessionId: this.authTokenService.getSessionId(), userId: this.authTokenService.getUserCache()?.userId ?? null }; }
-  public async ensureContext() { await this.authTokenService.ensureInitialized(); return this.getContext(); }
+  public getContext() {
+    return {
+      sessionId: this.authTokenService.getSessionId(),
+      userId: this.authTokenService.getUserCache()?.userId ?? null,
+    };
+  }
+  public async ensureContext() {
+    await this.authTokenService.ensureInitialized();
+    return this.getContext();
+  }
 
   /**
    * Check if user is authenticated
@@ -157,24 +177,64 @@ export class AnilistClient implements IApiClient {
     silent: boolean = false,
     options: ApiRequestOptions = {}
   ): Promise<T> {
-    return this.enqueueRequest<T>(query, variables, silent, false, true, API_CONFIG.RETRY_ATTEMPTS, options.priority === true);
+    return this.enqueueRequest<T>(
+      query,
+      variables,
+      silent,
+      false,
+      true,
+      API_CONFIG.RETRY_ATTEMPTS,
+      options.priority === true
+    );
   }
 
-  public queryOnce<T>(query: string, variables: Record<string, unknown> = {}, silent = true): Promise<T> {
+  public queryOnce<T>(
+    query: string,
+    variables: Record<string, unknown> = {},
+    silent = true
+  ): Promise<T> {
     return this.enqueueRequest<T>(query, variables, silent, false, true, 0);
   }
 
-  private readKey(query: string, variables: Record<string, unknown>, isRaw: boolean, maxRetries: number): string | null {
+  private readKey(
+    query: string,
+    variables: Record<string, unknown>,
+    isRaw: boolean,
+    maxRetries: number
+  ): string | null {
     try {
       if (getOperationAST(parse(query))?.operation !== 'query') return null;
       const sorted = JSON.stringify(variables, (_key, value: unknown) =>
-        isRecord(value) ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right))) : value);
+        isRecord(value)
+          ? Object.fromEntries(
+              Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+            )
+          : value
+      );
       const context = this.getContext();
-      return JSON.stringify([this.queueEpoch, context.sessionId, context.userId, isRaw, maxRetries, query, sorted]);
-    } catch { return null; }
+      return JSON.stringify([
+        this.queueEpoch,
+        context.sessionId,
+        context.userId,
+        isRaw,
+        maxRetries,
+        query,
+        sorted,
+      ]);
+    } catch {
+      return null;
+    }
   }
 
-  private enqueueRequest<T>(query: string, variables: Record<string, unknown>, silent: boolean, isRaw: boolean, share: boolean, maxRetries: number = API_CONFIG.RETRY_ATTEMPTS, priority = false): Promise<T> {
+  private enqueueRequest<T>(
+    query: string,
+    variables: Record<string, unknown>,
+    silent: boolean,
+    isRaw: boolean,
+    share: boolean,
+    maxRetries: number = API_CONFIG.RETRY_ATTEMPTS,
+    priority = false
+  ): Promise<T> {
     if (this.destroyed) return Promise.reject(new Error('API client destroyed'));
     const copied = structuredClone(variables);
     const key = share ? this.readKey(query, copied, isRaw, maxRetries) : null;
@@ -183,23 +243,38 @@ export class AnilistClient implements IApiClient {
     if (existing) {
       existing.item.silent = existing.item.silent && silent;
       if (priority) this.promote(existing.item);
-      return existing.promise.then(value => structuredClone(value) as T);
+      return existing.promise.then((value) => structuredClone(value) as T);
     }
     let item!: RequestQueueItem;
     const promise = new Promise<unknown>((resolve, reject) => {
-      item = { query, variables: copied, resolve, reject, retries: 0, maxRetries, silent, isRaw, epoch: this.queueEpoch, priority };
+      item = {
+        query,
+        variables: copied,
+        resolve,
+        reject,
+        retries: 0,
+        maxRetries,
+        silent,
+        isRaw,
+        epoch: this.queueEpoch,
+        priority,
+      };
     });
     if (key) {
-      const entry = { promise, item }; this.sharedReads.set(key, entry);
-      const clear = () => { if (this.sharedReads.get(key) === entry) this.sharedReads.delete(key); };
+      const entry = { promise, item };
+      this.sharedReads.set(key, entry);
+      const clear = () => {
+        if (this.sharedReads.get(key) === entry) this.sharedReads.delete(key);
+      };
       void promise.then(clear, clear);
     } else {
       const clear = () => this.sharedReads.clear();
       void promise.then(clear, clear);
     }
-    this.insertQueued(item); void this.processQueue();
+    this.insertQueued(item);
+    void this.processQueue();
     // Each tab/service gets its own graph, even when it shares the transport.
-    return promise.then(value => structuredClone(value) as T);
+    return promise.then((value) => structuredClone(value) as T);
   }
 
   /**
@@ -208,7 +283,15 @@ export class AnilistClient implements IApiClient {
    */
   public async mutate<T>(mutation: string, variables: Record<string, unknown> = {}): Promise<T> {
     // Writes are user actions, so they take the priority lane and may use the reserved budget.
-    return this.enqueueRequest<T>(mutation, variables, false, false, false, API_CONFIG.RETRY_ATTEMPTS, true);
+    return this.enqueueRequest<T>(
+      mutation,
+      variables,
+      false,
+      false,
+      false,
+      API_CONFIG.RETRY_ATTEMPTS,
+      true
+    );
   }
 
   public mutateOnce<T>(mutation: string, variables: Record<string, unknown> = {}): Promise<T> {
@@ -223,8 +306,12 @@ export class AnilistClient implements IApiClient {
     let boundary = 0;
     while (boundary < this.queue.length && this.queue[boundary].priority) boundary++;
     const index = item.priority
-      ? (where === 'head' ? 0 : boundary)
-      : (where === 'head' ? boundary : this.queue.length);
+      ? where === 'head'
+        ? 0
+        : boundary
+      : where === 'head'
+        ? boundary
+        : this.queue.length;
     this.queue.splice(index, 0, item);
   }
 
@@ -244,11 +331,9 @@ export class AnilistClient implements IApiClient {
   private async processQueue(): Promise<void> {
     // Check if we can process more requests
     const head = this.queue[0];
-    if (
-      this.isRateLimited ||
-      this.activeRequests >= API_CONFIG.RATE_LIMIT.MAX_CONCURRENT ||
-      !head
-    ) {
+    // A user action gets one extra concurrency slot, so two slow background reads never hold it back.
+    const concurrency = API_CONFIG.RATE_LIMIT.MAX_CONCURRENT + (head?.priority ? 1 : 0);
+    if (this.isRateLimited || this.activeRequests >= concurrency || !head) {
       return;
     }
 
@@ -269,8 +354,13 @@ export class AnilistClient implements IApiClient {
       this.scheduleQueue(waitMs);
       return;
     }
+    // The spacing only smooths background bursts. A user action is already bounded by
+    // the sliding window above, so it skips the gap instead of waiting up to 700ms.
     const dispatchDelay = this.nextDispatchAt - Date.now();
-    if (dispatchDelay > 0) { this.scheduleQueue(dispatchDelay); return; }
+    if (dispatchDelay > 0 && !head.priority) {
+      this.scheduleQueue(dispatchDelay);
+      return;
+    }
 
     const item = this.queue.shift();
     if (!item) return;
@@ -281,13 +371,16 @@ export class AnilistClient implements IApiClient {
     this.dispatched.add(item);
     // Keep the other allowed slot moving even if this response is slow. Without
     // a wake-up here, work already in the queue waits for this request to finish.
-    if (this.activeRequests < API_CONFIG.RATE_LIMIT.MAX_CONCURRENT) {
+    if (this.queue[0]?.priority) {
+      this.scheduleQueue(0);
+    } else if (this.activeRequests < API_CONFIG.RATE_LIMIT.MAX_CONCURRENT) {
       this.scheduleQueue(API_CONFIG.RATE_LIMIT.REQUEST_DELAY_MS);
     }
 
     try {
       const response = await this.executeRequest(item);
-      if (item.epoch !== this.queueEpoch) throw new ApiError('Request context changed', undefined, 'GraphQL', 0);
+      if (item.epoch !== this.queueEpoch)
+        throw new ApiError('Request context changed', undefined, 'GraphQL', 0);
       this.consecutiveNetworkErrors = 0;
 
       // Standard queries expect just the data, queryRaw expects the full response
@@ -301,7 +394,8 @@ export class AnilistClient implements IApiClient {
         item.reject(error instanceof Error ? error : new Error('Request context changed'));
         return;
       }
-      const status = getResponseStatus(error) ?? (error instanceof ApiError ? error.statusCode : undefined);
+      const status =
+        getResponseStatus(error) ?? (error instanceof ApiError ? error.statusCode : undefined);
       if (status === 401 || status === 403) {
         item.reject(error instanceof Error ? error : new Error('Authentication required'));
         return;
@@ -321,33 +415,45 @@ export class AnilistClient implements IApiClient {
         this.handleRateLimit(item, error);
       } else if (retryable) {
         const delay = Math.pow(2, item.retries) * 1000; // Exponential backoff: 1s, 2s, 4s...
-        logger.warn(
-          `Request failed, retry ${item.retries + 1}/${item.maxRetries} in ${delay}ms`
-        );
+        logger.warn(`Request failed, retry ${item.retries + 1}/${item.maxRetries} in ${delay}ms`);
 
         item.retries++;
         const timer = setTimeout(() => {
           this.retryTimers.delete(timer);
           if (item.epoch !== this.queueEpoch) return;
           this.insertQueued(item, 'head');
-          void this.processQueue().catch((error: unknown) => logger.error('[AnilistClient] Queued request processing failed', error));
+          void this.processQueue().catch((error: unknown) =>
+            logger.error('[AnilistClient] Queued request processing failed', error)
+          );
         }, delay);
         this.retryTimers.set(timer, item);
       } else {
-        logger.error(isDeterministicClientError(status) ? 'Request rejected (HTTP client error, not retried)' : 'Request failed after max retries', error);
+        logger.error(
+          isDeterministicClientError(status)
+            ? 'Request rejected (HTTP client error, not retried)'
+            : 'Request failed after max retries',
+          error
+        );
 
         let errorMessage = 'Anilist API request failed';
-        const statusCode = getResponseStatus(error) ?? (error instanceof ApiError ? error.statusCode : undefined);
+        const statusCode =
+          getResponseStatus(error) ?? (error instanceof ApiError ? error.statusCode : undefined);
 
         // Try to extract detailed GraphQL error message
         let errors: GraphQLError[] | undefined;
-        try { errors = parseGraphQLErrors(getErrorResponse(error)?.errors); } catch { /* malformed transport stays an error */ }
+        try {
+          errors = parseGraphQLErrors(getErrorResponse(error)?.errors);
+        } catch {
+          /* malformed transport stays an error */
+        }
         if (errors?.length) {
-          errorMessage = errors.map(e => e.message).join(' | ');
+          errorMessage = errors.map((e) => e.message).join(' | ');
         } else if (getErrorResponse(error)) {
           // graphql-request's message can serialize query variables, including
           // private notes. Keep transport diagnostics free of request payloads.
-          errorMessage = statusCode ? `Anilist API request failed (HTTP ${statusCode})` : 'Anilist API request failed';
+          errorMessage = statusCode
+            ? `Anilist API request failed (HTTP ${statusCode})`
+            : 'Anilist API request failed';
         } else if (error instanceof Error) {
           errorMessage = error.message;
         }
@@ -387,7 +493,15 @@ export class AnilistClient implements IApiClient {
     variables: Record<string, unknown> = {},
     options: ApiRequestOptions = {}
   ): Promise<GraphQLResponse<T>> {
-    return this.enqueueRequest<GraphQLResponse<T>>(query, variables, true, true, true, API_CONFIG.RETRY_ATTEMPTS, options.priority === true);
+    return this.enqueueRequest<GraphQLResponse<T>>(
+      query,
+      variables,
+      true,
+      true,
+      true,
+      API_CONFIG.RETRY_ATTEMPTS,
+      options.priority === true
+    );
   }
 
   /**
@@ -413,7 +527,13 @@ export class AnilistClient implements IApiClient {
     try {
       // Always return the envelope; processQueue selects data or the full
       // response using the caller's explicit isRaw flag.
-      const response = validateGraphQLResponse(await this.client.rawRequest<unknown>({ query: item.query, variables: item.variables, signal: controller.signal }));
+      const response = validateGraphQLResponse(
+        await this.client.rawRequest<unknown>({
+          query: item.query,
+          variables: item.variables,
+          signal: controller.signal,
+        })
+      );
       // graphql-request includes a native Headers object. Chromium cannot clone
       // it for shared reads/RPC; keep the metadata as a plain, detached record.
       const headers = (response as GraphQLResponse<unknown> & { headers?: unknown }).headers;
@@ -429,7 +549,11 @@ export class AnilistClient implements IApiClient {
       // found responses, to isolate fields. Authentication, throttling and
       // server failures still follow the transport/retry path below.
       const response = getErrorResponse(error);
-      if (item.isRaw && [200, 400, 404, 422].includes(statusCode ?? 0) && response?.errors !== undefined) {
+      if (
+        item.isRaw &&
+        [200, 400, 404, 422].includes(statusCode ?? 0) &&
+        response?.errors !== undefined
+      ) {
         const errors = parseGraphQLErrors(response.errors);
         if (errors?.length) return { data: response.data, errors };
       }
@@ -459,7 +583,9 @@ export class AnilistClient implements IApiClient {
    */
   private dispatchBudget(item: RequestQueueItem): number {
     const { MAX_REQUESTS_PER_MINUTE, RESERVED_PRIORITY_SLOTS } = API_CONFIG.RATE_LIMIT;
-    return item.priority ? MAX_REQUESTS_PER_MINUTE : MAX_REQUESTS_PER_MINUTE - RESERVED_PRIORITY_SLOTS;
+    return item.priority
+      ? MAX_REQUESTS_PER_MINUTE
+      : MAX_REQUESTS_PER_MINUTE - RESERVED_PRIORITY_SLOTS;
   }
 
   /**
@@ -496,7 +622,8 @@ export class AnilistClient implements IApiClient {
    */
   private isNetworkError(error: unknown): boolean {
     if (error instanceof TypeError) return true;
-    const msg = error instanceof Error ? error.message : isRecord(error) ? error.message : undefined;
+    const msg =
+      error instanceof Error ? error.message : isRecord(error) ? error.message : undefined;
     if (typeof msg !== 'string') return false;
     return /failed to fetch|networkerror|network request failed|load failed/i.test(msg);
   }
@@ -505,9 +632,13 @@ export class AnilistClient implements IApiClient {
    * Check if error is a rate limit error
    */
   private isRateLimitError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : isRecord(error) ? error.message : undefined;
-    return getResponseStatus(error) === 429 || (error instanceof ApiError && error.statusCode === 429)
-      || (typeof message === 'string' && /rate limit|too many requests/i.test(message));
+    const message =
+      error instanceof Error ? error.message : isRecord(error) ? error.message : undefined;
+    return (
+      getResponseStatus(error) === 429 ||
+      (error instanceof ApiError && error.statusCode === 429) ||
+      (typeof message === 'string' && /rate limit|too many requests/i.test(message))
+    );
   }
 
   /**
@@ -547,7 +678,9 @@ export class AnilistClient implements IApiClient {
       this.isRateLimited = false;
       this.consecutiveNetworkErrors = 0;
       logger.info('Rate limit reset, resuming requests');
-      void this.processQueue().catch((error: unknown) => logger.error('[AnilistClient] Rate limit resume failed', error));
+      void this.processQueue().catch((error: unknown) =>
+        logger.error('[AnilistClient] Rate limit resume failed', error)
+      );
     }, 60000);
   }
 
@@ -566,14 +699,20 @@ export class AnilistClient implements IApiClient {
     await this.authTokenService.ensureInitialized();
     if (this.destroyed) throw new Error('API client destroyed');
     const context = this.getContext();
-    if (this.viewerCache && sameViewerContext(this.viewerCache.context, context)) return structuredClone(this.viewerCache.user);
+    if (this.viewerCache && sameViewerContext(this.viewerCache.context, context))
+      return structuredClone(this.viewerCache.user);
     this.viewerCache = null;
     const epoch = this.queueEpoch;
 
     try {
       // Account lookups sit on user-initiated paths, so a cold cache must not wait behind background work.
       const data = await this.query<unknown>(VIEWER_QUERY, {}, false, { priority: true });
-      if (this.destroyed || epoch !== this.queueEpoch || !sameViewerContext(context, this.getContext())) throw new Error('Viewer context changed');
+      if (
+        this.destroyed ||
+        epoch !== this.queueEpoch ||
+        !sameViewerContext(context, this.getContext())
+      )
+        throw new Error('Viewer context changed');
       const user = viewerResponse(data, context.userId);
       this.viewerCache = { context, user };
       return structuredClone(user);
@@ -604,7 +743,7 @@ export class AnilistClient implements IApiClient {
     this.queue = [];
     this.retryTimers.forEach((_, timer) => clearTimeout(timer));
     this.retryTimers.clear();
-    this.inFlight.forEach(controller => controller.abort());
+    this.inFlight.forEach((controller) => controller.abort());
     if (this.queueTimer !== null) clearTimeout(this.queueTimer);
     if (this.rateLimitResetTimer !== null) clearTimeout(this.rateLimitResetTimer);
     this.queueTimer = null;
@@ -612,7 +751,9 @@ export class AnilistClient implements IApiClient {
     this.isRateLimited = false;
     pending.forEach((item) => {
       try {
-        item.reject(reason ?? new ApiError('Request queue cleared', undefined, 'GraphQL', item.retries));
+        item.reject(
+          reason ?? new ApiError('Request queue cleared', undefined, 'GraphQL', item.retries)
+        );
       } catch {
         /* ignore individual rejection failures */
       }

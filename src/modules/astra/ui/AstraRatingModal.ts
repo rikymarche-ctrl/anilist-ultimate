@@ -78,6 +78,13 @@ import {
 
 const LOCAL_ONLY_NOTICE =
   'Saved in Astra only: this title is not on your AniList list. Pick a status to add it.';
+const EXTENSION_RELOADED_NOTICE =
+  'AniList Ultimate was updated. Reload the page to use Quick Edit.';
+
+function isExtensionContextInvalid(error: unknown): boolean {
+  if (error instanceof Error && /Extension context invalidated/i.test(error.message)) return true;
+  return typeof chrome !== 'undefined' && !!chrome.runtime && !chrome.runtime.id;
+}
 const SYNC_QUEUED_NOTICE = 'Saved locally. AniList synchronization is queued.';
 /** A synced background save may reload the host only this soon after the view closed. */
 const BACKGROUND_RELOAD_WINDOW_MS = 15000;
@@ -212,6 +219,17 @@ export class AstraRatingModal {
     };
     void promise.then(clear, clear);
     return promise;
+  }
+
+  /** Warms the entry's AniList data before the user clicks (hover intent). */
+  public prefetch(mediaId: number): void {
+    if (this.overlay && !this.isClosing && this.media?.id === mediaId) return;
+    this.ratingService.prefetchMediaRatingData?.(mediaId);
+  }
+
+  /** Hover ended before the prefetch dwell elapsed. */
+  public cancelPrefetch(): void {
+    this.ratingService.cancelPrefetch?.();
   }
 
   private async openView(mediaId: number, initialTab: 'rating' | 'journal'): Promise<void> {
@@ -427,7 +445,12 @@ export class AstraRatingModal {
         this.dispose();
         return;
       }
-      this.toast.error('Unable to open the form. Your current edits remain open.');
+      // After an extension reload this page still runs the old script, which can no longer reach storage.
+      this.toast.error(
+        isExtensionContextInvalid(error)
+          ? EXTENSION_RELOADED_NOTICE
+          : 'Unable to open the form. Your current edits remain open.'
+      );
       if (!this.overlay) this.releaseAuthSubscription();
     } finally {
       if (version === this.openVersion) {
@@ -454,7 +477,7 @@ export class AstraRatingModal {
       this.isClosing = false;
     }
     const root = document.createElement('div');
-    root.className = 'astra-modal-overlay astra-modal-overlay--open';
+    root.className = 'astra-modal-overlay astra-modal-overlay--open astra-modal-overlay--loading';
     root.innerHTML = `<section class="astra-modal astra-rating-loading" role="dialog" aria-modal="true" aria-labelledby="astra-loading-title" aria-busy="true">
       <h2 id="astra-loading-title">Astra Quick Edit</h2>
       <button type="button" class="astra-rating-loading__close" aria-label="Close Quick Edit">×</button>
@@ -2049,8 +2072,14 @@ export class AstraRatingModal {
   private completeProgress(progress: number): void {
     if (!this.state || this.needsListStatus) return;
     const work = this.state.data;
-    const total = work.type === 'anime' ? (this.media ? this.media.episodes : work.episodes)
-      : (this.media ? this.media.chapters : work.chapters);
+    const total =
+      work.type === 'anime'
+        ? this.media
+          ? this.media.episodes
+          : work.episodes
+        : this.media
+          ? this.media.chapters
+          : work.chapters;
     const status = statusAfterProgress(work.status, progress, total);
     if (status !== work.status) this.setStatus(status);
   }
@@ -2070,8 +2099,9 @@ export class AstraRatingModal {
       nextIcon.setAttribute('aria-hidden', 'true');
       icon.replaceWith(nextIcon);
     }
-    this.overlay.querySelectorAll<HTMLElement>('.astra-status-option').forEach(option =>
-      option.classList.toggle('active', option.dataset.value === status));
+    this.overlay
+      .querySelectorAll<HTMLElement>('.astra-status-option')
+      .forEach((option) => option.classList.toggle('active', option.dataset.value === status));
     this.state.updateField('status', status);
   }
 

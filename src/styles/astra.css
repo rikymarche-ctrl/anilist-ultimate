@@ -244,6 +244,21 @@ body.au-social-avatars-enabled .media-card.small .pill-section[data-action="soci
   color: var(--astra-text);
 }
 
+/* The loading window stays invisible for its first second: an open that finishes
+   sooner shows nothing at all, a slower one fades the usual window in. */
+.astra-modal-overlay--loading.astra-modal-overlay--open {
+  animation: astra-rating-loading-reveal 200ms ease-out 1s both;
+}
+
+@keyframes astra-rating-loading-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astra-modal-overlay--loading.astra-modal-overlay--open { animation-duration: 1ms; }
+}
+
 .astra-rating-loading h2,
 .astra-rating-loading p {
   margin: 0;
@@ -7679,38 +7694,4 @@ body.au-astra-enabled .section-header .friend-activity-button {
   line-height: 1 !important;
   letter-spacing: 0.04em !important;
   pointer-events: none !important;
-}
-
-.astra-modal--dashboard .astra-seasonal-release {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  gap: 16px !important;
-  margin: 0 0 18px !important;
-  padding: 14px 16px !important;
-  border: 1px solid rgba(112, 201, 180, 0.24) !important;
-  border-radius: 12px !important;
-  background: linear-gradient(110deg, rgba(83, 171, 155, 0.12), rgba(255, 255, 255, 0.025)) !important;
-}
-
-.astra-modal--dashboard .astra-seasonal-release > div {
-  display: grid !important;
-  gap: 4px !important;
-}
-
-.astra-modal--dashboard .astra-seasonal-release strong {
-  color: var(--astra-text) !important;
-  font-size: 13px !important;
-}
-
-.astra-modal--dashboard .astra-seasonal-release span {
-  color: var(--astra-muted) !important;
-  font-size: 12px !important;
-}
-
-@media (max-width: 520px) {
-  .astra-modal--dashboard .astra-seasonal-release {
-    align-items: flex-start !important;
-    flex-direction: column !important;
-  }
 }

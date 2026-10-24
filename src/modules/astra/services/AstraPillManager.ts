@@ -13,6 +13,8 @@ import { openNativeListEditor } from '@core/navigation/NativeListEditor';
 @injectable()
 export class AstraPillManager {
   private clickListener: ((e: MouseEvent) => void) | null = null;
+  private hoverListener: ((e: PointerEvent) => void) | null = null;
+  private leaveListener: ((e: PointerEvent) => void) | null = null;
 
   constructor(
     @inject(AstraService) private service: AstraService,
@@ -54,7 +56,26 @@ export class AstraPillManager {
       );
     };
 
+    // Hover intent on the edit pill warms the Quick Edit data, so the click opens instantly.
+    this.hoverListener = (e: PointerEvent) => {
+      const section = (e.target as Element | null)?.closest?.<HTMLElement>(
+        '[data-action="edit-entry"]'
+      );
+      const wrapper = section?.closest<HTMLElement>('.au-pill-wrapper');
+      if (!section || !wrapper || wrapper.closest('.nav, nav, [role="search"]')) return;
+      if (!this.config.isFeatureEnabled('astra')) return;
+      const mediaId = parseInt(wrapper.getAttribute('data-au-media-id') || '0', 10);
+      if (mediaId) this.ratingModal.prefetch(mediaId);
+    };
+    this.leaveListener = (e: PointerEvent) => {
+      const section = (e.target as Element | null)?.closest?.('[data-action="edit-entry"]');
+      if (section && !section.contains(e.relatedTarget as Node | null))
+        this.ratingModal.cancelPrefetch();
+    };
+
     window.addEventListener('click', this.clickListener, { capture: true });
+    window.addEventListener('pointerover', this.hoverListener, { capture: true, passive: true });
+    window.addEventListener('pointerout', this.leaveListener, { capture: true, passive: true });
     logger.debug('[Astra] Pill Manager started');
   }
 
@@ -65,6 +86,14 @@ export class AstraPillManager {
     if (this.clickListener) {
       window.removeEventListener('click', this.clickListener, { capture: true });
       this.clickListener = null;
+    }
+    if (this.hoverListener) {
+      window.removeEventListener('pointerover', this.hoverListener, { capture: true });
+      this.hoverListener = null;
+    }
+    if (this.leaveListener) {
+      window.removeEventListener('pointerout', this.leaveListener, { capture: true });
+      this.leaveListener = null;
     }
   }
 
@@ -87,9 +116,14 @@ export class AstraPillManager {
           });
         }
       } catch (err) {
-        const message = typeof err === 'object' && err !== null && 'message' in err
-          && typeof err.message === 'string' && err.message
-          ? err.message : 'Failed to update progress';
+        const message =
+          typeof err === 'object' &&
+          err !== null &&
+          'message' in err &&
+          typeof err.message === 'string' &&
+          err.message
+            ? err.message
+            : 'Failed to update progress';
         this.toast.error(message);
       }
     } else if (action === 'edit-entry') {
@@ -102,11 +136,16 @@ export class AstraPillManager {
       const card = section.closest<HTMLElement>('.au-astra-card');
       const title = card?.querySelector('.title')?.textContent?.trim() || 'Media';
       // The card's own AniList link is the only reliable source of the media type.
-      const href = card?.querySelector<HTMLAnchorElement>('a[href*="/anime/"], a[href*="/manga/"]')?.getAttribute('href') ?? '';
+      const href =
+        card
+          ?.querySelector<HTMLAnchorElement>('a[href*="/anime/"], a[href*="/manga/"]')
+          ?.getAttribute('href') ?? '';
       const type = href.includes('/manga/') ? 'MANGA' : 'ANIME';
-      window.dispatchEvent(new CustomEvent('au-open-social-sidebar', {
-        detail: { mediaId, title, element: card, type }
-      }));
+      window.dispatchEvent(
+        new CustomEvent('au-open-social-sidebar', {
+          detail: { mediaId, title, element: card, type },
+        })
+      );
     }
   }
 }

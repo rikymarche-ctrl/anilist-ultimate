@@ -1,13 +1,13 @@
-# Chrome Web Store — AniList Ultimate (Unofficial) BETA 1.0.1
+# Chrome Web Store — AniList Ultimate (Unofficial) BETA 1.0.2
 
-Materiale preparato il 2026-10-20. I testi nei blocchi sono in inglese e pronti da incollare. Le istruzioni fuori dai blocchi sono per il manutentore. La bozza online non è stata modificata o inviata in revisione.
+Materiale aggiornato il 2026-10-21. I testi nei blocchi sono in inglese e pronti da incollare. Le istruzioni fuori dai blocchi sono per il manutentore. La bozza online non è stata modificata o inviata in revisione.
 
 ## 1. Pacchetto
 
-Caricare `release/anilist-ultimate-1.0.1.zip` sulla **scheda esistente** con ID `gogibdaaglfefnemakliohebmcjfdddo`. Non creare un nuovo elemento. Il titolo e il riepilogo provengono dal manifest del nuovo ZIP: le schermate con il vecchio titolo, vecchia icona e soli permessi storage/identity non rappresentano la build attuale.
+Caricare `release/anilist-ultimate-1.0.2.zip` sulla **scheda esistente** con ID `gogibdaaglfefnemakliohebmcjfdddo`. Non creare un nuovo elemento. Il titolo e il riepilogo provengono dal manifest del nuovo ZIP: le schermate con il vecchio titolo, vecchia icona e soli permessi storage/identity non rappresentano la build attuale.
 
 - Nome dal pacchetto: **AniList Ultimate (Unofficial) BETA**.
-- Versione: **1.0.1** (necessaria perché la bozza contiene già 1.0.0).
+- Versione: **1.0.2**, successiva all'ultima versione pacchettizzata (1.0.1).
 - Permessi attuali: `storage`, `identity`, `unlimitedStorage`, `alarms`, più i cinque host documentati sotto.
 - Lo ZIP non contiene la chiave di sviluppo, le sorgenti, i file `.env`, le dipendenze di sviluppo o le source map. `dist/` resta disponibile per il caricamento locale.
 - Prima dell'invio verificare il login del pacchetto destinato a questa scheda. Il client OAuth AniList deve avere come redirect l'identità effettiva dello Store; per questo ID la base è `https://gogibdaaglfefnemakliohebmcjfdddo.chromiumapp.org/`. Verificare il risultato effettivo di `chrome.identity.getRedirectURL()` e il redirect registrato sul client. Il client ID pubblico predefinito nel codice è `35100`, modificabile in fase di build; non è una credenziale personale. Non modificare il redirect a tentativi. [Guida OAuth](../OAUTH_SETUP.md).
@@ -17,7 +17,7 @@ Caricare `release/anilist-ultimate-1.0.1.zip` sulla **scheda esistente** con ID 
 ### Riepilogo dal pacchetto
 
 ```text
-THIS EXTENSION IS FOR BETA TESTING. AniList calendar, ratings, Wrapped, friend alerts and list tools.
+THIS EXTENSION IS FOR BETA TESTING. AniList calendar, ratings, Wrapped, friend alerts, Following groups and list tools.
 ```
 
 ### Descrizione
@@ -40,13 +40,13 @@ FRIEND ALERTS
 Choose friends or a custom audience and follow their public progress and status updates for selected titles. Updates appear in a local Friend Alerts inbox inside AniList.
 
 SMOOTHER EVERYDAY BROWSING
-Filter your activity feed, group notifications, preview accessible list Notes and use bulk editing on your own anime and manga lists. Back Restore brings back loaded content, list filters and scroll position when you return to an AniList page. Media tools add public metadata, scores and opening/ending theme links.
+Filter your activity feed, group notifications, preview accessible list Notes, use bulk editing on your own anime and manga lists, and organize followed users into custom groups on title pages. Back Restore brings back loaded content, list filters and scroll position when you return to an AniList page. Media tools add public metadata, scores and opening/ending theme links.
 
 MAKE IT YOURS
 Enable the modules you want in settings. A free AniList account is needed for account-based features: connect your own account from the extension popup. No subscription is required.
 
 YOUR DATA
-Your Astra archive and login credentials are stored on your device; interface preferences may sync through your Chrome account. The extension reads AniList list data, activity and notification/message context needed for its features. Back Restore keeps limited AniList navigation and scroll state locally in the tab. User-requested list edits are sent to AniList, and media tools contact the public metadata providers described in the privacy policy. There are no ads, analytics, telemetry or sales of user data. Downloaded backups and share cards stay on your device until you choose to share them.
+Your Astra archive and login credentials are stored on your device, along with your custom Following group names and display settings; interface preferences may sync through your Chrome account. The extension reads AniList list data, activity and notification/message context needed for its features. Back Restore keeps limited AniList navigation and scroll state locally in the tab. User-requested list edits are sent to AniList, and media tools contact the public metadata providers described in the privacy policy. There are no ads, analytics, telemetry or sales of user data. Downloaded backups and share cards stay on your device until you choose to share them.
 
 Wrapped reflects available logged activity, rather than measured video playback. Friend Alerts is an in-extension inbox; delivery depends on browser availability and AniList's API.
 
@@ -90,7 +90,7 @@ Compilare soltanto le motivazioni richieste dalla dashboard. Quelle per `alarms`
 ### storage
 
 ```text
-Store the user's AniList OAuth token and account identity in trusted extension local storage, together with the local Astra ratings/Journal archive, custom friend lists, pending user-requested AniList edits, alert state and disposable public metadata caches. Store interface settings in chrome.storage.sync and a public theme-video index in chrome.storage.session. Persistence keeps settings and local work available across visits and browser restarts. Credentials are not exposed through the content-script storage bridge.
+Store the user's AniList OAuth token and account identity in trusted extension local storage, together with the local Astra ratings/Journal archive, custom friend lists and Following group names and display settings, pending user-requested AniList edits, alert state and disposable public metadata caches. Store interface settings in chrome.storage.sync and a public theme-video index in chrome.storage.session. Persistence keeps settings and local work available across visits and browser restarts. Credentials are not exposed through the content-script storage bridge.
 ```
 
 ### identity
@@ -184,7 +184,7 @@ La prima voce riguarda le recensioni lasciate dagli utenti, secondo la guida fee
 
 ## 8. Immagini
 
-I file pronti sono in `release/store-1.0.1/`. PNG degli screenshot e dei riquadri promozionali: RGB, senza alpha. L'icona può avere alpha.
+I file pronti sono in `release/store-1.0.2/`. PNG degli screenshot e dei riquadri promozionali: RGB, senza alpha. L'icona può avere alpha.
 
 | File | Dimensioni | Utilizzo |
 | --- | --- | --- |
@@ -200,11 +200,10 @@ Ordine consigliato per i due screenshot preparati: **Wrapped**, poi **Settings**
 
 ## Verifiche eseguite
 
-- Build TypeScript/Vite completata, versione 1.0.1.
-- ZIP dell'estensione generato: 75 file, circa 1,5 MB; risorse del manifest e dei file HTML controllate.
-- Smoke test in Chrome di test isolato: 7 controlli MV3 superati, comprese le pagine estensione e le risposte del worker. Il controllo è locale e non equivale a un test OAuth reale sullo Store.
-- Test del controller popup: 4 superati. I controlli del browser sono stati allineati alla rimozione del vecchio indicatore Connected/Disconnected.
-- Testi verificati rispetto ai limiti dei campi e PNG verificati per dimensioni/alpha.
+- Build TypeScript/Vite completata per la versione 1.0.2.
+- ZIP dell'estensione generato; manifest, risorse dichiarate e file HTML controllati.
+- Test automatizzati e smoke test browser non eseguiti per questa versione.
+- PNG riutilizzati dal kit 1.0.1; dimensioni e trasparenza già verificate per gli stessi file.
 - Login OAuth reale del pacchetto Store, bozza online e invio in revisione: non eseguiti da questa preparazione.
 
 ## 9. Riferimenti ufficiali consultati

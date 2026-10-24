@@ -76,7 +76,8 @@ export async function mountSeasonal(): Promise<void> {
   dashboard = new AstraDashboard(store as never, astra, bus, component() as never, component() as never, component() as never, overlay, service);
   release = () => { dashboard.dispose(); astra.dispose(); overlay.dispose(); release = undefined; };
   await dashboard.open();
-  await until(() => !!document.querySelector('[data-open-released-seasonal]'), 'A released Seasonal Wrapped must be announced on the dashboard');
+  await until(() => !!document.querySelector('.astra-nav-new'), 'A released Seasonal Wrapped must have a subtle navigation badge');
+  assert(!document.querySelector('[data-open-released-seasonal]'), 'A release must not add a repeated banner to the dashboard');
   assert(!document.querySelector('.seasonal-wrapped'), 'Opening Astra must not take over the dashboard');
   document.querySelector<HTMLElement>('[data-tab="recaps"]')!.click();
   await until(() => !!document.querySelector('[data-open-seasonal]'), 'Wrapped library must be reachable by choice');
@@ -94,7 +95,7 @@ export async function verifySeasonal(): Promise<string[]> {
   assert(root().querySelector('[data-seasonal-continuing]')!.textContent!.includes('Beyond the last horizon'), 'The continuing series must appear separately');
   assert(!root().querySelector('[data-seasonal-results]')!.textContent!.includes('Private title'), 'Private titles must start excluded');
   assert(!root().textContent!.includes('Summer catch-up') && !root().textContent!.includes('An older adventure'), 'Backlog viewing must not enter the recap');
-  report.push('passive seasonal release announcement, explicit opening, responsive geometry, concluded leftovers, future leftovers and recovery exclusion');
+  report.push('subtle seasonal release badge, explicit opening, responsive geometry, concluded leftovers, future leftovers and recovery exclusion');
   const favorite = show<HTMLSelectElement>('[data-award="favorite"]'); favorite.value = '1'; favorite.dispatchEvent(new Event('change', { bubbles: true }));
   await until(() => root().querySelector('[data-seasonal-status]')!.textContent === 'Personal picks saved to Astra.', 'Award must save');
   assert(root().querySelector('.aw-slide.is-active [data-award="favorite"]'), 'Saving a pick must keep the awards slide on screen');

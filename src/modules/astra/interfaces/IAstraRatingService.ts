@@ -130,6 +130,14 @@ export interface IAstraRatingService {
   getMediaRatingData(mediaId: number): Promise<IRatingInitialData | null>;
 
   /**
+   * Warms the AniList read used by getMediaRatingData (e.g. on hover) so opening is instant.
+   */
+  prefetchMediaRatingData?(mediaId: number): void;
+
+  /** Drops a prefetch whose hover ended before it started. */
+  cancelPrefetch?(): void;
+
+  /**
    * Increments or sets progress for a media entry.
    */
   updateProgress(mediaId: number, progress?: number): Promise<AstraProgressResult>;

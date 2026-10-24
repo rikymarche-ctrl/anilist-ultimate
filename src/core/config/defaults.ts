@@ -17,7 +17,7 @@ import type { AppConfig } from './types';
  * These values are used when no stored configuration exists
  */
 export const DEFAULT_CONFIG: AppConfig = {
-  version: '1.0.1',
+  version: '1.0.2',
 
   features: {
     calendar: true,

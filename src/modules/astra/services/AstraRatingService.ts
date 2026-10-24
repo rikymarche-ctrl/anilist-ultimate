@@ -27,6 +27,26 @@ import { captureApiContext, assertApiContext } from '@/api/ApiContext';
 import { copyAstraDates, queuedAstraDates, queuedAstraListState } from '../utils/AstraDates';
 import { AstraSaveFailure, type AstraSaveStage } from './AstraSaveFailure';
 
+/** A hover prefetch is only trusted briefly, so remote edits made elsewhere are not hidden. */
+const PREFETCH_TTL_MS = 15_000;
+/** Hover must rest this long before a prefetch starts: sweeping the cursor over a list costs nothing. */
+const PREFETCH_DWELL_MS = 150;
+/** At most this many prefetches per rolling window, a small slice of AniList's 30 req/min. */
+const PREFETCH_BUDGET = 4;
+const PREFETCH_WINDOW_MS = 60_000;
+
+interface RatingPrefetch {
+  userId: number;
+  sessionId: string;
+  startedAt: number;
+  /** Sync-queue revision read before the query was sent; null until known. */
+  revision: string | null;
+  settled: boolean;
+  /** Present once the request succeeded. */
+  value?: unknown;
+  response: Promise<unknown>;
+}
+
 /**
  * AniList accepts scores up to 10 with one decimal place as an integer (x10).
  * Returns undefined when there is no Astra rating, so the score key is omitted.
@@ -47,6 +67,96 @@ export class AstraRatingService implements IAstraRatingService {
     @inject(TOKENS.AstraParserService) private parser: IAstraParser
   ) {}
 
+  private prefetches = new Map<number, RatingPrefetch>();
+  private prefetchStarts: number[] = [];
+  private prefetchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Hover intent: after a short dwell, starts the Quick Edit query ahead of the
+   * click so opening does not wait for the rate-limited queue and the network.
+   * The request rides the background lane (never the slots reserved for user
+   * actions), is capped per minute, and one runs at a time. If the click comes
+   * while it is still queued, the click's priority read joins and promotes it
+   * through the client's shared-read dedupe, so no second request is sent.
+   */
+  public prefetchMediaRatingData(mediaId: number): void {
+    this.cancelPrefetch();
+    if (!isSyncId(mediaId)) return;
+    this.prefetchTimer = setTimeout(() => {
+      this.prefetchTimer = null;
+      this.startPrefetch(mediaId);
+    }, PREFETCH_DWELL_MS);
+  }
+
+  /** Hover left before the dwell elapsed: drop the pending prefetch. */
+  public cancelPrefetch(): void {
+    if (this.prefetchTimer) clearTimeout(this.prefetchTimer);
+    this.prefetchTimer = null;
+  }
+
+  private startPrefetch(mediaId: number): void {
+    const now = Date.now();
+    const existing = this.prefetches.get(mediaId);
+    if (existing && now - existing.startedAt < PREFETCH_TTL_MS) return;
+    for (const entry of this.prefetches.values()) if (!entry.settled) return;
+    this.prefetchStarts = this.prefetchStarts.filter((at) => now - at < PREFETCH_WINDOW_MS);
+    if (this.prefetchStarts.length >= PREFETCH_BUDGET) return;
+    const context = this.api.getContext?.();
+    if (!context || !isSyncId(context.userId)) return;
+    this.prefetchStarts.push(now);
+    const entry: RatingPrefetch = {
+      userId: context.userId,
+      sessionId: context.sessionId,
+      startedAt: now,
+      revision: null,
+      settled: false,
+      response: Promise.resolve(),
+    };
+    entry.response = (async () => {
+      entry.revision = (await this.syncQueue.getSnapshot()).revision;
+      return this.api.query<unknown>(ASTRA_RATING_QUERY, { id: mediaId }, true);
+    })().then(
+      (value) => {
+        entry.settled = true;
+        entry.value = value;
+        return value;
+      },
+      (error: unknown) => {
+        entry.settled = true;
+        if (this.prefetches.get(mediaId) === entry) this.prefetches.delete(mediaId);
+        throw error;
+      }
+    );
+    entry.response.catch(() => undefined);
+    this.prefetches.set(mediaId, entry);
+  }
+
+  /**
+   * Consumes the prefetch for this media. Returns its response when it already
+   * arrived for the same account and no sync-queue change happened since it was
+   * requested. A stale request still in flight is awaited first, so the fresh
+   * read below is not merged into it by the client's shared-read dedupe.
+   */
+  private async takePrefetch(
+    mediaId: number,
+    userId: number,
+    sessionId: string,
+    revision: string
+  ): Promise<unknown> {
+    const entry = this.prefetches.get(mediaId);
+    if (!entry) return undefined;
+    this.prefetches.delete(mediaId);
+    const sameAccount = entry.userId === userId && entry.sessionId === sessionId;
+    const current = sameAccount && entry.revision === revision;
+    if (!current) {
+      if (!entry.settled) await entry.response.catch(() => undefined);
+      return undefined;
+    }
+    // Still in flight: the caller's priority read joins this request.
+    if (!entry.settled || Date.now() - entry.startedAt >= PREFETCH_TTL_MS) return undefined;
+    return entry.value;
+  }
+
   /**
    * Fetches initial data from AniList using GQL.
    */
@@ -62,10 +172,16 @@ export class AstraRatingService implements IAstraRatingService {
       for (let attempt = 0; attempt < 3; attempt++) {
         const before = await this.syncQueue.getSnapshot();
         assertApiContext(this.api, context);
+        const prefetched =
+          attempt === 0 && context
+            ? await this.takePrefetch(mediaId, userId, context.sessionId, before.revision)
+            : undefined;
         // The modal's own read: priority keeps it from waiting behind background sync reads.
-        const resp = await this.api.query<unknown>(ASTRA_RATING_QUERY, { id: mediaId }, false, {
-          priority: true,
-        });
+        const resp =
+          prefetched ??
+          (await this.api.query<unknown>(ASTRA_RATING_QUERY, { id: mediaId }, false, {
+            priority: true,
+          }));
         assertApiContext(this.api, context);
         const result = ratingInitialResponse(resp, mediaId, userId);
         const after = await this.syncQueue.getSnapshot();

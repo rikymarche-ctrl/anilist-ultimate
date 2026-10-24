@@ -22,7 +22,7 @@ import { AstraWrappedView } from './AstraWrappedView';
 import { SeasonalWrappedService } from '../services/SeasonalWrappedService';
 import { YearReviewService } from '../services/year/YearReviewService';
 import { SeasonalWrappedView } from './SeasonalWrappedView';
-import { latestReleasedSeason, seasonLabel, type SeasonalPeriod } from '../services/SeasonalWrappedModel';
+import { latestReleasedSeason, type SeasonalPeriod } from '../services/SeasonalWrappedModel';
 import { paintWrappedHub, wrappedHub } from './wrapped/WrappedHub';
 
 @injectable()
@@ -413,12 +413,6 @@ export class AstraDashboard extends AstraView implements Disposable {
           <h2>Astra Dashboard</h2>
           ${headerActionsHtml}
         </header>
-        ${this.pendingSeasonalRelease ? `
-          <section class="astra-seasonal-release" aria-label="Seasonal Wrapped ready">
-            <div><strong>${seasonLabel(this.pendingSeasonalRelease)} Wrapped is ready</strong><span>Your seasonal recap is ready when you are.</span></div>
-            <button type="button" class="astra-btn astra-btn--secondary" data-open-released-seasonal>Open recap</button>
-          </section>
-        ` : ''}
         <div id="astra-filters-mount"></div>
         <div id="astra-table-mount"></div>
       `;
@@ -476,11 +470,6 @@ export class AstraDashboard extends AstraView implements Disposable {
     const isCurrent = () =>
       this.active && !this.disposed && this.mounted && this.$('.astra-dashboard-layout') === layout;
     const progress = layout.querySelector('#astra-dashboard-progress');
-    const releasedSeasonal = layout.querySelector<HTMLButtonElement>('[data-open-released-seasonal]');
-    if (releasedSeasonal) this.addEventListener(releasedSeasonal, 'click', () => {
-      if (!isCurrent() || !this.pendingSeasonalRelease) return;
-      this.openSeasonal(this.pendingSeasonalRelease);
-    });
     if (progress)
       this.addEventListener(progress, 'click', (event) => {
         if (!isCurrent()) return;
