@@ -51,6 +51,8 @@ async function setup(
     }),
     hasFinaleSection: () => Boolean(finale),
     getSections: () => sections,
+    getScoringMode: (): 'detailed' | 'simple' | 'unset' => 'detailed',
+    updateSettings: vi.fn(async (_settings: { detailedScoring?: boolean }) => {}),
     calcSectionScore: () => 8,
     calcSeasonScore: (season: { scores: Record<string, unknown>; manualScore?: unknown }) =>
       typeof season.manualScore === 'number'
@@ -890,5 +892,50 @@ describe('Astra manual overall score in the rating modal', () => {
     pressKey(input, 'Enter');
     await f.save();
     expect(sentOptions(f).overallScore).toBe(7);
+  });
+
+  const reopenWithMode = (
+    f: Awaited<ReturnType<typeof setup>>,
+    mode: 'detailed' | 'simple' | 'unset'
+  ) => {
+    f.astra.getScoringMode = () => mode;
+    f.toggle();
+    f.root = document.querySelector<HTMLElement>('.astra-modal-overlay')!;
+    return f.root.querySelector<HTMLElement>('#astra-tab-rating')!;
+  };
+
+  it('asks once how to score, and a single score hides the sections and saves the choice', async () => {
+    const f = await open();
+    const tab = reopenWithMode(f, 'unset');
+    expect(tab.dataset.layout).toBe('choice');
+    expect(f.root.querySelector('.astra-form-layout')?.hasAttribute('hidden')).toBe(true);
+    expect(f.root.querySelector('.astra-scoring-option__desc')?.textContent).toContain('Story');
+
+    f.root.querySelector<HTMLElement>('[data-scoring-choice="simple"]')!.click();
+
+    expect(tab.dataset.layout).toBe('solo');
+    expect(f.root.querySelector('.astra-scoring-choice')).toBeNull();
+    expect(f.root.querySelector('.astra-form-layout')?.hasAttribute('hidden')).toBe(true);
+    expect(f.root.querySelector('.astra-overall-hint')?.textContent).toBe('Your score');
+    expect(f.astra.updateSettings).toHaveBeenCalledWith({ detailedScoring: false });
+  });
+
+  it('choosing sections reveals the grid in place', async () => {
+    const f = await open();
+    const tab = reopenWithMode(f, 'unset');
+    f.root.querySelector<HTMLElement>('[data-scoring-choice="detailed"]')!.click();
+    expect(tab.dataset.layout).toBe('sections');
+    expect(f.root.querySelector('.astra-form-layout')?.hasAttribute('hidden')).toBe(false);
+    expect(f.root.querySelector('.astra-overall-area--solo')).toBeNull();
+    expect(f.astra.updateSettings).toHaveBeenCalledWith({ detailedScoring: true });
+  });
+
+  it('in single-score mode renders no section inputs and no choice', async () => {
+    const f = await open();
+    const tab = reopenWithMode(f, 'simple');
+    expect(tab.dataset.layout).toBe('solo');
+    expect(tab.dataset.density).toBe('compact');
+    expect(f.root.querySelector('.astra-scoring-choice')).toBeNull();
+    expect(f.root.querySelector('.astra-score-group')).toBeNull();
   });
 });

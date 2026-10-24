@@ -548,6 +548,7 @@ describe('AstraRatingModal reconciliation with AniList on open', () => {
       getFullWork: vi.fn(async () => structuredClone(existing)),
       getWorks: () => [],
       getSections: () => DEFAULT_SECTIONS,
+      getScoringMode: () => 'detailed',
       getSettings: () => DEFAULT_SETTINGS,
       saveWork: vi.fn(async (patch: Partial<AstraWork>) => ({
         ...structuredClone(existing),

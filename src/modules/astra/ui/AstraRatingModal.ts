@@ -146,6 +146,8 @@ export class AstraRatingModal {
   private remoteOverall: number | null = null;
   /** True while the overall box shows its manual-score input. */
   private overallEditing = false;
+  /** Scoring mode picked in this modal while its settings write is still in flight. */
+  private pendingScoringMode: 'detailed' | 'simple' | null = null;
   private livePreviewRaf: number | null = null; // Coalesces live-preview redraws during slider drag
   /** Temporary journal unlocks never change the episode's watched/progress state. */
   private readonly unlockedNotAiredEpisodes = new Set<string>();
@@ -578,7 +580,8 @@ export class AstraRatingModal {
 
     const work = this.state!.data;
     const season = work.seasons[this.currentSeasonIdx];
-    const sections = this.astraService.getSections();
+    const layout = this.scoringLayout();
+    const sections = layout === 'solo' ? [] : this.astraService.getSections();
     const entry =
       this.formDraft?.values ?? new AstraRatingFormDraft(media.mediaListEntry, work).values;
 
@@ -698,8 +701,9 @@ export class AstraRatingModal {
     sections: AstraSection[],
     meta: RatingMeta
   ): string {
+    const layout = this.scoringLayout();
     return `
-      <div id="astra-tab-rating" class="astra-tab-content ${this.activeTab === 'rating' ? 'astra-tab-content--active' : ''}">
+      <div id="astra-tab-rating" class="astra-tab-content ${this.activeTab === 'rating' ? 'astra-tab-content--active' : ''}" data-layout="${layout}" data-density="${this.scoringDensity(layout)}">
         <div class="astra-header-section">
           <img ${parseWebUrl(work.cover) ? `src="${escapeHtml(parseWebUrl(work.cover)!.href)}"` : ''} class="astra-header-cover" id="astra-cover">
           <div class="astra-media-header">
@@ -773,7 +777,9 @@ export class AstraRatingModal {
           </div>
         </div>
 
-        <div class="astra-form-layout"${sections.length === 0 ? ' hidden' : ''}>
+        ${layout === 'choice' ? this.renderScoringChoice(sections) : ''}
+
+        <div class="astra-form-layout"${layout === 'sections' ? '' : ' hidden'}>
           <div class="astra-form">
             <div class="astra-form-scroll">
               <div class="astra-field-group">
@@ -795,10 +801,75 @@ export class AstraRatingModal {
           <div class="astra-notes-area">
             <textarea class="astra-textarea" id="astra-general-notes" placeholder="General thoughts...">${'\n'}${escapeHtml(season.notes || '')}</textarea>
           </div>
-          ${this.renderOverallArea(this.currentSeasonIdx, sections.length > 0)}
+          ${this.renderOverallArea(this.currentSeasonIdx)}
         </div>
       </div>
     `;
+  }
+
+  /**
+   * 'sections' shows the section grid, 'solo' a single score next to the notes, and 'choice'
+   * asks once whether to score by sections before showing either.
+   */
+  private scoringLayout(): 'sections' | 'solo' | 'choice' {
+    const mode = this.pendingScoringMode ?? this.astraService.getScoringMode();
+    if (mode === 'simple' || this.astraService.getSections().length === 0) return 'solo';
+    return mode === 'unset' ? 'choice' : 'sections';
+  }
+
+  /** Compact: no radar to place, so the window narrows and the header shrinks to match. */
+  private scoringDensity(layout: 'sections' | 'solo' | 'choice'): 'compact' | 'full' {
+    return layout === 'sections' && AstraRadarChart.isVisible(this.astraService.getSections())
+      ? 'full'
+      : 'compact';
+  }
+  private renderScoringChoice(sections: AstraSection[]): string {
+    const names = sections
+      .slice(0, 3)
+      .map((s) => escapeHtml(s.name))
+      .join(', ');
+    return `
+        <div class="astra-scoring-choice" role="group" aria-labelledby="astra-scoring-choice-title">
+          <p class="astra-scoring-choice__title" id="astra-scoring-choice-title">How do you want to score?</p>
+          <div class="astra-scoring-choice__options">
+            <button type="button" class="astra-scoring-option" data-scoring-choice="detailed">
+              <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+              <span class="astra-scoring-option__name">By sections</span>
+              <span class="astra-scoring-option__desc">Rate ${sections.length} ${sections.length === 1 ? 'section' : 'sections'} (${names}${sections.length > 3 ? '…' : ''}) and get a weighted score with a radar chart.</span>
+            </button>
+            <button type="button" class="astra-scoring-option" data-scoring-choice="simple">
+              <i class="fa-solid fa-star" aria-hidden="true"></i>
+              <span class="astra-scoring-option__name">Single score</span>
+              <span class="astra-scoring-option__desc">One overall score, as on AniList. Notes stay available.</span>
+            </button>
+          </div>
+          <p class="astra-scoring-choice__foot">You can switch anytime in Astra settings.</p>
+        </div>`;
+  }
+
+  /** Applies the picked mode to the open form at once and saves it as the default. */
+  private chooseScoringMode(mode: 'detailed' | 'simple'): void {
+    if (!this.overlay) return;
+    this.pendingScoringMode = mode;
+    const layout = this.scoringLayout();
+    const tab = this.overlay.querySelector<HTMLElement>('#astra-tab-rating');
+    if (tab) {
+      tab.dataset.layout = layout;
+      tab.dataset.density = this.scoringDensity(layout);
+    }
+    this.overlay.querySelector('.astra-scoring-choice')?.remove();
+    const form = this.overlay.querySelector<HTMLElement>('.astra-form-layout');
+    if (form) form.hidden = layout !== 'sections';
+    this.refreshOverallArea();
+    this.astraService
+      .updateSettings({ detailedScoring: mode === 'detailed' })
+      .then(() => {
+        if (this.pendingScoringMode === mode) this.pendingScoringMode = null;
+      })
+      .catch((error) => {
+        logger.error('[AstraRatingModal] Saving the scoring mode failed', error);
+        this.toast.error('Unable to save the scoring mode. It applies to this entry only.');
+      });
   }
 
   private renderCustomListsPanel(
@@ -1691,13 +1762,16 @@ export class AstraRatingModal {
    * The overall box with its caption, manual marker and reset. With no section configured the
    * box is the only way to set a score, so it is shown with a hint.
    */
-  private renderOverallArea(seasonIndex: number, hasSections: boolean): string {
+  private renderOverallArea(seasonIndex: number): string {
     const { fallback, manual } = this.overallDisplay(seasonIndex);
-    const hint = hasSections
+    const solo = this.scoringLayout() === 'solo';
+    const hint = !solo
       ? ''
-      : '<p class="astra-overall-hint">No sections configured: set the score manually.</p>';
+      : this.astraService.getSections().length === 0
+        ? '<p class="astra-overall-hint">No sections configured: set the score manually.</p>'
+        : '<p class="astra-overall-hint">Your score</p>';
     return `
-      <div class="astra-overall-area${hasSections ? '' : ' astra-overall-area--solo'}">
+      <div class="astra-overall-area${solo ? ' astra-overall-area--solo' : ''}">
         ${hint}
         <div class="astra-overall-box" role="button" tabindex="0" aria-label="Overall score, click to set it manually">
           ${this.overallValueHtml(seasonIndex)}
@@ -1714,6 +1788,11 @@ export class AstraRatingModal {
   private bindOverallScore(): void {
     this.listen(this.overlay, 'click', (event) => {
       const target = event.target instanceof HTMLElement ? event.target : null;
+      const choice = target?.closest<HTMLElement>('[data-scoring-choice]')?.dataset.scoringChoice;
+      if (choice === 'detailed' || choice === 'simple') {
+        this.chooseScoringMode(choice);
+        return;
+      }
       if (target?.closest('.astra-overall-reset')) {
         this.applyManualScore(null);
         this.refreshOverallArea();
@@ -1804,10 +1883,7 @@ export class AstraRatingModal {
     const area = this.overlay.querySelector<HTMLElement>('.astra-overall-area');
     if (!area) return;
     const keepFocus = focusBox || area.contains(document.activeElement);
-    area.outerHTML = this.renderOverallArea(
-      this.currentSeasonIdx,
-      this.astraService.getSections().length > 0
-    );
+    area.outerHTML = this.renderOverallArea(this.currentSeasonIdx);
     if (keepFocus) this.overlay.querySelector<HTMLElement>('.astra-overall-box')?.focus();
   }
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Quick Edit
+
+- Quick Edit asks once whether to score by sections or with a single score; the choice can be changed in Astra settings ("Detailed scoring").
+- The Quick Edit window now sizes to its content: a single score or a few sections no longer leave empty space, and the radar only takes room when it is drawn.
+
 ### Security
 
 - Update Vitest, its UI and V8 coverage provider to 4.1.12, including the patched mocker tooling for [GHSA-qxg6-89mg-rqv8](https://github.com/advisories/GHSA-qxg6-89mg-rqv8) and [GHSA-xp26-3454-mjgp](https://github.com/advisories/GHSA-xp26-3454-mjgp).

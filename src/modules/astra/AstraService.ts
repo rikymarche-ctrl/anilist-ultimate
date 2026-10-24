@@ -49,15 +49,18 @@ export class AstraService {
   ) {
     this.unsubscribeAuth = this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => {
       if (this.disposed) return;
-      this.customListsEpoch++; this.customListsCache = null;
+      this.customListsEpoch++;
+      this.customListsCache = null;
     }).unsubscribe;
   }
 
   public dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.unsubscribeAuth?.(); this.unsubscribeAuth = null;
-    this.customListsEpoch++; this.customListsCache = null;
+    this.unsubscribeAuth?.();
+    this.unsubscribeAuth = null;
+    this.customListsEpoch++;
+    this.customListsCache = null;
   }
 
   private assertActive(): void {
@@ -99,8 +102,12 @@ export class AstraService {
     this.assertActive();
     // Auto-sync with AniList notes (background)
     if (!skipAnilist) {
-      void this.syncToAnilistNotes(saved.mediaId, saved).catch(error => {
-        if (!this.disposed) logger.error('[AstraService] Background notes sync failed; local data is preserved', error);
+      void this.syncToAnilistNotes(saved.mediaId, saved).catch((error) => {
+        if (!this.disposed)
+          logger.error(
+            '[AstraService] Background notes sync failed; local data is preserved',
+            error
+          );
       });
     }
     return saved;
@@ -126,7 +133,12 @@ export class AstraService {
     assertApiContext(this.api, context);
     if (epoch !== this.customListsEpoch) throw new Error('Astra account changed');
     const cache = this.customListsCache;
-    if (cache && cache.context?.sessionId === context?.sessionId && cache.context?.userId === context?.userId) return [...cache.names];
+    if (
+      cache &&
+      cache.context?.sessionId === context?.sessionId &&
+      cache.context?.userId === context?.userId
+    )
+      return [...cache.names];
 
     const query = `
       query AstraCustomLists {
@@ -152,8 +164,12 @@ export class AstraService {
     if (epoch !== this.customListsEpoch) throw new Error('Astra account changed');
 
     const listNames = new Set<string>();
-    response.Viewer?.mediaListOptions?.animeList?.customLists?.forEach((name) => listNames.add(name));
-    response.Viewer?.mediaListOptions?.mangaList?.customLists?.forEach((name) => listNames.add(name));
+    response.Viewer?.mediaListOptions?.animeList?.customLists?.forEach((name) =>
+      listNames.add(name)
+    );
+    response.Viewer?.mediaListOptions?.mangaList?.customLists?.forEach((name) =>
+      listNames.add(name)
+    );
     const names = Array.from(listNames).sort((a, b) => a.localeCompare(b));
     this.customListsCache = { context: context ? { ...context } : undefined, names };
     return [...names];
@@ -208,6 +224,19 @@ export class AstraService {
   public getSettings(): AstraSettings {
     return this.repository.getSettings();
   }
+
+  /**
+   * The scoring mode for Quick Edit. Without an explicit choice, a library that already holds
+   * section scores counts as detailed; otherwise the mode is still to be asked.
+   */
+  public getScoringMode(): 'detailed' | 'simple' | 'unset' {
+    const explicit = this.getSettings().detailedScoring;
+    if (explicit !== undefined) return explicit ? 'detailed' : 'simple';
+    const rated = this.getWorks().some((work) =>
+      Object.values(work.sectionScores ?? {}).some((score) => score !== null && score !== undefined)
+    );
+    return rated ? 'detailed' : 'unset';
+  }
   public async updateSettings(settings: Partial<AstraSettings>): Promise<void> {
     this.assertActive();
     return this.repository.updateSettings(settings);
@@ -248,7 +277,11 @@ export class AstraService {
     this.assertActive();
     return this.repository.removeSubSection(sectionId, subId);
   }
-  public async updateSubSectionWeight(sectionId: string, subId: string, weight: number): Promise<void> {
+  public async updateSubSectionWeight(
+    sectionId: string,
+    subId: string,
+    weight: number
+  ): Promise<void> {
     this.assertActive();
     return this.repository.updateSubSectionWeight(sectionId, subId, weight);
   }
@@ -256,7 +289,10 @@ export class AstraService {
     this.assertActive();
     return this.repository.exportJSON();
   }
-  public async saveSeasonalChoices(key: string, choices: SeasonalChoices): Promise<SeasonalChoices> {
+  public async saveSeasonalChoices(
+    key: string,
+    choices: SeasonalChoices
+  ): Promise<SeasonalChoices> {
     this.assertActive();
     const saved = await this.repository.saveSeasonalChoices(key, choices);
     this.assertActive();

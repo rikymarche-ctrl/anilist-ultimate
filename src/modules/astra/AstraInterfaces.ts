@@ -89,4 +89,6 @@ export interface AstraSettings {
   finaleWeightMultiplier: number;
   autoSync: boolean;
   appendAstraToComment: boolean;
+  /** Section-based scoring in Quick Edit. Absent until the user picks a mode (or one is inferred from rated works). */
+  detailedScoring?: boolean;
 }

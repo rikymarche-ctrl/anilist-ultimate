@@ -22,7 +22,7 @@ function setup() {
     deleteEntry: vi.fn(async (_id: number): Promise<'synced' | 'queued'> => 'synced'),
     saveAndSync: vi.fn(async (_work: AstraWork, _extra: AstraSaveOptions): Promise<AstraSaveResult> => 'local') };
   const astra = { getFullWork: async () => undefined, getWorks: () => [], getSettings: () => ({ enableSeriesFinale: false }),
-    hasFinaleSection: () => false, getSections: () => [{ id: 'story', name: 'Story', weight: 1 }], calcSectionScore: () => 8, calcSeasonScore: () => 8 };
+    hasFinaleSection: () => false, getSections: () => [{ id: 'story', name: 'Story', weight: 1 }], getScoringMode: () => 'detailed', calcSectionScore: () => 8, calcSeasonScore: () => 8 };
   const overlayService = new AstraOverlayService();
   const modal = new AstraRatingModal(astra as unknown as AstraService, api as IApiClient, bus,
     toast as unknown as ToastService, rating as unknown as IAstraRatingService, overlayService);

@@ -3064,6 +3064,16 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-color: rgba(245, 158, 11, 0.3) !important;
 }
 
+.astra-settings-item--warning-muted {
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+.astra-badge-warn--inactive {
+  background: rgba(148, 163, 184, 0.08) !important;
+  color: var(--astra-muted) !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
 /* Duplicates removed - consolidated above */
 
 @keyframes astra-fade-in {
@@ -7694,4 +7704,291 @@ body.au-astra-enabled .section-header .friend-activity-button {
   line-height: 1 !important;
   letter-spacing: 0.04em !important;
   pointer-events: none !important;
+}
+
+/* ── Adaptive Quick Edit layout ─────────────────────────────────────────────
+   The rating view takes the height its content needs, between a floor that
+   keeps the custom-list panel usable and the previous fixed cap. Few sections,
+   a single score or the scoring choice no longer leave empty space. */
+.astra-rating-workspace:not(.astra-rating-workspace--journal) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
+  min-height: min(480px, calc(100vh - 48px)) !important;
+  max-height: min(720px, calc(100vh - 48px)) !important;
+}
+
+.astra-rating-workspace:not(.astra-rating-workspace--journal) .astra-modal--rating {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  /* A single-line flex row clamps its line to its own max-height, which gives the
+     stretched main column a definite height so the section grid scrolls inside it. */
+  max-height: min(720px, calc(100vh - 48px)) !important;
+}
+
+/* Stretch only applies to an auto height; a percentage would size these to their content. */
+.astra-rating-workspace:not(.astra-rating-workspace--journal) .astra-modal--rating > .astra-modal-main,
+.astra-rating-workspace:not(.astra-rating-workspace--journal) .astra-modal--rating > .astra-modal-nav {
+  height: auto !important;
+  align-self: stretch !important;
+}
+
+.astra-rating-workspace:not(.astra-rating-workspace--journal) #astra-tab-rating.astra-tab-content--active {
+  flex: 1 1 auto !important;
+  height: auto !important;
+}
+
+/* Fewer than three active sections draw no radar: the grid takes the full width. */
+.astra-modal--rating .astra-form-layout:has(.astra-radar-container[hidden]) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.astra-modal--rating .astra-form-layout:has(.astra-radar-container[hidden]) .astra-sidebar {
+  display: none !important;
+}
+
+/* Single score: the notes and the score become the body of the form. */
+#astra-tab-rating[data-layout='solo'] .astra-form-footer {
+  flex: 1 1 auto !important;
+  grid-template-columns: minmax(0, 1fr) 168px !important;
+  gap: 12px !important;
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+}
+
+#astra-tab-rating[data-layout='solo'] .astra-notes-area textarea {
+  min-height: 160px !important;
+}
+
+#astra-tab-rating[data-layout='solo'] .astra-overall-area--solo {
+  gap: 8px !important;
+}
+
+#astra-tab-rating[data-layout='solo'] .astra-overall-area--solo .astra-overall-hint {
+  margin: 0 !important;
+  text-align: center;
+}
+
+#astra-tab-rating[data-layout='solo'] .astra-overall-area--solo .astra-overall-box {
+  min-height: 120px !important;
+  cursor: pointer;
+  border: 1px solid var(--astra-border-soft);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+#astra-tab-rating[data-layout='solo'] .astra-overall-area--solo .astra-overall-box:hover,
+#astra-tab-rating[data-layout='solo'] .astra-overall-area--solo .astra-overall-box:focus-visible {
+  border-color: var(--astra-accent);
+}
+
+#astra-tab-rating[data-layout='solo'] .astra-overall-area--solo .astra-overall-val {
+  font-size: 44px !important;
+}
+
+/* One-time question: score by sections or with a single score. */
+.astra-modal--rating .astra-scoring-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--astra-border-soft);
+  border-radius: 12px;
+  background: var(--astra-bg-elev);
+}
+
+.astra-modal--rating .astra-scoring-choice__title {
+  margin: 0;
+  color: var(--astra-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.astra-modal--rating .astra-scoring-choice__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.astra-modal--rating .astra-scoring-option {
+  /* Explicit areas and !important: host button styles otherwise reflow the grid. */
+  display: grid !important;
+  grid-template-columns: 20px minmax(0, 1fr) !important;
+  grid-template-areas: 'icon name' 'icon desc' !important;
+  column-gap: 12px !important;
+  row-gap: 4px !important;
+  align-items: center !important;
+  justify-items: start !important;
+  padding: 14px;
+  border: 1px solid var(--astra-border-soft);
+  border-radius: 10px;
+  background: var(--astra-bg);
+  color: var(--astra-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.astra-modal--rating .astra-scoring-option:hover {
+  border-color: var(--astra-accent);
+  transform: translateY(-1px);
+}
+
+.astra-modal--rating .astra-scoring-option:focus-visible {
+  outline: 2px solid var(--astra-accent);
+  outline-offset: 2px;
+}
+
+.astra-modal--rating .astra-scoring-option i {
+  grid-area: icon !important;
+  color: var(--astra-accent);
+  font-size: 18px;
+}
+
+.astra-modal--rating .astra-scoring-option__name {
+  grid-area: name !important;
+  text-align: left !important;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.astra-modal--rating .astra-scoring-option__desc {
+  grid-area: desc !important;
+  text-align: left !important;
+}
+
+.astra-modal--rating .astra-scoring-option__desc,
+.astra-modal--rating .astra-scoring-choice__foot {
+  color: var(--astra-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.astra-modal--rating .astra-scoring-choice__foot {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .astra-modal--rating .astra-scoring-option:hover {
+    transform: none;
+  }
+}
+
+/* ── Compact Quick Edit ─────────────────────────────────────────────────────
+   Without a radar (single score, the scoring question, or fewer than three
+   sections) the window narrows and the header controls shrink to match. */
+.astra-rating-workspace:not(.astra-rating-workspace--journal):has(#astra-tab-rating[data-density='compact']) {
+  width: min(860px, calc(100vw - 48px)) !important;
+  min-height: min(420px, calc(100vh - 48px)) !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-header-section {
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-header-cover {
+  width: 76px !important;
+  height: 110px !important;
+  max-width: 76px !important;
+  max-height: 110px !important;
+  min-width: 76px !important;
+  flex: 0 0 76px !important;
+  border-radius: 10px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-media-header {
+  padding: 12px 16px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-quick-grid-2x2 {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 10px 20px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-date-pickers-grid {
+  width: auto !important;
+  margin-left: 0 !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-compact-date-field {
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
+  flex: 0 0 64px !important;
+  height: auto !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-datepicker--compact {
+  height: 64px !important;
+  flex: 0 0 64px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-datepicker--compact .astra-datepicker-trigger,
+#astra-tab-rating[data-density='compact'] .astra-mini-calendar-page {
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  flex: 0 0 64px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-mini-calendar-page {
+  grid-template-rows: 16px minmax(0, 1fr) 14px !important;
+  border-radius: 8px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-mini-calendar-month {
+  font-size: 9px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-mini-calendar-day {
+  font-size: 24px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-mini-calendar-year {
+  font-size: 9px !important;
+}
+
+#astra-tab-rating[data-density='compact'] .astra-datepicker--compact .astra-dp-label {
+  font-size: 9px !important;
+}
+
+#astra-tab-rating[data-layout='solo'][data-density='compact'] .astra-form-footer {
+  grid-template-columns: minmax(0, 1fr) 140px !important;
+}
+
+#astra-tab-rating[data-layout='solo'][data-density='compact'] .astra-notes-area textarea {
+  min-height: 120px !important;
+}
+
+#astra-tab-rating[data-layout='solo'][data-density='compact'] .astra-overall-area--solo .astra-overall-box {
+  min-height: 96px !important;
+}
+
+#astra-tab-rating[data-layout='solo'][data-density='compact'] .astra-overall-area--solo .astra-overall-val {
+  font-size: 38px !important;
+}
+
+/* With room to spare, the narrower window and the custom-list panel are centred as a pair. */
+@media (min-width: 1200px) {
+  .astra-rating-workspace:not(.astra-rating-workspace--journal):has(#astra-tab-rating[data-density='compact']) {
+    margin-right: calc(var(--astra-custom-list-width) + 12px) !important;
+  }
+
+  .astra-rating-workspace:not(.astra-rating-workspace--journal):has(#astra-tab-rating[data-density='compact']) .astra-custom-list-panel {
+    left: calc(100% + 12px) !important;
+  }
+}
+
+#astra-tab-rating[data-density='compact'] .astra-compact-date-field {
+  width: auto !important;
+  min-width: 72px !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
 }

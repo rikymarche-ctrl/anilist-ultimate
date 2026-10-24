@@ -39,7 +39,9 @@ export class AstraSettingsView extends AstraView {
 
   protected override onMount(): void {
     this.actions.activate();
-    this.accountSubscription = this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => this.update());
+    this.accountSubscription = this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () =>
+      this.update()
+    );
   }
 
   protected override onUnmount(): void {
@@ -72,16 +74,22 @@ export class AstraSettingsView extends AstraView {
 
         <div class="astra-settings-grid">
           <div class="astra-settings-section">
-            <h3 class="astra-section-title"><i class="fa-solid fa-sliders"></i> Global Preferences</h3>
+            <h3 class="astra-section-title">
+              <i class="fa-solid fa-sliders"></i> Global Preferences
+            </h3>
             <div class="astra-settings-item">
               <div class="astra-settings-info">
                 <span class="astra-settings-label">Separate Airing</span>
                 <span class="astra-settings-desc"
-                  >Move anime currently airing from Watching into an Airing section above Reading and Watching.</span
+                  >Move anime currently airing from Watching into an Airing section above Reading
+                  and Watching.</span
                 >
               </div>
               <div
-                class="astra-toggle ${when(this.dashboardStore.getState().separateAiring, 'active')}"
+                class="astra-toggle ${when(
+                  this.dashboardStore.getState().separateAiring,
+                  'active'
+                )}"
                 id="astra-separate-airing-toggle"
                 role="switch"
                 tabindex="0"
@@ -91,14 +99,29 @@ export class AstraSettingsView extends AstraView {
                 <div class="astra-toggle-handle"></div>
               </div>
             </div>
-            <div class="astra-settings-item ${when(!hasFinale, 'astra-settings-item--warning')}">
+            <div
+              class="astra-settings-item ${when(
+                !hasFinale && settings.enableSeriesFinale,
+                'astra-settings-item--warning'
+              )} ${when(
+                !hasFinale && !settings.enableSeriesFinale,
+                'astra-settings-item--warning-muted'
+              )}"
+              data-finale-warning-item
+            >
               <div class="astra-settings-info">
                 <div class="astra-settings-label-row">
                   <span class="astra-settings-label">Series Finale Scoring</span>
                   ${when(
                     !hasFinale,
-                    html`<span class="astra-badge-warn"
-                      ><i class="fa-solid fa-triangle-exclamation"></i> Requires "Finale" section</span
+                    html`<span
+                      class="astra-badge-warn ${when(
+                        !settings.enableSeriesFinale,
+                        'astra-badge-warn--inactive'
+                      )}"
+                      data-finale-warning-badge
+                      ><i class="fa-solid fa-triangle-exclamation"></i> Requires "Finale"
+                      section</span
                     >`
                   )}
                 </div>
@@ -137,7 +160,9 @@ export class AstraSettingsView extends AstraView {
           </div>
 
           <div class="astra-settings-section">
-            <h3 class="astra-section-title"><i class="fa-solid fa-arrows-rotate"></i> AniList Integration</h3>
+            <h3 class="astra-section-title">
+              <i class="fa-solid fa-arrows-rotate"></i> AniList Integration
+            </h3>
             <div class="astra-settings-item">
               <div class="astra-settings-info">
                 <span class="astra-settings-label">Append Astra Review to comment</span>
@@ -164,13 +189,30 @@ export class AstraSettingsView extends AstraView {
                 <i class="fa-solid fa-plus"></i> Add Section
               </button>
             </div>
+            <div class="astra-settings-item">
+              <div class="astra-settings-info">
+                <span class="astra-settings-label">Detailed scoring</span>
+                <span class="astra-settings-desc"
+                  >Rate each section below in Quick Edit, with weights and a radar chart. When off,
+                  Quick Edit asks for a single score.</span
+                >
+              </div>
+              <div
+                class="astra-toggle ${when(this.service.getScoringMode() === 'detailed', 'active')}"
+                data-setting="detailedScoring"
+              >
+                <div class="astra-toggle-handle"></div>
+              </div>
+            </div>
             <div class="astra-sections-list">
               ${map(sections, (s) => this.renderSectionItem(s))}
             </div>
           </div>
 
           <div class="astra-settings-section">
-            <h3 class="astra-section-title"><i class="fa-solid fa-database"></i> Data Management</h3>
+            <h3 class="astra-section-title">
+              <i class="fa-solid fa-database"></i> Data Management
+            </h3>
             <div class="astra-settings-grid-2col">
               <div class="astra-settings-item">
                 <div class="astra-settings-info">
@@ -362,13 +404,30 @@ export class AstraSettingsView extends AstraView {
         separateAiring.click();
       });
     }
-    this.$$('.astra-toggle').forEach(toggle => {
+    this.$$('.astra-toggle').forEach((toggle) => {
       this.addEventListener(toggle, 'click', () => {
         const setting = toggle.dataset.setting;
+        if (setting === 'detailedScoring') {
+          this.save(
+            async () => {
+              await this.service.updateSettings({
+                detailedScoring: this.service.getScoringMode() !== 'detailed',
+              });
+            },
+            () => toggle.classList.toggle('active', this.service.getScoringMode() === 'detailed')
+          );
+          return;
+        }
         if (setting !== 'enableSeriesFinale' && setting !== 'appendAstraToComment') return;
-        this.save(async () => {
-          await this.service.updateSettings({ [setting]: !this.service.getSettings()[setting] });
-        }, () => toggle.classList.toggle('active', this.service.getSettings()[setting]));
+        this.save(
+          async () => {
+            await this.service.updateSettings({ [setting]: !this.service.getSettings()[setting] });
+          },
+          () => {
+            toggle.classList.toggle('active', this.service.getSettings()[setting]);
+            if (setting === 'enableSeriesFinale') this.updateFinaleWarning();
+          }
+        );
       });
     });
     const multiplier = this.$<HTMLInputElement>('#multiplier-input');
@@ -382,21 +441,46 @@ export class AstraSettingsView extends AstraView {
         }
         this.save(() => this.service.updateSettings({ finaleWeightMultiplier: value }));
       });
-      for (const [selector, delta] of [['#inc-multiplier', 0.5], ['#dec-multiplier', -0.5]] as const) {
+      for (const [selector, delta] of [
+        ['#inc-multiplier', 0.5],
+        ['#dec-multiplier', -0.5],
+      ] as const) {
         const button = this.$(selector);
-        if (button) this.addEventListener(button, 'click', () => this.save(async () => {
-          const value = Math.max(1, this.service.getSettings().finaleWeightMultiplier + delta);
-          await this.service.updateSettings({ finaleWeightMultiplier: value });
-        }, () => { multiplier.value = String(this.service.getSettings().finaleWeightMultiplier); }));
+        if (button)
+          this.addEventListener(button, 'click', () =>
+            this.save(
+              async () => {
+                const value = Math.max(
+                  1,
+                  this.service.getSettings().finaleWeightMultiplier + delta
+                );
+                await this.service.updateSettings({ finaleWeightMultiplier: value });
+              },
+              () => {
+                multiplier.value = String(this.service.getSettings().finaleWeightMultiplier);
+              }
+            )
+          );
       }
     }
     this.bindSectionControls();
     this.bindDataControls();
   }
 
+  private updateFinaleWarning(): void {
+    const item = this.$<HTMLElement>('[data-finale-warning-item]');
+    const badge = this.$<HTMLElement>('[data-finale-warning-badge]');
+    if (!item || !badge) return;
+    const missing = !this.service.hasFinaleSection();
+    const enabled = this.service.getSettings().enableSeriesFinale;
+    item.classList.toggle('astra-settings-item--warning', missing && enabled);
+    item.classList.toggle('astra-settings-item--warning-muted', missing && !enabled);
+    badge.classList.toggle('astra-badge-warn--inactive', !enabled);
+  }
+
   private save(action: () => Promise<void>, completed: () => void = () => {}): void {
     const scope = this.actions.capture();
-    void this.actions.run(scope, action, completed, error => {
+    void this.actions.run(scope, action, completed, (error) => {
       logger.warn('[AstraSettings] Configuration save failed', error);
       this.toast.error('Could not save configuration. Please try again.');
       this.update();
@@ -404,11 +488,14 @@ export class AstraSettingsView extends AstraView {
   }
 
   private weight(sectionId: string, subId?: string): number | undefined {
-    const section = this.service.getSections().find(item => item.id === sectionId);
-    return subId ? section?.subSections?.find(item => item.id === subId)?.weight : section?.weight;
+    const section = this.service.getSections().find((item) => item.id === sectionId);
+    return subId
+      ? section?.subSections?.find((item) => item.id === subId)?.weight
+      : section?.weight;
   }
   private setWeight(sectionId: string, subId: string | undefined, value: number): Promise<void> {
-    return subId ? this.service.updateSubSectionWeight(sectionId, subId, value)
+    return subId
+      ? this.service.updateSubSectionWeight(sectionId, subId, value)
       : this.service.updateSectionWeight(sectionId, value);
   }
   private refreshWeight(input: HTMLInputElement, sectionId: string, subId?: string): void {
@@ -416,13 +503,15 @@ export class AstraSettingsView extends AstraView {
     if (value === undefined) return;
     input.value = String(value);
     if (!subId) {
-      const label = input.closest('.astra-section-config-card')?.querySelector('.astra-section-weight-info b');
+      const label = input
+        .closest('.astra-section-config-card')
+        ?.querySelector('.astra-section-weight-info b');
       if (label) label.textContent = String(value);
     }
   }
 
   private bindSectionControls(): void {
-    this.$$<HTMLInputElement>('.astra-weight-input, .astra-sub-weight-input').forEach(input => {
+    this.$$<HTMLInputElement>('.astra-weight-input, .astra-sub-weight-input').forEach((input) => {
       const sectionId = input.dataset.sectionId ?? input.dataset.id;
       const subId = input.dataset.subId;
       if (!sectionId) return;
@@ -433,67 +522,113 @@ export class AstraSettingsView extends AstraView {
           this.refreshWeight(input, sectionId, subId);
           return;
         }
-        this.save(() => this.setWeight(sectionId, subId, value),
-          () => this.refreshWeight(input, sectionId, subId));
+        this.save(
+          () => this.setWeight(sectionId, subId, value),
+          () => this.refreshWeight(input, sectionId, subId)
+        );
       });
     });
-    this.$$('.inc-weight, .dec-weight, .inc-sub-weight, .dec-sub-weight').forEach(button => {
+    this.$$('.inc-weight, .dec-weight, .inc-sub-weight, .dec-sub-weight').forEach((button) => {
       const sectionId = button.dataset.sectionId ?? button.dataset.id;
       const subId = button.dataset.subId;
       if (!sectionId) return;
       const input = button.closest('.astra-stepper')?.querySelector<HTMLInputElement>('input');
-      const delta = button.classList.contains('inc-weight') || button.classList.contains('inc-sub-weight') ? 0.25 : -0.25;
-      this.addEventListener(button, 'click', event => {
+      const delta =
+        button.classList.contains('inc-weight') || button.classList.contains('inc-sub-weight')
+          ? 0.25
+          : -0.25;
+      this.addEventListener(button, 'click', (event) => {
         event.stopPropagation();
-        this.save(async () => {
-          const value = this.weight(sectionId, subId);
-          if (value !== undefined) await this.setWeight(sectionId, subId, Math.max(0, value + delta));
-        }, () => { if (input) this.refreshWeight(input, sectionId, subId); });
+        this.save(
+          async () => {
+            const value = this.weight(sectionId, subId);
+            if (value !== undefined)
+              await this.setWeight(sectionId, subId, Math.max(0, value + delta));
+          },
+          () => {
+            if (input) this.refreshWeight(input, sectionId, subId);
+          }
+        );
       });
     });
-    this.$$<HTMLInputElement>('.astra-section-name-input, .astra-sub-name-input').forEach(input => {
-      const sectionId = input.dataset.sectionId ?? input.dataset.id;
-      const subId = input.dataset.subId;
-      if (!sectionId) return;
-      this.addEventListener(input, 'change', () => {
-        const name = input.value.trim();
-        if (!name) {
-          // A blank label is not a valid name: restore the saved one rather than leave the field empty.
-          const section = this.service.getSections().find(item => item.id === sectionId);
-          input.value = (subId ? section?.subSections?.find(item => item.id === subId)?.name : section?.name) ?? '';
-          this.toast.error('Name cannot be empty; the previous name was restored.');
-          return;
-        }
-        this.save(() => subId ? this.service.updateSubSectionName(sectionId, subId, name)
-          : this.service.updateSectionName(sectionId, name),
-        () => this.toast.info(subId ? 'Sub-section renamed' : 'Section renamed'));
-      });
-    });
+    this.$$<HTMLInputElement>('.astra-section-name-input, .astra-sub-name-input').forEach(
+      (input) => {
+        const sectionId = input.dataset.sectionId ?? input.dataset.id;
+        const subId = input.dataset.subId;
+        if (!sectionId) return;
+        this.addEventListener(input, 'change', () => {
+          const name = input.value.trim();
+          if (!name) {
+            // A blank label is not a valid name: restore the saved one rather than leave the field empty.
+            const section = this.service.getSections().find((item) => item.id === sectionId);
+            input.value =
+              (subId
+                ? section?.subSections?.find((item) => item.id === subId)?.name
+                : section?.name) ?? '';
+            this.toast.error('Name cannot be empty; the previous name was restored.');
+            return;
+          }
+          this.save(
+            () =>
+              subId
+                ? this.service.updateSubSectionName(sectionId, subId, name)
+                : this.service.updateSectionName(sectionId, name),
+            () => this.toast.info(subId ? 'Sub-section renamed' : 'Section renamed')
+          );
+        });
+      }
+    );
     const addSection = this.$('#astra-add-section');
-    if (addSection) this.addEventListener(addSection, 'click', () => {
-      const name = prompt('Enter name for the new scoring section:')?.trim();
-      if (name) this.save(() => this.service.addSection(name), () => {
-        this.toast.success('Section added!'); this.update();
+    if (addSection)
+      this.addEventListener(addSection, 'click', () => {
+        const name = prompt('Enter name for the new scoring section:')?.trim();
+        if (name)
+          this.save(
+            () => this.service.addSection(name),
+            () => {
+              this.toast.success('Section added!');
+              this.update();
+            }
+          );
       });
-    });
-    this.$$('.astra-add-sub').forEach(button => this.addEventListener(button, 'click', () => {
-      const sectionId = button.dataset.id;
-      const name = prompt('Enter name for the new sub-section:')?.trim();
-      if (sectionId && name) this.save(() => this.service.addSubSection(sectionId, name), () => {
-        this.toast.success('Sub-section added!'); this.update();
-      });
-    }));
-    this.$$('.astra-remove-section, .astra-remove-sub').forEach(button => {
-      this.addEventListener(button, 'click', event => {
+    this.$$('.astra-add-sub').forEach((button) =>
+      this.addEventListener(button, 'click', () => {
+        const sectionId = button.dataset.id;
+        const name = prompt('Enter name for the new sub-section:')?.trim();
+        if (sectionId && name)
+          this.save(
+            () => this.service.addSubSection(sectionId, name),
+            () => {
+              this.toast.success('Sub-section added!');
+              this.update();
+            }
+          );
+      })
+    );
+    this.$$('.astra-remove-section, .astra-remove-sub').forEach((button) => {
+      this.addEventListener(button, 'click', (event) => {
         event.stopPropagation();
         const sectionId = button.dataset.sectionId ?? button.dataset.id;
         const subId = button.dataset.subId;
-        if (!sectionId || !confirm(subId ? 'Remove this sub-section? This will affect your overall score calculation.'
-          : 'Remove this section? This will affect your overall score calculation.')) return;
-        this.save(() => subId ? this.service.removeSubSection(sectionId, subId)
-          : this.service.removeSection(sectionId), () => {
-          this.toast.success(subId ? 'Sub-section removed' : 'Section removed'); this.update();
-        });
+        if (
+          !sectionId ||
+          !confirm(
+            subId
+              ? 'Remove this sub-section? This will affect your overall score calculation.'
+              : 'Remove this section? This will affect your overall score calculation.'
+          )
+        )
+          return;
+        this.save(
+          () =>
+            subId
+              ? this.service.removeSubSection(sectionId, subId)
+              : this.service.removeSection(sectionId),
+          () => {
+            this.toast.success(subId ? 'Sub-section removed' : 'Section removed');
+            this.update();
+          }
+        );
       });
     });
   }
@@ -501,100 +636,199 @@ export class AstraSettingsView extends AstraView {
   private busy(scope: AstraSettingsScope, button: HTMLButtonElement): () => void {
     button.disabled = true;
     button.classList.add('loading');
-    return this.actions.track(scope, () => { button.disabled = false; button.classList.remove('loading'); });
+    return this.actions.track(scope, () => {
+      button.disabled = false;
+      button.classList.remove('loading');
+    });
   }
-  private perform<T>(button: HTMLButtonElement, action: () => Promise<T>, completed: (value: T, scope: AstraSettingsScope) => void,
-    errorMessage: string): void {
+  private perform<T>(
+    button: HTMLButtonElement,
+    action: () => Promise<T>,
+    completed: (value: T, scope: AstraSettingsScope) => void,
+    errorMessage: string
+  ): void {
     if (button.disabled) return;
     const scope = this.actions.capture();
     const release = this.busy(scope, button);
-    void this.actions.run(scope, action, result => completed(result, scope), error => {
-      logger.warn('[AstraSettings] Data operation failed', error); this.toast.error(errorMessage);
-    }).finally(release);
+    void this.actions
+      .run(
+        scope,
+        action,
+        (result) => completed(result, scope),
+        (error) => {
+          logger.warn('[AstraSettings] Data operation failed', error);
+          this.toast.error(errorMessage);
+        }
+      )
+      .finally(release);
   }
 
   private bindDataControls(): void {
     const sync = this.$<HTMLButtonElement>('#astra-sync-list');
-    if (sync) this.addEventListener(sync, 'click', () => this.perform(sync, () => {
-      this.toast.info('Syncing with AniList... This may take a while.');
-      return this.service.syncWithAniList();
-    }, (result, scope) => {
-      this.toast.success(`Sync complete! Added: ${result.added}, Updated: ${result.updated}`);
-      this.actions.schedule(scope, () => {
-        // Do not replace the form while a later configuration write is pending.
-        void this.actions.run(scope, async () => {}, () => this.update(), () => {});
-      }, 500);
-    }, 'Sync failed. Please try again.'));
+    if (sync)
+      this.addEventListener(sync, 'click', () =>
+        this.perform(
+          sync,
+          () => {
+            this.toast.info('Syncing with AniList... This may take a while.');
+            return this.service.syncWithAniList();
+          },
+          (result, scope) => {
+            this.toast.success(`Sync complete! Added: ${result.added}, Updated: ${result.updated}`);
+            this.actions.schedule(
+              scope,
+              () => {
+                // Do not replace the form while a later configuration write is pending.
+                void this.actions.run(
+                  scope,
+                  async () => {},
+                  () => this.update(),
+                  () => {}
+                );
+              },
+              500
+            );
+          },
+          'Sync failed. Please try again.'
+        )
+      );
     const exportButton = this.$<HTMLButtonElement>('#astra-export-json');
-    if (exportButton) this.addEventListener(exportButton, 'click', () => this.perform(exportButton,
-      () => this.service.exportJSON(), json => {
-        try {
-          const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-          try {
-            const anchor = document.createElement('a'); anchor.href = url;
-            anchor.download = `astra_backup_${new Date().toISOString().split('T')[0]}.json`; anchor.click();
-          } finally { URL.revokeObjectURL(url); }
-          this.toast.success('Data exported successfully!');
-        } catch (error) {
-          logger.warn('[AstraSettings] Export download failed', error); this.toast.error('Export failed.');
-        }
-      }, 'Export failed.'));
+    if (exportButton)
+      this.addEventListener(exportButton, 'click', () =>
+        this.perform(
+          exportButton,
+          () => this.service.exportJSON(),
+          (json) => {
+            try {
+              const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+              try {
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = `astra_backup_${new Date().toISOString().split('T')[0]}.json`;
+                anchor.click();
+              } finally {
+                URL.revokeObjectURL(url);
+              }
+              this.toast.success('Data exported successfully!');
+            } catch (error) {
+              logger.warn('[AstraSettings] Export download failed', error);
+              this.toast.error('Export failed.');
+            }
+          },
+          'Export failed.'
+        )
+      );
     const importButton = this.$<HTMLButtonElement>('#astra-import-json');
-    if (importButton) this.addEventListener(importButton, 'click', () => {
-      if (importButton.disabled) return;
-      const scope = this.actions.capture();
-      const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
-      const release = this.actions.track(scope, () => {
-        input.onchange = null; input.removeEventListener('cancel', release); input.remove();
+    if (importButton)
+      this.addEventListener(importButton, 'click', () => {
+        if (importButton.disabled) return;
+        const scope = this.actions.capture();
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        const release = this.actions.track(scope, () => {
+          input.onchange = null;
+          input.removeEventListener('cancel', release);
+          input.remove();
+        });
+        input.addEventListener('cancel', release, { once: true });
+        input.onchange = () => {
+          const file = input.files?.[0];
+          release();
+          if (file && this.actions.current(scope) && !importButton.disabled)
+            this.readImport(file, scope, importButton);
+        };
+        input.click();
       });
-      input.addEventListener('cancel', release, { once: true });
-      input.onchange = () => {
-        const file = input.files?.[0]; release();
-        if (file && this.actions.current(scope) && !importButton.disabled) this.readImport(file, scope, importButton);
-      };
-      input.click();
-    });
     const reset = this.$<HTMLButtonElement>('#astra-reset-data');
-    if (reset) this.addEventListener(reset, 'click', () => {
-      if (reset.disabled || !confirm('ARE YOU SURE? This will permanently delete ALL your Astra ratings and notes. This cannot be undone.')) return;
-      this.perform(reset, () => this.service.factoryReset(), () => {
-        this.toast.success('All data cleared!'); this.update();
-      }, 'Reset failed.');
-    });
+    if (reset)
+      this.addEventListener(reset, 'click', () => {
+        if (
+          reset.disabled ||
+          !confirm(
+            'ARE YOU SURE? This will permanently delete ALL your Astra ratings and notes. This cannot be undone.'
+          )
+        )
+          return;
+        this.perform(
+          reset,
+          () => this.service.factoryReset(),
+          () => {
+            this.toast.success('All data cleared!');
+            this.update();
+          },
+          'Reset failed.'
+        );
+      });
   }
 
   private readImport(file: File, scope: AstraSettingsScope, button: HTMLButtonElement): void {
     // UTF-8 may take up to three bytes per UTF-16 code unit. The parser still
     // enforces the original character limit after reading; this bounds memory.
     if (file.size > MAX_ASTRA_BACKUP_CHARACTERS * 3 + 3) {
-      this.toast.error('Import failed: Backup is too large.'); return;
+      this.toast.error('Import failed: Backup is too large.');
+      return;
     }
     const releaseBusy = this.busy(scope, button);
     const reader = new FileReader();
     const releaseReader = this.actions.track(scope, () => {
-      reader.onload = null; reader.onerror = null; reader.onabort = null;
+      reader.onload = null;
+      reader.onerror = null;
+      reader.onabort = null;
       if (reader.readyState === FileReader.LOADING) reader.abort();
     });
     const failedRead = () => {
-      releaseReader(); releaseBusy();
+      releaseReader();
+      releaseBusy();
       if (this.actions.current(scope)) this.toast.error('Import failed: Could not read the file.');
     };
-    reader.onerror = failedRead; reader.onabort = failedRead;
+    reader.onerror = failedRead;
+    reader.onabort = failedRead;
     reader.onload = () => {
-      const content = reader.result; releaseReader();
-      if (!this.actions.current(scope)) { releaseBusy(); return; }
-      if (typeof content !== 'string') { failedRead(); return; }
+      const content = reader.result;
+      releaseReader();
+      if (!this.actions.current(scope)) {
+        releaseBusy();
+        return;
+      }
+      if (typeof content !== 'string') {
+        failedRead();
+        return;
+      }
       const loader = this.createImportOverlay(scope);
-      void this.actions.run(scope, () => this.service.importJSON(content), success => {
-        if (success) {
-          this.toast.success('Data imported! Reloading...');
-          this.actions.schedule(scope, () => { loader.remove(); window.location.reload(); }, 1500);
-        } else { loader.remove(); this.toast.error('Import failed: Invalid format.'); }
-      }, error => {
-        loader.remove(); logger.warn('[AstraSettings] Import failed', error); this.toast.error('Import failed.');
-      }).finally(releaseBusy);
+      void this.actions
+        .run(
+          scope,
+          () => this.service.importJSON(content),
+          (success) => {
+            if (success) {
+              this.toast.success('Data imported! Reloading...');
+              this.actions.schedule(
+                scope,
+                () => {
+                  loader.remove();
+                  window.location.reload();
+                },
+                1500
+              );
+            } else {
+              loader.remove();
+              this.toast.error('Import failed: Invalid format.');
+            }
+          },
+          (error) => {
+            loader.remove();
+            logger.warn('[AstraSettings] Import failed', error);
+            this.toast.error('Import failed.');
+          }
+        )
+        .finally(releaseBusy);
     };
-    try { reader.readAsText(file); } catch { failedRead(); }
+    try {
+      reader.readAsText(file);
+    } catch {
+      failedRead();
+    }
   }
 
   /**

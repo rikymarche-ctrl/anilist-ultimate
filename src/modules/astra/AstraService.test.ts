@@ -67,3 +67,23 @@ describe('Astra facade custom-list cache account context', () => {
     await expect(f.service.exportJSON()).rejects.toThrow('disposed');
   });
 });
+
+describe('Astra scoring mode', () => {
+  const mode = (detailedScoring: boolean | undefined, sectionScores?: Record<string, number | null>) => {
+    const { service } = fixture();
+    vi.spyOn(service, 'getSettings').mockReturnValue({
+      enableSeriesFinale: false, finaleWeightMultiplier: 2, autoSync: true, appendAstraToComment: false, detailedScoring,
+    });
+    vi.spyOn(service, 'getWorks').mockReturnValue(sectionScores ? [{ sectionScores } as never] : []);
+    return service.getScoringMode();
+  };
+  it('follows an explicit choice', () => {
+    expect(mode(true)).toBe('detailed');
+    expect(mode(false, { story: 8 })).toBe('simple');
+  });
+  it('treats a library with section scores as detailed and asks otherwise', () => {
+    expect(mode(undefined, { story: 8 })).toBe('detailed');
+    expect(mode(undefined, { story: null })).toBe('unset');
+    expect(mode(undefined)).toBe('unset');
+  });
+});

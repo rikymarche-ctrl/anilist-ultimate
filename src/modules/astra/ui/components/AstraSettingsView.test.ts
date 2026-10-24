@@ -17,6 +17,7 @@ function fixture(section: AstraSection) {
   const view = new AstraSettingsView({
     getSections: () => [section],
     getSettings: () => ({ ...DEFAULT_SETTINGS }),
+    getScoringMode: () => 'detailed',
     hasFinaleSection: () => false,
   } as never, {} as never, {} as never, new EventBus(), dashboardStore as never);
   views.push(view);
@@ -38,7 +39,7 @@ function harness(weight = 1) {
     subSections: [{ id: 'plot', name: 'Plot', weight: 0.5 }] }];
   const settings = { ...DEFAULT_SETTINGS };
   const service = {
-    getSections: () => structuredClone(sections), getSettings: () => ({ ...settings }), hasFinaleSection: () => false,
+    getSections: () => structuredClone(sections), getSettings: () => ({ ...settings }), getScoringMode: () => (settings.detailedScoring === false ? 'simple' : 'detailed'), hasFinaleSection: () => false,
     updateSectionWeight: vi.fn(async (_id: string, value: number) => { await Promise.resolve(); sections[0].weight = value; }),
     updateSubSectionWeight: vi.fn(async (_id: string, _sub: string, value: number) => { await Promise.resolve(); sections[0].subSections![0].weight = value; }),
     updateSubSectionName: vi.fn(async () => {}), addSubSection: vi.fn(async () => {}), removeSubSection: vi.fn(async () => {}),

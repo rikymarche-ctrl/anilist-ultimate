@@ -187,6 +187,7 @@ export function parseAstraBackup(json: string): AstraBackup {
     !['enableSeriesFinale', 'autoSync', 'appendAstraToComment'].every(
       (key) => typeof settings[key as keyof typeof settings] === 'boolean'
     ) ||
+    (settings.detailedScoring !== undefined && typeof settings.detailedScoring !== 'boolean') ||
     !finite(settings.finaleWeightMultiplier) ||
     settings.finaleWeightMultiplier < 0
   )

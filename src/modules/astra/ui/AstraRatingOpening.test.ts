@@ -19,7 +19,7 @@ function fixture() {
   const rating = { getMediaRatingData: vi.fn(async (_id: number): Promise<IRatingInitialData | null> => data(_id)) };
   const astra = { getFullWork: vi.fn(async (_id: number) => undefined), getWorks: () => [],
     getSettings: () => ({ enableSeriesFinale: false }), hasFinaleSection: () => false,
-    getSections: () => [{ id: 'story', name: 'Story', weight: 1 }], calcSectionScore: () => 8, calcSeasonScore: () => 8 };
+    getSections: () => [{ id: 'story', name: 'Story', weight: 1 }], getScoringMode: () => 'detailed', calcSectionScore: () => 8, calcSeasonScore: () => 8 };
   const toast = { error: vi.fn(), info: vi.fn() }; const overlays = new AstraOverlayService();
   const modal = new AstraRatingModal(astra as never, api as never, bus, toast as never, rating as never, overlays);
   return { modal, bus, api, rating, astra, toast, overlays, data };
