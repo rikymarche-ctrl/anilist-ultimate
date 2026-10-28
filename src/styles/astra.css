@@ -40,7 +40,6 @@
 }
 
 .au-astra-nav:hover {
-  background: var(--astra-accent-a10) !important;
   transform: translateY(-1px);
 }
 
