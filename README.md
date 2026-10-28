@@ -41,11 +41,23 @@ Filter activity by type or search by user, content or title. Review cards show a
 
 ![AniList activity feed with activity filters, search and recent reviews with score badges](docs/screenshots/activity-filters-reviews-scores.webp)
 
+### Custom user lists and Following groups
+
+Create and manage your own groups of AniList users—for example, **Best Friends** and **Notable ones**—and use them to filter activity feeds. These groups belong to AniList Ultimate, not AniList's native anime/manga custom lists.
+
+You can also select which groups appear in the **Following** column on an anime or manga's Social tab. Members of each selected list are displayed together under its name, in your chosen order; everyone not in a selected group appears under **Others**. This changes the presentation only, not your AniList account or follow relationships.
+
+**Custom User Lists settings** — create groups, manage their members and choose which ones to display in Following.
+
+![AniList Ultimate Custom User Lists settings with Best Friends and Notable ones groups](docs/screenshots/custom-user-lists-settings.webp)
+
+**See it in action:** in the [anime Social page screenshot](docs/screenshots/work-title-page-social-enhancements.webp) below, the **Best Friends** section illustrates how members of that custom list are separated from the rest of the Following column.
+
 ### Enriched anime and manga pages
 
 See media links and metadata, episode counts, staff, themes, score distribution, trailer and friends' progress on title pages.
 
-![Anime page with enriched metadata, episode counts, social activity and Following groups](docs/screenshots/work-title-page-social-enhancements.webp)
+![Anime Social page showing the Best Friends custom Following group alongside enhanced metadata and activity](docs/screenshots/work-title-page-social-enhancements.webp)
 
 ![Anime page with openings, endings, staff, score distribution, trailer and friends' progress](docs/screenshots/work-title-page-metadata-and-progress.webp)
 
