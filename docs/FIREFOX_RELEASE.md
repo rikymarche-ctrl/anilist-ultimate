@@ -1,6 +1,6 @@
 # Release Firefox (AMO) — nota operativa
 
-Data: 2026-10-28 · Versione: 1.0.3 · Pacchetto: `release/anilist-ultimate-firefox-1.0.3.zip`
+Data: 2026-10-28 · Versione: 1.0.4 · Pacchetto: `release/anilist-ultimate-firefox-1.0.4.zip`
 
 ## Come si costruisce
 

@@ -1,13 +1,13 @@
-# Chrome Web Store — AniList Ultimate (Unofficial) BETA 1.0.3
+# Chrome Web Store — AniList Ultimate (Unofficial) BETA 1.0.4
 
 Materiale aggiornato il 2026-10-21. I testi nei blocchi sono in inglese e pronti da incollare. Le istruzioni fuori dai blocchi sono per il manutentore. La bozza online non è stata modificata o inviata in revisione.
 
 ## 1. Pacchetto
 
-Caricare `release/anilist-ultimate-1.0.3.zip` sulla **scheda esistente** con ID `gogibdaaglfefnemakliohebmcjfdddo`. Non creare un nuovo elemento. Il titolo e il riepilogo provengono dal manifest del nuovo ZIP: le schermate con il vecchio titolo, vecchia icona e soli permessi storage/identity non rappresentano la build attuale.
+Caricare `release/anilist-ultimate-1.0.4.zip` sulla **scheda esistente** con ID `gogibdaaglfefnemakliohebmcjfdddo`. Non creare un nuovo elemento. Il titolo e il riepilogo provengono dal manifest del nuovo ZIP: le schermate con il vecchio titolo, vecchia icona e soli permessi storage/identity non rappresentano la build attuale.
 
 - Nome dal pacchetto: **AniList Ultimate (Unofficial) BETA**.
-- Versione: **1.0.3**, successiva all'ultima versione pacchettizzata (1.0.2).
+- Versione: **1.0.4**, successiva alla 1.0.3. Permessi e host invariati rispetto alla 1.0.3.
 - Permessi attuali: `storage`, `identity`, `unlimitedStorage`, `alarms`, più i cinque host documentati sotto.
 - Lo ZIP non contiene la chiave di sviluppo, le sorgenti, i file `.env`, le dipendenze di sviluppo o le source map. `dist/` resta disponibile per il caricamento locale.
 - Prima dell'invio verificare il login del pacchetto destinato a questa scheda. Il client OAuth AniList deve avere come redirect l'identità effettiva dello Store; per questo ID la base è `https://gogibdaaglfefnemakliohebmcjfdddo.chromiumapp.org/`. Verificare il risultato effettivo di `chrome.identity.getRedirectURL()` e il redirect registrato sul client. Il client ID pubblico predefinito nel codice è `35100`, modificabile in fase di build; non è una credenziale personale. Non modificare il redirect a tentativi. [Guida OAuth](../OAUTH_SETUP.md).
@@ -200,7 +200,7 @@ Ordine consigliato per i due screenshot preparati: **Wrapped**, poi **Settings**
 
 ## Verifiche eseguite
 
-- Build TypeScript/Vite completata per la versione 1.0.3.
+- Build TypeScript/Vite completata per la versione 1.0.4.
 - ZIP dell'estensione generato; manifest, risorse dichiarate e file HTML controllati.
 - Test automatizzati e smoke test browser non eseguiti per questa versione.
 - PNG riutilizzati dal kit 1.0.2; dimensioni e trasparenza già verificate per gli stessi file.

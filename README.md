@@ -99,7 +99,7 @@ Enable or disable feature modules independently from the extension's control pan
 
 ## Installation
 
-Requirements: **Node.js 22.13.0 or later**, npm and Chrome 120 or later. Edge and Brave can load unpacked extensions; browser-specific login behavior can vary.
+Requirements: **Node.js 22.13.0 or later**, npm and Chrome 120 or later (or Firefox 140 or later, see below). Edge and Brave can load unpacked extensions; browser-specific login behavior can vary.
 
 ```sh
 git clone https://github.com/rikymarche-ctrl/anilist-ultimate.git
@@ -111,6 +111,16 @@ npm run build
 Open `chrome://extensions/`, enable **Developer mode**, choose **Load unpacked**, and select the generated `dist/` folder. Reload AniList tabs, then log in through the extension popup.
 
 Install AniList Ultimate from the [Chrome Web Store](https://chromewebstore.google.com/detail/anilist-ultimate/gogibdaaglfefnemakliohebmcjfdddo) after the listing is approved. Use the [installation guide](docs/INSTALLATION.md) for updates and independent builds.
+
+### Firefox
+
+Firefox 140 or later is supported. A Firefox build needs its own AniList OAuth client: see [OAuth setup](OAUTH_SETUP.md#firefox-build).
+
+```sh
+npm run build:firefox
+```
+
+Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on** and select `dist-firefox/manifest.json`. The Firefox listing on addons.mozilla.org follows once it is approved.
 
 ## Guides
 
@@ -139,9 +149,10 @@ npm run check
 npm run check:coverage
 npm run smoke:mv3
 npm run package
+npm run release
 ```
 
-The browser smoke check requires a compatible Chromium runtime. Packaging consumes a fresh build and produces the store-upload ZIP under `release/`; distribution identity and OAuth must be configured for the intended installation.
+The browser smoke check requires a compatible Chromium runtime. Packaging consumes a fresh build and produces the store-upload ZIP under `release/`; `npm run release` builds and packages both the Chrome and Firefox archives; distribution identity and OAuth must be configured for the intended installation.
 
 See [contributing](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md) and [OAuth setup](OAUTH_SETUP.md).
 

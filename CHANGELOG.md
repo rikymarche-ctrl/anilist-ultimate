@@ -1,5 +1,27 @@
 # Release notes
 
+## 1.0.4
+
+### Firefox
+
+- Native Firefox version (Firefox 140 or later), built from the same source as the Chrome version with `npm run build:firefox`.
+- Firefox uses its own AniList login client and redirect; the Chrome login is unchanged.
+- Fixed Firefox-only issues: content scripts not loading, background start-up, extension pages rejected by the message router, Font Awesome icon errors and a purple box under the Astra navbar link.
+
+### Calendar
+
+- The weekly schedule is kept for the browser session, so reloading AniList shows the calendar without waiting for a new collection read. It is bound to the signed-in account and invalidated by pending or completed edits.
+- The first calendar load uses a priority lane in the shared AniList request queue.
+
+### Notifications
+
+- Comment likes from the same person stay in one group.
+- Grouped time ranges read "54 minutes – 1 hour ago" and no longer overlap the notification text.
+
+### Build
+
+- `npm run release` builds and packages both store archives and lints the Firefox package.
+
 ## 1.0.3
 
 ### Quick Edit
