@@ -1,10 +1,10 @@
 # Privacy Policy
 
-**AniList Ultimate (Unofficial)** · Last updated: 2026-10-21
+**AniList Ultimate (Unofficial)** · Last updated: 2026-10-28
 
 ## Summary
 
-AniList Ultimate (Unofficial) is a Chrome extension by [ExAstra](https://anilist.co/user/ExAstra/) that enhances [anilist.co](https://anilist.co). It is not affiliated with or endorsed by AniList.
+AniList Ultimate (Unofficial) is a browser extension for Chrome and Firefox by [ExAstra](https://anilist.co/user/ExAstra/) that enhances [anilist.co](https://anilist.co). It is not affiliated with or endorsed by AniList.
 
 - Astra archives, account credentials, pending edits and custom Following group display settings are stored on your device. Interface preferences use Chrome sync storage and may sync through your browser account.
 - Your AniList account is used to read lists, activity and social metadata, and to save the list edits you request on AniList.
@@ -15,9 +15,9 @@ User data obtained through the extension is used for its AniList features. The e
 
 ## Data stored locally
 
-The extension stores the following in Chrome's extension storage.
+The extension stores the following in the browser's extension storage.
 
-**Local storage (`chrome.storage.local`)** stays on this device. Access is restricted to the extension's trusted contexts. The extension's content scripts on anilist.co reach it only through a fixed list of allowed keys, which never exposes credentials. It holds:
+**Local storage (`chrome.storage.local`)** stays on this device. In Chrome, access is restricted to the extension's trusted contexts; Firefox has no equivalent setting, so there the restriction is enforced by the extension's own code. In both browsers the extension's content scripts on anilist.co use it only through a fixed list of allowed keys, which never exposes credentials, and web pages cannot read it. It holds:
 
 - Your AniList access token, your AniList user ID and your AniList user name
 - Astra ratings, notes, Journal entries, sections, seasonal awards and backups
@@ -27,9 +27,9 @@ The extension stores the following in Chrome's extension storage.
 - A pending sync queue of list edits that have not yet been sent to AniList
 - Short-lived caches of public AniList data
 
-**Sync storage (`chrome.storage.sync`)** holds extension settings and preferences only, such as feature toggles and interface preferences. Chrome may sync this area across your own signed-in browsers. It holds no account data.
+**Sync storage (`chrome.storage.sync`)** holds extension settings and preferences only, such as feature toggles and interface preferences. The browser may sync this area across your own signed-in browsers (Chrome sync or Firefox Sync). It holds no account data.
 
-**Session storage (`chrome.storage.session`)** holds a cached public index of AnimeThemes video IDs. It contains no account data.
+**Session storage (`chrome.storage.session`)** is kept in memory and cleared when the browser closes. It holds a cached public index of AnimeThemes video IDs and the last weekly calendar schedule of the signed-in account (titles, airing times and your list progress), so the calendar can show immediately after a page reload. The schedule is bound to the account and login session that saved it, expires after 30 minutes, is replaced when you edit an entry, and is readable only by the extension's background context.
 
 **AniList tab storage (`window.sessionStorage`)** is separate from extension storage. Back Restore keeps up to 25 snapshots in memory and mirrors them to the AniList tab's session storage. Each snapshot contains an AniList path and query string, capture time, scroll offset, loaded-content count and applicable list-filter values. These snapshots are used only to restore your page on Back/Forward navigation. They are not sent to the developer or metadata providers. AniList scripts share access to that origin's tab storage. The browser controls its lifetime and may preserve it when restoring a browsing session; clearing AniList site data removes it. Disabling Back Restore stops further captures.
 
@@ -40,7 +40,7 @@ The extension stores the following in Chrome's extension storage.
 Programmatic API and metadata requests use these hosts declared in the manifest:
 
 - **anilist.co and graphql.anilist.co (AniList).** Used for:
-  - Logging in with AniList's OAuth implicit grant, through `chrome.identity.launchWebAuthFlow`, with a random `state` value that the extension checks on return.
+  - Logging in with AniList's OAuth implicit grant, through the browser's `identity.launchWebAuthFlow`, with a random `state` value that the extension checks on return.
   - AniList GraphQL API calls made with your access token, to read your lists, activity, notes, notification/message context and social data and to save list entries you edit (`SaveMediaListEntry` and `DeleteMediaListEntry`). Wrapped reads list activity, media/cast/staff data, engagement counts, participant profiles and received-message metadata. Its social query does not request post or message bodies; Notification Cleaner does request accessible activity/message text for notification context. Wrapped results can be cached in memory for the current account/session and period.
 - **jikan.lucashdo.com (community Jikan / MyAnimeList mirror).** Public metadata and score lookups. Requests contain only a MyAnimeList numeric ID, or an anime title for an exact-title search.
 - **api.tenrai.org.** Opening and ending theme lists. Requests contain only a MyAnimeList numeric ID.
@@ -68,7 +68,7 @@ AniList Ultimate's use of user data complies with the Chrome Web Store User Data
 ## Your choices
 
 - **Logout:** logging out from the extension popup removes the stored access token.
-- **Uninstall:** uninstalling the extension deletes all of its `chrome.storage` data.
+- **Uninstall:** uninstalling the extension deletes all of its extension storage data.
 - **Back Restore data:** clear AniList site data to remove the tab-storage snapshots as well; this is separate from the extension's storage and uninstall behavior.
 - **Revoke access:** you can revoke the app's access to your AniList account in AniList under Settings → Apps.
 - **Export and recovery:** the extension's settings page includes data export and recovery.
