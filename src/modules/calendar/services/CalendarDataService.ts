@@ -82,7 +82,7 @@ export class CalendarDataService {
     };
     const readCache = async (): Promise<AnimeEntry[] | null> => {
       try {
-        const cached = await this.calendarStore.loadEntriesFromCache(userId, assertCurrent);
+        const cached = await this.calendarStore.loadEntriesFromCache(userId, assertCurrent, this.queueRevision ?? undefined);
         assertCurrent();
         if (cached === null || cached === undefined) return null;
         const cachedEntries = calendarEntries(cached);
@@ -127,11 +127,15 @@ export class CalendarDataService {
         if (cached !== null && await this.checkQueueRevision(assertCurrent)) { publish(cached, true); return; }
       }
       assertCurrent();
+      // With nothing on screen the user is watching a skeleton, so the first read takes the
+      // priority lane instead of queueing behind other modules' background reads (which can
+      // exhaust the per-minute budget on page load). Refreshes of a visible grid stay background.
+      const requestOptions = { priority: this.calendarStore.getState().entries.length === 0 };
       for (let attempt = 0; attempt < 3; attempt++) {
         assertCurrent();
-        const entries = calendarEntries(await this.calendarService.fetchAiringSchedule(userId, customPlans));
+        const entries = calendarEntries(await this.calendarService.fetchAiringSchedule(userId, customPlans, requestOptions));
         assertCurrent();
-        try { await this.calendarStore.saveEntriesToCache(entries, userId, assertCurrent); }
+        try { await this.calendarStore.saveEntriesToCache(entries, userId, assertCurrent, this.queueRevision ?? undefined); }
         catch (error) { assertCurrent(); logger.warn('[CalendarData] Disposable cache write failed', error); }
         if (!(await this.checkQueueRevision(assertCurrent))) continue;
         publish(entries, false); return;
@@ -163,7 +167,8 @@ export class CalendarDataService {
     const snapshot = syncQueueSnapshot(await this.syncQueue.getSnapshot());
     assertCurrent();
     if (this.queueRevision === snapshot.revision) return true;
-    try { await this.calendarStore.invalidateCache(); }
+    // The first revision seen by this page is not a change: the session copy is checked against it on read.
+    try { await this.calendarStore.invalidateCache(this.queueRevision === null ? 'memory' : 'all'); }
     catch (error) { logger.warn('[CalendarData] Disposable cache clear failed', error); }
     assertCurrent(); this.queueRevision = snapshot.revision;
     return false;

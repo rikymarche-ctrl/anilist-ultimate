@@ -38,7 +38,11 @@ async function registerAlarm(name: string, periodInMinutes: number): Promise<voi
  */
 async function initializeBackground(): Promise<void> {
   try {
-    const storageReady = chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+    // Firefox has no setAccessLevel: there content scripts can always read storage.local
+    // (web pages still cannot), so the barrier resolves immediately.
+    const storageReady = typeof chrome.storage.local.setAccessLevel === 'function'
+      ? chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' })
+      : Promise.resolve();
     // 1. Initialize DI Container for Background context
     await setupDI(true, storageReady);
     logger.info('[Background] Service Worker initialized with DI');

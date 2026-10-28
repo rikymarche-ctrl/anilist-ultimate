@@ -8,6 +8,7 @@ import type { ISyncQueueService, QueuedMutation, SyncQueueSnapshot } from '@core
 import { syncProgressResult } from './SyncResponse';
 import { syncQueueSnapshot } from './SyncQueueSnapshot';
 import { MSG } from '@shared/messages';
+import { isExtensionPageContext } from '@core/utils/ExtensionPage';
 import type { AstraProgressResult } from '@/modules/astra/interfaces/IAstraRatingService';
 import { BackgroundOperationError } from '@core/errors/OperationFailure';
 
@@ -28,7 +29,7 @@ export class SyncQueueClient implements ISyncQueueService {
       }
     };
     this.storageListener = (changes, area) => {
-      if (!this.disposed && area === 'local' && typeof location !== 'undefined' && location.protocol === 'chrome-extension:'
+      if (!this.disposed && area === 'local' && isExtensionPageContext()
         && `${STORAGE_PREFIX}sync_queue_v1` in changes) this.eventBus?.emit(EVENT_TYPES.SYNC_QUEUE_CHANGED, undefined);
     };
     chrome.runtime.onMessage.addListener(this.messageListener);

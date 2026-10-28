@@ -82,7 +82,7 @@ describe('CalendarDataService', () => {
       await service.loadSchedule(123);
 
       expect(mockCalendarStore.setLoading).toHaveBeenCalledWith(true);
-      expect(mockCalendarService.fetchAiringSchedule).toHaveBeenCalledWith(123, []);
+      expect(mockCalendarService.fetchAiringSchedule).toHaveBeenCalledWith(123, [], { priority: false });
       expect(mockCalendarStore.setEntries).toHaveBeenCalledWith(mockEntries);
       expect(mockCalendarStore.setLoading).toHaveBeenCalledWith(false);
       expect(mockToastService.success).not.toHaveBeenCalled();
@@ -90,6 +90,16 @@ describe('CalendarDataService', () => {
         EVENT_TYPES.CALENDAR_LOADED,
         expect.any(Object)
       );
+    });
+
+    it('requests the priority lane only while no entries are on screen', async () => {
+      const visible = mockCalendarStore.getState();
+      mockCalendarStore.getState.mockReturnValueOnce({ ...visible, entries: [] });
+      mockCalendarService.fetchAiringSchedule.mockResolvedValue([calendarEntry(1)]);
+
+      await service.loadSchedule(123, true);
+
+      expect(mockCalendarService.fetchAiringSchedule).toHaveBeenCalledWith(123, [], { priority: true });
     });
 
     it('should handle errors during load', async () => {

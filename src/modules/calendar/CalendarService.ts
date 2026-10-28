@@ -20,7 +20,7 @@ import { MediaListStatus } from '@/api/AnilistTypes';
 import type { AnimeEntry, CalendarCustomPlan } from '@core/types';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
-import type { IApiClient } from '@core/interfaces/IApiClient';
+import type { ApiRequestOptions, IApiClient } from '@core/interfaces/IApiClient';
 import type { ICalendarService } from '@core/interfaces/ICalendarService';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IAstraRatingService } from '@/modules/astra/interfaces/IAstraRatingService';
@@ -47,8 +47,9 @@ export class CalendarService implements ICalendarService {
 
   /**
    * Fetch user's currently watching anime with airing schedules
+   * @param options Request options; `priority` moves the read into the client's user-action lane
    */
-  async fetchAiringSchedule(userId: number, customPlans: CalendarCustomPlan[] = []): Promise<AnimeEntry[]> {
+  async fetchAiringSchedule(userId: number, customPlans: CalendarCustomPlan[] = [], options: ApiRequestOptions = {}): Promise<AnimeEntry[]> {
     if (!isCalendarId(userId)) throw new Error('Invalid calendar owner');
     logger.time('Fetch airing schedule');
     try {
@@ -74,7 +75,7 @@ export class CalendarService implements ICalendarService {
           assertCurrent();
           const response: unknown = await this.apiClient.query(USER_ANIME_LIST_QUERY, {
             userId, type: 'ANIME', chunk, perChunk: 500, statuses,
-          });
+          }, false, options);
           assertCurrent();
           const page = calendarCollection(response, userId);
           const pageIds = new Set(page.entries.map(entry => entry.mediaId));

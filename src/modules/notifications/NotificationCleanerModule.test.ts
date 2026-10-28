@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationCleanerModule } from './NotificationCleanerModule';
+import { NotificationCleanerModule, notificationTimeRange } from './NotificationCleanerModule';
 import { NotificationGroupService } from './services/NotificationGroupService';
 import { NotificationFilterService } from './services/NotificationFilterService';
 import { EventBus } from '@core/events/EventBus';
@@ -35,5 +35,17 @@ describe('notification merge lifecycle', () => {
     document.body.replaceChildren(); const { module } = fixture(); const initializing = module.init();
     await Promise.resolve(); await module.destroy(); await initializing;
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('notificationTimeRange', () => {
+  it('keeps a shared "ago" suffix only once', () => {
+    expect(notificationTimeRange('54 minutes ago', '1 hour ago')).toBe('54 minutes – 1 hour ago');
+  });
+  it('returns a single time when both ends match', () => {
+    expect(notificationTimeRange('3 days ago', '3 days ago')).toBe('3 days ago');
+  });
+  it('keeps both labels when they do not share the suffix', () => {
+    expect(notificationTimeRange('Just now', '2 hours ago')).toBe('Just now – 2 hours ago');
   });
 });

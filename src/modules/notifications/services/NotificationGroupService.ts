@@ -19,12 +19,25 @@ function formatMediaActivityLabel(status: string): { label: string; titleSeparat
   return { label, titleSeparator: ' of ' };
 }
 
+const SNIPPET_MAX_CHARS = 50;
+
+/** Short preview, cut at a word boundary: enough to recognise the activity, not to fill the row. */
+function truncateSnippet(text: string): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= SNIPPET_MAX_CHARS) return clean;
+  const cut = clean.slice(0, SNIPPET_MAX_CHARS);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > SNIPPET_MAX_CHARS * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:!?…-]+$/u, '') + '…';
+}
+
 export interface NotificationGroup {
   user: string; types: Map<string, number>; count: number; elements: HTMLElement[];
   firstTime: string; latestTime: string;
   kind?: 'user' | 'site' | 'forum'; key?: string; subject?: string;
+  /** Actor of a single-element forum-comment-like group; lets it merge into that user's run. */
+  actor?: string;
 }
-export interface NotificationGrouping { key: string; user: string; type: string; kind: 'user' | 'site' | 'forum'; subject?: string; }
+export interface NotificationGrouping { key: string; user: string; type: string; kind: 'user' | 'site' | 'forum'; subject?: string; actor?: string; }
 
 @injectable()
 export class NotificationGroupService {
@@ -80,6 +93,7 @@ export class NotificationGroupService {
     const type = this.detectNotificationType(text.join(' ').replace(/\s+/g, ' '));
     if (type === 'other') return null;
     if (type.startsWith('site_') || type.endsWith('_submission_update')) return { key: type, type, user: '', kind: 'site' };
+    const actor = this.actorOf(notification);
     if (type === 'forum_comment_like') {
       for (const link of notification.querySelectorAll<HTMLAnchorElement>('a[href]')) {
         try {
@@ -88,18 +102,22 @@ export class NotificationGroupService {
           // A comment identity is required before combining likes from different users.
           if (!url.pathname.includes('/comment/') && !url.hash && !url.searchParams.has('comment')) continue;
           const subject = link.querySelector('.context')?.nextElementSibling?.textContent?.trim() || link.textContent?.trim();
-          return { key: type + ':' + url.pathname + url.search + url.hash, type, user: '', kind: 'forum', subject };
+          return { key: type + ':' + url.pathname + url.search + url.hash, type, user: '', kind: 'forum', subject, actor: actor ?? undefined };
         } catch { /* Ignore unrelated links. */ }
       }
     }
+    if (!actor) return null;
+    return { key: 'user:' + actor.toLowerCase(), type, user: actor, kind: 'user' };
+  }
+
+  private actorOf(notification: HTMLElement): string | null {
     const userLink = notification.querySelector<HTMLAnchorElement>('a[href*="/user/"]');
     if (!userLink) return null;
     try {
       const url = new URL(userLink.getAttribute('href')!, 'https://anilist.co');
       const match = url.pathname.match(/^\/user\/([^/]+)\/?$/);
       if (url.origin !== 'https://anilist.co' || !match) return null;
-      const user = decodeURIComponent(match[1]);
-      return { key: 'user:' + user.toLowerCase(), type, user, kind: 'user' };
+      return decodeURIComponent(match[1]);
     } catch { return null; }
   }
 
@@ -232,7 +250,7 @@ export class NotificationGroupService {
       media.textContent = data.mediaTitle ?? '';
       context.append(activity, formatted.titleSeparator, media);
     } else if (data.text) {
-      activity.textContent = '“' + data.text.slice(0, 120) + (data.text.length > 120 ? '…' : '') + '”';
+      activity.textContent = '“' + truncateSnippet(data.text) + '”';
       if (data.isPrivate) context.append(' ');
       context.append(activity);
     }

@@ -31,6 +31,7 @@ export const MSG = {
   LOCAL_STORAGE: 'storage:local',
   LOCAL_CHANGED: 'storage:changed',
   CONFIG_COMMAND: 'config:command',
+  CALENDAR_CACHE: 'calendar:cache',
 } as const;
 
 /**

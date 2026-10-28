@@ -4,6 +4,7 @@ import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { MSG, AUTH_STORAGE_KEY, AUTH_USER_CACHE_KEY, AUTH_SESSION_KEY, type AuthStatusResponse } from '@shared/messages';
 import { parseAuthStatus } from './AuthMetadata';
+import { isExtensionPageContext } from '@core/utils/ExtensionPage';
 
 /** Public authentication metadata; this service never reads or receives a token. */
 @injectable()
@@ -24,7 +25,7 @@ export class AuthStateClient implements Disposable {
   };
   private readonly storageListener = (changes: Record<string, chrome.storage.StorageChange>, area: string): void => {
     if (!this.disposed && area === 'local' && [AUTH_STORAGE_KEY, AUTH_USER_CACHE_KEY, AUTH_SESSION_KEY].some(key => key in changes)
-      && typeof location !== 'undefined' && location.protocol === 'chrome-extension:') {
+      && isExtensionPageContext()) {
       void this.refresh().catch(() => undefined);
     }
   };

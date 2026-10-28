@@ -10,6 +10,14 @@ import { NotificationGroupService, type NotificationGroup } from './services/Not
 import { NotificationFilterService } from './services/NotificationFilterService';
 import '../../styles/notification-cleaner.css';
 
+/** "54 minutes ago – 1 hour ago" reads as "54 minutes – 1 hour ago": the shared suffix is kept once. */
+export function notificationTimeRange(first: string, last: string): string {
+  if (first === last) return first;
+  const suffix = ' ago';
+  const head = first.endsWith(suffix) && last.endsWith(suffix) ? first.slice(0, -suffix.length) : first;
+  return head + ' – ' + last;
+}
+
 @injectable()
 export class NotificationCleanerModule extends BaseModule {
   private readonly OBSERVER_NAME = 'notifications-continuous';
@@ -204,7 +212,16 @@ export class NotificationCleanerModule extends BaseModule {
             const item = this.groupService.groupingFor(node);
             if (!item) { flush(); group = undefined; continue; }
             const time = node.querySelector('.time')?.textContent?.trim() ?? '';
+            // A lone comment-like is keyed by comment; if the same actor continues
+            // the run, re-key it as that actor's group instead of splitting it.
+            if (group && group.key !== item.key && group.kind === 'forum' && group.count === 1 && item.kind === 'user'
+              && group.actor && group.actor.toLowerCase() === item.user.toLowerCase()) {
+              group.kind = 'user'; group.key = item.key; group.user = item.user; group.subject = undefined;
+            }
             if (group?.key === item.key) {
+              group.elements.push(node); group.count++; group.latestTime = time;
+              group.types.set(item.type, (group.types.get(item.type) ?? 0) + 1);
+            } else if (group?.kind === 'user' && item.kind === 'forum' && item.actor?.toLowerCase() === group.user.toLowerCase()) {
               group.elements.push(node); group.count++; group.latestTime = time;
               group.types.set(item.type, (group.types.get(item.type) ?? 0) + 1);
             } else {
@@ -265,7 +282,7 @@ export class NotificationCleanerModule extends BaseModule {
     // layout instead of inheriting a grid whose first column is only 60px wide.
     const content = document.createElement('div'); content.className = 'au-notification-summary-content';
     const time = document.createElement('div'); time.className = 'au-notification-summary-time';
-    time.textContent = group.firstTime === group.latestTime ? group.firstTime : group.firstTime + ' – ' + group.latestTime;
+    time.textContent = notificationTimeRange(group.firstTime, group.latestTime);
     if (time.textContent) content.append(time);
     const text = document.createElement('div'); text.className = 'au-notification-summary-text';
     if (group.kind === 'user' && group.user) {

@@ -23,6 +23,7 @@ import { isRecord } from '@/api/GraphQLResponse';
 import { captureApiContext, assertApiContext } from '@/api/ApiContext';
 import type { ApiContext, IApiClient } from '@core/interfaces/IApiClient';
 import { calendarCustomPlans, customPlanEntry } from './CalendarCustomPlans';
+import { CalendarSessionCacheClient } from './CalendarSessionCache';
 
 /**
  * Structure for the in-memory calendar cache and consistency fingerprint
@@ -95,6 +96,7 @@ export class CalendarStore extends Store<CalendarState> {
     @inject(TOKENS.LocalStorage) private storage: IStorageService,
     @inject(CacheFactory) cacheFactory: CacheFactory,
     @inject(TOKENS.ApiClient) private api?: IApiClient,
+    @inject(CalendarSessionCacheClient) private sessionCache: CalendarSessionCacheClient = new CalendarSessionCacheClient(),
   ) {
     super(initialState);
 
@@ -424,7 +426,11 @@ export class CalendarStore extends Store<CalendarState> {
     scope.assertCurrent();
   }
 
-  public async saveEntriesToCache(entries: AnimeEntry[], userId?: number, assertCurrent: () => void = () => {}): Promise<void> {
+  /**
+   * @param queueRevision Sync queue revision the entries reflect. Only with it is the
+   *   schedule also kept for the browser session, so later page loads can reuse it.
+   */
+  public async saveEntriesToCache(entries: AnimeEntry[], userId?: number, assertCurrent: () => void = () => {}, queueRevision?: string): Promise<void> {
     const snapshot = calendarEntries(entries);
     const revision = this.cacheRevision;
     // Register in acceptance order, even when context initialization resolves out of order.
@@ -435,26 +441,37 @@ export class CalendarStore extends Store<CalendarState> {
       const scope = ready.scope;
       this.assertCacheScope(scope, userId);
       const value: CalendarCache = { version: 1, entries: snapshot, fingerprint: calendarFingerprint(snapshot) };
+      const sessionId = scope.context?.sessionId;
       const validateCompletedWrite = async (): Promise<void> => {
         try { this.assertCacheScope(scope, userId); }
         catch (error) {
           await this.scheduleCache.delete(scope.key).catch(failure => logger.error('[CalendarStore] Obsolete cache removal failed', failure));
+          if (queueRevision && sessionId) await this.clearSessionCache(sessionId);
           throw error;
         }
       };
       try { await this.scheduleCache.set(scope.key, value); }
       catch (error) { await validateCompletedWrite(); throw error; }
       await validateCompletedWrite();
+      if (!queueRevision || !sessionId) return;
+      try {
+        await this.sessionCache.write(sessionId, { queueRevision, fingerprint: value.fingerprint, entries: JSON.parse(JSON.stringify(snapshot)) });
+      } catch (error) { logger.warn('[CalendarStore] Session cache write failed', error); }
+      await validateCompletedWrite();
     });
     this.cacheWrites = operation.catch(() => undefined);
     await operation;
   }
 
-  public async loadEntriesFromCache(userId?: number, assertCurrent: () => void = () => {}): Promise<AnimeEntry[] | null> {
+  /**
+   * @param queueRevision Current sync queue revision. A memory miss falls back to the
+   *   browser-session copy only when that copy was written at this same revision.
+   */
+  public async loadEntriesFromCache(userId?: number, assertCurrent: () => void = () => {}, queueRevision?: string): Promise<AnimeEntry[] | null> {
     const scope = await this.cacheScope(userId, this.cacheRevision, assertCurrent);
     const value: unknown = await this.scheduleCache.get(scope.key);
     this.assertCacheScope(scope, userId);
-    if (value === undefined || value === null) return null;
+    if (value === undefined || value === null) return this.loadSessionEntries(scope, userId, queueRevision);
     try {
       if (!isRecord(value) || value.version !== 1 || typeof value.fingerprint !== 'string') throw new Error('Invalid calendar cache');
       const entries = calendarEntries(value.entries);
@@ -468,10 +485,43 @@ export class CalendarStore extends Store<CalendarState> {
     }
   }
 
-  public async invalidateCache(): Promise<void> {
+  /**
+   * @param scope 'memory' keeps the browser-session copy. Only safe when no change is
+   *   known, because that copy is revision-checked on every read anyway.
+   */
+  public async invalidateCache(scope: 'all' | 'memory' = 'all'): Promise<void> {
     // Advance before awaiting clear: older reads/writes cannot restore this generation.
     this.cacheRevision++;
-    await this.scheduleCache.clear();
+    const sessionId = this.api?.getContext?.().sessionId;
+    await Promise.all([this.scheduleCache.clear(), scope === 'all' && sessionId ? this.clearSessionCache(sessionId) : undefined]);
     logger.debug('[CalendarStore] Schedule cache invalidated');
+  }
+
+  private async loadSessionEntries(scope: CalendarCacheScope, userId: number | undefined, queueRevision: string | undefined): Promise<AnimeEntry[] | null> {
+    const sessionId = scope.context?.sessionId;
+    if (!queueRevision || !sessionId) return null;
+    let stored;
+    try { stored = await this.sessionCache.read(sessionId); }
+    catch (error) { logger.warn('[CalendarStore] Session cache read failed', error); }
+    this.assertCacheScope(scope, userId);
+    if (!stored || stored.queueRevision !== queueRevision) return null;
+    try {
+      const entries = calendarEntries(stored.entries);
+      if (calendarFingerprint(entries) !== stored.fingerprint) throw new Error('Calendar session cache fingerprint mismatch');
+      await this.scheduleCache.set(scope.key, { version: 1, entries: calendarEntries(entries), fingerprint: stored.fingerprint });
+      this.assertCacheScope(scope, userId);
+      logger.debug('[CalendarStore] Schedule restored from session cache');
+      return entries;
+    } catch (error) {
+      this.assertCacheScope(scope, userId);
+      logger.warn('[CalendarStore] Discarding invalid session calendar cache', error);
+      await this.clearSessionCache(sessionId);
+      return null;
+    }
+  }
+
+  private async clearSessionCache(sessionId: string): Promise<void> {
+    try { await this.sessionCache.clear(sessionId); }
+    catch (error) { logger.warn('[CalendarStore] Session cache clear failed', error); }
   }
 }

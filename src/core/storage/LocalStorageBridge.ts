@@ -15,8 +15,17 @@ export async function localStorageOperation(operation: 'get' | 'set' | 'remove' 
     case 'set': await chrome.storage.local.set(value as Record<string, unknown>); return {};
     case 'remove': await chrome.storage.local.remove(value as string | string[]); return {};
     case 'all': return chrome.storage.local.get(null);
-    case 'usage': return { bytesInUse: await chrome.storage.local.getBytesInUse(), quota: chrome.storage.local.QUOTA_BYTES };
+    case 'usage': return localUsage();
   }
+}
+
+/** Firefox lacks storage.local.getBytesInUse/QUOTA_BYTES: estimate from the serialized contents there. */
+async function localUsage(): Promise<Record<string, unknown>> {
+  const local = chrome.storage.local;
+  if (typeof local.getBytesInUse === 'function') return { bytesInUse: await local.getBytesInUse(), quota: local.QUOTA_BYTES };
+  const all = await local.get(null);
+  const bytesInUse = Object.entries(all).reduce((total, [key, value]) => total + key.length + JSON.stringify(value ?? null).length, 0);
+  return { bytesInUse, quota: undefined };
 }
 
 /** These keys are handled by dedicated auth/queue/repository protocols. */
@@ -39,7 +48,7 @@ export async function dispatchLocalStorage(operation: unknown, value: unknown): 
     const all = await chrome.storage.local.get(null);
     return Object.fromEntries(Object.entries(all).filter(([key]) => isPublicLocalKey(key)));
   }
-  if (operation === 'usage') return { bytesInUse: await chrome.storage.local.getBytesInUse(), quota: chrome.storage.local.QUOTA_BYTES };
+  if (operation === 'usage') return localUsage();
   if (!keys.length || keys.length > 1000 || !keys.every(key => typeof key === 'string' && key.length <= 300 && isPublicLocalKey(key))) throw new Error('Local storage key not allowed');
   if (operation === 'get') {
     if (typeof value !== 'string' && !Array.isArray(value)) throw new Error('Invalid storage keys');

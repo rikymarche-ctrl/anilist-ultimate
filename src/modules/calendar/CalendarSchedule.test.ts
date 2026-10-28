@@ -9,7 +9,7 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 function fixture() {
   let context = { userId: 1, sessionId: 'one' };
   const api = { ensureContext: vi.fn(async () => ({ ...context })), getContext: () => context,
-    query: vi.fn(async (_query: string, _variables: Record<string, unknown>): Promise<unknown> => calendarCollection()) };
+    query: vi.fn(async (_query: string, _variables: Record<string, unknown>, _silent?: boolean, _options?: { priority?: boolean }): Promise<unknown> => calendarCollection()) };
   const queue = { getQueue: vi.fn(async (): Promise<unknown> => []) };
   const snapshots = { getSnapshot: async () => ({ revision: 'fixture', entries: await queue.getQueue() }) };
   const service = new CalendarService(api as never, {} as never, {} as never, { ...queue, ...snapshots } as never);
@@ -68,6 +68,11 @@ describe('calendar external response boundaries', () => {
       { userId: 1, type: 'ANIME', chunk: 1, perChunk: 500, statuses: ['CURRENT', 'REPEATING'] },
       { userId: 1, type: 'ANIME', chunk: 2, perChunk: 500, statuses: ['CURRENT', 'REPEATING'] },
     ]);
+  });
+  it('forwards request options to every chunk query', async () => {
+    const f = fixture(); f.api.query.mockResolvedValueOnce(calendarCollection([calendarListEntry()]));
+    await f.service.fetchAiringSchedule(1, [], { priority: true });
+    expect(f.api.query.mock.calls.map(call => call[3])).toEqual([{ priority: true }]);
   });
   it.each([0, -1, 1.5, 2147483648])('rejects invalid owner %s before context, queue or query', async owner => {
     const f = fixture(); await expect(f.service.fetchAiringSchedule(owner)).rejects.toThrow('owner');

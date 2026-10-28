@@ -1,9 +1,10 @@
 /**
  * @file package-release.mjs
- * @description Builds the Chrome Web Store upload archive from an existing dist/ build.
+ * @description Builds the store upload archive from an existing build.
  *
- * Usage: npm run build && npm run package
- * Output: release/anilist-ultimate-<version>.zip
+ * Usage: npm run build && npm run package                    (Chrome Web Store)
+ *        npm run build:firefox && npm run package:firefox    (addons.mozilla.org)
+ * Output: release/anilist-ultimate-<version>.zip, release/anilist-ultimate-firefox-<version>.zip
  *
  * The manifest stored in the archive has its `key` removed: the key only pins the
  * extension ID for local development, and the store assigns its own ID. The
@@ -17,7 +18,9 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DIST = join(ROOT, 'dist');
+const FIREFOX = process.argv.includes('--firefox');
+const DIST = join(ROOT, FIREFOX ? 'dist-firefox' : 'dist');
+const DIST_NAME = FIREFOX ? 'dist-firefox' : 'dist';
 const RELEASE_DIR = join(ROOT, 'release');
 
 const LOCAL_HEADER_SIZE = 30;
@@ -48,16 +51,16 @@ function readJson(file) {
 
 function readReleaseVersion() {
   const distManifest = join(DIST, 'manifest.json');
-  if (!existsSync(distManifest)) throw new Error('dist/manifest.json not found: run npm run build first');
+  if (!existsSync(distManifest)) throw new Error(`${DIST_NAME}/manifest.json not found: run npm run ${FIREFOX ? 'build:firefox' : 'build'} first`);
   const versions = {
     'package.json': readJson(join(ROOT, 'package.json')).version,
     'public/manifest.json': readJson(join(ROOT, 'public', 'manifest.json')).version,
-    'dist/manifest.json': readJson(distManifest).version,
+    [`${DIST_NAME}/manifest.json`]: readJson(distManifest).version,
   };
   if (new Set(Object.values(versions)).size !== 1) {
     throw new Error(`Version mismatch between manifests: ${JSON.stringify(versions)}`);
   }
-  return versions['dist/manifest.json'];
+  return versions[`${DIST_NAME}/manifest.json`];
 }
 
 /** Returns the packaged manifest text: a copy of dist/manifest.json without `key`. */
@@ -153,10 +156,10 @@ function buildZip(files) {
 function main() {
   const version = readReleaseVersion();
   const files = readArchiveFiles();
-  if (files.length === 0) throw new Error('dist/ contains no packageable files');
+  if (files.length === 0) throw new Error(`${DIST_NAME}/ contains no packageable files`);
   const archive = buildZip(files);
   mkdirSync(RELEASE_DIR, { recursive: true });
-  const output = join(RELEASE_DIR, `anilist-ultimate-${version}.zip`);
+  const output = join(RELEASE_DIR, `anilist-ultimate-${FIREFOX ? 'firefox-' : ''}${version}.zip`);
   writeFileSync(output, archive);
   console.log(`Packaged ${files.length} files, ${archive.length} bytes -> ${relative(ROOT, output)}`);
 }

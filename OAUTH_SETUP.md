@@ -35,6 +35,20 @@ Before publishing, upload the intended package, obtain the store item/extension 
 
 Use the browser's actual `getRedirectURL()` result when possible. Do not replace or remove the development key merely to troubleshoot a login on an existing installation: a different ID can mean different local storage. [Backups](docs/DATA_AND_BACKUPS.md).
 
+## Firefox build
+
+AniList accepts one redirect per client, so Firefox needs its own client. Firefox derives the redirect from the add-on ID (`anilist-ultimate@exastra`, fixed in `vite.config.ts`):
+
+```
+https://38edd18e5a15a955d99ff3789eb7197b37e7eb97.extensions.allizom.org/
+```
+
+1. Create a second AniList client with exactly that redirect.
+2. Put its ID in an ignored `.env.firefox.local` as `VITE_ANILIST_CLIENT_ID=...` (mode files override `.env`).
+3. `npm run build:firefox && npm run package:firefox` → `release/anilist-ultimate-firefox-<version>.zip`.
+
+`build:firefox` prints a warning while the Chromium client ID is still in use. Never change the add-on ID after the first AMO upload: it changes the redirect and the storage of existing installs.
+
 ## Verify and diagnose
 
 Test successful login, cancellation followed by retry, logout while login is pending, an account switch and a second AniList tab. Confirm the displayed account after login and after a worker restart.
