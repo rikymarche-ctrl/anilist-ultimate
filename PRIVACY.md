@@ -6,10 +6,10 @@
 
 AniList Ultimate (Unofficial) is a browser extension for Chrome and Firefox by [ExAstra](https://anilist.co/user/ExAstra/) that enhances [anilist.co](https://anilist.co). It is not affiliated with or endorsed by AniList.
 
-- Astra archives, account credentials, pending edits and custom Following group display settings are stored on your device. Interface preferences use Chrome sync storage and may sync through your browser account.
+- Astra archives, account credentials, pending edits and custom Following group display settings are stored on your device. Interface preferences use the browser's sync storage and may sync through your browser account.
 - Your AniList account is used to read lists, activity and social metadata, and to save the list edits you request on AniList.
 - The extension has no analytics or telemetry, shows no advertising, and does not sell your data. Requests to AniList and the public metadata providers are described below.
-- The Back Restore feature keeps a bounded, tab-scoped record of AniList page URLs, list filters and scroll positions so it can restore a page when you go back. It does not access Chrome's general browsing history.
+- The Back Restore feature keeps a bounded, tab-scoped record of AniList page URLs, list filters and scroll positions so it can restore a page when you go back. It does not access the browser's general browsing history.
 
 User data obtained through the extension is used for its AniList features. The extension does not use it for advertising, data brokerage or unrelated profiling. This policy describes behavior; it is not a claim of Chrome Web Store approval.
 
@@ -59,7 +59,7 @@ Links you click, such as YouTube searches, AnimeThemes and anichart.net, open in
 - No sale of user data and no transfer for advertising, data brokerage or unrelated profiling. Network transfers are limited to the feature-related requests described above.
 - No remote code. The extension runs only scripts packaged with it (Content Security Policy `script-src 'self'`).
 - Content-script access is limited to AniList by the manifest; additional host permissions support the metadata services listed above. Fonts used by the extension pages are bundled with the extension.
-- No access to Chrome's general browsing history and no tracking across unrelated websites. The bounded AniList navigation snapshots described above remain in the tab and support Back Restore. Scroll and filter state are used for that feature; the extension does not record a general click stream or the text of arbitrary keystrokes.
+- No access to the browser's general browsing history and no tracking across unrelated websites. The bounded AniList navigation snapshots described above remain in the tab and support Back Restore. Scroll and filter state are used for that feature; the extension does not record a general click stream or the text of arbitrary keystrokes.
 
 ## Limited use
 
