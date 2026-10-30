@@ -106,14 +106,6 @@ export class AstraDashboard extends AstraView implements Disposable {
     else unsubscribe?.();
   }
 
-  /** Start loading Airing while Astra initializes, before the user opens the dashboard. */
-  public preloadAiringData(): void {
-    if (!this.active || this.disposed || document.visibilityState === 'hidden') return;
-    void this.workTable.prepareAiringData().catch((error) => {
-      logger.warn('[AstraDashboard] Airing preload failed', error);
-    });
-  }
-
   public deactivate(): void {
     if (!this.active) return;
     this.active = false;

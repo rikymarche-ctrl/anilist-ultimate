@@ -92,6 +92,8 @@ import { BulkEditorModule } from '@/modules/bulk/BulkEditorModule';
 import { BulkEditorService, bulkRoute } from '@/modules/bulk/BulkEditorService';
 import { MediaSocialEnhancer } from '@/modules/social/MediaSocialEnhancer';
 import { UserSocialStatsModule } from '@/modules/social/UserSocialStatsModule';
+import { ProfileConnectionsModule } from '@/modules/social/ProfileConnectionsModule';
+import { ProfileConnectionsService } from '@/modules/social/ProfileConnectionsService';
 import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
 import { UserBannerModule } from '@/modules/social/UserBannerModule';
 import { SocialSidebar } from '@/modules/social/components/SocialSidebar';
@@ -298,6 +300,8 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
     container.registerSingleton(TOKENS.CustomListService, CustomListClient);
     // Construct in the document owner before a feature scope can borrow this singleton.
     container.resolve<CustomListClient>(TOKENS.CustomListService);
+    // Reads custom lists, which only the content-side client serves.
+    container.registerSingleton(TOKENS.ProfileConnectionsService, ProfileConnectionsService);
   }
   container.registerSingleton(SocialSidebar);
   container.registerSingleton(CommentService);
@@ -306,9 +310,11 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
 
   // Activity Services
   container.registerSingleton(TOKENS.ActivityService, ActivityService);
-  container.registerSingleton(TOKENS.ActivityFilterBar, ActivityFilterBar);
-  container.registerSingleton(TOKENS.ActivityRenderer, ActivityRenderer);
-  container.registerSingleton(TOKENS.ActivityTabManager, CustomListTabManager);
+  // Transient: home, profile and media modules each own their bar, renderer and tab manager.
+  // Shared instances let one page's cleanup destroy another page's freshly injected UI on SPA navigation.
+  container.register(TOKENS.ActivityFilterBar, { useClass: ActivityFilterBar });
+  container.register(TOKENS.ActivityRenderer, { useClass: ActivityRenderer });
+  container.register(TOKENS.ActivityTabManager, { useClass: CustomListTabManager });
 
   // Notification Services
   container.registerSingleton(TOKENS.NotificationFetchService, NotificationFetchService);
@@ -607,6 +613,13 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
       description: 'Follower and following counts on profiles',
       enabled: config.isFeatureEnabled('friendActivity'),
       factory: () => container.resolve(UserSocialStatsModule),
+      pageMatch: (path) => path.startsWith('/user/'),
+    },
+    {
+      name: 'profileConnections',
+      description: 'People you follow who are connected to a profile',
+      enabled: config.isFeatureEnabled('friendActivity'),
+      factory: () => container.resolve(ProfileConnectionsModule),
       pageMatch: (path) => path.startsWith('/user/'),
     },
     {

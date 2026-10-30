@@ -601,8 +601,25 @@ describe('Astra form consumer data preservation and safe rendering', () => {
     const { root } = await open((r) => {
       r.Media.type = 'MANGA';
     });
-    expect(root.querySelector<HTMLAnchorElement>('.astra-title-link')?.pathname).toBe('/manga/1');
-    expect(root.querySelector<HTMLAnchorElement>('.astra-title-link')?.rel).toContain('noopener');
+    const link = root.querySelector<HTMLAnchorElement>('.astra-title-link');
+    expect(link?.pathname).toBe('/manga/1');
+    // "Open in New Tab" is off by default: the title stays in this tab.
+    expect(link?.hasAttribute('target')).toBe(false);
+  });
+
+  it('navigates in place from the title when Open in New Tab is off', async () => {
+    const { root } = await open();
+    const link = root.querySelector<HTMLAnchorElement>('.astra-title-link')!;
+    const before = window.location.pathname;
+    const popstate = vi.fn();
+    window.addEventListener('popstate', popstate);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    link.dispatchEvent(event);
+    window.removeEventListener('popstate', popstate);
+    expect(event.defaultPrevented).toBe(true);
+    expect(window.location.pathname).toBe(link.pathname);
+    expect(popstate).toHaveBeenCalledOnce();
+    window.history.replaceState({}, '', before);
   });
 
   it('removes its cover portal on close', async () => {

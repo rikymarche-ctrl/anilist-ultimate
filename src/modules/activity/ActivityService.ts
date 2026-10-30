@@ -25,7 +25,10 @@ import { parseActivityScore, snapshotScorePairs } from './ActivityScoreResponse'
 import type { ActivityScoreData, ActivityScorePair } from './ActivityScoreResponse';
 export type { ActivityScoreData } from './ActivityScoreResponse';
 
-interface ScoreScope { revision: number; context: ApiContext | undefined; }
+interface ScoreScope {
+  revision: number;
+  context: ApiContext | undefined;
+}
 type ScoreResult = ActivityScoreData | null | undefined;
 interface PendingScore extends ActivityScorePair {
   cacheKey: string;
@@ -45,18 +48,27 @@ function aliasOf(error: GraphQLError): string | undefined {
  * Per-alias outcome for a score chunk: a score or confirmed absence (null) is
  * cacheable, while undefined means the lookup must be retried later.
  */
-function readAliasScores(response: GraphQLResponse<unknown>, chunk: readonly ActivityScorePair[]): (ActivityScoreData | null | undefined)[] {
+function readAliasScores(
+  response: GraphQLResponse<unknown>,
+  chunk: readonly ActivityScorePair[]
+): (ActivityScoreData | null | undefined)[] {
   const aliases = new Set(chunk.map((_, index) => `s${index}`));
   const errors = response.errors ?? [];
   // An error that is not scoped to one of our aliases makes the whole response untrustworthy.
-  if (errors.some(error => !aliases.has(aliasOf(error) ?? ''))) return chunk.map(() => undefined);
+  if (errors.some((error) => !aliases.has(aliasOf(error) ?? ''))) return chunk.map(() => undefined);
   const data = response.data;
   return chunk.map((pair, index) => {
     const alias = `s${index}`;
     if (!isRecord(data) || !Object.prototype.hasOwnProperty.call(data, alias)) return undefined;
     const entry = data[alias];
-    const aliasErrors = errors.filter(error => aliasOf(error) === alias);
-    if (entry === null && !aliasErrors.every(error => error.status !== undefined && ABSENT_ENTRY_STATUSES.has(error.status))) return undefined;
+    const aliasErrors = errors.filter((error) => aliasOf(error) === alias);
+    if (
+      entry === null &&
+      !aliasErrors.every(
+        (error) => error.status !== undefined && ABSENT_ENTRY_STATUSES.has(error.status)
+      )
+    )
+      return undefined;
     return parseActivityScore(entry, pair);
   });
 }
@@ -76,7 +88,7 @@ export class ActivityService {
     namespace: 'activity_scores',
     maxSize: 100,
     ttlMs: 5 * 60 * 1000, // 5 minutes
-    persistent: false // Short-lived data doesn't need disk persistence
+    persistent: false, // Short-lived data doesn't need disk persistence
   };
 
   /**
@@ -98,7 +110,9 @@ export class ActivityService {
    * @returns Map of "userName-mediaId" key to score data or confirmed absence (null).
    * Failed lookups are omitted so callers can retry them.
    */
-  public async getScoresBatch(pairs: readonly { userName: string; mediaId: number }[]): Promise<Map<string, ActivityScoreData | null>> {
+  public async getScoresBatch(
+    pairs: readonly { userName: string; mediaId: number }[]
+  ): Promise<Map<string, ActivityScoreData | null>> {
     const requested = snapshotScorePairs(pairs);
     const revision = this.scoreRevision;
     const context = await captureApiContext(this.api);
@@ -107,18 +121,26 @@ export class ActivityService {
     const results = new Map<string, ActivityScoreData | null>();
     const misses: (ActivityScorePair & { cacheKey: string })[] = [];
     for (const pair of requested) {
-      const cacheKey = JSON.stringify([revision, scope.context?.sessionId ?? null, scope.context?.userId ?? null, pair.userName, pair.mediaId]);
+      const cacheKey = JSON.stringify([
+        revision,
+        scope.context?.sessionId ?? null,
+        scope.context?.userId ?? null,
+        pair.userName,
+        pair.mediaId,
+      ]);
       const cached = await this.cache.get(cacheKey);
       this.assertScoreScope(scope);
       if (cached !== undefined) results.set(pair.key, cached ? { ...cached } : null);
       else misses.push({ ...pair, cacheKey });
     }
     const pending: PendingScore[] = [];
-    const lookups = misses.map(pair => {
+    const lookups = misses.map((pair) => {
       let promise = this.inFlight.get(pair.cacheKey);
       if (!promise) {
         let resolve!: PendingScore['resolve'];
-        promise = new Promise<ScoreResult>(done => { resolve = done; });
+        promise = new Promise<ScoreResult>((done) => {
+          resolve = done;
+        });
         this.inFlight.set(pair.cacheKey, promise);
         pending.push({ ...pair, promise, resolve });
       }
@@ -148,8 +170,9 @@ export class ActivityService {
         const chunk = pairs.slice(i, i + chunkSize);
 
         const varDecls = chunk.map((_, i) => `$u${i}: String!, $m${i}: Int!`).join(', ');
-        const aliases = chunk.map((_, i) =>
-          `s${i}: MediaList(userName: $u${i}, mediaId: $m${i}) {
+        const aliases = chunk.map(
+          (_, i) =>
+            `s${i}: MediaList(userName: $u${i}, mediaId: $m${i}) {
             mediaId userId
             score(format: POINT_100)
             user { id name mediaListOptions { scoreFormat } }
@@ -158,7 +181,10 @@ export class ActivityService {
 
         const query = `query (${varDecls}) { ${aliases.join('\n')} }`;
         const variables: Record<string, unknown> = {};
-        chunk.forEach((p, i) => { variables[`u${i}`] = p.userName; variables[`m${i}`] = p.mediaId; });
+        chunk.forEach((p, i) => {
+          variables[`u${i}`] = p.userName;
+          variables[`m${i}`] = p.mediaId;
+        });
 
         try {
           // queryRaw keeps per-alias errors: one hidden or deleted entry must not reject its whole chunk.
@@ -171,13 +197,21 @@ export class ActivityService {
             const scoreData = outcomes[idx];
             if (scoreData === undefined) continue;
             this.assertScoreScope(scope);
-            try { await this.cache.set(p.cacheKey, scoreData ? { ...scoreData } : null); }
-            catch (error) { logger.error('[ActivityService] Score cache write failed', error); }
-            try { this.assertScoreScope(scope); }
-            catch (error) {
+            try {
+              await this.cache.set(p.cacheKey, scoreData ? { ...scoreData } : null);
+            } catch (error) {
+              logger.error('[ActivityService] Score cache write failed', error);
+            }
+            try {
+              this.assertScoreScope(scope);
+            } catch (error) {
               // A write may have yielded across clear/auth invalidation. Its scoped
               // key cannot be read by the new session; remove the stale bytes too.
-              await this.cache.delete(p.cacheKey).catch(failure => logger.error('[ActivityService] Obsolete score removal failed', failure));
+              await this.cache
+                .delete(p.cacheKey)
+                .catch((failure) =>
+                  logger.error('[ActivityService] Obsolete score removal failed', failure)
+                );
               throw error;
             }
             p.resolve(scoreData);
@@ -190,7 +224,7 @@ export class ActivityService {
 
         this.assertScoreScope(scope);
         if (i + chunkSize < pairs.length) {
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 500));
         }
       }
     } catch (error) {
@@ -210,7 +244,10 @@ export class ActivityService {
    * @param page Current page number
    * @returns List of activities and pagination status
    */
-  public async getMediaActivity(mediaId: number, page: number = 1): Promise<{ activities: AniListActivity[]; hasNextPage: boolean }> {
+  public async getMediaActivity(
+    mediaId: number,
+    page: number = 1
+  ): Promise<{ activities: AniListActivity[]; hasNextPage: boolean }> {
     if (!isActivityId(mediaId) || !Number.isInteger(page) || page <= 0 || page > 200) {
       throw new Error('Invalid media activity pagination');
     }
@@ -221,9 +258,9 @@ export class ActivityService {
           pageInfo { hasNextPage }
           activities(mediaId: $mediaId, type: MEDIA_LIST, isFollowing: true, sort: ID_DESC) {
             ... on ListActivity {
-              id type userId status progress createdAt replyCount likeCount
+              id type userId status progress createdAt isLiked replyCount likeCount
               user { id name avatar { medium } }
-              media { id title { romaji english } type coverImage { medium } }
+              media { id title { romaji english userPreferred } type coverImage { medium } }
             }
           }
         }

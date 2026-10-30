@@ -15,6 +15,7 @@ import type { ILogger } from '@core/interfaces/ILogger';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { ActivityFilterBar, ActivityRenderer } from './shared';
+import { NATIVE_ACTIVITY_SELECTOR } from './shared/ActivityRenderer';
 import '../../styles/activity-enhancer.css';
 
 @injectable()
@@ -173,9 +174,8 @@ export class ProfileActivityModule extends BaseModule {
     const activeFilters = this.filterBar.getActiveFilters();
     const searchQuery = this.filterBar.getSearchQuery();
 
-    this.renderer.configure({
-      activitySelector: '.activity-entry, .activity-anime, .activity-manga, .activity-text',
-    });
+    // Shared singleton renderer: never use a selector that would also match custom-list rows.
+    this.renderer.configure({ activitySelector: NATIVE_ACTIVITY_SELECTOR });
 
     this.renderer.applyFilters(activeFilters, searchQuery);
   }

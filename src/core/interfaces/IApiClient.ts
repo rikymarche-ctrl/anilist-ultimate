@@ -54,8 +54,8 @@ export interface IApiClient {
    * Execute a GraphQL mutation
    */
   mutate<T>(mutation: string, variables?: Record<string, unknown>): Promise<T>;
-  /** Durable notes saves own their retries so they can recheck remote text before each attempt. */
-  mutateOnce?<T>(mutation: string, variables?: Record<string, unknown>): Promise<T>;
+  /** Non-idempotent writes (e.g. toggles) must not be retried after a lost response; durable notes saves own their retries. */
+  mutateOnce<T>(mutation: string, variables?: Record<string, unknown>): Promise<T>;
 
   /**
    * Clear request queue

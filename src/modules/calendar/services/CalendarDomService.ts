@@ -157,6 +157,7 @@ export class CalendarDomService {
     const actionsContainer = document.createElement('div');
     actionsContainer.className = 'calendar-header__actions';
     actionsContainer.innerHTML = `
+      <button type="button" class="calendar-header__size" hidden></button>
       <button type="button" class="calendar-header__add" title="Add a title to the calendar" aria-label="Add a title to the calendar">
         <i class="fa-solid fa-plus" aria-hidden="true"></i>
       </button>
@@ -193,7 +194,39 @@ export class CalendarDomService {
       event.preventDefault(); event.stopPropagation(); onAddPersonalPlan?.();
     };
     addButton.addEventListener('click', addClick);
-    this.headerActionsCleanup = () => { button.removeEventListener('click', click); addButton.removeEventListener('click', addClick); actionsContainer.remove(); };
+    const sizeCleanup = this.wireSizeToggle(parentHeader, actionsContainer);
+    this.headerActionsCleanup = () => { button.removeEventListener('click', click); addButton.removeEventListener('click', addClick); sizeCleanup(); actionsContainer.remove(); };
+  }
+
+  /**
+   * AniList's own expand/compress control moves the section between the side column and full width.
+   * The managed header hides it, so a matching button forwards clicks to it. The native control stays
+   * the single source of truth: its icon tells the current size, and AniList saves the choice.
+   */
+  private wireSizeToggle(parentHeader: HTMLElement, actions: HTMLElement): () => void {
+    const button = actions.querySelector<HTMLButtonElement>('.calendar-header__size')!;
+    const native = (): SVGElement | null => parentHeader.querySelector<SVGElement>('.size-toggle');
+    const sync = () => {
+      const toggle = native();
+      button.hidden = !toggle;
+      const compress = toggle?.getAttribute('data-icon') === 'compress';
+      const label = compress ? 'Show the calendar in the side column' : 'Show the calendar at full width';
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      // AniList's own icon, copied: same shape as the native control in either state.
+      const icon = toggle?.cloneNode(true) as SVGElement | undefined;
+      icon?.classList.remove('size-toggle');
+      icon?.setAttribute('aria-hidden', 'true');
+      button.replaceChildren(...(icon ? [icon] : []));
+    };
+    const click = (event: MouseEvent) => {
+      event.preventDefault(); event.stopPropagation();
+      native()?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      sync();
+    };
+    sync();
+    button.addEventListener('click', click);
+    return () => button.removeEventListener('click', click);
   }
 
   /**

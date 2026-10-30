@@ -58,6 +58,13 @@ export function anilistScore(overallScore: number): number | undefined {
     : undefined;
 }
 
+/** Notes fields of an ASTRA_SAVE payload: AniList Notes plus the conflict baseline of an Astra merge. */
+interface AstraNotesPatch {
+  notes?: string;
+  expectedNotes?: string;
+  astraNotesUpdatedAt?: number;
+}
+
 @injectable()
 export class AstraRatingService implements IAstraRatingService {
   constructor(
@@ -309,6 +316,34 @@ export class AstraRatingService implements IAstraRatingService {
   }
 
   /**
+   * Reads the current AniList notes and returns them with the Astra block merged in.
+   * Unchanged notes yield no `notes`; with the option turned off meanwhile, explicit notes are kept.
+   */
+  private async readAstraNotes(
+    work: AstraWork,
+    saved: AstraWork,
+    extra: AstraSaveOptions,
+    context: Awaited<ReturnType<typeof captureApiContext>>
+  ): Promise<AstraNotesPatch> {
+    const sections = this.astraService.getSections();
+    const currentData = await this.getMediaRatingData(work.mediaId);
+    assertApiContext(this.api, context, saved.ownerId);
+    if (!currentData) {
+      throw new Error(
+        'Unable to read AniList notes safely; local data was saved. Retry synchronization.'
+      );
+    }
+    if (!this.astraService.getSettings().appendAstraToComment) return { notes: extra.notes };
+    const currentNotes = currentData.media.mediaListEntry?.notes ?? '';
+    const updatedNotes = this.parser.inject(currentNotes, work, sections, {
+      replaceNotes: extra.replaceNotes === true,
+    });
+    // Explicit edited notes still use the existing editor path when the option is off.
+    if (updatedNotes === currentNotes) return {};
+    return { notes: updatedNotes, expectedNotes: currentNotes, astraNotesUpdatedAt: saved.updatedAt };
+  }
+
+  /**
    * Persists work locally and durably queues its AniList mutation before dispatch.
    * A failed network sync stays queued; storage failures reject the save.
    */
@@ -359,42 +394,13 @@ export class AstraRatingService implements IAstraRatingService {
       }
 
       // 2. Prepare Mutation Payload
-      const settings = this.astraService.getSettings();
-      let notesToSync = extra.notes;
-      let expectedNotes: string | null | undefined;
-      let astraNotesUpdatedAt: number | undefined;
-
       // Policy: when "append Astra to comment" is enabled, embed the Astra block
       // into the AniList Notes while preserving all surrounding personal text.
-      if (
-        settings.appendAstraToComment &&
-        (extra.syncAstraNotes !== false || extra.replaceNotes === true)
-      ) {
-        stage = 'NOTES';
-        const sections = this.astraService.getSections();
-        const currentData = await this.getMediaRatingData(work.mediaId);
-        assertApiContext(this.api, context, saved.ownerId);
-        if (!currentData) {
-          throw new Error(
-            'Unable to read AniList notes safely; local data was saved. Retry synchronization.'
-          );
-        }
-        if (this.astraService.getSettings().appendAstraToComment) {
-          const currentNotes = currentData.media.mediaListEntry?.notes ?? '';
-          const updatedNotes = this.parser.inject(currentNotes, work, sections, {
-            replaceNotes: extra.replaceNotes === true,
-          });
-          // Explicit edited notes still use the existing editor path when the option is off.
-          notesToSync = updatedNotes === currentNotes ? undefined : updatedNotes;
-          if (notesToSync !== undefined) {
-            expectedNotes = currentNotes;
-            astraNotesUpdatedAt = saved.updatedAt;
-          }
-        }
-      }
-
+      const injectNotes =
+        this.astraService.getSettings().appendAstraToComment &&
+        (extra.syncAstraNotes !== false || extra.replaceNotes === true);
       const remoteScore = extra.syncScore === false ? undefined : anilistScore(extra.overallScore);
-      const payload = {
+      const payloadWith = (notes: AstraNotesPatch) => ({
         mediaId: work.mediaId,
         status: work.status,
         progress: extra.progress ?? work.progress,
@@ -403,17 +409,45 @@ export class AstraRatingService implements IAstraRatingService {
         repeat: extra.repeat,
         private: extra.private ?? work.isPrivate,
         hidden: extra.hidden ?? work.isHidden,
-        ...(notesToSync === undefined ? {} : { notes: notesToSync }),
-        ...(expectedNotes === undefined ? {} : { expectedNotes, astraNotesUpdatedAt }),
+        ...(notes.notes === undefined ? {} : { notes: notes.notes }),
+        ...(notes.expectedNotes === undefined
+          ? {}
+          : { expectedNotes: notes.expectedNotes, astraNotesUpdatedAt: notes.astraNotesUpdatedAt }),
         lists: extra.customLists ?? work.customLists,
         ...dates,
-      };
+      });
+      const session = context ? [context.sessionId] : [];
+
+      if (injectNotes && extra.dispatch === 'background') {
+        // Closing must not wait for an AniList read (the shared queue is rate limited). Everything
+        // but the notes is queued durably now; the Astra block follows as a newer save of the entry.
+        assertApiContext(this.api, context, saved.ownerId);
+        stage = 'QUEUE';
+        await this.syncQueue.enqueue('ASTRA_SAVE', payloadWith({}), ...session);
+        void (async () => {
+          try {
+            const notes = await this.readAstraNotes(work, saved, extra, context);
+            if (notes.notes !== undefined)
+              await this.syncQueue.enqueue('ASTRA_SAVE', payloadWith(notes), ...session);
+          } catch (error) {
+            logger.error('[AstraRatingService] Astra notes were not queued; local data is saved', error);
+          }
+          this.drainInBackground(work.mediaId, extra.onDispatched);
+        })();
+        return 'queued';
+      }
+
+      let notes: AstraNotesPatch = { notes: extra.notes };
+      if (injectNotes) {
+        stage = 'NOTES';
+        notes = await this.readAstraNotes(work, saved, extra, context);
+      }
 
       // Persist first and replace older pending saves BEFORE dispatching.
       // A successful direct mutation must not be undone by an older offline retry.
       assertApiContext(this.api, context, saved.ownerId);
       stage = 'QUEUE';
-      await this.syncQueue.enqueue('ASTRA_SAVE', payload, ...(context ? [context.sessionId] : []));
+      await this.syncQueue.enqueue('ASTRA_SAVE', payloadWith(notes), ...session);
       if (extra.dispatch === 'background') {
         // The durable entry exists, so the caller may finish now; the drain reports back later.
         this.drainInBackground(work.mediaId, extra.onDispatched);

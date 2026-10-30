@@ -7,6 +7,40 @@ const NATIVE_SELECTOR = '.load-more, .load-more-button, button[class*="load-more
 const HIDDEN_ATTRIBUTE = 'data-au-load-more-hidden';
 const originalDisplays = new WeakMap<HTMLElement, { value: string; priority: string }>();
 
+/** While set, Load More pages the extension's own feed instead of AniList's. */
+interface LoadMoreOverride {
+  load: () => void;
+  busy: boolean;
+  exhausted: boolean;
+}
+let override: LoadMoreOverride | null = null;
+
+/**
+ * Writes only what changed. Assigning textContent replaces the text node even when equal,
+ * a childList mutation that re-triggers the feed observers that call this again (endless loop).
+ */
+function applyOverrideState(control: HTMLButtonElement): void {
+  const busy = Boolean(override?.busy);
+  const exhausted = Boolean(override?.exhausted);
+  const label = busy ? 'Loading…' : 'Load More';
+  if (control.disabled !== busy) control.disabled = busy;
+  if (control.hidden !== exhausted) control.hidden = exhausted;
+  if (control.textContent !== label) control.textContent = label;
+}
+
+/** Routes Load More to `load` (null restores AniList's own paging). */
+export function setLoadMoreOverride(load: (() => void) | null): void {
+  override = load ? { load, busy: false, exhausted: false } : null;
+  document.querySelectorAll<HTMLButtonElement>(`.${CONTROL_CLASS}`).forEach(applyOverrideState);
+}
+
+/** Reflects the extension feed's paging state on the control. */
+export function setLoadMoreState(state: { busy: boolean; exhausted: boolean }): void {
+  if (!override) return;
+  override = { ...override, ...state };
+  document.querySelectorAll<HTMLButtonElement>(`.${CONTROL_CLASS}`).forEach(applyOverrideState);
+}
+
 export function ensurePersistentLoadMore(feed: Element): void {
   const host = feed.closest<HTMLElement>('.activity-feed-wrap, .feed-container') || feed.parentElement;
   if (!host) return;
@@ -32,6 +66,10 @@ export function ensurePersistentLoadMore(feed: Element): void {
     control.className = CONTROL_CLASS;
     control.textContent = 'Load More';
     control.addEventListener('click', () => {
+      if (override) {
+        if (!override.busy && !override.exhausted) override.load();
+        return;
+      }
       const native = Array.from(host.querySelectorAll<HTMLElement>(NATIVE_SELECTOR)).find(
         (element) => !element.classList.contains(CONTROL_CLASS)
       );
@@ -59,6 +97,7 @@ export function ensurePersistentLoadMore(feed: Element): void {
     // wrapper stretches direct children to the column height.
     feed.appendChild(control);
   }
+  applyOverrideState(control);
 }
 
 export function removePersistentLoadMore(scope: ParentNode = document): void {

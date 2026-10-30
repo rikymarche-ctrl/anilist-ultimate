@@ -20,7 +20,7 @@ export class AstraPillManager {
     @inject(AstraService) private service: AstraService,
     @inject(AstraRatingModal) private ratingModal: AstraRatingModal,
     @inject(TOKENS.ToastService) private toast: ToastService,
-    @inject(TOKENS.Config) private config: IConfigManager,
+    @inject(TOKENS.Config) private config: IConfigManager
   ) {}
 
   /**
@@ -129,8 +129,11 @@ export class AstraPillManager {
     } else if (action === 'edit-entry') {
       if (this.config.isFeatureEnabled('astra')) await this.ratingModal.open(mediaId);
       else {
-        try { openNativeListEditor(mediaId); }
-        catch { this.toast.error('AniList editor is unavailable. Reload the page and try again.'); }
+        try {
+          openNativeListEditor(mediaId);
+        } catch {
+          this.toast.error('AniList editor is unavailable. Reload the page and try again.');
+        }
       }
     } else if (action === 'social-activity') {
       const card = section.closest<HTMLElement>('.au-astra-card');

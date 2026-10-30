@@ -27,7 +27,6 @@ interface ModalTestAccess {
   save(): Promise<void>;
   render(media: AstraRatingMedia | null, lists: string[]): void;
   state: AstraRatingState;
-  reloadAfterClose: boolean;
   needsListStatus: boolean;
   reloadHost(): void;
   renderDateField(id: string, label: string, iso: string): string;
@@ -175,7 +174,6 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
     const { modal, overlay, rating, toast } = setup();
     const settle = captureDrain(rating);
     await modal.close();
-    expect(inspect(modal).reloadAfterClose).toBe(false);
     await vi.advanceTimersByTimeAsync(350);
     expect(overlay.isConnected).toBe(false);
     settle('queued');
@@ -238,10 +236,12 @@ describe('AstraRatingModal save lifecycle without visual changes', () => {
 /** Captures the completion callback a background close hands to the rating service. */
 function captureDrain(rating: ReturnType<typeof setup>['rating']) {
   const drain: { settle?: (result: 'synced' | 'queued') => void } = {};
-  rating.saveAndSync.mockImplementation(async (_work: AstraWork, extra: AstraSaveOptions): Promise<AstraSaveResult> => {
-    drain.settle = extra.onDispatched;
-    return 'queued';
-  });
+  rating.saveAndSync.mockImplementation(
+    async (_work: AstraWork, extra: AstraSaveOptions): Promise<AstraSaveResult> => {
+      drain.settle = extra.onDispatched;
+      return 'queued';
+    }
+  );
   return (result: 'synced' | 'queued') => drain.settle?.(result);
 }
 
@@ -251,7 +251,10 @@ describe('AstraRatingModal background sync feedback', () => {
     chrome.runtime.id = 'test';
     document.body.innerHTML = '';
     vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -260,65 +263,13 @@ describe('AstraRatingModal background sync feedback', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('reloads once when a synced drain lands while the closing view is still on screen', async () => {
+  it('never reloads the page after a synced save', async () => {
     const { modal, rating } = setup();
     const settle = captureDrain(rating);
     const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
     await modal.close();
     settle('synced');
-    expect(reload).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(400);
-    expect(reload).toHaveBeenCalledOnce();
-  });
-
-  it('reloads a synced drain that lands after the closing animation on the same page', async () => {
-    const { modal, rating } = setup();
-    const settle = captureDrain(rating);
-    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
-    await modal.close();
-    await vi.advanceTimersByTimeAsync(400);
-    settle('synced');
-    expect(reload).toHaveBeenCalledOnce();
-  });
-
-  it('does not reload after the user navigated to another page', async () => {
-    const { modal, rating } = setup();
-    const settle = captureDrain(rating);
-    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
-    await modal.close();
-    window.history.pushState({}, '', '/anime/999');
-    settle('synced');
-    expect(reload).not.toHaveBeenCalled();
-  });
-
-  it('does not reload when another Astra view has opened since the close', async () => {
-    const { modal, rating } = setup();
-    const settle = captureDrain(rating);
-    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
-    await modal.close();
-    Object.assign(modal, { overlay: document.createElement('div') });
-    settle('synced');
-    expect(reload).not.toHaveBeenCalled();
-  });
-
-  it('does not reload while a form field has focus', async () => {
-    const { modal, rating } = setup();
-    const settle = captureDrain(rating);
-    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
-    const field = document.createElement('input');
-    document.body.appendChild(field);
-    await modal.close();
-    field.focus();
-    settle('synced');
-    expect(reload).not.toHaveBeenCalled();
-  });
-
-  it('does not reload when the close asked to suppress it', async () => {
-    const { modal, rating } = setup();
-    const settle = captureDrain(rating);
-    const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
-    await modal.close({ suppressReload: true });
-    settle('synced');
     expect(reload).not.toHaveBeenCalled();
   });
 
@@ -378,29 +329,43 @@ describe('AstraRatingModal quick-edit data protection', () => {
           <div class="astra-status-option" data-value="COMPLETED">Completed</div>
         </div></div><input id="astra-status" value="CURRENT">`;
     // Keep these isolated tests focused on the form controls, without rendering the journal.
-    Object.assign(f.modal, { renderEpisodeJournal: () => {},
-      viewScope: new AstraRatingViewScope(f.overlay, () => true, error => { throw error; }) });
+    Object.assign(f.modal, {
+      renderEpisodeJournal: () => {},
+      viewScope: new AstraRatingViewScope(
+        f.overlay,
+        () => true,
+        (error) => {
+          throw error;
+        }
+      ),
+    });
     inspect(f.modal).attachEvents();
     return f;
   }
 
-  it.each(['input', 'change', 'stepper'])('completes the visible form and saved entry at the total via %s', async action => {
-    const { modal, state, overlay, rating } = completionSetup();
-    if (action === 'stepper') overlay.querySelector<HTMLButtonElement>('.astra-step-btn')!.click();
-    else {
-      const input = overlay.querySelector<HTMLInputElement>('#astra-progress')!;
-      input.value = '10';
-      input.dispatchEvent(new Event(action, { bubbles: true }));
+  it.each(['input', 'change', 'stepper'])(
+    'completes the visible form and saved entry at the total via %s',
+    async (action) => {
+      const { modal, state, overlay, rating } = completionSetup();
+      if (action === 'stepper')
+        overlay.querySelector<HTMLButtonElement>('.astra-step-btn')!.click();
+      else {
+        const input = overlay.querySelector<HTMLInputElement>('#astra-progress')!;
+        input.value = '10';
+        input.dispatchEvent(new Event(action, { bubbles: true }));
+      }
+      expect(state.data.status).toBe(MediaListStatus.COMPLETED);
+      expect(overlay.querySelector('#astra-status-label')!.textContent).toBe('Completed');
+      expect(overlay.querySelector<HTMLInputElement>('#astra-status')!.value).toBe('COMPLETED');
+      expect(overlay.querySelector('.astra-status-option.active')!.getAttribute('data-value')).toBe(
+        'COMPLETED'
+      );
+      expect(overlay.querySelector('#astra-status-icon')!.tagName).toBe('I');
+      await inspect(modal).save();
+      expect(rating.saveAndSync.mock.calls[0][0].status).toBe(MediaListStatus.COMPLETED);
+      expect(rating.saveAndSync.mock.calls[0][1].progress).toBe(10);
     }
-    expect(state.data.status).toBe(MediaListStatus.COMPLETED);
-    expect(overlay.querySelector('#astra-status-label')!.textContent).toBe('Completed');
-    expect(overlay.querySelector<HTMLInputElement>('#astra-status')!.value).toBe('COMPLETED');
-    expect(overlay.querySelector('.astra-status-option.active')!.getAttribute('data-value')).toBe('COMPLETED');
-    expect(overlay.querySelector('#astra-status-icon')!.tagName).toBe('I');
-    await inspect(modal).save();
-    expect(rating.saveAndSync.mock.calls[0][0].status).toBe(MediaListStatus.COMPLETED);
-    expect(rating.saveAndSync.mock.calls[0][1].progress).toBe(10);
-  });
+  );
 
   it('also completes when the progress value is captured during save', async () => {
     const { modal, overlay, rating } = completionSetup();
@@ -412,7 +377,9 @@ describe('AstraRatingModal quick-edit data protection', () => {
   it('keeps watching when caught up with aired episodes but the final total is unknown', async () => {
     const { modal, state, overlay, rating } = completionSetup();
     // A fresh AniList response overrides a stale total in the local cache.
-    Object.assign(modal, { media: { episodes: null, chapters: null, nextAiringEpisode: { episode: 11 } } });
+    Object.assign(modal, {
+      media: { episodes: null, chapters: null, nextAiringEpisode: { episode: 11 } },
+    });
     overlay.querySelector<HTMLInputElement>('#astra-progress')!.value = '10';
     await inspect(modal).save();
     expect(state.data.status).toBe(MediaListStatus.CURRENT);
@@ -472,7 +439,9 @@ describe('AstraRatingModal quick-edit data protection', () => {
     expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ skipSync: true });
     expect(rating.saveAndSync.mock.calls[0][1]).not.toHaveProperty('dispatch');
     expect(toast.error).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledWith('Saved in Astra only: this title is not on your AniList list. Pick a status to add it.');
+    expect(toast.info).toHaveBeenCalledWith(
+      'Saved in Astra only: this title is not on your AniList list. Pick a status to add it.'
+    );
   });
 
   it('explicit Save on an unlisted title commits locally and clears the draft without an AniList write', async () => {
@@ -487,8 +456,10 @@ describe('AstraRatingModal quick-edit data protection', () => {
 
   it('auto-saves on close with background dispatch so a slow AniList round-trip cannot hold the modal open', async () => {
     const { modal, overlay, rating } = setup();
-    rating.saveAndSync.mockImplementation(async (_work: AstraWork, extra: AstraSaveOptions): Promise<AstraSaveResult> =>
-      extra.dispatch === 'background' ? 'queued' : new Promise<AstraSaveResult>(() => {}));
+    rating.saveAndSync.mockImplementation(
+      async (_work: AstraWork, extra: AstraSaveOptions): Promise<AstraSaveResult> =>
+        extra.dispatch === 'background' ? 'queued' : new Promise<AstraSaveResult>(() => {})
+    );
     await modal.close();
     await vi.advanceTimersByTimeAsync(400);
     expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ dispatch: 'background' });
@@ -498,10 +469,9 @@ describe('AstraRatingModal quick-edit data protection', () => {
   it('does not reload the host when closing hands off to the dashboard after a synced save', async () => {
     const { modal, state, overlay } = setup();
     const reload = vi.spyOn(inspect(modal), 'reloadHost').mockImplementation(() => {});
-    inspect(modal).reloadAfterClose = true;
     state.isDirty = false;
     (overlay.querySelector('#astra-progress') as HTMLInputElement).value = '1';
-    await modal.close({ suppressReload: true });
+    await modal.close();
     await vi.advanceTimersByTimeAsync(400);
     expect(reload).not.toHaveBeenCalled();
     expect(overlay.isConnected).toBe(false);

@@ -17,4 +17,17 @@ describe('native Load More restoration', () => {
     ensurePersistentLoadMore(document.querySelector('.activity-feed')!); removePersistentLoadMore();
     expect(native.style.display).toBe('');
   });
+  it('does not mutate the feed when reconciling an unchanged control', async () => {
+    document.body.innerHTML = '<div class="activity-feed-wrap"><div class="activity-feed"></div></div>';
+    const feed = document.querySelector('.activity-feed')!;
+    ensurePersistentLoadMore(feed);
+    const records: MutationRecord[] = [];
+    const observer = new MutationObserver(list => records.push(...list));
+    observer.observe(feed, { childList: true, subtree: true });
+    ensurePersistentLoadMore(feed); ensurePersistentLoadMore(feed);
+    await Promise.resolve();
+    observer.disconnect();
+    // A childList record here re-triggers the feed observers that call this again: an endless loop.
+    expect(records).toHaveLength(0);
+  });
 });

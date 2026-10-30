@@ -23,18 +23,30 @@ describe('ActivityScoreModule async lifecycle', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     history.replaceState({}, '', '/home');
-    document.body.innerHTML = '<div class="activity-entry"><a href="/user/Friend/">Friend</a><a href="/anime/10/title">Title</a></div>';
+    document.body.innerHTML =
+      '<div class="activity-entry"><a href="/user/Friend/">Friend</a><a href="/anime/10/title">Title</a></div>';
     scores = vi.fn(async (): Promise<ScoreMap> => new Map());
-    bus = new EventBus(); clearCache = vi.fn(async () => {});
-    module = new ActivityScoreModule({ getScoresBatch: scores, clearCache } as unknown as ActivityService, bus);
+    bus = new EventBus();
+    clearCache = vi.fn(async () => {});
+    module = new ActivityScoreModule(
+      { getScoresBatch: scores, clearCache } as unknown as ActivityService,
+      bus
+    );
     internals = module as unknown as Internals;
   });
-  afterEach(async () => { await module.destroy(); vi.useRealTimers(); vi.restoreAllMocks(); document.body.innerHTML = ''; });
+  afterEach(async () => {
+    await module.destroy();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    document.body.innerHTML = '';
+  });
 
   it('allows retrying a score lookup after a transient failure', async () => {
     internals.checkAndProcess();
     await vi.advanceTimersByTimeAsync(1500);
-    expect(document.querySelector('.activity-entry')!.hasAttribute('data-au-score-enhanced')).toBe(false);
+    expect(document.querySelector('.activity-entry')!.hasAttribute('data-au-score-enhanced')).toBe(
+      false
+    );
     scores.mockResolvedValue(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]));
     internals.checkAndProcess();
     await vi.advanceTimersByTimeAsync(1500);
@@ -51,7 +63,11 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('does not register an observer after destroy while waiting for a feed', async () => {
     let resolve!: (value: HTMLElement | null) => void;
-    vi.spyOn(internals, 'waitForElement').mockReturnValue(new Promise(r => { resolve = r; }));
+    vi.spyOn(internals, 'waitForElement').mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
     const register = vi.spyOn(internals, 'registerObserver');
     const pending = internals.startObservation();
     await module.destroy();
@@ -62,7 +78,11 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('ignores an in-flight score response after destroy', async () => {
     let resolve!: (value: ScoreMap) => void;
-    scores.mockReturnValue(new Promise(r => { resolve = r; }));
+    scores.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
     internals.checkAndProcess();
     const pending = internals.processBatch();
     await module.destroy();
@@ -73,7 +93,12 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('can process reused entries after navigation while ignoring an older in-flight batch', async () => {
     let resolve!: (value: ScoreMap) => void;
-    scores.mockReturnValueOnce(new Promise(r => { resolve = r; }))
+    scores
+      .mockReturnValueOnce(
+        new Promise((r) => {
+          resolve = r;
+        })
+      )
       .mockResolvedValueOnce(new Map([['Friend-10', { score: 80, format: 'POINT_100' }]]));
     internals.checkAndProcess();
     const oldBatch = internals.processBatch();
@@ -86,16 +111,34 @@ describe('ActivityScoreModule async lifecycle', () => {
     expect(document.querySelector('.au-activity-rating')?.textContent).toBe('80');
   });
 
-  it.each(['/character/1/social', '/staff/2/social', '/search/user/Friend', '/social', '/homework', '/activity/10evil', '/activity/2147483648', '/anime/2147483648/social'])('excludes unrelated routes: %s', async path => {
+  it.each([
+    '/character/1/social',
+    '/staff/2/social',
+    '/search/user/Friend',
+    '/social',
+    '/homework',
+    '/activity/10evil',
+    '/activity/2147483648',
+    '/anime/2147483648/social',
+  ])('excludes unrelated routes: %s', async (path) => {
     history.replaceState({}, '', path);
-    internals.checkAndProcess(); await vi.advanceTimersByTimeAsync(2000);
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(2000);
     expect(scores).not.toHaveBeenCalled();
   });
 
-  it.each(['/', '/home/', '/user/Friend/', '/anime/10/title/social', '/manga/10/social', '/activity/99'])('processes supported feed routes: %s', async path => {
+  it.each([
+    '/',
+    '/home/',
+    '/user/Friend/',
+    '/anime/10/title/social',
+    '/manga/10/social',
+    '/activity/99',
+  ])('processes supported feed routes: %s', async (path) => {
     history.replaceState({}, '', path);
     scores.mockResolvedValue(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]));
-    internals.checkAndProcess(); await vi.advanceTimersByTimeAsync(1500);
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(1500);
     expect(scores).toHaveBeenCalledExactlyOnceWith([{ userName: 'Friend', mediaId: 10 }]);
     expect(document.querySelector('.au-activity-rating')?.textContent).toBe('85');
   });
@@ -104,20 +147,26 @@ describe('ActivityScoreModule async lifecycle', () => {
     const user = document.querySelector('a[href^="/user/"]')!;
     const media = document.querySelector('a[href^="/anime/"]')!;
     user.setAttribute('href', '/user/Friend%20Name/');
-    internals.checkAndProcess(); await internals.processBatch();
+    internals.checkAndProcess();
+    await internals.processBatch();
     expect(scores).toHaveBeenLastCalledWith([{ userName: 'Friend Name', mediaId: 10 }]);
     for (const href of ['/anime/10evil', '/anime/2147483648/title', '/anime/0/title']) {
-      internals.stopObservation(); media.setAttribute('href', href);
-      internals.checkAndProcess(); await internals.processBatch();
+      internals.stopObservation();
+      media.setAttribute('href', href);
+      internals.checkAndProcess();
+      await internals.processBatch();
     }
     expect(scores).toHaveBeenCalledTimes(1);
   });
 
   it('processes nested selectors once and rescans entries whose identity changed', async () => {
-    document.body.innerHTML = '<div class="activity-entry"><div class="list small"><a href="/user/Friend/">Friend</a><a href="/anime/10/title">Title</a></div></div>';
-    scores.mockResolvedValueOnce(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]))
+    document.body.innerHTML =
+      '<div class="activity-entry"><div class="list small"><a href="/user/Friend/">Friend</a><a href="/anime/10/title">Title</a></div></div>';
+    scores
+      .mockResolvedValueOnce(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]))
       .mockResolvedValueOnce(new Map([['Friend-20', { score: 70, format: 'POINT_100' }]]));
-    internals.checkAndProcess(); await internals.processBatch();
+    internals.checkAndProcess();
+    await internals.processBatch();
     expect(document.querySelectorAll('.au-activity-rating')).toHaveLength(1);
     document.querySelector('a[href^="/anime/"]')!.setAttribute('href', '/anime/20/title');
     internals.checkAndProcess();
@@ -129,10 +178,18 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('does not apply a response to a node reused for another media before a rescan', async () => {
     let resolve!: (value: ScoreMap) => void;
-    scores.mockReturnValueOnce(new Promise(done => { resolve = done; })).mockResolvedValueOnce(new Map([['Friend-20', { score: 70, format: 'POINT_100' }]]));
-    internals.checkAndProcess(); const pending = internals.processBatch();
+    scores
+      .mockReturnValueOnce(
+        new Promise((done) => {
+          resolve = done;
+        })
+      )
+      .mockResolvedValueOnce(new Map([['Friend-20', { score: 70, format: 'POINT_100' }]]));
+    internals.checkAndProcess();
+    const pending = internals.processBatch();
     document.querySelector('a[href^="/anime/"]')!.setAttribute('href', '/anime/20/title');
-    resolve(new Map([['Friend-10', { score: 90, format: 'POINT_100' }]])); await pending;
+    resolve(new Map([['Friend-10', { score: 90, format: 'POINT_100' }]]));
+    await pending;
     expect(document.querySelector('.au-activity-rating')).toBeNull();
     await vi.advanceTimersByTimeAsync(1500);
     expect(document.querySelector('.au-activity-rating')?.textContent).toBe('70');
@@ -140,12 +197,22 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('preserves the latest token when a pending node changes A to B to A', async () => {
     let resolve!: (value: ScoreMap) => void;
-    scores.mockReturnValueOnce(new Promise(done => { resolve = done; })).mockResolvedValueOnce(new Map([['Friend-10', { score: 75, format: 'POINT_100' }]]));
-    internals.checkAndProcess(); const pending = internals.processBatch();
+    scores
+      .mockReturnValueOnce(
+        new Promise((done) => {
+          resolve = done;
+        })
+      )
+      .mockResolvedValueOnce(new Map([['Friend-10', { score: 75, format: 'POINT_100' }]]));
+    internals.checkAndProcess();
+    const pending = internals.processBatch();
     const link = document.querySelector('a[href^="/anime/"]')!;
-    link.setAttribute('href', '/anime/20/title'); internals.checkAndProcess();
-    link.setAttribute('href', '/anime/10/title'); internals.checkAndProcess();
-    resolve(new Map([['Friend-10', { score: 90, format: 'POINT_100' }]])); await pending;
+    link.setAttribute('href', '/anime/20/title');
+    internals.checkAndProcess();
+    link.setAttribute('href', '/anime/10/title');
+    internals.checkAndProcess();
+    resolve(new Map([['Friend-10', { score: 90, format: 'POINT_100' }]]));
+    await pending;
     expect(document.querySelector('.au-activity-rating')).toBeNull();
     await internals.processBatch();
     expect(document.querySelector('.au-activity-rating')?.textContent).toBe('75');
@@ -153,9 +220,11 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('removes old account badges immediately and refetches after cache invalidation', async () => {
     document.body.firstElementChild!.classList.add('activity-feed');
-    scores.mockResolvedValueOnce(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]))
+    scores
+      .mockResolvedValueOnce(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]))
       .mockResolvedValueOnce(new Map([['Friend-10', { score: 70, format: 'POINT_100' }]]));
-    await module.init(); await vi.advanceTimersByTimeAsync(1500);
+    await module.init();
+    await vi.advanceTimersByTimeAsync(1500);
     expect(document.querySelector('.au-activity-rating')?.textContent).toBe('85');
     bus.emit(EVENT_TYPES.AUTH_STATE_CHANGED, { isAuthenticated: false, timestamp: new Date() });
     expect(document.querySelector('.au-activity-rating')).toBeNull();
@@ -165,11 +234,14 @@ describe('ActivityScoreModule async lifecycle', () => {
   });
 
   it('retries entries previously marked as no score after the media changes', async () => {
-    scores.mockResolvedValueOnce(new Map([['Friend-10', null]]))
+    scores
+      .mockResolvedValueOnce(new Map([['Friend-10', null]]))
       .mockResolvedValueOnce(new Map([['Friend-20', { score: 80, format: 'POINT_100' }]]));
-    internals.checkAndProcess(); await internals.processBatch();
+    internals.checkAndProcess();
+    await internals.processBatch();
     document.querySelector('a[href^="/anime/"]')!.setAttribute('href', '/anime/20/title');
-    internals.checkAndProcess(); await internals.processBatch();
+    internals.checkAndProcess();
+    await internals.processBatch();
     expect(document.querySelector('.au-activity-rating')?.textContent).toBe('80');
   });
 
@@ -184,9 +256,11 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('observes actual href changes and clears timers and observers on destruction', async () => {
     document.body.innerHTML = `<div class="activity-feed">${document.body.innerHTML}</div>`;
-    scores.mockResolvedValueOnce(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]))
+    scores
+      .mockResolvedValueOnce(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]))
       .mockResolvedValueOnce(new Map([['Friend-20', { score: 70, format: 'POINT_100' }]]));
-    await module.init(); await vi.advanceTimersByTimeAsync(1500);
+    await module.init();
+    await vi.advanceTimersByTimeAsync(1500);
     document.querySelector('a[href^="/anime/"]')!.setAttribute('href', '/anime/20/title');
     await vi.advanceTimersByTimeAsync(2000);
     expect(document.querySelector('.au-activity-rating')?.textContent).toBe('70');
@@ -198,12 +272,103 @@ describe('ActivityScoreModule async lifecycle', () => {
 
   it('does not restart an obsolete account handler after navigation or destroy', async () => {
     document.body.innerHTML = `<div class="activity-feed">${document.body.innerHTML}</div>`;
-    let resolve!: () => void; clearCache.mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    let resolve!: () => void;
+    clearCache.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      })
+    );
     await module.init();
     bus.emit(EVENT_TYPES.AUTH_STATE_CHANGED, { isAuthenticated: false, timestamp: new Date() });
     history.replaceState({}, '', '/character/1/social');
-    bus.emit(EVENT_TYPES.PAGE_CHANGED, { path: '/character/1/social', previousPath: '/home', timestamp: new Date() });
-    await module.destroy(); resolve(); await vi.advanceTimersByTimeAsync(2000);
-    expect(scores).not.toHaveBeenCalled(); expect(vi.getTimerCount()).toBe(0);
+    bus.emit(EVENT_TYPES.PAGE_CHANGED, {
+      path: '/character/1/social',
+      previousPath: '/home',
+      timestamp: new Date(),
+    });
+    await module.destroy();
+    resolve();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(scores).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('skips a text entry that links two different works', async () => {
+    document.body.innerHTML =
+      '<div class="activity-entry"><a href="/user/Friend/">Friend</a><a href="/anime/10/title">One</a><a href="/anime/20/title">Two</a></div>';
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(scores).not.toHaveBeenCalled();
+    expect(document.querySelector('.au-activity-rating')).toBeNull();
+    expect(document.querySelector('.activity-entry')!.getAttribute('data-au-score-enhanced')).toBe(
+      'skipped'
+    );
+  });
+
+  it('processes a text entry that links exactly one work', async () => {
+    document.body.innerHTML =
+      '<div class="activity-entry"><a href="/user/Friend/">Friend</a><p>Great show <a href="/anime/10/title">One</a></p></div>';
+    scores.mockResolvedValue(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]));
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(scores).toHaveBeenCalledExactlyOnceWith([{ userName: 'Friend', mediaId: 10 }]);
+    expect(document.querySelector('.au-activity-rating')?.textContent).toBe('85');
+  });
+
+  it('processes a list entry whose cover and title link the same work', async () => {
+    document.body.innerHTML =
+      '<div class="activity-entry"><a href="/user/Friend/">Friend</a><a class="cover" href="/anime/10/title"></a><a class="title" href="/anime/10/title">Title</a></div>';
+    scores.mockResolvedValue(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]));
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(scores).toHaveBeenCalledExactlyOnceWith([{ userName: 'Friend', mediaId: 10 }]);
+    expect(document.querySelector('.au-activity-rating')?.textContent).toBe('85');
+  });
+
+  it('ignores media links that only appear inside a reply', async () => {
+    document.body.innerHTML =
+      '<div class="activity-entry"><a href="/user/Friend/">Friend</a><div class="reply"><a href="/anime/10/title">Quoted</a></div></div>';
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(scores).not.toHaveBeenCalled();
+    expect(document.querySelector('.activity-entry')!.getAttribute('data-au-score-enhanced')).toBe(
+      'skipped'
+    );
+  });
+
+  it.each(['/home', '/user/Friend/'])(
+    'places a list row badge right after the work title on %s',
+    async (path) => {
+      history.replaceState({}, '', path);
+      document.body.innerHTML =
+        '<div class="activity-entry activity-anime_list"><div class="wrap"><div class="list small"><a href="/anime/10/title" class="cover"></a> <div class="details"><a href="/user/Friend/" class="name">Friend</a> <div class="status">Completed <a href="/anime/10/title" class="title">Title</a></div> <a href="/user/Friend/" class="avatar"></a></div></div><div class="time">1h</div><div class="actions"></div></div></div>';
+      scores.mockResolvedValue(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]));
+      internals.checkAndProcess();
+      await vi.advanceTimersByTimeAsync(1500);
+      const badge = document.querySelector<HTMLElement>('.au-activity-rating');
+      expect(badge?.previousElementSibling).toBe(document.querySelector('.status a.title'));
+      expect(badge?.classList.contains('au-activity-rating--after-title')).toBe(true);
+    }
+  );
+
+  it('places a text post badge right after the username link', async () => {
+    document.body.innerHTML =
+      '<div class="activity-entry"><div class="header"><a href="/user/Friend/" class="name">Friend</a></div><div class="activity-markdown"><div class="markdown"><p>Great show <a href="/anime/10/title">One</a></p></div></div></div>';
+    scores.mockResolvedValue(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]));
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(1500);
+    const badge = document.querySelector<HTMLElement>('.au-activity-rating');
+    expect(badge?.previousElementSibling).toBe(document.querySelector('a.name'));
+    expect(badge?.classList.contains('au-activity-rating--after-title')).toBe(false);
+  });
+
+  it('counts only the entry body when a reply links a different work', async () => {
+    document.body.innerHTML =
+      '<div class="activity-entry"><a href="/user/Friend/">Friend</a><a href="/anime/10/title">Body</a><div class="activity-replies"><a href="/anime/20/title">Quoted</a></div></div>';
+    scores.mockResolvedValue(new Map([['Friend-10', { score: 85, format: 'POINT_100' }]]));
+    internals.checkAndProcess();
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(scores).toHaveBeenCalledExactlyOnceWith([{ userName: 'Friend', mediaId: 10 }]);
+    expect(document.querySelector('.au-activity-rating')?.textContent).toBe('85');
   });
 });

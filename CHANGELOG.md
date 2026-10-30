@@ -1,5 +1,47 @@
 # Release notes
 
+## 1.1.0
+
+AniList Ultimate is no longer a beta: the extension name and description drop the beta label.
+
+### People in common
+
+- On another user's profile, a line under the name shows how many people you follow also follow them, how many they follow, and how many of those are in your custom user lists. Clicking a number lists them, with a search box for long lists.
+- The profile's Social tab shows counts for Mutual Followers, Forum Threads, Forum Comments and Messages. Messages counts only what the profile sent on other people's profiles, as AniList's own tab does.
+
+### Activity feeds
+
+- Custom-list feeds look and behave like AniList's own feed. Text posts keep their formatting, spoilers, images and YouTube videos, and links open without reloading the page.
+- Likes in custom feeds work. Without the extension login, a message explains how to connect.
+- Filters work on custom lists. On a custom list, or on Following with the extension login, a filter fetches matching activity from AniList, so a filter such as Dropped no longer leaves the feed empty. Load More continues the same results.
+- The selected custom list is remembered across reloads and no longer empties or stays loading after moving between pages. Custom feeds load faster.
+- Score badges sit right after the title, and only on activities about a single title.
+
+### Astra
+
+- Saving from the Astra editor no longer reloads the page, and Quick Edit no longer waits on "Loading entry…".
+- A Revert changes button undoes every change made since the editor was opened.
+- The title in the editor follows the Open in New Tab setting.
+
+### Calendar
+
+- Add to Calendar shows airing titles from Search AniList with guidance instead of hiding them, and keeps your search text when switching between your lists and Search AniList.
+- A button next to + and settings moves the calendar between the side column and full width.
+
+### Custom User Lists settings
+
+- The AU - Custom Lists link matches AniList's settings menu again.
+- Hovering a member's avatar shows that clicking it opens their profile.
+- Help messages adapt to the page you are on, and Retry appears only when it can help.
+
+### Notifications
+
+- Titles in notifications follow your AniList title language.
+
+### Fixes
+
+- The home page no longer keeps the processor busy in the background.
+
 ## 1.0.4
 
 ### Firefox

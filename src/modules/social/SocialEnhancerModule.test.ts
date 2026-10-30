@@ -28,7 +28,7 @@ describe('social portal async cleanup', () => {
     const service = { getFriendActivityBatch: vi.fn(() => { const request = deferred<Map<number, FriendActivity[]>>(); requests.push(request); return request.promise; }) };
     let enabled = true;
     let prefsCallback!: (prefs: AppPreferences) => void;
-    const prefs = { socialEnabled: true, socialShowAvatars: true, enableAstra: true, enableSocialFeatures: true, autoUpdateProgress: false, compactMode: false };
+    const prefs = { socialEnabled: true, socialShowAvatars: true, enableAstra: true, enableSocialFeatures: true, autoUpdateProgress: false, compactMode: false, openInNewTab: false };
     const unsubscribe = vi.fn();
     const preferences = { isSocialEnabled: () => enabled, getPreferences: () => ({ ...prefs, socialEnabled: enabled }), onChanges: vi.fn((callback: typeof prefsCallback) => { prefsCallback = callback; return unsubscribe; }) };
     const renderer = new SocialRenderer(preferences as never); const attach = vi.spyOn(renderer, 'attachPortal');

@@ -78,6 +78,38 @@ describe('custom list client resource lifetime and pending requests', () => {
     for (const listener of storageListeners) listener({ [key]: { newValue: {} } }, area);
   };
 
+  it('whenReady resolves from the session snapshot while refreshing it in the background', async () => {
+    const { client, switchSession, bus } = setup();
+    await client.init();
+    const gate = deferred<unknown>();
+    vi.mocked(chrome.runtime.sendMessage).mockImplementationOnce((() => gate.promise) as never);
+    let resolved = false;
+    await client.whenReady().then(() => (resolved = true));
+    expect(resolved).toBe(true);
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(2);
+    gate.resolve(response());
+
+    switchSession('two');
+    const slow = deferred<unknown>();
+    vi.mocked(chrome.runtime.sendMessage).mockImplementationOnce((() => slow.promise) as never);
+    let afterSwitch = false;
+    const pending = client.whenReady().then(() => (afterSwitch = true));
+    await Promise.resolve();
+    expect(afterSwitch).toBe(false);
+    slow.resolve(response());
+    await pending;
+    expect(afterSwitch).toBe(true);
+
+    bus.emit(EVENT_TYPES.AUTH_STATE_CHANGED as never, {} as never);
+    const afterAuth = deferred<unknown>();
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((() => afterAuth.promise) as never);
+    let authResolved = false;
+    const waiting = client.whenReady().then(() => (authResolved = true));
+    await Promise.resolve();
+    expect(authResolved).toBe(false);
+    afterAuth.resolve(response());
+    await waiting;
+  });
   it('disposes each exact browser listener and the account subscription once and clears its snapshot', async () => {
     const { client, bus } = setup();
     await client.init();

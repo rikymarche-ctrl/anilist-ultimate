@@ -131,97 +131,188 @@ describe('friend alerts background owner', () => {
     expect(parseFriendAlerts(f.state()).rules).toHaveLength(31);
   });
   it('does not refetch metadata or reset the start time for an unchanged subscription', async () => {
-    const f = fixture(); await f.watch(); f.tick(); await f.watch();
+    const f = fixture();
+    await f.watch();
+    f.tick();
+    await f.watch();
     expect(f.api.query).toHaveBeenCalledTimes(1);
     expect(f.state().rules[0].since).toBe(1000);
   });
+  it('names a new watched title by the viewer-preferred title, then romaji, then English', async () => {
+    const f = fixture();
+    f.api.query.mockResolvedValueOnce({
+      Media: {
+        id: 10,
+        type: 'ANIME',
+        title: {
+          userPreferred: 'Seitokai ni mo Ana wa Aru!',
+          romaji: 'Romaji',
+          english: 'English',
+        },
+      },
+    });
+    expect((await f.watch()).rules[0].title).toBe('Seitokai ni mo Ana wa Aru!');
+    const g = fixture();
+    g.api.query.mockResolvedValueOnce({
+      Media: {
+        id: 10,
+        type: 'ANIME',
+        title: { userPreferred: null, romaji: 'Romaji', english: 'English' },
+      },
+    });
+    expect((await g.watch()).rules[0].title).toBe('Romaji');
+    const h = fixture();
+    h.api.query.mockResolvedValueOnce({
+      Media: {
+        id: 10,
+        type: 'ANIME',
+        title: { userPreferred: null, romaji: null, english: 'English' },
+      },
+    });
+    expect((await h.watch()).rules[0].title).toBe('English');
+  });
   it('reuses the saved title metadata when changing an existing audience', async () => {
-    const f = fixture(); await f.watch(); f.tick(); await f.watch('Best Friends');
+    const f = fixture();
+    await f.watch();
+    f.tick();
+    await f.watch('Best Friends');
     expect(f.api.query).toHaveBeenCalledTimes(1);
     expect(f.state().rules[0]).toMatchObject({ list: 'Best Friends', since: 1200, title: 'Title' });
   });
 
   it('does not backfill a newer subscription from the group’s older time window', async () => {
     const f = fixture();
-    f.data.friend_alerts_account_1 = { ...emptyFriendAlerts(), rules: [
-      { mediaId: 10, title: 'Old', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
-      { mediaId: 20, title: 'New', mediaType: 'ANIME', list: null, since: 1100, checkedAt: 0 },
-    ] };
+    f.data.friend_alerts_account_1 = {
+      ...emptyFriendAlerts(),
+      rules: [
+        { mediaId: 10, title: 'Old', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
+        { mediaId: 20, title: 'New', mediaType: 'ANIME', list: null, since: 1100, checkedAt: 0 },
+      ],
+    };
     f.tick();
-    f.api.query.mockResolvedValueOnce(page([activity(7), activity(8, 1050, 2, 20), activity(9, 1150, 2, 20)]));
+    f.api.query.mockResolvedValueOnce(
+      page([activity(7), activity(8, 1050, 2, 20), activity(9, 1150, 2, 20)])
+    );
     const result = await f.host.dispatch('poll', undefined, 'one');
     expect(f.api.query).toHaveBeenCalledTimes(1);
-    expect(result.alerts.map(entry => entry.id)).toEqual([9, 7]);
+    expect(result.alerts.map((entry) => entry.id)).toEqual([9, 7]);
     // The older rule's checkpoint lags the window by the overlap; the newer rule keeps its own start.
-    expect(result.rules.map(entry => entry.since)).toEqual([1200 - POLL_OVERLAP_SECONDS, 1100]);
+    expect(result.rules.map((entry) => entry.since)).toEqual([1200 - POLL_OVERLAP_SECONDS, 1100]);
   });
 
   it('restarts a shared backlog safely when a watched title is removed', async () => {
     const f = fixture();
-    f.data.friend_alerts_account_1 = { ...emptyFriendAlerts(), rules: [
-      { mediaId: 10, title: 'One', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
-      { mediaId: 20, title: 'Two', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
-    ] };
-    f.tick(); f.api.query.mockResolvedValueOnce(page([activity(7)], true));
+    f.data.friend_alerts_account_1 = {
+      ...emptyFriendAlerts(),
+      rules: [
+        { mediaId: 10, title: 'One', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
+        { mediaId: 20, title: 'Two', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
+      ],
+    };
+    f.tick();
+    f.api.query.mockResolvedValueOnce(page([activity(7)], true));
     await f.host.dispatch('poll', undefined, 'one');
     await f.host.dispatch('remove', { mediaId: 20 }, 'one');
     expect(f.state().groups).toEqual([]);
-    f.tick(500); await f.host.dispatch('poll', undefined, 'one');
-    expect(f.api.query.mock.calls.at(-1)?.[1]).toMatchObject({ mediaIds: [10], page: 1, since: 999 });
+    f.tick(500);
+    await f.host.dispatch('poll', undefined, 'one');
+    expect(f.api.query.mock.calls.at(-1)?.[1]).toMatchObject({
+      mediaIds: [10],
+      page: 1,
+      since: 999,
+    });
   });
 
   it('retains a shared page after malformed or unrelated results without partially collecting the group', async () => {
     const f = fixture();
-    f.data.friend_alerts_account_1 = { ...emptyFriendAlerts(), rules: [
-      { mediaId: 10, title: 'One', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
-      { mediaId: 20, title: 'Two', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
-    ] };
-    f.tick(); f.api.query.mockResolvedValueOnce(page([activity(7), activity(8, 1050, 2, 30)]));
+    f.data.friend_alerts_account_1 = {
+      ...emptyFriendAlerts(),
+      rules: [
+        { mediaId: 10, title: 'One', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
+        { mediaId: 20, title: 'Two', mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 },
+      ],
+    };
+    f.tick();
+    f.api.query.mockResolvedValueOnce(page([activity(7), activity(8, 1050, 2, 30)]));
     const result = await f.host.dispatch('poll', undefined, 'one');
-    expect(result.failed).toBe(true); expect(result.alerts).toEqual([]);
+    expect(result.failed).toBe(true);
+    expect(result.alerts).toEqual([]);
     expect(result.groups?.[0]).toMatchObject({ page: 1, since: 999, until: 1200 });
-    expect(result.rules.map(entry => entry.since)).toEqual([1000, 1000]);
+    expect(result.rules.map((entry) => entry.since)).toEqual([1000, 1000]);
   });
   it('checks fifty watched titles in one server-filtered group on every cycle', async () => {
     const f = fixture();
     f.data.friend_alerts_account_1 = {
       ...emptyFriendAlerts(),
-      rules: Array.from({ length: 50 }, (_, index) => ({ mediaId: index + 100,
-        title: 'Title ' + index, mediaType: 'ANIME', list: null, since: 1000, checkedAt: 0 })),
+      rules: Array.from({ length: 50 }, (_, index) => ({
+        mediaId: index + 100,
+        title: 'Title ' + index,
+        mediaType: 'ANIME',
+        list: null,
+        since: 1000,
+        checkedAt: 0,
+      })),
     };
     for (let cycle = 0; cycle < 2; cycle++) {
       f.tick(cycle * 300);
       const before = f.api.query.mock.calls.length;
       const result = await f.host.dispatch('poll', undefined, 'one');
       expect(f.api.query.mock.calls.length - before).toBe(1);
-      expect(f.api.query.mock.calls.at(-1)?.[1]?.mediaIds).toEqual(Array.from({ length: 50 }, (_, index) => index + 100));
-      expect(result.rules.every(rule => rule.checkedAt === 1100 + cycle * 300)).toBe(true);
+      expect(f.api.query.mock.calls.at(-1)?.[1]?.mediaIds).toEqual(
+        Array.from({ length: 50 }, (_, index) => index + 100)
+      );
+      expect(result.rules.every((rule) => rule.checkedAt === 1100 + cycle * 300)).toBe(true);
       expect(result.groups).toHaveLength(1);
     }
   });
   it('checks more than six different audiences in the same HTTP request', async () => {
     const f = fixture();
-    f.data.friend_alerts_account_1 = { ...emptyFriendAlerts(), rules: Array.from({ length: 12 }, (_, index) => ({
-      mediaId: index + 10, title: `Title ${index}`, mediaType: 'ANIME', list: `List ${index}`, since: 1000, checkedAt: 0,
-    })) };
-    f.lists.dispatch.mockResolvedValue(Object.fromEntries(Array.from({ length: 12 }, (_, index) => [
-      `List ${index}`, [{ id: index + 2, name: 'Friend', avatar: '' }],
-    ])) as never);
-    f.tick(); const result = await f.host.dispatch('poll', undefined, 'one');
+    f.data.friend_alerts_account_1 = {
+      ...emptyFriendAlerts(),
+      rules: Array.from({ length: 12 }, (_, index) => ({
+        mediaId: index + 10,
+        title: `Title ${index}`,
+        mediaType: 'ANIME',
+        list: `List ${index}`,
+        since: 1000,
+        checkedAt: 0,
+      })),
+    };
+    f.lists.dispatch.mockResolvedValue(
+      Object.fromEntries(
+        Array.from({ length: 12 }, (_, index) => [
+          `List ${index}`,
+          [{ id: index + 2, name: 'Friend', avatar: '' }],
+        ])
+      ) as never
+    );
+    f.tick();
+    const result = await f.host.dispatch('poll', undefined, 'one');
     expect(f.api.query).toHaveBeenCalledTimes(1);
-    expect(result.rules.every(rule => rule.since === 1200 - POLL_OVERLAP_SECONDS && rule.checkedAt === 1200)).toBe(true);
+    expect(
+      result.rules.every(
+        (rule) => rule.since === 1200 - POLL_OVERLAP_SECONDS && rule.checkedAt === 1200
+      )
+    ).toBe(true);
     expect(result.failed).toBe(false);
   });
 
   it('does not mark an already-read inbox item unread when a rebuilt group replays it', async () => {
-    const f = fixture(); await f.watch(); f.tick();
-    f.api.query.mockResolvedValueOnce(page([activity(7)])); await f.host.dispatch('poll', undefined, 'one');
+    const f = fixture();
+    await f.watch();
+    f.tick();
+    f.api.query.mockResolvedValueOnce(page([activity(7)]));
+    await f.host.dispatch('poll', undefined, 'one');
     await f.host.dispatch('read', { id: 7 }, 'one');
     // Simulate rebuilding a still-open historical window after a watchlist edit.
-    f.state().rules[0].since = 1000; f.state().rules[0].recent = []; f.state().groups = [];
-    f.tick(500); f.api.query.mockResolvedValueOnce(page([activity(7)]));
+    f.state().rules[0].since = 1000;
+    f.state().rules[0].recent = [];
+    f.state().groups = [];
+    f.tick(500);
+    f.api.query.mockResolvedValueOnce(page([activity(7)]));
     const result = await f.host.dispatch('poll', undefined, 'one');
-    expect(result.alerts).toHaveLength(1); expect(result.alerts[0].read).toBe(true);
+    expect(result.alerts).toHaveLength(1);
+    expect(result.alerts[0].read).toBe(true);
   });
   it('uses current custom list members even when they are not followed', async () => {
     const f = fixture();
@@ -487,14 +578,20 @@ describe('friend alerts background owner', () => {
     f.tick();
     const before = f.api.query.mock.calls.length;
     let release!: (value: unknown) => void;
-    f.api.query.mockImplementationOnce(() => new Promise(done => { release = done; }));
+    f.api.query.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          release = done;
+        })
+    );
     const polling = f.host.dispatch('poll', undefined, 'one');
-    for (let turn = 0; turn < 500 && f.api.query.mock.calls.length === before; turn++) await Promise.resolve();
+    for (let turn = 0; turn < 500 && f.api.query.mock.calls.length === before; turn++)
+      await Promise.resolve();
     expect(f.api.query.mock.calls.length).toBe(before + 1);
     const read = await f.host.dispatch('get', undefined, 'one');
     expect(read.rules).toHaveLength(1);
     release(page([activity(7, 1100)]));
-    expect((await polling).alerts.map(alert => alert.id)).toEqual([7]);
+    expect((await polling).alerts.map((alert) => alert.id)).toEqual([7]);
   });
   it('keeps an activity that became visible after a window closed, and dedupes its overlap repeat', async () => {
     const f = fixture();
@@ -504,10 +601,14 @@ describe('friend alerts background owner', () => {
     await f.host.dispatch('poll', undefined, 'one');
     f.tick(400); // 1500
     f.api.query.mockResolvedValueOnce(page([activity(7, 1100), activity(8, 1420)]));
-    expect((await f.host.dispatch('poll', undefined, 'one')).alerts.map(alert => alert.id)).toEqual([8, 7]);
+    expect(
+      (await f.host.dispatch('poll', undefined, 'one')).alerts.map((alert) => alert.id)
+    ).toEqual([8, 7]);
     f.tick(700); // 1800: the next window overlaps the previous one by POLL_OVERLAP_SECONDS.
     f.api.query.mockResolvedValueOnce(page([activity(8, 1420)]));
-    expect((await f.host.dispatch('poll', undefined, 'one')).alerts.map(alert => alert.id)).toEqual([8, 7]);
+    expect(
+      (await f.host.dispatch('poll', undefined, 'one')).alerts.map((alert) => alert.id)
+    ).toEqual([8, 7]);
   });
   it('makes no activity request when reserving the interval cannot be persisted', async () => {
     const f = fixture();

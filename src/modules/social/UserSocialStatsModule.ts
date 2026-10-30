@@ -9,9 +9,18 @@ import { logger } from '@core/logger';
 import { TOKENS } from '@core/di/tokens';
 import type { IEventBus } from '@core/interfaces/IEventBus';
 import { SocialService } from './SocialService';
+import { formatTally, type ProfileSocialCounts, type RelationTally } from './ProfileConnections';
+import type { ProfileConnectionsService } from './ProfileConnectionsService';
 
 const PROFILE_NAV_LINK_SELECTOR = '.header .nav.container .link';
 const SOCIAL_SIDEBAR_SELECTOR = '.user-social .filters';
+/** Sidebar entries AniList shows without a count, keyed by their lowercase label. */
+const EXTRA_SIDEBAR_COUNTS: Record<string, keyof ProfileSocialCounts> = {
+  'mutual followers': 'mutualFollowers',
+  'forum threads': 'forumThreads',
+  'forum comments': 'forumComments',
+  messages: 'messages',
+};
 
 interface ProfileRoute {
   username: string;
@@ -25,7 +34,8 @@ export class UserSocialStatsModule extends BaseModule {
 
   constructor(
     @inject(TOKENS.SocialService) private socialService: SocialService,
-    @inject(TOKENS.EventBus) protected eventBus: IEventBus
+    @inject(TOKENS.EventBus) protected eventBus: IEventBus,
+    @inject(TOKENS.ProfileConnectionsService) private connections: ProfileConnectionsService
   ) {
     super(eventBus);
   }
@@ -72,6 +82,7 @@ export class UserSocialStatsModule extends BaseModule {
 
       // Only a complete injection counts as processed; otherwise a later page change may retry it.
       if (navInjected && sidebarInjected) this.processedUser = route.key;
+      if (route.isSocialPage && sidebarInjected) await this.injectExtraSidebarCounts(user.id, route.key);
     } catch (error) {
       logger.error(`[UserSocialStatsModule] Failed to inject stats for ${route.username}`, error);
     }
@@ -105,6 +116,33 @@ export class UserSocialStatsModule extends BaseModule {
     return found.has('following') && found.has('followers');
   }
 
+  /** Mutual followers, forum threads/comments and messages; a capped count reads "150+". */
+  private async injectExtraSidebarCounts(profileId: number, routeKey: string): Promise<void> {
+    let counts: ProfileSocialCounts;
+    try {
+      counts = await this.connections.getSocialCounts(profileId);
+    } catch (error) {
+      logger.warn('[UserSocialStatsModule] Extra sidebar counts unavailable', error);
+      return;
+    }
+    if (this.currentRoute()?.key !== routeKey) return;
+    document.querySelectorAll<HTMLElement>(`${SOCIAL_SIDEBAR_SELECTOR} span`).forEach((item) => {
+      const field = EXTRA_SIDEBAR_COUNTS[this.ownLabel(item)];
+      const tally: RelationTally | null | undefined = field ? counts[field] : undefined;
+      if (tally) this.appendCount(item, formatTally(tally), 'au-sidebar-count');
+    });
+  }
+
+  /** The entry's own label, without a count this module appended earlier. */
+  private ownLabel(item: HTMLElement): string {
+    return [...item.childNodes]
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent ?? '')
+      .join('')
+      .trim()
+      .toLowerCase();
+  }
+
   private injectIntoProfileNav(counts: { following: number; followers: number }): boolean {
     const nav = document.querySelector('.header .nav.container');
     if (!nav) return false;
@@ -122,7 +160,7 @@ export class UserSocialStatsModule extends BaseModule {
     return injected;
   }
 
-  private appendCount(el: HTMLElement, count: number, className: string): void {
+  private appendCount(el: HTMLElement, count: number | string, className: string): void {
     if (el.querySelector(`.${className}`)) {
       const existing = el.querySelector(`.${className}`);
       if (existing) existing.textContent = ` (${count})`;

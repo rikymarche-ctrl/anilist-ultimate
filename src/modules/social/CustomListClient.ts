@@ -21,6 +21,8 @@ const sameLists = (left: CustomLists, right: CustomLists): boolean =>
 export class CustomListClient extends CustomListService implements Disposable {
   private version = 0;
   private appliedVersion = 0;
+  /** Session whose lists are in memory; storage and runtime signals keep that snapshot current. */
+  private snapshotSession: string | null = null;
   private disposed = false;
   private readonly listeners = new Set<() => void>();
   private readonly authSubscription: EventSubscription;
@@ -55,6 +57,7 @@ export class CustomListClient extends CustomListService implements Disposable {
     this.authSubscription = bus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => {
       if (this.disposed) return;
       this.version++;
+      this.snapshotSession = null;
       this.replaceLists({});
       this.refresh();
     });
@@ -131,11 +134,25 @@ export class CustomListClient extends CustomListService implements Disposable {
     // A signal refresh dispatched after this write must not hide the write's acknowledgement; only older snapshots are stale.
     if (version > this.appliedVersion) {
       this.appliedVersion = version;
+      this.snapshotSession = sessionId ?? null;
       this.replaceLists(structuredClone(response.data));
     }
   }
   override init(): Promise<void> {
     return this.request('get');
+  }
+  /**
+   * Resolves at once when this session's lists are already in memory (every SPA navigation
+   * re-injects the list UI, and the background read can queue behind auth checks for many
+   * seconds). The snapshot is refreshed in the background; change signals keep it current anyway.
+   */
+  override whenReady(): Promise<void> {
+    const current = this.auth.getSessionId();
+    if (current && this.snapshotSession === current) {
+      void this.init().catch(() => undefined);
+      return Promise.resolve();
+    }
+    return this.init();
   }
   override toggleUserInList(name: string, user: CustomListUser, active: boolean): Promise<void> {
     return this.request('toggle', { name, user, active });

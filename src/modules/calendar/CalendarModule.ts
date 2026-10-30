@@ -49,7 +49,6 @@ export class CalendarModule extends BaseModule {
   private refreshRequested = false;
 
   /** Timestamp of the last full data refresh to throttle EventBus triggers */
-  private lastRefreshTime: number = 0;
   private lastAiringRefresh: number | null = null;
 
   /** Tracked intervals for automatic cleanup on module destruction */
@@ -125,10 +124,7 @@ export class CalendarModule extends BaseModule {
       window.addEventListener('resize', this.resizeListener);
 
       // 5. Data Update Subscriptions
-      this.subscribe(EVENT_TYPES.ASTRA_DATA_UPDATED, () => {
-        void this.handleAstraDataUpdated().catch((error: unknown) => logger.error('[Calendar] Astra data update handling failed', error));
-      });
-
+      // Astra saves need no schedule refetch: list changes arrive through PROGRESS_UPDATED.
       this.subscribe(EVENT_TYPES.PROGRESS_UPDATED, (payload) => {
         void this.handleProgressUpdated(payload).catch((error: unknown) => logger.error('[Calendar] Progress update handling failed', error));
       });
@@ -223,14 +219,6 @@ export class CalendarModule extends BaseModule {
     if (path === '/' || path === '/home') await this.runInjectionFlow();
   }
 
-  private async handleAstraDataUpdated(): Promise<void> {
-    const path = window.location.pathname;
-    if (path !== '/' && path !== '/home') return;
-    if (Date.now() - this.lastRefreshTime < 2000) return;
-
-    void this.runInjectionFlow(true).catch((error: unknown) => logger.error('[Calendar] Astra data refresh failed', error));
-  }
-
   private async handleProgressUpdated(payload?: EventPayload<typeof EVENT_TYPES.PROGRESS_UPDATED>): Promise<void> {
     if (payload && payload.mediaId && payload.userId === this.userId && this.apiClient.isAuthenticated()) {
       if (payload.status && payload.status !== MediaListStatus.CURRENT && payload.status !== MediaListStatus.REPEATING) {
@@ -303,7 +291,6 @@ export class CalendarModule extends BaseModule {
       if (!this.isCurrent(generation)) return;
       assertApiContext(this.apiClient, context, owner);
       this.userId = owner;
-      this.lastRefreshTime = Date.now();
       await this.store.loadCustomPlans(owner);
       if (!this.isCurrent(generation)) return;
       assertApiContext(this.apiClient, context, owner);
@@ -336,7 +323,9 @@ export class CalendarModule extends BaseModule {
         }
       }
     } catch (error) {
-      logger.error('[Calendar] Injection flow failed', error);
+      // A newer load replaced this one: expected, not a failure.
+      if (!(error instanceof Error && error.message === 'Calendar request superseded'))
+        logger.error('[Calendar] Injection flow failed', error);
     } finally {
       if (generation === this.generation) {
         this.isProcessing = false;

@@ -60,15 +60,22 @@ export class FriendAlertsHost {
         }
         if (!this.config.isFeatureEnabled('friendAlerts'))
           throw new Error('Friend alerts disabled');
-        const existing = state.rules.find(rule => rule.mediaId === args.mediaId);
+        const existing = state.rules.find((rule) => rule.mediaId === args.mediaId);
         if (existing?.list === args.list) return state;
         // Changing an existing title's audience needs only local metadata.
-        const result: unknown = existing ? { Media: { id: existing.mediaId, type: existing.mediaType,
-          title: { romaji: existing.title } } } : await this.api.query<unknown>(
-          'query ($id: Int!) { Media(id: $id) { id type title { romaji english } } }',
-          { id: args.mediaId },
-          true
-        );
+        const result: unknown = existing
+          ? {
+              Media: {
+                id: existing.mediaId,
+                type: existing.mediaType,
+                title: { romaji: existing.title },
+              },
+            }
+          : await this.api.query<unknown>(
+              'query ($id: Int!) { Media(id: $id) { id type title { romaji english userPreferred } } }',
+              { id: args.mediaId },
+              true
+            );
         assertSession();
         if (!this.config.isFeatureEnabled('friendAlerts'))
           throw new Error('Friend alerts disabled');
@@ -80,10 +87,16 @@ export class FriendAlertsHost {
           !isRecord(result.Media.title)
         )
           throw new Error('Invalid watched title');
-        const title = result.Media.title.english || result.Media.title.romaji;
+        const title =
+          result.Media.title.userPreferred ||
+          result.Media.title.romaji ||
+          result.Media.title.english;
         if (typeof title !== 'string' || !title.trim() || title.length > 500)
           throw new Error('Invalid watched title');
-        if (state.groups) state.groups = state.groups.filter(group => !group.mediaIds.includes(args.mediaId as number));
+        if (state.groups)
+          state.groups = state.groups.filter(
+            (group) => !group.mediaIds.includes(args.mediaId as number)
+          );
         state.rules = state.rules.filter((rule) => rule.mediaId !== args.mediaId);
         state.rules.push({
           mediaId: args.mediaId,
@@ -95,7 +108,10 @@ export class FriendAlertsHost {
         });
       } else if (operation === 'remove') {
         if (!isActivityId(args.mediaId)) throw new Error('Invalid alert selection');
-        if (state.groups) state.groups = state.groups.filter(group => !group.mediaIds.includes(args.mediaId as number));
+        if (state.groups)
+          state.groups = state.groups.filter(
+            (group) => !group.mediaIds.includes(args.mediaId as number)
+          );
         state.rules = state.rules.filter((rule) => rule.mediaId !== args.mediaId);
       } else if (operation === 'read') {
         if (args.id !== undefined && !isActivityId(args.id)) throw new Error('Invalid alert ID');
@@ -104,9 +120,10 @@ export class FriendAlertsHost {
       } else if (operation === 'clear') state.alerts = [];
       else if (operation === 'poll') {
         // "Check now" needs only a short gap; the alarm keeps its 5-minute cadence.
-        const minimumGap = args.manual === true
-          ? USER_POLL_MIN_SECONDS
-          : FRIEND_ALERTS_INTERVAL_SECONDS - FRIEND_ALERTS_JITTER_SECONDS;
+        const minimumGap =
+          args.manual === true
+            ? USER_POLL_MIN_SECONDS
+            : FRIEND_ALERTS_INTERVAL_SECONDS - FRIEND_ALERTS_JITTER_SECONDS;
         if (
           !this.config.isFeatureEnabled('friendAlerts') ||
           !state.rules.length ||
@@ -138,40 +155,61 @@ export class FriendAlertsHost {
               assertSession();
               const response = batch.decode(result, index);
               const page = parseFriendAlertPage(response.Page, variables);
-              const recent = variables.checkRecent ? parseFriendAlertPage(response.recent, variables, true).activities : [];
-              const byMedia = new Map(rules.map(rule => [rule.mediaId, rule]));
+              const recent = variables.checkRecent
+                ? parseFriendAlertPage(response.recent, variables, true).activities
+                : [];
+              const byMedia = new Map(rules.map((rule) => [rule.mediaId, rule]));
               // Validate the entire group before advancing or collecting any part.
               for (const activity of [...recent, ...page.activities]) {
-                if (byMedia.get(activity.mediaId)?.mediaType !== activity.mediaType) throw new Error('Unrelated alert media');
+                if (byMedia.get(activity.mediaId)?.mediaType !== activity.mediaType)
+                  throw new Error('Unrelated alert media');
               }
               for (const activity of recent) {
-                if (!byMedia.get(activity.mediaId)?.recent?.some(entry => entry.id === activity.id)) throw new Error('Unrelated recent activity');
+                if (
+                  !byMedia.get(activity.mediaId)?.recent?.some((entry) => entry.id === activity.id)
+                )
+                  throw new Error('Unrelated recent activity');
               }
-              const collect = (activity: typeof page.activities[number], isRecent: boolean) => {
+              const collect = (activity: (typeof page.activities)[number], isRecent: boolean) => {
                 const rule = byMedia.get(activity.mediaId)!;
                 // A shared query starts at the oldest checkpoint. Never backfill a
                 // newer subscription with another title's earlier activity.
                 if (!isRecent && activity.createdAt < rule.since) return;
                 rule.recent ??= [];
-                const previous = rule.recent.find(entry => entry.id === activity.id)
-                  ?? state.alerts.find(alert => alert.id === activity.id);
-                const unchanged = previous?.status === activity.status && previous?.progress === activity.progress;
-                if (!unchanged || !rule.recent.some(entry => entry.id === activity.id)) {
-                  rule.recent = rule.recent.filter(entry => entry.id !== activity.id);
-                  rule.recent.push({ id: activity.id, status: activity.status, progress: activity.progress });
+                const previous =
+                  rule.recent.find((entry) => entry.id === activity.id) ??
+                  state.alerts.find((alert) => alert.id === activity.id);
+                const unchanged =
+                  previous?.status === activity.status && previous?.progress === activity.progress;
+                if (!unchanged || !rule.recent.some((entry) => entry.id === activity.id)) {
+                  rule.recent = rule.recent.filter((entry) => entry.id !== activity.id);
+                  rule.recent.push({
+                    id: activity.id,
+                    status: activity.status,
+                    progress: activity.progress,
+                  });
                   rule.recent = rule.recent.slice(-50);
                 }
                 if (unchanged) return;
-                state.alerts = state.alerts.filter(alert => alert.id !== activity.id);
-                state.alerts.push({ id: activity.id, mediaId: rule.mediaId, userId: activity.userId,
-                  userName: activity.userName, title: rule.title, status: activity.status,
-                  progress: activity.progress, createdAt: activity.createdAt, read: false });
+                state.alerts = state.alerts.filter((alert) => alert.id !== activity.id);
+                state.alerts.push({
+                  id: activity.id,
+                  mediaId: rule.mediaId,
+                  userId: activity.userId,
+                  userName: activity.userName,
+                  title: rule.title,
+                  status: activity.status,
+                  progress: activity.progress,
+                  createdAt: activity.createdAt,
+                  read: false,
+                });
               };
               for (const activity of recent) collect(activity, true);
               for (const activity of page.activities) collect(activity, false);
               if (variables.checkRecent) scan.recentAfter = variables.ids[variables.ids.length - 1];
               if (!page.hasNextPage) {
-                for (const rule of rules) rule.since = Math.max(rule.since, scan.until - POLL_OVERLAP_SECONDS);
+                for (const rule of rules)
+                  rule.since = Math.max(rule.since, scan.until - POLL_OVERLAP_SECONDS);
                 scan.complete = true;
               } else scan.page++;
             } catch {
@@ -196,7 +234,9 @@ export class FriendAlertsHost {
   }
 
   /** Resolves the signed-in owner and returns an assertion that the caller's session still owns it. */
-  private async scope(session: unknown): Promise<{ owner: number | undefined; key: string; assertSession: () => void }> {
+  private async scope(
+    session: unknown
+  ): Promise<{ owner: number | undefined; key: string; assertSession: () => void }> {
     await this.auth.ensureInitialized();
     const owner = this.auth.getUserCache()?.userId;
     const assertSession = (): void => {

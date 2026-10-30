@@ -25,7 +25,7 @@ describe('AstraModule lifecycle', () => {
     const refresh = vi.fn();
     const disposeModal = vi.fn();
     const unsubscribe = vi.fn();
-    const dashboard = { activate: vi.fn(), preloadAiringData: vi.fn(), deactivate: vi.fn(), dispose: vi.fn() };
+    const dashboard = { activate: vi.fn(), deactivate: vi.fn(), dispose: vi.fn() };
     const observer = { register: vi.fn((_name: string, _callback: () => void) => {}), unregister: vi.fn() };
     const service = { init: vi.fn(async () => {}) };
     const bridge = { initGlobalListeners: vi.fn(), deactivate: vi.fn() };
@@ -58,7 +58,6 @@ describe('AstraModule lifecycle', () => {
     expect(f.pill.start).toHaveBeenCalledOnce();
     expect(f.enhancement.enhanceCards).toHaveBeenCalled();
     expect(f.dashboard.activate).not.toHaveBeenCalled();
-    expect(f.dashboard.preloadAiringData).not.toHaveBeenCalled();
     expect(f.bridge.initGlobalListeners).not.toHaveBeenCalled();
     expect(f.navigation.hijackMediaButton).not.toHaveBeenCalled();
     expect(f.navigation.injectNavbarButton).not.toHaveBeenCalled();
@@ -116,7 +115,6 @@ describe('AstraModule lifecycle', () => {
   it('deactivates the reusable dashboard on OFF and activates it on ON without disposing its singleton', async () => {
     const f = setup(); await f.module.init(); await f.module.destroy(); await f.module.init();
     expect(f.dashboard.activate).toHaveBeenCalledTimes(2); expect(f.dashboard.deactivate).toHaveBeenCalledOnce();
-    expect(f.dashboard.preloadAiringData).toHaveBeenCalledTimes(2);
     expect(f.dashboard.dispose).not.toHaveBeenCalled(); expect(f.bridge.deactivate).toHaveBeenCalledOnce();
     expect(f.navigation.activate).toHaveBeenCalledTimes(2); expect(f.navigation.deactivate).toHaveBeenCalledOnce();
     expect(f.bridge.initGlobalListeners).toHaveBeenCalledTimes(2); await f.module.destroy();

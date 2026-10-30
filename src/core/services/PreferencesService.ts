@@ -12,6 +12,7 @@ export interface AppPreferences {
   enableSocialFeatures: boolean; // Native AniList social
   autoUpdateProgress: boolean;
   compactMode: boolean;
+  openInNewTab: boolean;
 }
 
 /**
@@ -22,9 +23,7 @@ export interface AppPreferences {
 export class PreferencesService implements Disposable {
   private disposed = false;
   private readonly subscriptions = new Set<() => void>();
-  constructor(
-    @inject(TOKENS.CalendarStore) private store: CalendarStore
-  ) {}
+  constructor(@inject(TOKENS.CalendarStore) private store: CalendarStore) {}
   /**
    * Gets the current global preferences
    */
@@ -34,7 +33,7 @@ export class PreferencesService implements Disposable {
 
   /**
    * Subscribes to preference changes.
-   * 
+   *
    * @param selector Optional function to select a specific part of the preferences
    * @param callback Function called when preferences change
    * @returns Unsubscribe function
@@ -43,8 +42,10 @@ export class PreferencesService implements Disposable {
     if (this.disposed) return () => {};
     let active = true;
     const unsubscribe = this.store.subscribeToSelector(
-      state => this.mapStateToPrefs(state),
-      (curr: AppPreferences) => { if (!this.disposed && active) callback(curr); }
+      (state) => this.mapStateToPrefs(state),
+      (curr: AppPreferences) => {
+        if (!this.disposed && active) callback(curr);
+      }
     );
     const remove = () => {
       if (!active) return;
@@ -76,7 +77,8 @@ export class PreferencesService implements Disposable {
       enableAstra: true,
       enableSocialFeatures: !!prefs.socialEnabled,
       autoUpdateProgress: !!prefs.autoUpdateProgress,
-      compactMode: !!prefs.compactMode
+      compactMode: !!prefs.compactMode,
+      openInNewTab: !!prefs.openInNewTab,
     };
   }
 

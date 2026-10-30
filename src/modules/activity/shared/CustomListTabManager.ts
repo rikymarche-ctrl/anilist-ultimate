@@ -38,6 +38,12 @@ export interface TabManagerOptions {
    * BUG-005 fix: Prevents auto-reset on AniList refresh
    */
   initialSelection?: string | null;
+
+  /**
+   * sessionStorage key used to remember the selected list across reloads in this tab.
+   * When omitted, the selection is not persisted.
+   */
+  persistKey?: string;
 }
 
 /**
@@ -101,7 +107,7 @@ export class CustomListTabManager {
     this.logger.info('[CustomListTabManager] Injecting custom lists dropdown');
 
     // Initialize service
-    await this.customListService.init();
+    await this.customListService.whenReady();
     if (generation !== this.generation || !feedToggle.isConnected) return false;
     if (document.querySelector('.au-custom-list-btn')) return true;
     const lists = this.customListService.getLists();
@@ -154,10 +160,16 @@ export class CustomListTabManager {
     // Setup tab exclusivity observer
     this.setupTabObserver(feedToggle as HTMLElement);
 
-    // BUG-005 fix: Restore initial selection after re-injection
-    if (this.options.initialSelection) {
-      this.setList(this.options.initialSelection);
-      this.logger.info('[CustomListTabManager] Restored initial selection:', this.options.initialSelection);
+    // BUG-005 fix: Restore initial selection after re-injection, falling back to the persisted one
+    const storedSelection =
+      this.options.initialSelection == null ? this.readPersistedSelection() : null;
+    const selection = this.options.initialSelection ?? storedSelection;
+    if (selection && listNames.includes(selection)) {
+      this.setList(selection);
+      this.logger.info('[CustomListTabManager] Restored selection:', selection);
+    } else if (storedSelection) {
+      // The remembered list no longer exists: forget it instead of selecting anything.
+      this.writePersistedSelection(null);
     }
 
     this.logger.success('[CustomListTabManager] Dropdown injected successfully');
@@ -190,11 +202,11 @@ export class CustomListTabManager {
 
     // Clear when clicking native tabs (capture phase)
     const nativeClick = (e: MouseEvent): void => {
-        const target = e.target as HTMLElement;
-        if (!target.closest('.au-custom-list-btn') && this.currentList) {
-          this.setList(null);
-        }
-      };
+      const target = e.target as HTMLElement;
+      if (!target.closest('.au-custom-list-btn') && this.currentList) {
+        this.setList(null);
+      }
+    };
     feedToggle.addEventListener('click', nativeClick, true);
     this.listenerCleanup.push(() => feedToggle.removeEventListener('click', nativeClick, true));
 
@@ -232,8 +244,42 @@ export class CustomListTabManager {
    */
   setList(listName: string | null): void {
     this.currentList = listName;
+    this.writePersistedSelection(listName);
     this.updateUI();
     this.options.onListChange?.(listName);
+  }
+
+  /**
+   * Read the remembered selection from sessionStorage. Returns null when no key is configured
+   * or storage is unavailable (it can throw in restricted contexts).
+   */
+  private readPersistedSelection(): string | null {
+    const key = this.options.persistKey;
+    if (!key) return null;
+    try {
+      return sessionStorage.getItem(key);
+    } catch (error: unknown) {
+      this.logger.debug('[CustomListTabManager] Could not read persisted selection', error);
+      return null;
+    }
+  }
+
+  /**
+   * Remember the selection in sessionStorage, or forget it when listName is null.
+   * No-op when no key is configured; storage failures are ignored.
+   */
+  private writePersistedSelection(listName: string | null): void {
+    const key = this.options.persistKey;
+    if (!key) return;
+    try {
+      if (listName === null) {
+        sessionStorage.removeItem(key);
+      } else {
+        sessionStorage.setItem(key, listName);
+      }
+    } catch (error: unknown) {
+      this.logger.debug('[CustomListTabManager] Could not persist selection', error);
+    }
   }
 
   /**
@@ -247,7 +293,7 @@ export class CustomListTabManager {
 
     try {
       const isActive = this.currentList !== null;
-      
+
       // Update container state
       const feedToggle = document.querySelector(this.options.toggleSelector!);
       if (feedToggle) {
@@ -270,7 +316,10 @@ export class CustomListTabManager {
       if (isActive) {
         const nativeTabs = document.querySelectorAll('.feed-type-toggle .link');
         nativeTabs.forEach((tab) => {
-          if (!tab.classList.contains('au-custom-list-btn') && tab.classList.contains('router-link-active')) {
+          if (
+            !tab.classList.contains('au-custom-list-btn') &&
+            tab.classList.contains('router-link-active')
+          ) {
             tab.classList.remove('router-link-active');
           }
         });

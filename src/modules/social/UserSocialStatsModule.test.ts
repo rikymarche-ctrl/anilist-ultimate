@@ -11,12 +11,19 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-const counts = { following: 3, followers: 5 };
+const counts = { id: 7, following: 3, followers: 5 };
+const socialCounts = {
+  mutualFollowers: { count: 2, complete: true },
+  forumThreads: { count: 150, complete: false },
+  forumComments: null,
+  messages: { count: 0, complete: true },
+};
 const navMarkup =
   '<div class="header"><div class="nav container"><a class="link">Social</a></div></div>';
 
 describe('user social stats injection', () => {
   let social: { getFullUser: ReturnType<typeof vi.fn> };
+  let connections: { getSocialCounts: ReturnType<typeof vi.fn> };
   let bus: EventBus;
   let module: UserSocialStatsModule;
 
@@ -25,8 +32,9 @@ describe('user social stats injection', () => {
     history.replaceState({}, '', '/user/Friend');
     document.body.innerHTML = navMarkup;
     social = { getFullUser: vi.fn(async () => counts) };
+    connections = { getSocialCounts: vi.fn(async () => socialCounts) };
     bus = new EventBus();
-    module = new UserSocialStatsModule(social as never, bus);
+    module = new UserSocialStatsModule(social as never, bus, connections as never);
   });
   afterEach(async () => {
     await module.destroy();
@@ -67,5 +75,32 @@ describe('user social stats injection', () => {
     });
     await vi.advanceTimersByTimeAsync(100);
     expect(document.querySelector('.au-nav-count')?.textContent).toBe(' (8)');
+  });
+  it('adds counts to the sidebar entries AniList shows without one, marking capped counts', async () => {
+    history.replaceState({}, '', '/user/Friend/social');
+    document.body.innerHTML = `${navMarkup}<div class="user-social"><div class="filters">
+      <span>Following</span><span>Followers</span><span>Mutual Followers</span>
+      <span>Forum Threads</span><span>Forum Comments</span><span>Messages</span></div></div>`;
+    await module.init();
+    await vi.advanceTimersByTimeAsync(0);
+    const counts = [...document.querySelectorAll('.user-social .filters > span')].map(
+      (span) => span.querySelector('.au-sidebar-count')?.textContent ?? null
+    );
+    expect(connections.getSocialCounts).toHaveBeenCalledWith(7);
+    expect(counts).toEqual([' (3)', ' (5)', ' (2)', ' (150+)', null, ' (0)']);
+  });
+
+  it('does not write sidebar counts after the user left the social page', async () => {
+    const pending = deferred<typeof socialCounts>();
+    connections.getSocialCounts.mockReturnValueOnce(pending.promise);
+    history.replaceState({}, '', '/user/Friend/social');
+    document.body.innerHTML = `${navMarkup}<div class="user-social"><div class="filters">
+      <span>Following</span><span>Followers</span><span>Mutual Followers</span></div></div>`;
+    await module.init();
+    await vi.advanceTimersByTimeAsync(0);
+    history.replaceState({}, '', '/user/Friend/');
+    pending.resolve(socialCounts);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(document.querySelectorAll('.au-sidebar-count')).toHaveLength(2);
   });
 });

@@ -42,6 +42,30 @@ describe('calendar DOM service owned views and native state', () => {
     await f.inject(next); f.button().click(); expect(next).toHaveBeenCalledTimes(1); expect(f.settings).not.toHaveBeenCalled();
     old.click(); expect(f.settings).not.toHaveBeenCalled(); const current = f.button(); f.service.cleanup(); current.click(); expect(next).toHaveBeenCalledTimes(1);
   });
+  it('forwards the size button to the native AniList expand control and mirrors its state', async () => {
+    const f = fixture();
+    const header = document.querySelector('.section-header')!;
+    header.insertAdjacentHTML('beforeend', '<svg class="size-toggle" data-icon="expand"></svg>');
+    const nativeClick = vi.fn();
+    header.querySelector('.size-toggle')!.addEventListener('click', nativeClick);
+    await f.inject();
+    const size = document.querySelector<HTMLButtonElement>('.calendar-header__size')!;
+    expect(size.hidden).toBe(false);
+    expect(size.getAttribute('aria-label')).toBe('Show the calendar at full width');
+    expect(size.querySelector('svg[data-icon="expand"]:not(.size-toggle)')).not.toBeNull();
+    header.querySelector('.size-toggle')!.setAttribute('data-icon', 'compress');
+    size.click();
+    expect(nativeClick).toHaveBeenCalledOnce();
+    expect(size.getAttribute('aria-label')).toBe('Show the calendar in the side column');
+    expect(size.querySelectorAll('svg')).toHaveLength(1);
+    expect(size.querySelector('svg')!.getAttribute('data-icon')).toBe('compress');
+    f.service.cleanup();
+    expect(document.querySelector('.calendar-header__size')).toBeNull();
+  });
+  it('hides the size button when AniList offers no expand control', async () => {
+    const f = fixture(); await f.inject();
+    expect(document.querySelector<HTMLButtonElement>('.calendar-header__size')!.hidden).toBe(true);
+  });
   it('restores native header nodes and exact hidden styles when ownership ends', async () => {
     const f = fixture(); const header = document.querySelector('h2')!; const original = header.firstChild;
     await f.inject(); expect(f.native().style.display).toBe('none'); expect(f.view().style.display).toBe('none');

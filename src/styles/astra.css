@@ -8007,3 +8007,44 @@ body.au-astra-enabled .section-header .friend-activity-button {
 .astra-settings-tab .astra-scoring-option {
   background: var(--astra-bg-elev) !important;
 }
+/* Revert: undoes every edit since the form opened; sits left of Delete entry. */
+.astra-modal--rating .astra-revert-entry {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  margin-left: 12px;
+  min-height: 34px;
+  padding: 7px 12px !important;
+  border-color: var(--astra-border-soft);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--astra-text-dim);
+  font-size: 11px !important;
+  font-weight: 700;
+  white-space: nowrap;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.astra-modal--rating .astra-revert-entry[hidden] {
+  display: none !important;
+}
+
+.astra-modal--rating .astra-revert-entry i {
+  font-size: 12px;
+}
+
+.astra-modal--rating .astra-revert-entry:hover {
+  transform: translateY(-1px);
+  border-color: var(--astra-accent);
+  background: rgba(139, 92, 246, 0.14);
+  color: #fff;
+}
+
+.astra-modal--rating .astra-revert-entry:focus-visible {
+  outline: 2px solid var(--astra-accent);
+  outline-offset: 2px;
+}

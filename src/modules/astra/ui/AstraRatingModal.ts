@@ -34,6 +34,8 @@ import type { IApiClient, ApiContext } from '@core/interfaces/IApiClient';
 import type { ToastService } from '@core/services/ToastService';
 import { logger } from '@core/logger';
 import type { AstraDashboard } from './AstraDashboard';
+import type { PreferencesService } from '@core/services/PreferencesService';
+import { navigateInApp } from '@core/navigation/SpaNavigate';
 import { MediaListStatus, type AniListDate } from '@/api/AnilistTypes';
 import { getStatusLabel } from '@core/utils/UIHelpers';
 import { statusAfterProgress } from '@core/utils/ProgressStatus';
@@ -86,8 +88,6 @@ function isExtensionContextInvalid(error: unknown): boolean {
   return typeof chrome !== 'undefined' && !!chrome.runtime && !chrome.runtime.id;
 }
 const SYNC_QUEUED_NOTICE = 'Saved locally. AniList synchronization is queued.';
-/** A synced background save may reload the host only this soon after the view closed. */
-const BACKGROUND_RELOAD_WINDOW_MS = 15000;
 
 const ANILIST_FALLBACK_TITLE = 'AniList score — rate the sections to replace it';
 
@@ -101,14 +101,14 @@ function remoteOverallScore(data: IRatingInitialData): number | null {
   return score > 0 ? score / 10 : null;
 }
 
-/** What a closing view looked like, so a late drain result can judge whether a reload is still welcome. */
-interface ClosedView {
-  root: HTMLElement;
-  version: number;
-  context: ApiContext | undefined;
-  suppressReload: boolean;
-  location: string;
-  at: number;
+/** Everything the form showed when it opened, plus the save baselines of that moment. */
+interface AstraRatingOpeningSnapshot {
+  work: AstraWork;
+  formValues: AstraRatingFormValues;
+  seasonNotes: string[];
+  reportSnapshot: string;
+  scoresSnapshot: string;
+  progress: number;
 }
 
 interface RatingMeta {
@@ -128,7 +128,6 @@ export class AstraRatingModal {
   private activeTab: string = 'rating';
   private saveInFlight: Promise<void> | null = null;
   private reportedSaveFailures = new WeakSet<Error>();
-  private reloadAfterClose = false;
   private isClosing = false;
   private deletingEntry = false;
   private media: AstraRatingMedia | null = null;
@@ -142,6 +141,13 @@ export class AstraRatingModal {
   private initialScoresSnapshot = '';
   private needsListStatus = false;
   private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
+  /** The form as opened; Revert restores it. Null for a title not yet on the AniList list. */
+  private openingSnapshot: AstraRatingOpeningSnapshot | null = null;
+  private allCustomLists: string[] = [];
+  /** A save has committed this view's edits since opening, so a revert must be saved back. */
+  private savedSinceOpen = false;
+  /** Drives the Revert button: true once the user edits, false again after a revert. */
+  private hasEditsSinceOpen = false;
   /** AniList's own score on the 0-10 scale (null when unrated): stands in for the overall box until a section is rated. */
   private remoteOverall: number | null = null;
   /** True while the overall box shows its manual-score input. */
@@ -189,6 +195,16 @@ export class AstraRatingModal {
 
   private get dashboard(): AstraDashboard {
     return container.resolve<AstraDashboard>(TOKENS.AstraDashboard);
+  }
+
+  /** The calendar's "Open in New Tab" preference; off (navigate in place) when preferences are unavailable. */
+  private get opensInNewTab(): boolean {
+    try {
+      return container.resolve<PreferencesService>(TOKENS.PreferencesService).getPreferences()
+        .openInNewTab;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -267,7 +283,6 @@ export class AstraRatingModal {
         if (!this.overlay) this.releaseAuthSubscription();
         return;
       }
-      this.reloadAfterClose = false;
       this.isClosing = false;
 
       const { media, allCustomLists } = data;
@@ -413,10 +428,7 @@ export class AstraRatingModal {
 
       // AniList is the source of truth: no remote entry means the title is not on the list, even if a local work exists.
       this.needsListStatus = !media.mediaListEntry && pending.status === undefined;
-      this.state = new AstraRatingState(workData, (isDirty) => {
-        // Any logic needed when dirty state changes (e.g., UI indicators)
-        logger.debug(`[AstraRatingModal] State dirty: ${isDirty}`);
-      });
+      this.state = this.createState(workData);
       this.initialSeasonNotes = workData.seasons.map((season) => season.notes ?? '');
       this.initialReportSnapshot = this.reportContentSnapshot(workData);
       this.initialScoresSnapshot = this.scoresSnapshot(workData);
@@ -436,6 +448,19 @@ export class AstraRatingModal {
       );
       this.formEditVersion = 0;
       this.initialProgress = media.mediaListEntry?.progress || 0; // Save initial progress
+      this.allCustomLists = allCustomLists;
+      this.savedSinceOpen = false;
+      this.hasEditsSinceOpen = false;
+      this.openingSnapshot = this.needsListStatus
+        ? null
+        : {
+            work: structuredClone(workData),
+            formValues: structuredClone(this.formDraft.values),
+            seasonNotes: [...this.initialSeasonNotes],
+            reportSnapshot: this.initialReportSnapshot,
+            scoresSnapshot: this.initialScoresSnapshot,
+            progress: this.initialProgress,
+          };
       rendering = true;
       this.render(media, allCustomLists);
     } catch (error) {
@@ -690,8 +715,72 @@ export class AstraRatingModal {
         mediaType: this.media.type === 'MANGA' ? 'manga' : 'anime',
         title: this.media.title.userPreferred,
         canDelete: this.activeTab === 'rating' && !this.needsListStatus,
+        canRevert: this.openingSnapshot !== null,
+        hasChanges: this.hasEditsSinceOpen,
+        openInNewTab: this.opensInNewTab,
       });
     }
+  }
+
+  private createState(work: AstraWork): AstraRatingState {
+    return new AstraRatingState(work, (isDirty) => {
+      logger.debug(`[AstraRatingModal] State dirty: ${isDirty}`);
+      if (isDirty) this.noteEdit();
+    });
+  }
+
+  /** Reveals the Revert button on the first edit since opening (or since the last revert). */
+  private noteEdit(): void {
+    if (this.hasEditsSinceOpen) return;
+    this.hasEditsSinceOpen = true;
+    this.refreshRevertButton();
+  }
+
+  private refreshRevertButton(): void {
+    const button = this.overlay?.querySelector<HTMLButtonElement>('#astra-revert-entry');
+    if (button) button.hidden = !this.hasEditsSinceOpen;
+  }
+
+  /**
+   * Restores the form as it was opened. Edits never saved are simply dropped; edits an earlier
+   * save already committed (tab switch, season change) stay dirty so closing writes the original
+   * values back.
+   */
+  private async handleRevert(): Promise<void> {
+    const snapshot = this.openingSnapshot;
+    if (!this.overlay || !this.state || !this.media || !snapshot || this.deletingEntry) return;
+    const root = this.overlay;
+    const previousState = this.state;
+    await this.saveInFlight?.catch(() => undefined);
+    if (this.overlay !== root || this.state !== previousState || this.isClosing) return;
+
+    // Keep the concurrency metadata an earlier save advanced, or the write-back would look stale.
+    const { updatedAt, ownerId } = previousState.data;
+    const state = this.createState({
+      ...snapshot.work,
+      updatedAt,
+      ...(ownerId !== undefined ? { ownerId } : {}),
+    });
+    const draft = new AstraRatingFormDraft(null, snapshot.work);
+    draft.values = structuredClone(snapshot.formValues);
+    this.state = state;
+    this.formDraft = draft;
+    this.formEditVersion++;
+    this.needsListStatus = false;
+    this.unlockedNotAiredEpisodes.clear();
+    this.currentSeasonIdx = Math.min(this.currentSeasonIdx, state.data.seasons.length - 1);
+    this.journalPageIndex = 0;
+    if (this.savedSinceOpen) {
+      state.isDirty = true;
+    } else {
+      this.initialSeasonNotes = [...snapshot.seasonNotes];
+      this.initialReportSnapshot = snapshot.reportSnapshot;
+      this.initialScoresSnapshot = snapshot.scoresSnapshot;
+      this.initialProgress = snapshot.progress;
+    }
+    this.hasEditsSinceOpen = false;
+    this.render(this.media, this.allCustomLists);
+    this.toast.info('Changes reverted.');
   }
 
   private renderRatingTab(
@@ -1039,10 +1128,9 @@ export class AstraRatingModal {
    * Closes the rating modal view, auto-saves any unsaved modifications,
    * and cleans up global event listeners.
    *
-   * @param options.suppressReload Skips the host reload a synced save would request, used when handing off to the dashboard.
    * @returns A promise that resolves when the close process completes.
    */
-  public close(options: { suppressReload?: boolean } = {}): Promise<void> {
+  public close(): Promise<void> {
     if (this.deletingEntry) return Promise.resolve();
     if (this.loadingOverlay && !this.overlay) {
       this.dispose();
@@ -1054,19 +1142,11 @@ export class AstraRatingModal {
     const root = this.overlay;
     const state = this.state;
     const scope = this.viewScope;
-    const context = this.viewContext;
     if (!root || !state || this.isClosing) {
       if (!root) this.releaseAuthSubscription();
       return Promise.resolve();
     }
-    const promise = this.closeView(
-      root,
-      state,
-      scope,
-      context,
-      version,
-      options.suppressReload === true
-    );
+    const promise = this.closeView(root, state, scope, version);
     this.closeInFlight = { root, promise };
     const clear = () => {
       if (this.closeInFlight?.promise === promise) this.closeInFlight = null;
@@ -1079,9 +1159,7 @@ export class AstraRatingModal {
     root: HTMLElement,
     state: AstraRatingState,
     scope: AstraRatingViewScope | null,
-    context: ApiContext | undefined,
-    version: number,
-    suppressReload: boolean
+    version: number
   ): Promise<void> {
     const current = () =>
       this.overlay === root &&
@@ -1101,15 +1179,7 @@ export class AstraRatingModal {
       if (state.isDirty || progressEdited) {
         // Closing never waits for AniList: the local commit and durable queue write are enough.
         state.isDirty = true;
-        const closed: ClosedView = {
-          root,
-          version,
-          context,
-          suppressReload,
-          location: `${window.location.pathname}${window.location.search}`,
-          at: Date.now(),
-        };
-        await this.save('background', (result) => this.onBackgroundDispatched(result, closed));
+        await this.save('background', (result) => this.onBackgroundDispatched(result));
         if (!current() || state.isDirty) return;
       }
     } catch (error) {
@@ -1120,7 +1190,6 @@ export class AstraRatingModal {
       return;
     }
     if (!current()) return;
-    const reload = this.reloadAfterClose && !suppressReload;
     scope?.release();
     this.viewScope = null;
     this.coverOverlay?.remove();
@@ -1131,6 +1200,7 @@ export class AstraRatingModal {
     this.isClosing = true;
     this.state = null;
     this.formDraft = null;
+    this.openingSnapshot = null;
     root.classList.add('astra-modal-overlay--closing');
     root.classList.remove('astra-modal-overlay--open');
     const timer = setTimeout(() => {
@@ -1140,14 +1210,6 @@ export class AstraRatingModal {
       this.overlay = null;
       this.isClosing = false;
       this.restoreHostState(root);
-      if (reload && version === this.openVersion) {
-        try {
-          assertApiContext(this.api, context);
-          this.reloadHost();
-        } catch {
-          /* Session moved on; no stale reload. */
-        }
-      }
     }, 350);
     this.closingTimers.set(root, timer);
   }
@@ -1174,6 +1236,7 @@ export class AstraRatingModal {
     this.overlay = null;
     this.state = null;
     this.formDraft = null;
+    this.openingSnapshot = null;
     this.media = null;
     this.remoteOverall = null;
     this.initialSeasonNotes = [];
@@ -1376,6 +1439,28 @@ export class AstraRatingModal {
     this.listen(this.overlay, 'keydown', handleKeyDown);
   }
 
+  /**
+   * A plain click on a same-tab title link navigates through AniList's router;
+   * the resulting PAGE_CHANGED closes this form through its auto-saving path.
+   */
+  private followTitleInPlace(event: MouseEvent): void {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+      return;
+    const link =
+      event.target instanceof Element
+        ? event.target.closest<HTMLAnchorElement>('a.astra-title-link:not([target])')
+        : null;
+    const path = link?.getAttribute('href');
+    if (!path) return;
+    event.preventDefault();
+    try {
+      navigateInApp(path);
+    } catch (error) {
+      logger.warn('[AstraRatingModal] In-app title navigation failed', error);
+      window.location.assign(path);
+    }
+  }
+
   private attachEvents(): void {
     if (!this.overlay) return;
 
@@ -1385,7 +1470,7 @@ export class AstraRatingModal {
       const root = this.overlay;
       const focusMediaId = this.media?.id;
       const context = this.viewContext;
-      await this.close({ suppressReload: true });
+      await this.close();
       if (this.overlay !== root || !this.isClosing) return;
       assertApiContext(this.api, context);
       await this.dashboard.open(focusMediaId ? { mediaId: focusMediaId } : undefined);
@@ -1400,6 +1485,9 @@ export class AstraRatingModal {
     this.listen(this.overlay, 'click', (event) => {
       if (event.target instanceof Element && event.target.closest('#astra-delete-entry'))
         return this.handleDeleteEntry();
+      if (event.target instanceof Element && event.target.closest('#astra-revert-entry'))
+        return this.handleRevert();
+      if (event instanceof MouseEvent) this.followTitleInPlace(event);
       return undefined;
     });
 
@@ -1510,6 +1598,7 @@ export class AstraRatingModal {
         return;
       this.formEditVersion++;
       if (this.state) this.state.isDirty = true;
+      this.noteEdit();
       if (event.target === progressInput && progressInput.value.trim() !== '')
         this.completeProgress(Number(progressInput.value));
     };
@@ -1538,6 +1627,7 @@ export class AstraRatingModal {
       this.listen(opt, 'click', () => {
         const value = (opt as HTMLElement).dataset.value as MediaListStatus;
         this.setStatus(value);
+        this.noteEdit();
         statusDropdown.classList.remove('active');
         const hadNoStatus = this.needsListStatus;
         this.needsListStatus = false;
@@ -1662,6 +1752,7 @@ export class AstraRatingModal {
           (field === 'progress' ? this.initialProgress : 0);
         const newVal = steppedCount(input.value, lastValid, step);
         input.value = newVal.toString();
+        this.noteEdit();
 
         // This will be caught by the general change listener if we had one,
         // but for now we manually update the state since these inputs don't have change listeners attached here yet
@@ -1897,39 +1988,9 @@ export class AstraRatingModal {
     return `<span ${attributes} style="color: ${color}">${text}</span>`;
   }
 
-  /**
-   * A background save reports once AniList settles. A queued write is still pending, so say so.
-   * A synced write may reload the page, but only when the user is still where they closed it.
-   */
-  private onBackgroundDispatched(result: AstraDispatchOutcome, closed: ClosedView): void {
-    if (result === 'queued') {
-      this.toast.info(SYNC_QUEUED_NOTICE);
-      return;
-    }
-    if (closed.suppressReload || !this.canReloadAfterDispatch(closed)) return;
-    try {
-      assertApiContext(this.api, closed.context);
-      this.reloadHost();
-    } catch {
-      /* Session moved on; no stale reload. */
-    }
-  }
-
-  private canReloadAfterDispatch(closed: ClosedView): boolean {
-    const focused = document.activeElement;
-    const editing =
-      focused instanceof HTMLElement &&
-      (focused.isContentEditable ||
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(focused.tagName) ||
-        focused.closest('[contenteditable="true"], [contenteditable=""]') !== null);
-    return (
-      (this.overlay === null || this.overlay === closed.root) &&
-      this.openVersion === closed.version &&
-      `${window.location.pathname}${window.location.search}` === closed.location &&
-      Date.now() - closed.at < BACKGROUND_RELOAD_WINDOW_MS &&
-      document.visibilityState === 'visible' &&
-      !editing
-    );
+  /** A background save reports once AniList settles; a queued write is still pending, so say so. */
+  private onBackgroundDispatched(result: AstraDispatchOutcome): void {
+    if (result === 'queued') this.toast.info(SYNC_QUEUED_NOTICE);
   }
 
   /** Joins an in-flight save of the same state; a joined save keeps the dispatch mode it started with. */
@@ -2051,11 +2112,11 @@ export class AstraRatingModal {
         }
       }
       if (this.state !== state || (scope && !scope.active)) return;
+      this.savedSinceOpen = true;
       if (notesToSync !== undefined) this.initialSeasonNotes[seasonIndex] = notesToSync;
       this.initialReportSnapshot = this.reportContentSnapshot(draft);
       this.initialScoresSnapshot = this.scoresSnapshot(draft);
       if (unchanged) state.resetDirty();
-      this.reloadAfterClose = result === 'synced';
       // A background save announces its queued state later, once the drain settles.
       if (result === 'queued' && dispatch === 'await') this.toast.info(SYNC_QUEUED_NOTICE);
       if (localOnly) this.toast.info(LOCAL_ONLY_NOTICE);

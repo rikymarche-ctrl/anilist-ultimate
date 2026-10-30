@@ -218,11 +218,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
       <div style="display: contents;">
         <div class="au-cl-info">
           <h3><i class="fa-solid fa-circle-info"></i> Custom User Lists</h3>
-          <p>
-            Create and manage personalized groups of users to filter activities.
-            <b>Important:</b> This feature requires you to be authenticated with
-            <b>Anilist Ultimate</b>.
-          </p>
+          ${this.renderInfoText()}
         </div>
 
         <div class="au-cl-header">
@@ -269,6 +265,22 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
       Object.keys(lists)
     );
     this.followingSettings.mount(container.querySelector<HTMLElement>('.au-fg-slot')!);
+  }
+
+  /** Info-box copy for the current view: list overview or the open list's member picker. */
+  private renderInfoText(): HTMLElement {
+    if (this.isManagingList)
+      return html`<p>
+        Click a card to add or remove that user from <b>${this.currentListName}</b>. Click an avatar
+        to open the user's AniList profile in a new tab.
+      </p>`;
+    const count = Object.keys(this.listService.getLists()).length;
+    return html`<p>
+      ${count
+        ? 'Choose Manage on a list to pick its members, or create a new one.'
+        : 'Create your first list to start grouping users.'}
+      Lists filter activity feeds and can group the Following column on a title's Social tab.
+    </p>`;
   }
 
   private loadUsers(scope: Scope): Promise<void> {
@@ -353,14 +365,15 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
           class="fa-solid fa-triangle-exclamation"
           style="font-size:24px;color:#e85d75;margin-bottom:15px;display:block;"
         ></i>
-        <p>Failed to load your user lists.</p>
-        <button class="au-cl-retry-btn">Retry</button>
-        ${!this.api.isAuthenticated()
+        ${this.api.isAuthenticated()
           ? html`<div>
-              Questa funzione richiede l'autenticazione con <b>Anilist Ultimate</b>.<br />
-              <button class="au-cl-login-btn">Login con Anilist Ultimate</button>
+              <p>Failed to load your user lists.</p>
+              <button class="au-cl-retry-btn">Retry</button>
             </div>`
-          : ''}
+          : html`<div>
+              <p>Custom User Lists require you to log in with <b>Anilist Ultimate</b>.</p>
+              <button class="au-cl-login-btn">Log in with Anilist Ultimate</button>
+            </div>`}
       </div>`
     );
     const retryButton = target.querySelector<HTMLElement>('.au-cl-retry-btn');
@@ -412,6 +425,7 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
     if (overview) overview.style.display = 'none';
     this.followingSettings?.getElement().style.setProperty('display', 'none');
     content.style.display = 'block';
+    this.element.querySelector('.au-cl-info p')?.replaceWith(this.renderInfoText());
     header.replaceChildren();
     header.appendChild(html`
       <div style="display: contents;">
@@ -493,13 +507,15 @@ export class CustomListManager extends BaseComponent<Record<string, never>> {
           class="au-cl-user-card ${active ? 'active' : ''}"
           data-user-id="${user.id}"
         >
-          <div class="au-cl-avatar"></div>
+          <div class="au-cl-avatar" title="Open ${user.name}'s profile">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </div>
           <div class="au-cl-name">${user.name}</div>
           <div class="au-cl-checkbox"></div>
         </div>`;
         const avatar = card.querySelector<HTMLElement>('.au-cl-avatar')!;
         avatar.style.backgroundImage = cssImageUrl(user.avatar);
-        avatar.style.cursor = 'pointer';
+        // Avatar click opens the profile in a new tab; the rest of the card toggles membership.
         this.listen(
           avatar,
           'click',

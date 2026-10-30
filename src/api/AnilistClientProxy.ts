@@ -33,6 +33,7 @@ export class AnilistClientProxy implements IApiClient {
     return validateGraphQLResponse(await this.request<unknown>('queryRaw', query, variables, true, options.priority === true)) as GraphQLResponse<T>;
   }
   mutate<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> { return this.request('mutate', query, variables, false); }
+  mutateOnce<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> { return this.request('mutateOnce', query, variables, false); }
   private async request<T>(method: string, query: string, variables: Record<string, unknown>, silent: boolean, priority = false): Promise<T> {
     if (this.destroyed) throw new Error('API proxy destroyed');
     const copied = structuredClone(variables);

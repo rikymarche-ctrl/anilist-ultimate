@@ -75,6 +75,10 @@ export class CustomListService {
     }
     await this.save({ 'Best Friends': [] });
   }
+  /** Lists are usable: the first load, or an already loaded snapshot (see CustomListClient). */
+  whenReady(): Promise<void> {
+    return this.init();
+  }
   getLists(): CustomLists {
     return structuredClone(this.lists);
   }

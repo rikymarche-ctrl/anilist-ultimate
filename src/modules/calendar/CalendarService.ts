@@ -45,13 +45,17 @@ export class CalendarService implements ICalendarService {
     @inject(TOKENS.SyncQueue) private syncQueue: ISyncQueueService,
   ) {}
 
+  private fetchSequence = 0;
+
   /**
    * Fetch user's currently watching anime with airing schedules
    * @param options Request options; `priority` moves the read into the client's user-action lane
    */
   async fetchAiringSchedule(userId: number, customPlans: CalendarCustomPlan[] = [], options: ApiRequestOptions = {}): Promise<AnimeEntry[]> {
     if (!isCalendarId(userId)) throw new Error('Invalid calendar owner');
-    logger.time('Fetch airing schedule');
+    // Overlapping fetches need distinct console timer labels.
+    const timer = `Fetch airing schedule #${++this.fetchSequence}`;
+    logger.time(timer);
     try {
       const captured = await captureApiContext(this.apiClient);
       const context = captured ? { ...captured } : undefined;
@@ -107,7 +111,7 @@ export class CalendarService implements ICalendarService {
     } catch (error) {
       logger.error('Failed to fetch airing schedule', error);
       throw error;
-    } finally { logger.timeEnd('Fetch airing schedule'); }
+    } finally { logger.timeEnd(timer); }
   }
 
   /**

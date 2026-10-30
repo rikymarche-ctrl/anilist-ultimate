@@ -47,11 +47,6 @@ export class AstraEnhancementService {
     for (const strategy of this.strategies) {
       if (strategy.canHandle(path)) {
         const cards = strategy.getCards();
-        if (cards.length > 0) {
-          logger.debug(
-            `[AstraEnhancementService] Strategy "${strategy.name}" found ${cards.length} cards`
-          );
-        }
 
         cards.forEach((card) => {
           if (strategy.shouldEnhanceCard(card)) {

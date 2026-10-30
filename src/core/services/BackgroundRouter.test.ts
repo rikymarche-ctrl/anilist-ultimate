@@ -150,6 +150,21 @@ describe('background queue boundary', () => {
     expect(store.set).not.toHaveBeenCalled();
     expect(respond).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
   });
+  it('sends mutateOnce to the background client without retrying through mutate', async () => {
+    const client = { mutate: vi.fn(), mutateOnce: vi.fn(async () => ({ ToggleLikeV2: { id: 1 } })) };
+    const handle = createBackgroundMessageHandler(Promise.resolve(), () => ({ getStatus: async () => ({ sessionId: 'test', authenticated: true, userId: 42 }) }) as never, vi.fn(), () => client as never);
+    const response = await new Promise<unknown>(resolve => handle({ type: MSG.API_REQUEST, method: 'mutateOnce', query: 'mutation ($id: Int) { ToggleLikeV2(id: $id, type: ACTIVITY) { ... on TextActivity { id } } }', variables: { id: 1 }, sessionId: 'test' }, sender, resolve));
+    expect(response).toEqual({ success: true, data: { ToggleLikeV2: { id: 1 } } });
+    expect(client.mutateOnce).toHaveBeenCalledWith(expect.stringContaining('ToggleLikeV2'), { id: 1 });
+    expect(client.mutate).not.toHaveBeenCalled();
+  });
+  it('rejects unauthenticated mutateOnce requests before reaching the background client', async () => {
+    const client = { mutate: vi.fn(), mutateOnce: vi.fn() };
+    const handle = createBackgroundMessageHandler(Promise.resolve(), () => ({ getStatus: async () => ({ sessionId: 'test', authenticated: false, userId: null }) }) as never, vi.fn(), () => client as never);
+    const response = await new Promise<{ success: boolean }>(resolve => handle({ type: MSG.API_REQUEST, method: 'mutateOnce', query: 'mutation ($id: Int) { ToggleLikeV2(id: $id, type: ACTIVITY) { ... on TextActivity { id } } }', variables: { id: 1 }, sessionId: 'test' }, sender, resolve as never));
+    expect(response.success).toBe(false);
+    expect(client.mutateOnce).not.toHaveBeenCalled();
+  });
   it('propagates missing background responses to the caller instead of claiming durability', async () => {
     vi.mocked(chrome.runtime.sendMessage).mockResolvedValueOnce(undefined as never);
     await expect(new SyncQueueClient().enqueue('ASTRA_SAVE', { mediaId: 1 })).rejects.toThrow('Background queue unavailable');

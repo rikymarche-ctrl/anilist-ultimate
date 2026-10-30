@@ -1,0 +1,135 @@
+/*
+ * Profile connections line under the banner name and its dropdown.
+ * The line is absolutely positioned inside the name block, so the header never changes size.
+ */
+
+.banner-content .name-wrapper:has(> .au-profile-connections) {
+  position: relative;
+}
+
+.au-profile-connections {
+  position: absolute;
+  left: 25px;
+  top: calc(100% - 20px);
+  max-width: min(640px, calc(100vw - 340px));
+  overflow: hidden;
+  color: rgba(var(--color-white, 255, 255, 255), 0.85);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.6rem;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.au-profile-connections-count {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-shadow: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.au-profile-connections-count:hover,
+.au-profile-connections-count:focus-visible,
+.au-profile-connections-count[aria-expanded='true'] {
+  color: rgb(var(--color-blue));
+  outline: none;
+}
+
+.au-profile-connections-dropdown {
+  position: absolute;
+  z-index: 50;
+  width: 260px;
+  padding: 10px 0;
+  border-radius: 6px;
+  /* Same surface and shadow as AniList's own header dropdowns. */
+  background: rgb(var(--color-background-100, var(--color-foreground)));
+  box-shadow:
+    0 14px 30px rgba(var(--color-shadow-blue, 0, 0, 0), 0.15),
+    0 4px 4px rgba(var(--color-shadow-blue, 0, 0, 0), 0.05);
+  color: rgb(var(--color-text));
+  font-size: 1.3rem;
+}
+
+.au-profile-connections-title {
+  padding: 0 16px 8px;
+  color: rgb(var(--color-text-light));
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.au-profile-connections-users {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.au-profile-connections-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 16px;
+  color: rgb(var(--color-text));
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.au-profile-connections-user:hover,
+.au-profile-connections-user:focus-visible {
+  color: rgb(var(--color-blue));
+  outline: none;
+}
+
+.au-profile-connections-avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 3px;
+  background-color: rgb(var(--color-background));
+  object-fit: cover;
+}
+
+.au-profile-connections-search {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 0 16px 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 4px;
+  outline: none;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text));
+  font: inherit;
+  font-size: 1.3rem;
+}
+
+.au-profile-connections-user[hidden] {
+  display: none;
+}
+
+.au-profile-connections-name {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.au-profile-connections-list {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-text-light));
+  font-size: 1.1rem;
+}
+
+@media (max-width: 760px) {
+  .au-profile-connections {
+    display: none;
+  }
+}

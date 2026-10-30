@@ -44,10 +44,12 @@ export interface AniListActivity {
   id: number;
   type: 'ANIME_LIST' | 'MANGA_LIST' | 'TEXT';
   userId?: number | null;
-  text?: string;
+  /** AniList-rendered HTML of a TEXT activity (`text(asHtml: true)`); sanitized before display. */
+  html?: string;
   status?: string;
   progress?: string;
   createdAt: number;
+  isLiked?: boolean;
   user: {
     id: number;
     name: string;
@@ -55,7 +57,7 @@ export interface AniListActivity {
   } | null;
   media?: {
     id: number;
-    title: { romaji: string };
+    title: { romaji: string; userPreferred?: string };
     coverImage: { medium: string };
     type: string;
   };

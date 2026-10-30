@@ -127,6 +127,39 @@ describe('AstraRatingService safe persistence and sync', () => {
     expect(queue.process).toHaveBeenCalledTimes(1);
   });
 
+  it('closes without waiting for the AniList notes read, then queues the Astra block as a newer save', async () => {
+    const { api, queue, service } = setup(true);
+    let answer!: (value: unknown) => void;
+    api.query.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+    vi.spyOn(queue, 'process').mockResolvedValue();
+    const onDispatched = vi.fn();
+    await expect(
+      service.saveAndSync(work(), { overallScore: 8, dispatch: 'background', onDispatched })
+    ).resolves.toBe('queued');
+    const enqueue = vi.mocked(queue.enqueue);
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(enqueue.mock.calls[0][1]).not.toHaveProperty('notes');
+    expect(enqueue.mock.calls[0][1]).toMatchObject({ mediaId: 1, progress: 3 });
+    expect(queue.process).not.toHaveBeenCalled();
+    answer(ratingResponse());
+    await vi.waitFor(() => expect(onDispatched).toHaveBeenCalledOnce());
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    expect(enqueue.mock.calls[1][1]).toHaveProperty('notes');
+    expect(enqueue.mock.calls[1][1]).toHaveProperty('expectedNotes');
+    expect(queue.process).toHaveBeenCalledOnce();
+  });
+
+  it('still drains the queued entry when the background notes read fails', async () => {
+    const { api, queue, service } = setup(true);
+    api.query.mockRejectedValueOnce(new Error('Offline'));
+    vi.spyOn(queue, 'process').mockResolvedValue();
+    const onDispatched = vi.fn();
+    await service.saveAndSync(work(), { overallScore: 8, dispatch: 'background', onDispatched });
+    await vi.waitFor(() => expect(onDispatched).toHaveBeenCalledOnce());
+    expect(vi.mocked(queue.enqueue)).toHaveBeenCalledOnce();
+    expect(queue.process).toHaveBeenCalledOnce();
+  });
+
   it('reports synced to onDispatched once the background drain finishes', async () => {
     const { queue, service } = setup();
     vi.mocked(queue.enqueue).mockResolvedValue();

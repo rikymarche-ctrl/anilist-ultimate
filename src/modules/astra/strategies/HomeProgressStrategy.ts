@@ -4,7 +4,6 @@
  */
 
 import { injectable } from 'tsyringe';
-import { logger } from '@core/logger';
 import { ICardEnhancementStrategy } from './ICardEnhancementStrategy';
 
 @injectable()
@@ -12,9 +11,7 @@ export class HomeProgressStrategy implements ICardEnhancementStrategy {
   public readonly name = 'home-progress';
 
   public canHandle(path: string): boolean {
-    const handle = path === '/' || path.startsWith('/home');
-    if (handle) logger.debug(`[HomeProgressStrategy] Handling path: ${path}`);
-    return handle;
+    return path === '/' || path.startsWith('/home');
   }
 
   public getCards(): HTMLElement[] {

@@ -272,6 +272,27 @@
   background-size: cover;
   background-position: center;
   flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+/* Hover hint: the avatar opens the user's profile */
+.au-cl-avatar i {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.au-cl-avatar:hover i {
+  opacity: 1;
 }
 
 .au-cl-name {
@@ -538,4 +559,107 @@
 .au-fg-move:focus-visible {
   outline: 2px solid var(--au-primary);
   outline-offset: 2px;
+}
+
+/* ── Activity markdown (ActivityMarkdown.ts) ─────────────────────────── */
+
+.au-custom-activity .markdown_spoiler {
+  border-radius: 3px;
+  padding: 0 4px;
+  cursor: pointer;
+  background: rgb(var(--color-foreground-grey-dark, 61 72 87));
+}
+
+.au-custom-activity .markdown_spoiler:not(.au-spoiler-revealed) > span {
+  display: none;
+}
+
+.au-custom-activity .markdown_spoiler:not(.au-spoiler-revealed)::before {
+  content: 'Spoiler, click to view';
+  color: rgb(var(--color-text-lighter, 146 153 161));
+  font-size: 1.2rem;
+}
+
+.au-custom-activity .markdown_spoiler.au-spoiler-revealed {
+  background: transparent;
+}
+
+.au-custom-activity .au-youtube {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 16 / 9;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+}
+
+.au-custom-activity .au-youtube:focus-visible {
+  outline: 2px solid var(--au-primary);
+  outline-offset: 2px;
+}
+
+.au-custom-activity .au-youtube-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.au-custom-activity .au-youtube-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 64px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
+  background: rgb(255 0 0 / 0.85);
+  pointer-events: none;
+}
+
+.au-custom-activity .au-youtube-play::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-30%, -50%);
+  border-style: solid;
+  border-width: 11px 0 11px 19px;
+  border-color: transparent transparent transparent #fff;
+}
+
+.au-custom-activity .au-youtube iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.au-custom-activity .markdown img,
+.au-custom-activity .markdown video {
+  max-width: 100%;
+}
+
+.au-custom-activity .time a.au-activity-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Keeps the native line box of .time; never shown or clickable. */
+.au-custom-activity .au-time-spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.au-custom-activity .like-wrap .users {
+  display: none !important;
+}
+
+.au-custom-activity .action.replies,
+.au-custom-activity .like-wrap .button {
+  cursor: pointer;
 }

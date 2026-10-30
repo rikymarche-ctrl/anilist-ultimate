@@ -22,6 +22,13 @@
   white-space: nowrap;
 }
 
+/* Placed right after the work title in list rows (name placement keeps the base margin) */
+.au-activity-rating--after-title {
+  margin-left: 6px;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
 .au-format-point-5 {
   font-size: 9px;
   color: var(--au-warning) !important;

@@ -61,6 +61,7 @@ export const TOKENS = {
   CustomListService: Symbol.for('CustomListService'),
   SocialMaskingService: Symbol.for('SocialMaskingService'),
   CommentService: Symbol.for('CommentService'),
+  ProfileConnectionsService: Symbol.for('ProfileConnectionsService'),
 
   // Activity Module Services
   ActivityService: Symbol.for('ActivityService'),

@@ -70,7 +70,8 @@
 
 .calendar-header__refresh,
 .calendar-header__add,
-.calendar-header__settings {
+.calendar-header__settings,
+.calendar-header__size {
   padding: 8px 12px;
   background: transparent;
   border: 1px solid var(--cal-border);
@@ -82,7 +83,8 @@
 
 .calendar-header__refresh:hover,
 .calendar-header__add:hover,
-.calendar-header__settings:hover {
+.calendar-header__settings:hover,
+.calendar-header__size:hover {
   background: rgba(74, 158, 255, 0.1);
   border-color: var(--au-primary, #4a9eff);
   color: var(--au-primary, #4a9eff);

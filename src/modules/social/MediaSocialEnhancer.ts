@@ -30,12 +30,11 @@ import { captureApiContext, assertApiContext } from '@/api/ApiContext';
 import { EVENT_TYPES } from '@core/events/EventTypes';
 import type { AniListActivity } from '../activity/ActivityUtils';
 import { activityUserIds, parseActivityPage } from '../activity/ActivityResponse';
+import { ActivityFilterBar, ActivityRenderer, CustomListTabManager } from '../activity/shared';
 import {
-  ActivityFilterBar,
-  ActivityRenderer,
-  CustomListTabManager,
-} from '../activity/shared';
-import { ensurePersistentLoadMore, removePersistentLoadMore } from '../activity/shared/PersistentLoadMore';
+  ensurePersistentLoadMore,
+  removePersistentLoadMore,
+} from '../activity/shared/PersistentLoadMore';
 import { NATIVE_ACTIVITY_SELECTOR } from '../activity/shared/ActivityRenderer';
 import '../../styles/activity-enhancer.css';
 
@@ -47,13 +46,13 @@ import '../../styles/activity-enhancer.css';
 export class MediaSocialEnhancer extends BaseModule {
   /** Observer name for targeted mutation tracking */
   private readonly OBSERVER_NAME = 'media-social-continuous';
-  
+
   /** Container for custom activities rendered via Astra */
   private customActivitiesContainer: HTMLElement | null = null;
-  
+
   /** The current media ID extracted from the URL */
   private mediaId: number | null = null;
-  
+
   /** Timeout for the "Following" tab stall detection */
   private stallTimeout: number | null = null;
   private spacingTimeout: number | null = null;
@@ -172,7 +171,7 @@ export class MediaSocialEnhancer extends BaseModule {
   private checkAndProcess(): void {
     if (this.destroyed || !this.isOnMediaSocialPage()) return;
     const isSocialPage = window.location.pathname.endsWith('/social');
-    
+
     if (!document.querySelector('.au-activity-bar')) {
       this.injectFilterBar(isSocialPage);
     }
@@ -181,15 +180,17 @@ export class MediaSocialEnhancer extends BaseModule {
       const generation = this.generation;
       this.injectingTab = true;
       void this.injectCustomListsTab(isSocialPage)
-        .catch(error => this.logger.error('[MediaSocialEnhancer] Tab injection failed', error))
-        .finally(() => { if (generation === this.generation) this.injectingTab = false; });
+        .catch((error) => this.logger.error('[MediaSocialEnhancer] Tab injection failed', error))
+        .finally(() => {
+          if (generation === this.generation) this.injectingTab = false;
+        });
     }
 
     const header = this.findSocialHeader(isSocialPage);
 
     const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
     const feed = document.querySelector(feedSelector);
-    
+
     if (feed) {
       ensurePersistentLoadMore(feed);
       this.suspendObserver(this.OBSERVER_NAME);
@@ -204,19 +205,19 @@ export class MediaSocialEnhancer extends BaseModule {
       return document.querySelector('.section-header');
     } else {
       const headers = Array.from(document.querySelectorAll('.section-header'));
-      return headers.find(h => h.textContent?.includes('Recent Activity')) || null;
+      return headers.find((h) => h.textContent?.includes('Recent Activity')) || null;
     }
   }
 
   private hijackFollowingTab(header: Element | null): void {
     if (!header) return;
-    
+
     const tabs = header.querySelectorAll('.feed-type-toggle .button');
-    tabs.forEach(tab => {
+    tabs.forEach((tab) => {
       const text = tab.textContent?.trim();
       if (!this.followingListeners.has(tab)) {
         tab.setAttribute('data-au-hijacked', 'true');
-        
+
         const listener: EventListener = () => {
           this.followingRequest++;
           this.clearFollowingFeed();
@@ -231,7 +232,7 @@ export class MediaSocialEnhancer extends BaseModule {
 
     const activeTab = header.querySelector('.feed-type-toggle .button.active');
     if (activeTab?.textContent?.trim() === 'Following' && !this.isAstraActive()) {
-       this.monitorFollowingStall();
+      this.monitorFollowingStall();
     }
   }
 
@@ -248,23 +249,25 @@ export class MediaSocialEnhancer extends BaseModule {
     if (this.destroyed || this.stallTimeout !== null || this.isAstraActive()) return;
     const generation = this.generation;
     const path = window.location.pathname;
-    
+
     this.stallTimeout = window.setTimeout(() => {
       this.stallTimeout = null;
       if (!this.isCurrent(generation, path)) return;
       const isSocialPage = window.location.pathname.endsWith('/social');
       const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
       const container = document.querySelector(feedSelector) as HTMLElement;
-      
+
       if (!container) return;
 
       const activeTab = document.querySelector('.feed-type-toggle .button.active');
       if (activeTab?.textContent?.trim() !== 'Following') return;
 
-      const children = [...container.children].filter(child => !child.classList.contains('au-persistent-load-more'));
-      const isEmpty = children.length === 0 ||
-                      (children.length === 1 && children[0].matches('.loading-spinner'));
-      
+      const children = [...container.children].filter(
+        (child) => !child.classList.contains('au-persistent-load-more')
+      );
+      const isEmpty =
+        children.length === 0 || (children.length === 1 && children[0].matches('.loading-spinner'));
+
       if (isEmpty) {
         this.logger.warn('[MediaSocialEnhancer] Native Following feed stalled. Taking over...');
         container.classList.add('au-astra-following-active');
@@ -281,21 +284,32 @@ export class MediaSocialEnhancer extends BaseModule {
     const request = ++this.followingRequest;
     const listRequest = this.listRequest;
     this.followingContainer = container;
-    const current = () => this.isCurrent(generation, path) && container.isConnected
-      && request === this.followingRequest && listRequest === this.listRequest
-      && !this.tabManager.isActive()
-      && this.followingNodes.every(node => node.parentElement === container)
-      && [...container.children].every(node => this.followingNodes.includes(node) || node.classList.contains('au-persistent-load-more'))
-      && document.querySelector('.feed-type-toggle .button.active')?.textContent?.trim() === 'Following';
+    const current = () =>
+      this.isCurrent(generation, path) &&
+      container.isConnected &&
+      request === this.followingRequest &&
+      listRequest === this.listRequest &&
+      !this.tabManager.isActive() &&
+      this.followingNodes.every((node) => node.parentElement === container) &&
+      [...container.children].every(
+        (node) =>
+          this.followingNodes.includes(node) || node.classList.contains('au-persistent-load-more')
+      ) &&
+      document.querySelector('.feed-type-toggle .button.active')?.textContent?.trim() ===
+        'Following';
 
     try {
       this.renderer.showLoader(container);
-      this.followingNodes = [...container.children].filter(node => !node.classList.contains('au-persistent-load-more'));
+      this.followingNodes = [...container.children].filter(
+        (node) => !node.classList.contains('au-persistent-load-more')
+      );
       const { activities } = await this.activityService.getMediaActivity(mediaId);
       if (!current()) return;
       if (activities.length === 0) this.renderer.showEmptyMessage(container);
       else this.renderer.renderCustomActivities(activities, container);
-      this.followingNodes = [...container.children].filter(node => !node.classList.contains('au-persistent-load-more'));
+      this.followingNodes = [...container.children].filter(
+        (node) => !node.classList.contains('au-persistent-load-more')
+      );
     } catch (error) {
       this.logger.error('[MediaSocialEnhancer] Astra takeover failed', error);
       if (current()) {
@@ -306,12 +320,12 @@ export class MediaSocialEnhancer extends BaseModule {
 
   private injectFilterBar(isSocialPage: boolean): void {
     let header: Element | null;
-    
+
     if (isSocialPage) {
       header = document.querySelector('.section-header');
     } else {
       const headers = Array.from(document.querySelectorAll('.section-header'));
-      header = headers.find(h => h.textContent?.includes('Recent Activity')) || null;
+      header = headers.find((h) => h.textContent?.includes('Recent Activity')) || null;
     }
 
     if (!header) return;
@@ -366,15 +380,17 @@ export class MediaSocialEnhancer extends BaseModule {
     (header as HTMLElement).style.justifyContent = 'space-between';
 
     header.appendChild(bar);
-    this.logger.success(`[MediaSocialEnhancer] Filter bar injected on ${isSocialPage ? 'Social' : 'Overview'} page`);
+    this.logger.success(
+      `[MediaSocialEnhancer] Filter bar injected on ${isSocialPage ? 'Social' : 'Overview'} page`
+    );
   }
 
   private async injectCustomListsTab(isSocialPage: boolean): Promise<void> {
     let toggleSelector = '.feed-type-toggle';
-    
+
     if (!isSocialPage) {
       const toggles = Array.from(document.querySelectorAll('.feed-type-toggle'));
-      const socialToggle = toggles.find(t => t.textContent?.includes('Following'));
+      const socialToggle = toggles.find((t) => t.textContent?.includes('Following'));
       if (socialToggle) {
         socialToggle.classList.add('au-social-toggle');
         toggleSelector = '.au-social-toggle';
@@ -385,13 +401,17 @@ export class MediaSocialEnhancer extends BaseModule {
       toggleSelector: toggleSelector,
       scopeAttribute: 'data-v-4f9e87dc',
       onListChange: (listName) => {
-        void this.handleListChange(listName).catch((error: unknown) => this.logger.error('[MediaSocialEnhancer] List change failed', error));
+        void this.handleListChange(listName).catch((error: unknown) =>
+          this.logger.error('[MediaSocialEnhancer] List change failed', error)
+        );
       },
     });
 
     const success = await this.tabManager.inject();
     if (success) {
-      this.logger.success(`[MediaSocialEnhancer] Custom lists tab injected on ${isSocialPage ? 'Social' : 'Overview'}`);
+      this.logger.success(
+        `[MediaSocialEnhancer] Custom lists tab injected on ${isSocialPage ? 'Social' : 'Overview'}`
+      );
     }
   }
 
@@ -449,8 +469,11 @@ export class MediaSocialEnhancer extends BaseModule {
     const path = window.location.pathname;
     const request = this.listRequest;
     const container = this.customActivitiesContainer;
-    const current = () => this.isCurrent(generation, path) && request === this.listRequest
-      && !!container?.isConnected && container === this.customActivitiesContainer;
+    const current = () =>
+      this.isCurrent(generation, path) &&
+      request === this.listRequest &&
+      !!container?.isConnected &&
+      container === this.customActivitiesContainer;
 
     try {
       const activities = await this.fetchCustomListActivitiesForMedia(listName, mediaId, current);
@@ -460,7 +483,9 @@ export class MediaSocialEnhancer extends BaseModule {
     } catch (error) {
       this.logger.error('[MediaSocialEnhancer] Failed to load custom list activities', error);
       if (current() && container) {
-        this.renderer.showErrorMessage(container, () => { if (current()) void this.handleListChange(listName); });
+        this.renderer.showErrorMessage(container, () => {
+          if (current()) void this.handleListChange(listName);
+        });
       }
     }
   }
@@ -469,12 +494,12 @@ export class MediaSocialEnhancer extends BaseModule {
     const isSocialPage = window.location.pathname.endsWith('/social');
     const feedSelector = isSocialPage ? '.activity-feed' : '.activities';
     const feed = document.querySelector(feedSelector);
-    
+
     if (!feed) return;
 
     const container = document.createElement('div');
     container.className = 'au-custom-activities-container';
-    
+
     if (isSocialPage) {
       feed.appendChild(container);
     } else {
@@ -517,8 +542,9 @@ export class MediaSocialEnhancer extends BaseModule {
               status
               progress
               createdAt
+              isLiked
               user { id name avatar { medium } }
-              media { id title { romaji } coverImage { medium } type }
+              media { id title { romaji userPreferred } coverImage { medium } type }
               replyCount
               likeCount
             }

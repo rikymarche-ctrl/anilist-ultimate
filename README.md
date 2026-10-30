@@ -5,10 +5,11 @@ An unofficial browser extension bringing a calendar, personal ratings, Wrapped r
 ## Features
 
 - **Calendar with social activity:** a customizable weekly anime airing calendar with countdowns, episode progress (watched/available/total), quick progress actions and friends' activity on each title.
-- **Activity and profile filters:** filter or search activities on the home feed, user profiles and anime/manga Social pages; distinguish activity types and watching/reading states (including rewatches/rereads), and browse activity from selected custom user lists.
-- **Reviews and ratings in activities:** show available users' media scores directly on supported list-activity cards and add review-score badges to supported review cards, including those appearing in feeds. Like and reply counts are preserved in extension-rendered activities. Scores only appear when the corresponding public AniList data exists and can be retrieved.
+- **Activity and profile filters:** filter or search activities on the home feed, user profiles and anime/manga Social pages; distinguish activity types and watching/reading states (including rewatches/rereads), and browse activity from selected custom user lists. With a custom list selected, or on your Following feed, a filter asks AniList for matching activity instead of only hiding rows, so a rare filter such as **Dropped** still fills the feed, with **Load More** reaching further back.
+- **People in common:** on another user's profile, see how many people you follow also follow them or are followed by them, and how many of those are in your custom user lists; click a number to see who they are. Their Social tab also counts mutual followers, forum threads, forum comments and messages.
+- **Reviews and ratings in activities:** show available users' media scores right after the title on supported list-activity cards and add review-score badges to supported review cards, including those appearing in feeds. Like and reply counts are preserved in extension-rendered activities. Scores only appear when the corresponding public AniList data exists and can be retrieved.
 - **Forum navigation enhancements:** turn media-related forum-thread titles into direct links to the associated anime or manga, reducing unnecessary navigation.
-- **Astra rating calculator:** calculate personal ratings from configurable scoring sections and weights; manage season ratings, tracked works, quick edits, a local Journal, AniList synchronization and JSON backups.
+- **Astra rating calculator:** calculate personal ratings from configurable scoring sections and weights; manage season ratings, tracked works, quick edits with a one-click Revert, a local Journal, AniList synchronization and JSON backups.
 - **Astra Wrapped:** yearly, monthly or custom-period recaps of logged AniList list activity, including favorites, genres, studios and people, with downloadable PNG share cards.
 - **Seasonal Wrapped:** broadcast-season rankings, personal awards, continuing titles and unfinished/leftover shows.
 - **Custom user lists and list ordering:** create and edit your own groups of people for activity filtering, and choose and reorder the Following groups displayed on a title's Social and Overview sections. These local user groups are separate from AniList's native anime/manga custom lists.
@@ -41,13 +42,19 @@ Filter activity by type or search by user, content or title. Review cards show a
 
 ![AniList activity feed with activity filters, search and recent reviews with score badges](docs/screenshots/activity-filters-reviews-scores.webp)
 
+### People in common
+
+Open someone's profile to see the people you share with them: how many of the people you follow also follow them or are followed by them, and how many of those are in your custom user lists. Click a number to see who they are, with a search box for long lists. The profile's Social tab adds counts for mutual followers, forum threads, forum comments and messages.
+
+![AniList profile showing "1 follower in common" under the username, with the Follows You badge and an In Lists button](docs/screenshots/profile-people-in-common.webp)
+
 ### Custom user lists and Following groups
 
-Create and manage your own groups of AniList users—for example, **Best Friends** and **Notable ones**—and use them to filter activity feeds. These groups belong to AniList Ultimate, not AniList's native anime/manga custom lists.
+Create and manage your own groups of AniList users—for example, **Best Friends** and **Notable ones**—and use them as activity feeds of their own. A custom feed looks like AniList's own feed: text posts keep their formatting, spoilers and videos, and likes, replies and links work as usual. These groups belong to AniList Ultimate, not AniList's native anime/manga custom lists.
 
 You can also select which groups appear in the **Following** column on an anime or manga's Social tab. Members of each selected list are displayed together under its name, in your chosen order; everyone not in a selected group appears under **Others**. This changes the presentation only, not your AniList account or follow relationships.
 
-**Custom User Lists settings** — create groups, manage their members and choose which ones to display in Following.
+**Custom User Lists settings** — create groups, manage their members and choose which ones to display in Following. While managing a list, click a user's card to add or remove them, or click their avatar to open their AniList profile in a new tab.
 
 ![AniList Ultimate Custom User Lists settings with Best Friends and Notable ones groups](docs/screenshots/custom-user-lists-settings.webp)
 

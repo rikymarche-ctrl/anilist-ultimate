@@ -156,8 +156,8 @@ export class AstraModule extends BaseModule {
     if (enabled === this.astraActive) return;
     this.astraActive = enabled;
     if (enabled) {
+      // Airing data loads when the dashboard opens, not on every page view.
       this.dashboard?.activate();
-      this.dashboard?.preloadAiringData?.();
       this.navService.activate();
       this.bridge.initGlobalListeners();
       this.enhanceAstraNavigation();

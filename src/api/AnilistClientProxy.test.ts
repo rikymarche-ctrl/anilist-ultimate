@@ -58,6 +58,13 @@ describe('shared API client without credential exposure', () => {
     await expect(proxy.mutate('mutation { DeleteUser(id:1) { id } }')).rejects.toThrow('background request failed');
     expect(raw).not.toHaveBeenCalled();
   });
+  it('sends non-idempotent mutations as mutateOnce over the messaging channel', async () => {
+    vi.mocked(chrome.runtime.sendMessage).mockResolvedValueOnce({ success: true, data: { ToggleLikeV2: { id: 1 } } });
+    const proxy = new AnilistClientProxy(metadata() as never, new EventBus());
+    await expect(proxy.mutateOnce('mutation ($id: Int) { ToggleLikeV2(id: $id, type: ACTIVITY) { ... on TextActivity { id } } }', { id: 1 })).resolves.toEqual({ ToggleLikeV2: { id: 1 } });
+    expect(vi.mocked(chrome.runtime.sendMessage).mock.lastCall?.[0]).toEqual(expect.objectContaining({ method: 'mutateOnce', variables: { id: 1 }, silent: false }));
+    proxy.destroy();
+  });
   it('settles a request when the messaging channel rejects with a non-Error value', async () => {
     vi.mocked(chrome.runtime.sendMessage).mockRejectedValueOnce(null);
     const bus = new EventBus(); const errors = vi.fn(); bus.on(EVENT_TYPES.API_ERROR, errors);
