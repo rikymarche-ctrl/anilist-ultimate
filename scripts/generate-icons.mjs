@@ -6,7 +6,7 @@ function walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) walk(path);
-    else if (/\.(ts|css|html)$/.test(path) && !/\.(test|spec)\.ts$/.test(path) && !/IconDefinitions\.ts$/.test(path)) files.push(path);
+    else if (/\.(ts|css|html)$/.test(path) && !/\.(test|spec)\.ts$/.test(path) && !/IconDefinitions\.ts$/.test(path) && !/[\\/]src[\\/]test[\\/]|^src[\\/]test[\\/]/.test(path)) files.push(path);
   }
 }
 walk('src');
@@ -14,7 +14,9 @@ const metadata = JSON.parse(readFileSync('node_modules/@fortawesome/fontawesome-
 const icons = new Set(Object.keys(metadata));
 const classes = new Set(files.flatMap(path => [...readFileSync(path, 'utf8').matchAll(/\bfa-([a-z0-9]+(?:-[a-z0-9]+)*)\b/g)].map(match => match[1])));
 const utilities = /^(?:solid|regular|brands|light|thin|duotone|classic|sharp|fw|spin(?:-.+)?|pulse|beat(?:-fade)?|fade|bounce|shake|flip(?:-.+)?|rotate(?:-.+)?|stack(?:-.+)?|border|pull-.+|inverse|layers(?:-.+)?|size|xs|sm|lg|xl|2xl|\d+x)$/;
-const missing = [...classes].filter(name => !icons.has(name) && !utilities.test(name));
+// Classes copied from AniList's own inline SVG markup; AniList draws those, not this inventory.
+const nativeMarkup = /^(?:ellipsis-h|w-\d+)$/;
+const missing = [...classes].filter(name => !icons.has(name) && !utilities.test(name) && !nativeMarkup.test(name));
 if (missing.length) throw new Error(`Unresolved icon classes: ${missing.join(', ')}`);
 const names = [...classes].filter(name => icons.has(name)).sort();
 const definitions = names.flatMap(name => {
