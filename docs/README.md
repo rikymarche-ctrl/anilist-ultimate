@@ -17,6 +17,7 @@
 | Guide                                   | Contents                                                    |
 | --------------------------------------- | ----------------------------------------------------------- |
 | [Astra Wrapped](ASTRA_WRAPPED.md)       | Activity sources, counting rules and PNG exports.           |
+| [Astra Compare](ASTRA_COMPARE.md)       | Comparing your anime or manga list with another user.       |
 | [Seasonal Wrapped](SEASONAL_WRAPPED.md) | Broadcast-season attribution, awards and continuing titles. |
 | [Friend Alerts](FRIEND_ALERTS.md)       | Subscriptions, audience groups and collection limits.       |
 | [Bulk Editor](BULK_EDITOR.md)           | Selection, confirmation, stop and partial saves.            |

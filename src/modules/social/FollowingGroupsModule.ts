@@ -17,6 +17,7 @@ import {
   clearGapVar,
   createClone,
   createHeader,
+  HIDDEN_CLASS,
   setClass,
   setOrder,
   setText,
@@ -167,14 +168,35 @@ export class FollowingGroupsModule extends BaseModule {
     else this.scanOverview(parent, rows, snapshot);
   }
 
+  /** Group member ids to request alongside the viewer's followings. Only enabled groups count. */
+  private memberIds(snapshot: Snapshot): number[] {
+    return snapshot.config.groups
+      .filter((name) => Object.prototype.hasOwnProperty.call(snapshot.lists, name))
+      .flatMap((name) => snapshot.lists[name].map((entry) => entry.id));
+  }
+
   private scanSocial(parent: HTMLElement, rows: Row[], snapshot: Snapshot): void {
-    this.removeClones();
-    const plan = planFollowingGroups(rows.filter(({ username }) => username.toLowerCase() !== this.viewerName)
-      .map(({ username }) => username), snapshot.lists, snapshot.config);
+    const members = hasEnabledMembers(snapshot.lists, snapshot.config);
+    if (members && this.fetchState === 'idle') this.startFetch(this.memberIds(snapshot));
+    // While the read is pending, the page keeps its native rows exactly as before.
+    const result = members && this.fetchState === 'ready' ? this.fetched : null;
+    const nativeKeys = new Set(rows.map(({ username }) => username.toLowerCase()));
+    const extras = (result?.entries ?? []).filter(
+      (entry) => !nativeKeys.has(entry.name.toLowerCase()) && entry.name.toLowerCase() !== this.viewerName
+    );
+    const plan = planFollowingGroups(
+      [...rows.map(({ username }) => username), ...extras.map((entry) => entry.name)]
+        .filter((name) => name.toLowerCase() !== this.viewerName),
+      snapshot.lists,
+      snapshot.config
+    );
     if (!plan.active) {
       this.pinViewer(parent, rows);
       return;
     }
+    // Only fetched members of an enabled group become clones; other followings stay out of the list.
+    const clonable = extras.filter((entry) => isEnabledGroupMember(plan, entry.name));
+    this.removeClones(new Set(clonable.map((entry) => entry.name.toLowerCase())));
     this.setGroupedClasses(true);
     syncGapVar(parent, rows[0].row);
     this.syncHeaders(parent, plan);
@@ -188,6 +210,12 @@ export class FollowingGroupsModule extends BaseModule {
       orders.set(row, { order: String(2 * group + 1), hidden: plan.groups[group].collapsed });
     }
     this.native.apply(parent, orders, String(2 * plan.groups.length + 1), this.ownNodes());
+    const format = result?.scoreFormat ?? 'POINT_100';
+    for (const entry of clonable) {
+      const group = plan.assignment.get(entry.name.toLowerCase()) ?? plan.groups.length - 1;
+      this.placeClone(parent, rows[0].row, entry, format, 2 * group + 1);
+      this.clones.get(entry.name.toLowerCase())?.classList.toggle(HIDDEN_CLASS, plan.groups[group].collapsed);
+    }
   }
 
   /** Overview: no headers. The viewer comes first, then groups, up to OVERVIEW_LIMIT rows. */
@@ -196,7 +224,7 @@ export class FollowingGroupsModule extends BaseModule {
       this.pinViewer(parent, rows);
       return;
     }
-    if (this.fetchState === 'idle') this.startFetch();
+    if (this.fetchState === 'idle') this.startFetch(this.memberIds(snapshot));
     if (this.fetchState === 'loading') return;
     const result = this.fetchState === 'ready' ? this.fetched : null;
     const nativeKeys = new Set(rows.map(({ username }) => username.toLowerCase()));
@@ -269,12 +297,12 @@ export class FollowingGroupsModule extends BaseModule {
   }
 
   /** One read per visit: later scans reuse the result, and only a new visit (restart) fetches again. */
-  private startFetch(): void {
+  private startFetch(memberIds: number[]): void {
     const route = getMediaRoute(location.pathname);
     if (!route) return;
     const version = this.version;
     this.fetchState = 'loading';
-    this.media.read(route.id).then(
+    this.media.read(route.id, memberIds).then(
       (result) => {
         if (version !== this.version) return;
         this.fetched = result;
@@ -387,4 +415,10 @@ export class FollowingGroupsModule extends BaseModule {
     this.reset();
     await super.destroy();
   }
+}
+
+/** True when the name sits in an enabled group, not in the Others catch-all. */
+function isEnabledGroupMember(plan: FollowingGroupPlan, name: string): boolean {
+  const group = plan.assignment.get(name.toLowerCase());
+  return group !== undefined && plan.groups[group]?.name !== null;
 }

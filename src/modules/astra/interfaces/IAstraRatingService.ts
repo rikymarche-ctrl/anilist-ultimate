@@ -123,7 +123,7 @@ export interface AstraPendingListState {
  */
 export interface IAstraRatingService {
   /** Durably remove the AniList entry and its account-scoped Astra data. */
-  deleteEntry(mediaId: number): Promise<'synced' | 'queued'>;
+  deleteEntry(mediaId: number): Promise<void>;
   /**
    * Fetches data for a media entry (notes, score, etc).
    */

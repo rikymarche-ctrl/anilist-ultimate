@@ -6,7 +6,7 @@
  * visible notifications by matching text content against the query string.
  *
  * @see NotificationCleanerModule.ts for the orchestration layer
- * @see docs/MODULES.md#2-notification-cleaner-module
+ * @see docs/MODULES.md
  */
 
 import { injectable } from 'tsyringe';
@@ -51,36 +51,41 @@ export class NotificationFilterService {
   }
 
   /**
-   * Apply search filter to all notifications
+   * Applies the search query. Grouped rows are matched through their summary's data-au-group;
+   * a group with a hit is expanded for the search, and the stored state returns when the query clears.
    */
   public applySearchFilter(query: string): void {
-    const notifications = document.querySelectorAll<HTMLElement>('.notifications .notification:not(.au-sub-notification), .notifications .notification-item:not(.au-sub-notification)');
-    
-    notifications.forEach(notif => {
-      const text = notif.textContent?.toLowerCase() || '';
-      const normalized = query.toLowerCase().trim();
-      
-      // Handle virtual notifications and their dropdowns
-      if (notif.classList.contains('au-virtual-notification')) {
-        const dropdown = notif.nextElementSibling as HTMLElement;
-        if (dropdown && dropdown.classList.contains('au-notification-dropdown')) {
-          const children = [...dropdown.querySelectorAll<HTMLElement>('.au-sub-notification')];
-          const summaryMatch = text.includes(normalized);
-          const matches = children.map(child => (child.textContent?.toLowerCase() ?? '').includes(normalized));
-          const visible = !normalized || summaryMatch || matches.some(Boolean);
-          notif.classList.toggle('au-notification-search-hidden', !visible);
-          children.forEach((child, index) => child.classList.toggle('au-notification-search-hidden', !!normalized && !summaryMatch && !matches[index]));
-          if (normalized) {
-            dropdown.style.display = visible ? 'block' : 'none';
-            notif.setAttribute('aria-expanded', String(visible));
-          }
-        }
-      } else if (!notif.classList.contains('au-sub-notification')) {
-        notif.classList.toggle('au-notification-search-hidden', !text.includes(normalized));
-      }
+    const normalized = query.toLowerCase().trim();
+    document
+      .querySelectorAll<HTMLElement>('.notifications .au-virtual-notification[data-au-group]')
+      .forEach((summary) => this.applyGroupFilter(summary, normalized));
+    const standalone = document.querySelectorAll<HTMLElement>(
+      '.notifications .notification:not(.au-sub-notification):not(.au-virtual-notification), .notifications .notification-item:not(.au-sub-notification):not(.au-virtual-notification)'
+    );
+    standalone.forEach((node) => {
+      const text = node.textContent?.toLowerCase() ?? '';
+      node.classList.toggle('au-notification-search-hidden', !!normalized && !text.includes(normalized));
     });
-
     logger.debug('[NotificationFilter] Applied search filter');
+  }
+
+  private applyGroupFilter(summary: HTMLElement, normalized: string): void {
+    const groupId = summary.dataset.auGroup ?? '';
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        '.notifications .au-sub-notification[data-au-group="' + groupId + '"]'
+      ),
+    ];
+    const summaryMatch = !normalized || (summary.textContent?.toLowerCase() ?? '').includes(normalized);
+    const matches = rows.map((row) => (row.textContent?.toLowerCase() ?? '').includes(normalized));
+    const visible = !normalized || summaryMatch || matches.some(Boolean);
+    summary.classList.toggle('au-notification-search-hidden', !visible);
+    // Without a query, rows follow the group's stored expansion. With a query, hits are shown.
+    const expanded = summary.getAttribute('aria-expanded') === 'true';
+    rows.forEach((row, index) => {
+      row.classList.toggle('au-notification-search-hidden', !!normalized && !summaryMatch && !matches[index]);
+      row.classList.toggle('au-notification-collapsed', !normalized && !expanded);
+    });
   }
 
   public getSearchQuery(): string { return this.searchQuery; }

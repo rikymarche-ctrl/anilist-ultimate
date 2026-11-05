@@ -93,6 +93,7 @@ import { BulkEditorService, bulkRoute } from '@/modules/bulk/BulkEditorService';
 import { MediaSocialEnhancer } from '@/modules/social/MediaSocialEnhancer';
 import { UserSocialStatsModule } from '@/modules/social/UserSocialStatsModule';
 import { ProfileConnectionsModule } from '@/modules/social/ProfileConnectionsModule';
+import { ProfileCompareModule } from '@/modules/social/compare/ProfileCompareModule';
 import { ProfileConnectionsService } from '@/modules/social/ProfileConnectionsService';
 import { MediaMetadataModule } from '@/modules/media/MediaMetadataModule';
 import { UserBannerModule } from '@/modules/social/UserBannerModule';
@@ -232,7 +233,7 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
         const current = (await host.dispatch('getFullWork', [mediaId], sessionId)) as
           | { updatedAt: number }
           | undefined;
-        return current?.updatedAt === updatedAt;
+        return current !== undefined && current.updatedAt >= updatedAt;
       },
     });
     container.registerSingleton(TOKENS.SyncQueue, SyncQueueService);
@@ -486,14 +487,14 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
     {
       name: 'followingProgress',
       description: 'Watched episodes in native Following rows',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('socialActivity'),
       factory: (scope) => scope.resolve(FollowingProgressModule),
       pageMatch: isFollowingProgressRoute,
     },
     {
       name: 'followingGroups',
       description: 'Custom groups in the Social tab Following column',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('socialActivity'),
       factory: (scope) => scope.resolve(FollowingGroupsModule),
       pageMatch: isFollowingGroupsPageRoute,
     },
@@ -537,7 +538,7 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
     {
       name: 'activityEnhancer',
       description: 'Enhanced activity feed',
-      enabled: config.isFeatureEnabled('socialActivity'),
+      enabled: config.isFeatureEnabled('activityFeed'),
       factory: () => container.resolve(ActivityEnhancerModule),
       pageMatch: (path) =>
         path === '/' ||
@@ -562,35 +563,36 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
     {
       name: 'socialActivity',
       description: 'Social activity sidebar',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('socialActivity'),
       factory: () => container.resolve(SocialActivityModule),
       pageMatch: (path) => path === '/' || path === '/home',
     },
     {
       name: 'socialEnhancer',
       description: 'Social features enhancer',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('socialActivity'),
       factory: () => container.resolve(SocialEnhancerModule),
       pageMatch: (path) => path === '/' || path === '/home' || path.startsWith('/user/'),
     },
     {
       name: 'customList',
       description: 'Custom list management',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      // Always on: both the social panels and the activity feeds read these user lists.
+      enabled: true,
       factory: (scope) => scope.resolve(CustomListModule),
       pageMatch: isCustomListSettingsPath,
     },
     {
       name: 'mediaSocialEnhancer',
       description: 'Media page social enhancements',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('socialActivity'),
       factory: () => container.resolve(MediaSocialEnhancer),
       pageMatch: (path) => /^\/(anime|manga)\/\d+/.test(path),
     },
     {
       name: 'userBanner',
       description: 'User profile banner actions',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('profileSocial'),
       factory: () => container.resolve(UserBannerModule),
       pageMatch: (path) => path.startsWith('/user/'),
     },
@@ -611,21 +613,28 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
     {
       name: 'userSocialStats',
       description: 'Follower and following counts on profiles',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('profileSocial'),
       factory: () => container.resolve(UserSocialStatsModule),
       pageMatch: (path) => path.startsWith('/user/'),
     },
     {
       name: 'profileConnections',
       description: 'People you follow who are connected to a profile',
-      enabled: config.isFeatureEnabled('friendActivity'),
+      enabled: config.isFeatureEnabled('profileSocial'),
       factory: () => container.resolve(ProfileConnectionsModule),
+      pageMatch: (path) => path.startsWith('/user/'),
+    },
+    {
+      name: 'profileCompare',
+      description: 'Wrapped-style comparison with another profile',
+      enabled: config.isFeatureEnabled('astraCompare'),
+      factory: () => container.resolve(ProfileCompareModule),
       pageMatch: (path) => path.startsWith('/user/'),
     },
     {
       name: 'profileActivity',
       description: 'Activity filtering on user profile',
-      enabled: config.isFeatureEnabled('socialActivity'),
+      enabled: config.isFeatureEnabled('activityFeed'),
       factory: () => container.resolve(ProfileActivityModule),
       pageMatch: (path) =>
         path.startsWith('/user/') && !path.includes('/animelist') && !path.includes('/mangalist'),

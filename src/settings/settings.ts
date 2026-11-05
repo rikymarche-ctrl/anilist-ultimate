@@ -147,6 +147,9 @@ class SettingsPage {
                 ${this.renderModuleCard('socialActivity', 'Social Activity', 'See which friends are watching specific anime on cards and sidebars.', 'fa-user-group')}
                 ${this.renderModuleCard('friendAlerts', 'Friend Alerts', 'Alerts for friend activity on selected titles. Turn off to hide alerts and pause checks. Independent of Astra.', 'fa-bell')}
                 ${this.renderModuleCard('listEditor', 'Bulk Editor', 'Edit status and custom list memberships on your own anime and manga lists.', 'fa-list-check')}
+                ${this.renderModuleCard('activityFeed', 'Activity Feed', 'Activity filters, search and custom-list feeds on the home page and profiles.', 'fa-filter')}
+                ${this.renderModuleCard('profileSocial', 'Profile Social', 'Follower counts, banner actions and people in common on user profiles.', 'fa-address-card')}
+                ${this.renderModuleCard('astraCompare', 'Astra Compare', 'Long Wrapped-style comparison of your anime or manga list with another user, under Compare with your list.', 'fa-users')}
               </div>
             </div>
 
@@ -156,7 +159,7 @@ class SettingsPage {
                 ${this.renderModuleCard('notificationCleaner', 'Notification Cleaner', 'Keep your notification panel clean and organized.', 'fa-bell-slash')}
                 ${this.renderModuleCard('reviewEnhancer', 'Review Enhancer', 'Improved review displays and rating visibility.', 'fa-star-half-stroke')}
                 ${this.renderModuleCard('forumEnhancer', 'Forum Enhancer', 'Better forum navigation and layout improvements.', 'fa-comments')}
-                ${this.renderModuleCard('activityScore', 'Activity Score', 'Visualize activity trends and scoring metrics.', 'fa-chart-line')}
+                ${this.renderModuleCard('activityScore', 'Activity Score', 'Show scores next to titles in activity feeds.', 'fa-chart-line')}
                 ${this.renderModuleCard('pageRestore', 'Back Restore', 'Going back to any page restores what you had loaded, your list filters and the scroll position.', 'fa-arrow-rotate-left')}
               </div>
             </div>
@@ -195,11 +198,6 @@ class SettingsPage {
           <!-- Advanced Section -->
           <section id="section-advanced" class="settings-section">
             <div id="data-recovery" class="category-block"></div>
-            <h3 class="section-title"><i class="fa-solid fa-microchip"></i> Developer Options</h3>
-            <div class="module-grid">
-               ${this.renderModuleCard('webComponents', 'Web Components', 'Use modern web components for UI rendering.', 'fa-code')}
-               ${this.renderModuleCard('virtualScroll', 'Virtual Scrolling', 'Optimize performance for long lists (Experimental).', 'fa-scroll')}
-            </div>
           </section>
 
           <!-- About Section -->

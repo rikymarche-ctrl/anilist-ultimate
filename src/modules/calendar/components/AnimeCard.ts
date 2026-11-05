@@ -9,7 +9,7 @@ import { logger } from '@core/logger';
  *
  * @see DayColumn.ts for the parent container
  * @see CalendarSocialService.ts for friend activity data
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject, delay } from 'tsyringe';
@@ -234,7 +234,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     // Only show portal on home page (BUG-035 fix)
     const isHomePage = window.location.pathname === '/' || window.location.pathname === '/home';
 
-    if (socialEnabled && socialShowAvatars && isHomePage) {
+    if (this.config.isFeatureEnabled('socialActivity') && socialEnabled && socialShowAvatars && isHomePage) {
       if (!this.socialPortalController) {
         this.socialPortalController = this.socialRenderer.attachPortal(
           this.element,
@@ -261,7 +261,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
 
   private refreshPillSocialButton(): void {
     const { socialEnabled, socialShowAvatars } = this.store.getState().preferences;
-    const showPillSocial = socialEnabled && !socialShowAvatars;
+    const showPillSocial = this.config.isFeatureEnabled('socialActivity') && socialEnabled && !socialShowAvatars;
 
     // Use cached query instead of querying every time
     this.getActionPills().forEach((pill) => {
@@ -365,7 +365,7 @@ export class AnimeCard extends BaseComponent<AnimeCardProps> {
     const { layoutMode, showTime, showEpisodeNumbers, timeFormat } = options;
     const { socialEnabled, socialShowAvatars } = this.store.getState().preferences;
 
-    const showPillSocial = socialEnabled && !socialShowAvatars;
+    const showPillSocial = this.config.isFeatureEnabled('socialActivity') && socialEnabled && !socialShowAvatars;
     let socialSection: HTMLElement | null = null;
 
     if (showPillSocial) {

@@ -14,7 +14,7 @@
  *
  * @see AstraService.ts for score persistence
  * @see AstraRadarChart.ts for the SVG chart
- * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ * @see docs/MODULES.md
  */
 
 import { injectable, singleton, inject, container } from 'tsyringe';
@@ -72,6 +72,8 @@ import { AstraOverlayService } from '../services/AstraOverlayService';
 import {
   bindRatingDatePicker,
   bindEpisodeDatePicker,
+  localDateIso,
+  setRatingDate,
   formatDateDisplay,
   formatEpisodeDate,
   formatEpisodeTime,
@@ -140,6 +142,17 @@ export class AstraRatingModal {
   /** Scores as loaded; a save only sends the Astra score to AniList when the user changed it. */
   private initialScoresSnapshot = '';
   private needsListStatus = false;
+  /** AniList status when this view opened, empty when off the list; null until a view opens. */
+  private openingStatus: string | null = null;
+  /** Latest status AniList confirmed for this view, or null while none was confirmed. */
+  private syncedStatus: string | null = null;
+  /** The closed view, whose confirmed status change still reloads the page. */
+  private closedState: AstraRatingState | null = null;
+  /** Progress when this view opened; only a rise above it starts the title. */
+  private progressBaseline = Number.POSITIVE_INFINITY;
+  private statusPicked = false;
+  /** What raising the progress changed, so lowering it back can undo exactly that. */
+  private autoStart: { unlisted: boolean; status: MediaListStatus; emptyDates: string[] } | null = null;
   private initialProgress: number = 0; // Track initial progress for PROGRESS_UPDATED event
   /** The form as opened; Revert restores it. Null for a title not yet on the AniList list. */
   private openingSnapshot: AstraRatingOpeningSnapshot | null = null;
@@ -424,10 +437,27 @@ export class AstraRatingModal {
             },
           ],
         };
+        // Split an Astra block from AniList notes into sections without persisting the fallback here.
+        if (media.mediaListEntry && !data.pendingReport) {
+          workData = reconcileWithRemote(
+            workData,
+            { notes: media.mediaListEntry.notes, score: media.mediaListEntry.score },
+            {
+              sections: this.astraService.getSections(),
+              appendAstraToComment: this.astraService.getSettings().appendAstraToComment,
+            }
+          ).work;
+        }
       }
 
       // AniList is the source of truth: no remote entry means the title is not on the list, even if a local work exists.
       this.needsListStatus = !media.mediaListEntry && pending.status === undefined;
+      this.openingStatus = media.mediaListEntry?.status ?? '';
+      this.syncedStatus = null;
+      this.closedState = null;
+      this.progressBaseline = workData.progress || 0;
+      this.statusPicked = false;
+      this.autoStart = null;
       this.state = this.createState(workData);
       this.initialSeasonNotes = workData.seasons.map((season) => season.notes ?? '');
       this.initialReportSnapshot = this.reportContentSnapshot(workData);
@@ -714,7 +744,7 @@ export class AstraRatingModal {
         mediaId: this.media.id,
         mediaType: this.media.type === 'MANGA' ? 'manga' : 'anime',
         title: this.media.title.userPreferred,
-        canDelete: this.activeTab === 'rating' && !this.needsListStatus,
+        canDelete: this.activeTab === 'rating' && this.canDeleteEntry(),
         canRevert: this.openingSnapshot !== null,
         hasChanges: this.hasEditsSinceOpen,
         openInNewTab: this.opensInNewTab,
@@ -767,6 +797,7 @@ export class AstraRatingModal {
     this.formDraft = draft;
     this.formEditVersion++;
     this.needsListStatus = false;
+    this.autoStart = null;
     this.unlockedNotAiredEpisodes.clear();
     this.currentSeasonIdx = Math.min(this.currentSeasonIdx, state.data.seasons.length - 1);
     this.journalPageIndex = 0;
@@ -1198,9 +1229,11 @@ export class AstraRatingModal {
     this.releaseGlobalHandlers();
     this.releaseAuthSubscription();
     this.isClosing = true;
+    this.closedState = state;
     this.state = null;
     this.formDraft = null;
     this.openingSnapshot = null;
+    this.reloadIfStatusChanged();
     root.classList.add('astra-modal-overlay--closing');
     root.classList.remove('astra-modal-overlay--open');
     const timer = setTimeout(() => {
@@ -1250,6 +1283,38 @@ export class AstraRatingModal {
 
   private reloadHost(): void {
     window.location.reload();
+  }
+
+  private noteStatusSynced(state: AstraRatingState): void {
+    this.syncedStatus = state.data.status;
+    if (this.closedState === state) this.reloadIfStatusChanged();
+  }
+
+  /** The page shows the old status until it reloads, so a closed view refreshes it once AniList has the change. */
+  private reloadIfStatusChanged(): void {
+    if (!this.closedState || this.syncedStatus === null || this.openingStatus === null) return;
+    if (this.syncedStatus === this.openingStatus) return;
+    this.closedState = null;
+    this.reloadHost();
+  }
+
+  /** Delete is offered while anything is stored for this title, on AniList or only in Astra. */
+  private canDeleteEntry(): boolean {
+    if (!this.needsListStatus) return true;
+    const work = this.state?.data;
+    if (!work) return false;
+    return (
+      (work.progress ?? 0) > 0 ||
+      work.seasons.some(
+        (season) =>
+          Object.values(season.scores ?? {}).some((score) => typeof score === 'number' && score > 0) ||
+          typeof season.manualScore === 'number' ||
+          !!season.notes?.trim() ||
+          !!season.startDate ||
+          !!season.endDate ||
+          Object.keys(season.episodeNotes ?? {}).length > 0
+      )
+    );
   }
 
   private restoreHostState(root: HTMLElement | null): void {
@@ -1626,6 +1691,8 @@ export class AstraRatingModal {
     statusDropdown?.querySelectorAll('.astra-status-option').forEach((opt) => {
       this.listen(opt, 'click', () => {
         const value = (opt as HTMLElement).dataset.value as MediaListStatus;
+        this.statusPicked = true;
+        this.autoStart = null;
         this.setStatus(value);
         this.noteEdit();
         statusDropdown.classList.remove('active');
@@ -1796,20 +1863,16 @@ export class AstraRatingModal {
       await this.saveInFlight?.catch(() => undefined);
       if (!current()) return;
       assertApiContext(this.api, context, state.data.ownerId);
-      const result = await this.ratingService.deleteEntry(mediaId);
+      await this.ratingService.deleteEntry(mediaId);
       if (!current()) return;
       assertApiContext(this.api, context, state.data.ownerId);
       this.dispose();
-      if (result === 'queued')
-        this.toast.info('Deletion queued. It will finish when AniList is available.');
-      else {
-        this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId, timestamp: new Date() });
-        this.reloadHost();
-      }
+      this.eventBus.emit(EVENT_TYPES.ASTRA_DATA_UPDATED, { mediaId, timestamp: new Date() });
+      this.reloadHost();
     } catch (error) {
       if (current()) {
         logger.error('[AstraRatingModal] Entry deletion failed', error);
-        this.toast.error('Unable to delete this entry. Your edits remain open; retry.');
+        this.toast.error('Unable to delete this entry. Nothing was removed; retry.');
       }
     } finally {
       if (this.overlay === root) {
@@ -2000,7 +2063,10 @@ export class AstraRatingModal {
   ): Promise<void> {
     if (this.saveInFlight && this.savingState === this.state) return this.saveInFlight;
     const state = this.state;
-    const saving = this.persistChanges(dispatch, onDispatched);
+    const saving = this.persistChanges(dispatch, (result) => {
+      if (result === 'synced' && state) this.noteStatusSynced(state);
+      onDispatched?.(result);
+    });
     this.saveInFlight = saving;
     this.savingState = state;
     const clear = () => {
@@ -2036,9 +2102,6 @@ export class AstraRatingModal {
       return;
     }
 
-    // A title outside the AniList list is saved in Astra only: no remote write may be queued for it.
-    const localOnly = this.needsListStatus;
-
     try {
       const seasonIndex = this.currentSeasonIdx;
       const originalWork = this.state.data;
@@ -2051,6 +2114,9 @@ export class AstraRatingModal {
         this.initialSeasonNotes[seasonIndex] ?? originalSeason?.notes ?? originalWork.notes ?? '';
       const notesToSync = notesValue === notesBaseline ? undefined : notesValue;
       const values = this.captureFormInputs();
+      // Read after the form: raising the progress can just have added the title to the list.
+      // A title outside the AniList list is saved in Astra only: no remote write may be queued for it.
+      const localOnly = this.needsListStatus;
       const currentWork = this.state.data;
       const syncAstraNotes = this.reportContentSnapshot(currentWork) !== reportBaseline;
       // Unchanged scores must not push a score derived from a local cache back to AniList.
@@ -2119,6 +2185,7 @@ export class AstraRatingModal {
       if (unchanged) state.resetDirty();
       // A background save announces its queued state later, once the drain settles.
       if (result === 'queued' && dispatch === 'await') this.toast.info(SYNC_QUEUED_NOTICE);
+      if (result === 'synced' && dispatch === 'await' && !localOnly) this.noteStatusSynced(state);
       if (localOnly) this.toast.info(LOCAL_ONLY_NOTICE);
 
       // Recheck the view after the optional asynchronous owner lookup.
@@ -2188,7 +2255,7 @@ export class AstraRatingModal {
     const currentSeason = currentWork.seasons[this.currentSeasonIdx];
     if (!currentSeason) throw new Error('No season selected for saving');
     this.formDraft ??= new AstraRatingFormDraft(this.media?.mediaListEntry ?? null, currentWork);
-    const values = this.formDraft.read(this.overlay);
+    let values = this.formDraft.read(this.overlay);
     const statusSelect = this.overlay.querySelector<HTMLInputElement>('#astra-status');
     const generalNotes = this.overlay.querySelector<HTMLTextAreaElement>('#astra-general-notes');
     // Update work status and general info
@@ -2199,7 +2266,10 @@ export class AstraRatingModal {
 
     this.captureEpisodeInputs(currentSeason);
     this.state.updateField('progress', values.progress);
+    const editsBeforeProgress = this.formEditVersion;
     this.completeProgress(values.progress);
+    // Progress may stamp today's date after the draft was read, so read the form again.
+    if (this.formEditVersion !== editsBeforeProgress) values = this.formDraft.read(this.overlay);
     this.state.updateField('isPrivate', values.private);
     this.state.updateField('isHidden', values.hidden);
     this.state.updateField('customLists', values.customLists);
@@ -2207,7 +2277,9 @@ export class AstraRatingModal {
   }
 
   private completeProgress(progress: number): void {
-    if (!this.state || this.needsListStatus) return;
+    if (!this.state) return;
+    this.applyAutoStart(progress);
+    if (this.needsListStatus) return;
     const work = this.state.data;
     const total =
       work.type === 'anime'
@@ -2221,8 +2293,55 @@ export class AstraRatingModal {
     if (status !== work.status) this.setStatus(status);
   }
 
+  /** Raising the progress of an unstarted title means it has started: it becomes current, dated today. */
+  private applyAutoStart(progress: number): void {
+    if (!this.state) return;
+    if (this.autoStart) {
+      if (!(progress > this.progressBaseline)) this.undoAutoStart();
+      return;
+    }
+    if (this.statusPicked || !(progress > this.progressBaseline)) return;
+    const status = this.state.data.status;
+    const planningFromZero = status === MediaListStatus.PLANNING && this.progressBaseline === 0;
+    if (!this.needsListStatus && !planningFromZero) return;
+    const emptyDates = ['astra-start-date', 'astra-finish-date'].filter(
+      (id) => this.overlay?.querySelector<HTMLInputElement>(`#${id}`)?.value === ''
+    );
+    this.autoStart = { unlisted: this.needsListStatus, status, emptyDates };
+    this.needsListStatus = false;
+    this.setStatus(MediaListStatus.CURRENT);
+    this.fillDateIfEmpty('astra-start-date');
+    this.state.isDirty = true;
+    this.formEditVersion++;
+  }
+
+  private undoAutoStart(): void {
+    const started = this.autoStart;
+    if (!started || !this.overlay || !this.state) return;
+    this.autoStart = null;
+    this.formEditVersion++;
+    for (const id of started.emptyDates) {
+      const hidden = this.overlay.querySelector<HTMLInputElement>(`#${id}`);
+      const picker = this.overlay.querySelector<HTMLElement>(`.astra-datepicker[data-target="${id}"]`);
+      if (hidden && picker) setRatingDate(picker, hidden, '');
+    }
+    this.setStatus(started.status);
+    if (!started.unlisted) return;
+    this.needsListStatus = true;
+    const hidden = this.overlay.querySelector<HTMLInputElement>('#astra-status');
+    const label = this.overlay.querySelector('#astra-status-label');
+    const icon = this.overlay.querySelector('#astra-status-icon');
+    if (hidden) hidden.value = '';
+    if (label) label.textContent = 'Add to List';
+    if (icon) icon.setAttribute('class', 'fa-solid fa-plus');
+    this.overlay
+      .querySelectorAll<HTMLElement>('.astra-status-option')
+      .forEach((option) => option.classList.remove('active'));
+  }
+
   private setStatus(status: MediaListStatus): void {
     if (!this.overlay || !this.state) return;
+    const previousStatus = this.state.data.status;
     const hidden = this.overlay.querySelector<HTMLInputElement>('#astra-status');
     const label = this.overlay.querySelector('#astra-status-label');
     const icon = this.overlay.querySelector('#astra-status-icon');
@@ -2240,6 +2359,20 @@ export class AstraRatingModal {
       .querySelectorAll<HTMLElement>('.astra-status-option')
       .forEach((option) => option.classList.toggle('active', option.dataset.value === status));
     this.state.updateField('status', status);
+    if (status === MediaListStatus.COMPLETED && previousStatus !== MediaListStatus.COMPLETED)
+      this.fillDateIfEmpty('astra-finish-date');
+  }
+
+  /** An empty date stamps today, exactly as picking it in the calendar does. */
+  private fillDateIfEmpty(id: 'astra-start-date' | 'astra-finish-date'): void {
+    if (!this.overlay || !this.state) return;
+    const hidden = this.overlay.querySelector<HTMLInputElement>(`#${id}`);
+    // The picker is a sibling of the hidden input, so it is found by its target rather than by ancestry.
+    const picker = this.overlay.querySelector<HTMLElement>(`.astra-datepicker[data-target="${id}"]`);
+    if (!hidden || !picker || hidden.value) return;
+    setRatingDate(picker, hidden, localDateIso());
+    this.formEditVersion++;
+    this.state.isDirty = true;
   }
 
   private captureEpisodeInputs(currentSeason: AstraSeason): void {

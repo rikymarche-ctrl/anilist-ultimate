@@ -17,7 +17,7 @@ import type { AppConfig } from './types';
  * These values are used when no stored configuration exists
  */
 export const DEFAULT_CONFIG: AppConfig = {
-  version: '1.1.0',
+  version: '1.2.0',
 
   features: {
     calendar: true,
@@ -25,17 +25,17 @@ export const DEFAULT_CONFIG: AppConfig = {
     notificationCleaner: true,
     friendAlerts: true,
     reviewEnhancer: true,
-    friendActivity: true,
     listEditor: true,
     socialActivity: true,
     forumEnhancer: true,
     activityScore: true,
-    webComponents: true,
-    virtualScroll: true,
     mediaMetadata: true,
     mediaMusic: true,
     astra: true,
     pageRestore: true,
+    activityFeed: true,
+    profileSocial: true,
+    astraCompare: true,
   },
 
   debug: {

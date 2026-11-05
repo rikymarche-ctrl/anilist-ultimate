@@ -13,10 +13,10 @@ import '../../styles/following.css';
 export function isFollowingProgressRoute(path: string): boolean {
   const media = getMediaRoute(path);
   return (
-    media?.type === 'ANIME' &&
+    !!media &&
     media.id <= 2147483647 &&
-    /^\/anime\/[1-9]\d*(?:\/[^/]+)?(?:\/social)?\/?$/.test(path) &&
-    !/^\/anime\/\d+\/(characters|staff|stats|reviews|recommendations)\/?$/.test(path)
+    /^\/(?:anime|manga)\/[1-9]\d*(?:\/[^/]+)?(?:\/social)?\/?$/.test(path) &&
+    !/^\/(?:anime|manga)\/\d+\/(characters|staff|stats|reviews|recommendations)\/?$/.test(path)
   );
 }
 
@@ -226,7 +226,8 @@ export class FollowingProgressModule extends BaseModule {
     }
     const badge = row.badge ?? document.createElement('span');
     badge.className = 'au-following-progress';
-    const label = ` · ${row.progress} ep`;
+    const unit = getMediaRoute(location.pathname)?.type === 'MANGA' ? 'ch' : 'ep';
+    const label = ` · ${row.progress} ${unit}`;
     if (badge.textContent !== label) badge.textContent = label;
     if (badge.parentElement !== row.status) row.status.appendChild(badge);
     row.badge = badge;

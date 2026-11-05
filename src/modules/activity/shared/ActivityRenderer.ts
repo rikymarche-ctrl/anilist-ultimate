@@ -11,7 +11,7 @@
  * @see ActivityMarkdown.ts for the sanitized text-activity body
  * @see SpaNavigate.ts for in-app navigation
  * @see ActivityFilterBar.ts for the filter UI component
- * @see docs/MODULES.md#3-activity-enhancer-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

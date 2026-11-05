@@ -8,7 +8,7 @@
  *
  * @see DayColumn.ts for individual day rendering
  * @see CalendarStore.ts for state subscriptions
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

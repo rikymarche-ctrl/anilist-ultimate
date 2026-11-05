@@ -19,6 +19,7 @@ Inter is by the Inter Project Authors; Outfit is by the Outfit Project Authors. 
 | cross-fetch                       | 3.2.0             | MIT                             | [License](public/licenses/cross-fetch.txt)                      |
 | graphql                           | 16.13.2           | MIT                             | [License](public/licenses/graphql.txt)                          |
 | graphql-request                   | 6.1.0             | MIT                             | [License](public/licenses/graphql-request.txt)                  |
+| marked                            | 18.1.3            | MIT                             | [License](public/licenses/marked.txt)                           |
 | node-fetch                        | 2.7.0             | MIT                             | [License](public/licenses/node-fetch.txt)                       |
 | reflect-metadata                  | 0.2.2             | Apache-2.0                      | [License](public/licenses/reflect-metadata.txt)                 |
 | tsyringe                          | 4.10.0            | MIT                             | [License](public/licenses/tsyringe.txt)                         |

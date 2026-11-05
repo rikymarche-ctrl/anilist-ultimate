@@ -13,7 +13,7 @@
  *
  * @see ActivityFilterBar.ts for the filter UI
  * @see ActivityRenderer.ts for visibility management
- * @see docs/MODULES.md#8-media-social-enhancer-module
+ * @see docs/MODULES.md
  * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 

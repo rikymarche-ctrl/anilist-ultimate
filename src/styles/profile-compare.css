@@ -1,0 +1,272 @@
+/*
+ * "Astra compare": list-page button and the Versus story.
+ * Tokens, glass and motion come from astra-wrapped.css. Every story rule is scoped under
+ * .versus-wrapped because the bundle order of the two stylesheets is not guaranteed.
+ * You are always the solid shape, the other person the outline, on every palette.
+ */
+
+.au-astra-compare {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: linear-gradient(100deg, #7b4dff, #f052b0);
+  color: #ffffff;
+  font: 600 1.3rem/1.3 Overpass, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-align: center;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.au-astra-compare:hover,
+.au-astra-compare:focus-visible { filter: brightness(1.15); outline: none; }
+
+#astra-overlay-versus { background: #050409; backdrop-filter: none; }
+
+.versus-wrapped {
+  --versus-you: #ffffff; --versus-you-ink: #0d0a1c; --versus-them: #0d0a1c; --versus-them-ink: #ffffff;
+  --versus-ring: rgba(255, 255, 255, 0.9);
+  --versus-inner: calc(min(1120px, 100cqi) - 96px);
+}
+
+/* Never break inside a word: sizes below are computed so the longest word fits. */
+.versus-wrapped .aw-heading, .versus-wrapped .aw-display, .versus-wrapped .aw-title-xl { overflow-wrap: normal; word-break: normal; hyphens: none; }
+.versus-wrapped .aw-heading { font-size: clamp(26px, 3.8cqi, 46px); line-height: 1.1; }
+.versus-wrapped .aw-display--number {
+  display: block; margin: 0.03em 0 0.03em -0.03em; line-height: 1; letter-spacing: -0.04em; white-space: nowrap;
+  font-size: min(calc(100cqi / var(--chars, 3) * 0.6), 30cqi, 34vh);
+}
+.versus-wrapped .aw-slide-inner { gap: 16px; }
+.versus-wrapped .aw-eyebrow { flex: none; }
+
+/* --- Intro ---------------------------------------------------------------- */
+
+.versus-wrapped .versus-lockup {
+  display: flex; flex-direction: column; gap: 0.12em; margin: 0; color: #ffffff; letter-spacing: -0.04em; line-height: 1;
+  font-weight: 900; font-family: var(--aw-font); white-space: nowrap;
+  font-size: min(calc(var(--versus-inner) / ((var(--chars, 6) + 1.4) * 0.66)), 19vh);
+}
+.versus-wrapped .versus-identity { display: flex; align-items: center; gap: 0.22em; min-width: 0; }
+.versus-wrapped .versus-avatar {
+  flex: none; width: 0.92em; height: 0.92em; aspect-ratio: 1; border-radius: 50%;
+  box-shadow: 0 0 0 0.03em #ffffff, 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+.versus-wrapped .versus-avatar.is-empty span { font-size: 0.4em; }
+.versus-wrapped .versus-lockup-times { margin-left: 0.1em; color: transparent; -webkit-text-stroke: 0.02em #ffffff; }
+
+/* --- Overlap and affinity posters ----------------------------------------- */
+
+.versus-wrapped .versus-overlap-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: clamp(20px, 4cqi, 56px); }
+.versus-wrapped .versus-overlap-copy { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.versus-wrapped .versus-overlap-copy .aw-display--number { font-size: min(calc(56cqi / var(--chars, 3) * 0.85), 22cqi, 30vh); }
+.versus-wrapped .versus-venn-wrap { min-width: 0; }
+.versus-wrapped .versus-venn { display: block; width: 100%; height: auto; overflow: visible; }
+.versus-wrapped .versus-venn-circle { fill: rgba(255, 255, 255, 0.3); stroke: #ffffff; stroke-width: 3; }
+.versus-wrapped .versus-venn-name { fill: #ffffff; font: 900 19px var(--aw-font); }
+.versus-wrapped .versus-venn-count { fill: #ffffff; font: 900 22px var(--aw-font); font-variant-numeric: tabular-nums; }
+.versus-wrapped .versus-percent { display: flex; align-items: baseline; gap: 0.1em; }
+.versus-wrapped .versus-percent .aw-word { font-size: clamp(48px, 10cqi, 140px); letter-spacing: -0.04em; }
+
+.versus-wrapped .versus-legend { margin-top: 0; flex: none; }
+.versus-wrapped .versus-legend .aw-key--primary::before { background: var(--versus-you); }
+.versus-wrapped .versus-legend .aw-key--secondary::before { background: var(--versus-them); box-shadow: 0 0 0 1.5px var(--versus-ring); }
+
+/* --- Mirrored rows -------------------------------------------------------- */
+
+.versus-wrapped .versus-mirror { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.versus-wrapped .versus-mirror-row { display: grid; grid-template-columns: minmax(0, 1fr) clamp(92px, 15cqi, 160px) minmax(0, 1fr); align-items: center; gap: 12px; }
+.versus-wrapped .versus-mirror-label { text-align: center; font-size: 14px; font-weight: 900; line-height: 1.15; }
+.versus-wrapped .versus-mirror-side { display: flex; align-items: center; gap: 10px; min-width: 0; height: 20px; }
+.versus-wrapped .versus-mirror-side--viewer { flex-direction: row-reverse; }
+.versus-wrapped .versus-mirror-side > i { flex: 0 1 calc(var(--viewer) * 0.72); min-width: 2px; height: 100%; border-radius: 5px; background: var(--versus-you); }
+.versus-wrapped .versus-mirror-side--other > i { flex-basis: calc(var(--other) * 0.72); background: var(--versus-them); box-shadow: inset 0 0 0 2px var(--versus-ring); }
+.versus-wrapped .versus-mirror-side b { flex: none; font-size: 12.5px; font-weight: 700; color: var(--aw-ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.versus-wrapped .is-viewer-ahead .versus-mirror-side--viewer b, .versus-wrapped .is-other-ahead .versus-mirror-side--other b { color: #ffffff; font-weight: 900; }
+.versus-wrapped .versus-tape .versus-mirror { gap: 10px; }
+.versus-wrapped .versus-tape .versus-mirror-side { height: 24px; }
+.versus-wrapped .versus-tape .versus-mirror-side b { font-size: 15px; }
+.versus-wrapped .aw-year-panel .versus-mirror-row { grid-template-columns: minmax(0, 1fr) 76px minmax(0, 1fr); gap: 6px; }
+.versus-wrapped .aw-year-panel .versus-mirror-label { font-size: 12px; }
+.versus-wrapped .aw-year-panel .versus-mirror-side b { font-size: 11px; }
+
+/* --- Scoring habits ------------------------------------------------------- */
+
+.versus-wrapped .versus-habits-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.versus-wrapped .versus-histogram-wrap, .versus-wrapped .versus-plot-wrap { padding: 18px; min-width: 0; }
+.versus-wrapped .versus-histogram { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; height: clamp(150px, 30vh, 260px); }
+.versus-wrapped .versus-histogram-col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 0; }
+.versus-wrapped .versus-histogram-col b { font-size: 12px; color: var(--aw-ink-2); }
+.versus-wrapped .versus-histogram-pair { display: flex; flex: 1; align-items: flex-end; gap: 2px; width: 100%; min-height: 0; }
+.versus-wrapped .versus-histogram-pair i { flex: 1; min-height: 2px; border-radius: 4px 4px 0 0; }
+.versus-wrapped .versus-bar-you { height: var(--viewer); background: var(--versus-you); }
+.versus-wrapped .versus-bar-them { height: var(--other); background: var(--versus-them); box-shadow: inset 0 0 0 2px var(--versus-ring); }
+.versus-wrapped .versus-plot { display: block; width: 100%; max-height: 34vh; }
+.versus-wrapped .versus-plot-frame { fill: rgba(255, 255, 255, 0.05); stroke: rgba(255, 255, 255, 0.2); }
+.versus-wrapped .versus-plot-diagonal { stroke: rgba(255, 255, 255, 0.45); stroke-dasharray: 4 4; }
+.versus-wrapped .versus-plot-dot { fill: #ffffff; fill-opacity: 0.5; }
+.versus-wrapped .versus-plot-axis { fill: var(--aw-ink-2); font: 800 12px var(--aw-font); }
+
+/* --- Score rulers --------------------------------------------------------- */
+
+.versus-wrapped .versus-duel { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: clamp(28px, 5cqi, 64px); }
+.versus-wrapped .versus-fight-copy { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.versus-wrapped .versus-fight-cover { width: clamp(150px, 20cqi, 250px); }
+.versus-wrapped .versus-fight-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.versus-wrapped .versus-fight {
+  display: grid; grid-template-columns: 46px minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: center; gap: 14px;
+  padding: 7px 18px 7px 10px; border-radius: 16px; border: 1px solid var(--aw-glass-border); background: var(--aw-glass);
+  backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+.versus-wrapped .versus-fight-text { min-width: 0; }
+.versus-wrapped .versus-fight-title, .versus-wrapped .versus-wall-title {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  color: var(--aw-ink); font-size: 14px; font-weight: 800; line-height: 1.3; text-decoration: none;
+}
+.versus-wrapped .versus-fight-title:hover, .versus-wrapped .versus-wall-title:hover { color: var(--aw-ink); text-decoration: underline; }
+.versus-wrapped .versus-track { position: relative; display: block; height: 32px; margin: 0 16px; }
+.versus-wrapped .versus-track::before { content: ''; position: absolute; left: -16px; right: -16px; top: 50%; height: 2px; transform: translateY(-50%); background: rgba(255, 255, 255, 0.2); }
+.versus-wrapped .versus-track-span { position: absolute; top: 50%; left: var(--from); width: calc(var(--to) - var(--from)); height: 6px; transform: translateY(-50%); background: rgba(255, 255, 255, 0.55); }
+.versus-wrapped .versus-dot { position: absolute; top: 50%; display: grid; place-items: center; width: 32px; height: 32px; transform: translate(-50%, -50%); border-radius: 50%; font: 900 12px/1 var(--aw-font); font-variant-numeric: tabular-nums; }
+.versus-wrapped .versus-dot--viewer { left: var(--viewer); background: var(--versus-you); color: var(--versus-you-ink); }
+.versus-wrapped .versus-dot--other { left: var(--other); background: var(--versus-them); color: var(--versus-them-ink); box-shadow: inset 0 0 0 2px var(--versus-ring); }
+
+/* --- Walls, chips --------------------------------------------------------- */
+
+.versus-wrapped .versus-wall { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(10px, 2cqi, 22px); }
+.versus-wrapped .versus-wall-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.versus-wrapped .versus-wall-cover { width: 100%; aspect-ratio: 2 / 3; max-height: 40vh; border-radius: 16px; box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.14); }
+.versus-wrapped .versus-wall-scores { display: flex; gap: 6px; }
+.versus-wrapped .versus-chip { display: inline-grid; place-items: center; min-width: 40px; min-height: 26px; padding: 0 8px; border-radius: 9px; font: 900 13px/1 var(--aw-font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.versus-wrapped .versus-wall-scores .versus-chip { flex: 1; min-height: 30px; font-size: 15px; }
+.versus-wrapped .versus-chip--viewer { background: var(--versus-you); color: var(--versus-you-ink); }
+.versus-wrapped .versus-chip--other { background: var(--versus-them); color: var(--versus-them-ink); box-shadow: inset 0 0 0 2px var(--versus-ring); }
+
+/* --- Conflicts, columns, people ------------------------------------------- */
+
+.versus-wrapped .versus-conflict-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.versus-wrapped .versus-conflict { display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 10px; border-radius: 16px; min-width: 0; }
+.versus-wrapped .versus-conflict-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.versus-wrapped .versus-conflict-text small { font-size: 12px; font-weight: 600; color: var(--aw-ink-2); }
+.versus-wrapped .versus-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.versus-wrapped .versus-columns--three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.versus-wrapped .versus-columns .aw-year-panel { padding: 16px; min-width: 0; }
+.versus-wrapped .versus-columns .aw-rank-row { grid-template-columns: 34px 40px minmax(0, 1fr) auto; gap: 10px; padding: 6px 12px 6px 8px; }
+.versus-wrapped .versus-columns .aw-rank-row:first-child { padding-top: 6px; padding-bottom: 6px; }
+.versus-wrapped .versus-columns .aw-rank-num { font-size: 22px; }
+.versus-wrapped .versus-columns .aw-cover--thumb { width: 40px; height: 56px; }
+.versus-wrapped .versus-columns .aw-rank-text, .versus-wrapped .versus-columns .aw-rank-row:first-child .aw-rank-text { font-size: 14px; }
+.versus-wrapped .versus-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.versus-wrapped .versus-person { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; }
+.versus-wrapped .versus-person-image { width: 38px; height: 38px; border-radius: 50%; }
+.versus-wrapped .versus-person-name { font-size: 13.5px; font-weight: 800; line-height: 1.2; }
+
+/* --- Who got there first -------------------------------------------------- */
+
+.versus-wrapped .versus-first-heading { font-size: clamp(22px, 3cqi, 36px); }
+.versus-wrapped .versus-split { display: flex; gap: 4px; flex: none; min-height: 58px; border-radius: 14px; overflow: hidden; }
+.versus-wrapped .versus-split > span { display: flex; flex-direction: column; justify-content: center; min-width: 96px; padding: 6px 12px; font-size: 11.5px; font-weight: 800; line-height: 1.2; overflow: hidden; }
+.versus-wrapped .versus-split b { font-size: 22px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.versus-wrapped .versus-split-you { flex: var(--you) 1 0; background: var(--versus-you); color: var(--versus-you-ink); }
+.versus-wrapped .versus-split-same { flex: var(--same) 1 0; background: rgba(255, 255, 255, 0.16); color: #ffffff; }
+.versus-wrapped .versus-split-them { flex: var(--them) 1 0; align-items: flex-end; text-align: right; background: var(--versus-them); color: var(--versus-them-ink); box-shadow: inset 0 0 0 2px var(--versus-ring); border-radius: 0 14px 14px 0; }
+.versus-wrapped .versus-lead-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.versus-wrapped .versus-lead { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 12px 7px 8px; border-radius: 14px; }
+.versus-wrapped .versus-lead .aw-cover--thumb { width: 40px; height: 56px; }
+.versus-wrapped .versus-lead-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.versus-wrapped .versus-lead-dates { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 600; color: var(--aw-ink-2); }
+.versus-wrapped .versus-lead-dates .versus-chip { min-width: 0; min-height: 17px; max-width: 110px; padding: 0 6px; border-radius: 6px; font-size: 10px; overflow: hidden; text-overflow: ellipsis; }
+.versus-wrapped .versus-lead-gap { font-size: 14px; font-weight: 900; white-space: nowrap; color: #ffffff; }
+
+/* --- Title browser -------------------------------------------------------- */
+
+.versus-wrapped .versus-browse { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 16px; }
+.versus-wrapped .versus-browse-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.versus-wrapped .versus-browse-tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
+.versus-wrapped .versus-browse-tab { min-height: 34px; padding: 0 12px; border: 1px solid var(--aw-glass-border); border-radius: 999px; background: transparent; color: var(--aw-ink); font: 800 12.5px var(--aw-font); cursor: pointer; white-space: nowrap; }
+.versus-wrapped .versus-browse-tab[aria-selected='true'] { background: #ffffff; color: #0d0a1c; }
+.versus-wrapped .versus-browse input, .versus-wrapped .versus-browse select { min-height: 34px; padding: 0 10px; border: 1px solid var(--aw-glass-border); border-radius: 10px; background: rgba(255, 255, 255, 0.08); color: var(--aw-ink); font: 600 12.5px var(--aw-font); color-scheme: dark; }
+.versus-wrapped .versus-browse-head, .versus-wrapped .versus-browse-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px 72px; align-items: center; gap: 8px; }
+.versus-wrapped .versus-browse-head { padding: 0 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--aw-ink-2); }
+.versus-wrapped .versus-browse-head span + span { text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.versus-wrapped .versus-browse-list { list-style: none; margin: 0; padding: 0 4px 0 0; display: flex; flex-direction: column; gap: 4px; height: min(48vh, 480px); overflow-y: auto; scrollbar-width: thin; }
+.versus-wrapped .versus-browse-row { grid-template-columns: 34px minmax(0, 1fr) 72px 72px; padding: 3px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
+.versus-wrapped .versus-browse-title { overflow: hidden; color: var(--aw-ink); font-size: 13.5px; font-weight: 700; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.versus-wrapped .versus-browse-title:hover { color: var(--aw-ink); text-decoration: underline; }
+.versus-wrapped .versus-browse-more { align-self: center; min-height: 36px; }
+.versus-wrapped .versus-browse-more[hidden] { display: none; }
+
+/* --- Verdict -------------------------------------------------------------- */
+
+.versus-wrapped .versus-verdict-title {
+  margin: 0; color: #ffffff; font: 900 min(calc(62cqi / var(--chars, 8)), 11cqi, 15vh)/0.98 var(--aw-font); letter-spacing: -0.04em;
+}
+
+/* --- Narrow layouts ------------------------------------------------------- */
+
+@container aw-shell (max-width: 900px) {
+  .versus-wrapped .versus-verdict-title { font-size: min(calc(120cqi / var(--chars, 8)), 17cqi, 15vh); }
+  .versus-wrapped .versus-habits-layout, .versus-wrapped .versus-conflict-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+@container aw-shell (max-width: 760px) {
+  .versus-wrapped { --versus-inner: calc(100cqi - 40px); }
+  .versus-wrapped .versus-overlap-layout, .versus-wrapped .versus-duel { grid-template-columns: minmax(0, 1fr); }
+  .versus-wrapped .versus-overlap-copy .aw-display--number { font-size: min(calc(100cqi / var(--chars, 3) * 0.8), 44cqi, 24vh); }
+  .versus-wrapped .versus-fight-cover { display: none; }
+  .versus-wrapped .versus-fight { grid-template-columns: 40px minmax(0, 1fr); }
+  .versus-wrapped .versus-fight .versus-track { grid-column: 1 / -1; }
+  .versus-wrapped .versus-wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .versus-wrapped .versus-mirror-row { grid-template-columns: minmax(0, 1fr) 84px minmax(0, 1fr); gap: 6px; }
+  .versus-wrapped .versus-mirror-label { font-size: 12px; }
+  .versus-wrapped .versus-venn-wrap { max-width: 340px; }
+  .versus-wrapped .versus-browse-row { grid-template-columns: 30px minmax(0, 1fr) 46px 46px; }
+  .versus-wrapped .versus-browse-head { grid-template-columns: minmax(0, 1fr) 46px 46px; }
+  .versus-wrapped .versus-browse .versus-chip { min-width: 0; padding: 0 4px; }
+}
+
+/* Five rows must fit a laptop screen without scrolling. */
+.versus-wrapped .versus-deep .aw-rank { gap: 7px; }
+.versus-wrapped .versus-deep .aw-rank-row, .versus-wrapped .versus-deep .aw-rank-row:first-child { padding: 5px 16px 5px 12px; }
+.versus-wrapped .versus-deep .aw-rank-num { font-size: 28px; }
+
+/* --- Legibility panel ------------------------------------------------------ */
+
+/* Every immersive slide sits on one blurred panel, whatever the liquid does behind it. */
+.versus-wrapped .aw-slide--immersive .aw-slide-inner { padding-top: 92px; padding-bottom: 84px; }
+.versus-wrapped .aw-slide-inner > .versus-panel {
+  --aw-glass: rgba(255, 255, 255, 0.05);
+  --versus-inner: calc(min(1120px, 100cqi) - 96px - 56px);
+  display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; margin-block: auto; padding: 24px 28px;
+  background: rgba(10, 8, 24, 0.62);
+}
+/* A panel inside the panel only needs an edge, not a second blur. */
+.versus-wrapped .versus-panel .aw-glass { background: rgba(255, 255, 255, 0.05); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.versus-wrapped .versus-panel .versus-fight, .versus-wrapped .versus-panel .aw-rank-row { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.versus-wrapped .versus-panel .aw-note { color: var(--aw-ink-2); }
+.versus-wrapped .versus-browse { padding: 0; border: 0; background: none; }
+.versus-wrapped .versus-browse-empty { padding: 32px 8px; text-align: center; font-size: 14px; font-weight: 700; color: var(--aw-ink-2); }
+
+@container aw-shell (max-width: 760px) {
+  .versus-wrapped .aw-slide--immersive .aw-slide-inner { padding: var(--aw-chrome) 10px 88px; }
+  .versus-wrapped .aw-slide-inner > .versus-panel { --versus-inner: calc(100cqi - 48px); padding: 16px 14px; }
+}
+
+/* --- Fixes after real use -------------------------------------------------- */
+
+/* The hero cover's resting tilt only showed when the entrance animation ended on leaving the slide: a visible jolt. */
+.versus-wrapped .versus-fight-cover { transform: none; }
+
+.versus-wrapped .versus-habits-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.versus-wrapped .versus-plot-wrap { display: grid; place-items: center; padding: 12px; }
+.versus-wrapped .versus-plot { max-height: 45vh; }
+.versus-wrapped .versus-histogram { height: clamp(170px, 38vh, 340px); }
+.versus-wrapped .versus-plot-grid { stroke: rgba(255, 255, 255, 0.07); }
+.versus-wrapped .versus-plot-diagonal { stroke: rgba(255, 255, 255, 0.7); stroke-width: 1.5; stroke-dasharray: 6 5; }
+.versus-wrapped .versus-plot-tick { fill: var(--aw-ink-2); font: 700 12px var(--aw-font); }
+.versus-wrapped .versus-plot-axis { fill: #ffffff; font: 800 13px var(--aw-font); }
+.versus-wrapped .versus-plot-zone { fill: var(--aw-ink-2); font: 800 12px var(--aw-font); }
+.versus-wrapped .versus-plot-dot { stroke-width: 2; }
+.versus-wrapped .versus-plot-dot--you { fill: var(--versus-you); fill-opacity: 0.95; stroke: rgba(13, 10, 28, 0.7); stroke-width: 1; }
+.versus-wrapped .versus-plot-dot--them { fill: var(--versus-them); stroke: var(--versus-ring); }
+.versus-wrapped .versus-plot-dot--same { fill: rgba(255, 255, 255, 0.4); stroke: var(--versus-ring); }

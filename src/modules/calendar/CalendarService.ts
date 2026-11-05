@@ -7,7 +7,7 @@
  * detection. Account scope is checked around collection and queue reads.
  *
  * @see CalendarDataService.ts for the data-fetching layer
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

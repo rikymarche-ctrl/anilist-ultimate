@@ -22,18 +22,20 @@ export interface FeatureFlags {
   notificationCleaner: boolean;
   friendAlerts: boolean;
   reviewEnhancer: boolean;
-  friendActivity: boolean;
   listEditor: boolean;
   socialActivity: boolean;
   forumEnhancer: boolean;
   activityScore: boolean;
-  webComponents: boolean;
-  virtualScroll: boolean;
   mediaMetadata: boolean;
   mediaMusic: boolean;
   astra: boolean;
   /** Restore list/Browse filters, loaded results and scroll position on Back. */
   pageRestore: boolean;
+  /** Activity filters, search and custom-list feeds on the home page and profiles. */
+  activityFeed: boolean;
+  /** Follower counts, banner actions and people in common on user profiles. */
+  profileSocial: boolean;
+  astraCompare: boolean;
 }
 
 /**

@@ -257,3 +257,83 @@ describe('activateMarkdownInteractions', () => {
     expect(spoiler.classList.contains('au-spoiler-revealed')).toBe(true);
   });
 });
+
+const CENTER_SAMPLE =
+  "<center><img width='300' src='https://i.postimg.cc/a.png'>\n" +
+  "__<a>Shattering fate alongside</a>__ <a target='_blank' href='https://anilist.co/user/TaxShiki'>@TaxShiki</a> <a>and</a> <a target='_blank' href='https://anilist.co/user/TensaiDvD'>@TensaiDvD</a>\n" +
+  '# __<a>DAY 03: FAVORITE</a>__\n' +
+  'Many candidates.\n' +
+  '# __[Yoruichi](https://anilist.co/character/908/Yoruichi-Shihouin)__\n' +
+  'Some text\n\n' +
+  'https://anilist.co/anime/269/BLEACH/\n' +
+  'https://anilist.co/anime/116674/BLEACH-Sennen-Kessen-hen/\n</center>';
+
+describe('renderActivityMarkdown: markdown inside center blocks', () => {
+  it('renders headings, strong text and line breaks from the sample', () => {
+    const host = render(CENTER_SAMPLE);
+    expect(host.querySelector('center h1')?.textContent).toContain('DAY 03: FAVORITE');
+    expect(host.querySelector('center strong')).not.toBeNull();
+    expect(host.querySelector('center br')).not.toBeNull();
+  });
+
+  it('leaves no literal markdown markers in the text', () => {
+    const text = render(CENTER_SAMPLE).textContent ?? '';
+    expect(text).not.toContain('__');
+    expect(text).not.toMatch(/^# /m);
+    expect(text).not.toContain('](');
+  });
+
+  it('keeps user mentions as links and images as images', () => {
+    const host = render(CENTER_SAMPLE);
+    expect(host.querySelector('a[href="/user/TaxShiki"]')?.textContent).toBe('@TaxShiki');
+    expect(host.querySelector('img[src="https://i.postimg.cc/a.png"]')).not.toBeNull();
+  });
+
+  it('keeps the markdown link inside a heading as a link', () => {
+    const link = render(CENTER_SAMPLE).querySelector('h1 strong a[href]');
+    expect(link?.getAttribute('href')).toBe('/character/908/Yoruichi-Shihouin');
+    expect(link?.textContent).toBe('Yoruichi');
+  });
+
+  it('renders an unterminated center block to the end of the string', () => {
+    const host = render('<center>**open**');
+    expect(host.querySelector('center strong')?.textContent).toBe('open');
+  });
+
+  it('removes hostile script and event handlers inside center', () => {
+    const host = render(
+      "<center>**ok** <script>alert(1)</script><img src=x onerror=alert(1)>\n<a href='javascript:alert(1)'>x</a></center>"
+    );
+    expect(host.querySelector('script')).toBeNull();
+    expect(host.innerHTML).not.toMatch(/alert\(|onerror|javascript:/i);
+    expect(host.querySelector('center strong')?.textContent).toBe('ok');
+  });
+});
+
+describe('renderActivityMarkdown: AniList media mentions', () => {
+  it('shows the slug with spaces for a bare media URL', () => {
+    const link = render('<a href="https://anilist.co/anime/269/BLEACH-Sennen-Kessen-hen/">https://anilist.co/anime/269/BLEACH-Sennen-Kessen-hen/</a>').querySelector('a');
+    expect(link?.textContent).toBe('BLEACH Sennen Kessen hen');
+    expect(link?.getAttribute('href')).toBe('/anime/269/BLEACH-Sennen-Kessen-hen/');
+    expect(link?.classList.contains('au-media-mention')).toBe(true);
+  });
+
+  it('keeps the URL when the media link has no slug', () => {
+    const link = render('<a href="https://anilist.co/manga/30013">https://anilist.co/manga/30013</a>').querySelector('a');
+    expect(link?.textContent).toBe('https://anilist.co/manga/30013');
+    expect(link?.classList.contains('au-media-mention')).toBe(false);
+  });
+
+  it('does not rewrite a media link whose text is a custom label', () => {
+    const link = render('<a href="https://anilist.co/anime/269/BLEACH">Bleach</a>').querySelector('a');
+    expect(link?.textContent).toBe('Bleach');
+    expect(link?.classList.contains('au-media-mention')).toBe(false);
+  });
+
+  it('applies to character, staff and studio paths', () => {
+    for (const kind of ['character', 'staff', 'studio']) {
+      const link = render(`<a href="https://anilist.co/${kind}/1/Some-Name">https://anilist.co/${kind}/1/Some-Name</a>`).querySelector('a');
+      expect(link?.textContent).toBe('Some Name');
+    }
+  });
+});

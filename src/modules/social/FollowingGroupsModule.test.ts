@@ -98,6 +98,24 @@ describe('Following groups module on the social tab', () => {
     document.body.innerHTML = '';
   });
 
+  it('adds fetched group members missing from the native column as clones, keeping other followings out', async () => {
+    media.read.mockResolvedValue({
+      entries: [
+        { userId: 4, name: 'dave', avatar: '', status: 'CURRENT', score: null },
+        { userId: 9, name: 'zed', avatar: '', status: 'PLANNING', score: null },
+      ],
+      scoreFormat: 'POINT_100',
+    } as never);
+    await module.init();
+    await settle();
+    await settle();
+    expect(media.read).toHaveBeenCalledWith(1, expect.arrayContaining([2, 4]));
+    const clones = [...document.querySelectorAll<HTMLElement>('.au-following-clone')];
+    expect(clones.map((clone) => clone.textContent ?? '').filter((text) => text.includes('dave'))).toHaveLength(1);
+    expect(clones.some((clone) => (clone.textContent ?? '').includes('zed'))).toBe(false);
+    expect(clones.find((clone) => (clone.textContent ?? '').includes('dave'))?.style.order).toBe('3');
+  });
+
   it('groups the column top to bottom with Others last, and never moves native rows', async () => {
     await module.init();
     await settle();

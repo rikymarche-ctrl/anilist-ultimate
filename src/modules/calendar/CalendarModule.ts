@@ -11,7 +11,7 @@
  * Lifecycle: init() → loadAndRender() on home page, re-renders on
  * SPA navigation back to home, destroys on page leave.
  *
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';
@@ -318,7 +318,7 @@ export class CalendarModule extends BaseModule {
         await this.dataService.loadSchedule(this.userId, forceRefresh);
         if (!this.isCurrent(generation)) return;
         assertApiContext(this.apiClient, context, owner);
-        if (this.config.isFeatureEnabled('friendActivity')) {
+        if (this.config.isFeatureEnabled('socialActivity')) {
           void this.socialService.loadFriendActivity().catch((error: unknown) => logger.error('[Calendar] Friend activity load failed', error));
         }
       }
@@ -416,7 +416,7 @@ export class CalendarModule extends BaseModule {
   private async reloadAfterPersonalPlanChange(ownerId: number): Promise<void> {
     await this.dataService.loadSchedule(ownerId, true);
     if (this.userId !== ownerId || !this.apiClient.isAuthenticated()) return;
-    if (this.config.isFeatureEnabled('friendActivity')) {
+    if (this.config.isFeatureEnabled('socialActivity')) {
       void this.socialService.loadFriendActivity().catch((error: unknown) => logger.error('[Calendar] Friend activity load failed', error));
     }
   }

@@ -13,6 +13,7 @@
  * @see src/core/utils/WebUrl.ts for the URL policy shared with CSS image values
  */
 
+import { Marked } from 'marked';
 import { parseWebUrl } from '@core/utils/WebUrl';
 
 const MAX_HTML_LENGTH = 200_000;
@@ -94,6 +95,22 @@ const LANGUAGE_CLASS = /^language-[\w-]{1,40}$/;
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be']);
 const YOUTUBE_PATH = /^\/(?:embed|shorts)\/([^/]+)/;
+const CENTER_OPEN = '<center';
+const CENTER_CLOSE = '</center>';
+const MEDIA_MENTION_PATH = /^\/(?:anime|manga|character|staff|studio)\/\d+\/([^/?#]+)\/?$/;
+const MEDIA_MENTION_CLASS = 'au-media-mention';
+
+/**
+ * Markdown parser for the bodies of `<center>` blocks. AniList leaves markdown unparsed inside
+ * them. Block-level HTML is disabled so `<img>` / `<center>` lines do not swallow the markdown
+ * that follows; inline tags still pass through and are sanitized by the whitelist walker below.
+ */
+const centerMarkdown = new Marked({
+  gfm: true,
+  breaks: true,
+  // Returning undefined (not false) stops marked from falling back to its own block HTML rule.
+  tokenizer: { html: () => undefined },
+});
 
 interface SafeLink {
   href: string;
@@ -109,9 +126,54 @@ export function renderActivityMarkdown(html: string, doc: Document = document): 
     return fragment;
   }
   const inert = doc.implementation.createHTMLDocument('');
-  inert.body.innerHTML = source;
+  inert.body.innerHTML = renderCenterSegments(source);
   appendChildren(inert.body, fragment, doc, 1);
   return fragment;
+}
+
+/**
+ * Replaces each `<center>` body (or an unterminated one, up to the end) with its rendered markdown.
+ * Scans with indexOf instead of a regex so the split points are explicit and easy to verify.
+ */
+function renderCenterSegments(html: string): string {
+  const lower = html.toLowerCase();
+  let output = '';
+  let cursor = 0;
+  for (;;) {
+    const open = findCenterOpen(lower, cursor);
+    if (open === null) break;
+    const closeAt = lower.indexOf(CENTER_CLOSE, open.bodyStart);
+    const bodyEnd = closeAt < 0 ? html.length : closeAt;
+    output += html.slice(cursor, open.tagStart);
+    output += `<center>${parseCenterMarkdown(html.slice(open.bodyStart, bodyEnd))}</center>`;
+    cursor = closeAt < 0 ? html.length : closeAt + CENTER_CLOSE.length;
+  }
+  return output + html.slice(cursor);
+}
+
+/** Locates the next `<center ...>` opening tag at or after `from` in the lowercased source. */
+function findCenterOpen(
+  lower: string,
+  from: number
+): { tagStart: number; bodyStart: number } | null {
+  let index = lower.indexOf(CENTER_OPEN, from);
+  while (index >= 0) {
+    const next = lower.charAt(index + CENTER_OPEN.length);
+    const isBoundary = next === '>' || next === '/' || /\s/.test(next);
+    const close = lower.indexOf('>', index);
+    if (isBoundary && close >= 0) return { tagStart: index, bodyStart: close + 1 };
+    index = lower.indexOf(CENTER_OPEN, index + 1);
+  }
+  return null;
+}
+
+function parseCenterMarkdown(inner: string): string {
+  try {
+    const output = centerMarkdown.parse(inner, { async: false });
+    return typeof output === 'string' ? output : inner;
+  } catch {
+    return inner;
+  }
 }
 
 /**
@@ -159,11 +221,50 @@ function appendElement(source: Element, target: Node, doc: Document, depth: numb
     appendChildren(source, target, doc, depth + 1);
     return;
   }
+  if (tag === 'a') {
+    target.appendChild(buildAnchor(source, doc, depth));
+    return;
+  }
   const element = buildElement(source, tag, doc);
   if (!element) return;
   appendChildren(source, element, doc, depth + 1);
   if (tag === 'video' && !element.querySelector('source')) return;
   target.appendChild(element);
+}
+
+/**
+ * Anchors whose visible text is their own bare AniList media URL show the title slug instead,
+ * so `https://anilist.co/anime/269/BLEACH/` reads as `BLEACH`.
+ */
+function buildAnchor(source: Element, doc: Document, depth: number): HTMLAnchorElement {
+  const element = buildElement(source, 'a', doc) as HTMLAnchorElement;
+  const label = mediaMentionLabel(source, element.getAttribute('href'));
+  if (label === null) {
+    appendChildren(source, element, doc, depth + 1);
+    return element;
+  }
+  element.classList.add(MEDIA_MENTION_CLASS);
+  element.textContent = label;
+  return element;
+}
+
+function mediaMentionLabel(source: Element, href: string | null): string | null {
+  if (!href) return null;
+  const match = MEDIA_MENTION_PATH.exec(href);
+  if (!match) return null;
+  const visible = source.textContent?.trim() ?? '';
+  const rawHref = source.getAttribute('href')?.trim() ?? '';
+  const isBareUrl = visible === rawHref || visible === `${ANILIST_ORIGIN}${href}`;
+  if (!isBareUrl) return null;
+  return decodeSlug(match[1]).replace(/-/g, ' ');
+}
+
+function decodeSlug(slug: string): string {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
 }
 
 function buildElement(source: Element, tag: string, doc: Document): HTMLElement | null {

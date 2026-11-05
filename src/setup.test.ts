@@ -69,9 +69,13 @@ describe('MV3 composition root', () => {
         [{ ...saved, notes: 'Newer review' }],
         session
       )) as AstraWork;
-      expect(await policy(7, saved.updatedAt, session)).toBe(false);
+      // A newer save keeps the queued report eligible; SyncQueueService.enqueue replaces it per media.
+      expect(await policy(7, saved.updatedAt, session)).toBe(true);
       expect(await policy(7, next.updatedAt, session)).toBe(true);
       await host.dispatch('updateSettings', [{ appendAstraToComment: false }], session);
+      expect(await policy(7, next.updatedAt, session)).toBe(false);
+      await host.dispatch('deleteWork', [7], session);
+      await host.dispatch('updateSettings', [{ appendAstraToComment: true }], session);
       expect(await policy(7, next.updatedAt, session)).toBe(false);
       await host.dispatch('updateSettings', [{ detailedScoring: false }], session);
       const snapshot = (await host.dispatch('getSnapshot', [], session)) as {

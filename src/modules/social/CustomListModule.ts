@@ -12,7 +12,7 @@
  *
  * @see CustomListManager.ts for the UI component
  * @see CustomListService.ts for the data layer
- * @see docs/MODULES.md#7-custom-list-module
+ * @see docs/MODULES.md
  * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 

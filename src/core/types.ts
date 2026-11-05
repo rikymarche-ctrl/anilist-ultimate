@@ -5,7 +5,6 @@
  * Organized by domain:
  *   - Anime & Media types (AnimeEntry, FriendActivity, MediaProgress)
  *   - Calendar types (CalendarState, CalendarPreferences, layout modes)
- *   - Module configuration (ModuleConfig, UserPreferences)
  *   - Storage types (StorageArea, StorageItem)
  *   - API types (GraphQLResponse, AiringScheduleResponse, MediaListResponse)
  *   - UI Component types (ComponentProps, CardOptions)
@@ -114,27 +113,6 @@ export interface CalendarPreferences {
   showEmptyToday: boolean;
   autoUpdateProgress: boolean;
   compactMode: boolean;
-}
-
-// ============================================================================
-// Module Configuration
-// ============================================================================
-
-export interface ModuleConfig {
-  calendar: boolean;
-  hoverComments: boolean;
-  notificationCleaner: boolean;
-  reviewEnhancer: boolean;
-  friendActivity: boolean;
-  listEditor: boolean;
-  socialActivity: boolean;
-  forumEnhancer: boolean;
-  activityScore: boolean;
-}
-
-export interface UserPreferences {
-  modules: ModuleConfig;
-  calendar: CalendarPreferences;
 }
 
 // ============================================================================

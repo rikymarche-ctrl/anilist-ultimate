@@ -2,6 +2,8 @@ import { injectable, inject } from 'tsyringe';
 import type { ActivityDetails, NotificationFetchService } from './NotificationFetchService';
 import { TOKENS } from '@core/di/tokens';
 import { html } from '@core/utils/Template';
+import { plainActivityText } from './NotificationSnippet';
+import type { ActivityReply } from './NotificationActivityResponse';
 
 function formatMediaActivityLabel(status: string): { label: string; titleSeparator: string } {
   if (!status.trim()) return { label: 'Activity', titleSeparator: ' ' };
@@ -25,7 +27,7 @@ const SNIPPET_MAX_CHARS = 50;
 
 /** Short preview, cut at a word boundary: enough to recognise the activity, not to fill the row. */
 function truncateSnippet(text: string): string {
-  const clean = text.replace(/\s+/g, ' ').trim();
+  const clean = plainActivityText(text);
   if (clean.length <= SNIPPET_MAX_CHARS) return clean;
   const cut = clean.slice(0, SNIPPET_MAX_CHARS);
   const lastSpace = cut.lastIndexOf(' ');
@@ -59,9 +61,23 @@ export interface NotificationGrouping {
   actor?: string;
 }
 
+/** Notification types whose parent text is replaced by the actual reply or liked reply. */
+const REPLY_SNIPPET_TYPES = new Set(['activity_reply', 'activity_subscribed_reply', 'reply_like']);
+
+function sameUser(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
+function documentOrder(a: HTMLElement, b: HTMLElement): number {
+  if (a === b) return 0;
+  return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+}
+
 @injectable()
 export class NotificationGroupService {
   private originalWording = new WeakMap<HTMLElement, { original: string; enhanced: string }>();
+  private replyCursors = new Map<string, number>();
+  private pairedRows = new WeakSet<HTMLElement>();
   constructor(
     @inject(TOKENS.NotificationFetchService) public fetchService: NotificationFetchService
   ) {}
@@ -135,7 +151,7 @@ export class NotificationGroupService {
     // Enriched text is content, not a notification type or a grouping instruction.
     const walker = document.createTreeWalker(notification, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) =>
-        node.parentElement?.closest('.au-activity-context')
+        node.parentElement?.closest('.au-activity-context, .au-merged-mention')
           ? NodeFilter.FILTER_REJECT
           : NodeFilter.FILTER_ACCEPT,
     });
@@ -364,14 +380,86 @@ export class NotificationGroupService {
     const details = await this.fetchService.fetchActivityDetails([...byActivity.keys()], apply);
     // Final-map consumers remain supported; progressive values are idempotent.
     for (const [id, data] of details) apply(id, data);
+    if ((await this.applyReplySnippets(pending, isCurrent)) && isCurrent()) onUpdated?.();
+  }
+
+  /** Forgets reply pairing so the next scan starts again from the newest notification. */
+  public resetReplyCursors(): void {
+    this.replyCursors.clear();
+    this.pairedRows = new WeakSet<HTMLElement>();
+  }
+
+  /** Whether applyReplySnippets paired this row with its reply text. */
+  public isReplyPaired(row: HTMLElement): boolean {
+    return this.pairedRows.has(row);
+  }
+
+  /**
+   * Replaces the parent text of reply-type rows with the actor's matching reply. Rows are paired
+   * with replies in DOM order (newest notification first), counting per activity:actor:type.
+   * Replies are fetched once per activity; rows without a match keep the parent text.
+   */
+  private async applyReplySnippets(
+    rows: HTMLElement[],
+    isCurrent: () => boolean
+  ): Promise<boolean> {
+    const candidates: Array<{ row: HTMLElement; id: number; actor: string; type: string }> = [];
+    for (const row of [...rows].sort(documentOrder)) {
+      if (this.pairedRows.has(row) || !row.querySelector('.au-activity-target')) continue;
+      const grouping = this.groupingFor(row);
+      if (!grouping || !REPLY_SNIPPET_TYPES.has(grouping.type) || !grouping.user) continue;
+      const id = this.fetchService.extractActivityId(row);
+      if (id === null) continue;
+      candidates.push({ row, id, actor: grouping.user, type: grouping.type });
+    }
+    if (!candidates.length) return false;
+
+    const ids = [...new Set(candidates.map((candidate) => candidate.id))];
+    const repliesById = new Map<number, ActivityReply[]>();
+    await Promise.all(
+      ids.map(async (id) => repliesById.set(id, await this.fetchService.fetchActivityReplies(id)))
+    );
+    if (!isCurrent()) return false;
+
+    const viewerId = this.fetchService.viewerUserId();
+    let changed = false;
+    for (const { row, id, actor, type } of candidates) {
+      this.pairedRows.add(row);
+      const replies = repliesById.get(id) ?? [];
+      const matches =
+        type === 'reply_like'
+          ? replies.filter(
+              (reply) =>
+                reply.userId !== null &&
+                reply.userId === viewerId &&
+                reply.likedBy.some((name) => sameUser(name, actor))
+            )
+          : replies.filter((reply) => sameUser(reply.userName, actor));
+      const cursorKey = `${id}:${actor.toLowerCase()}:${type}`;
+      const index = this.replyCursors.get(cursorKey) ?? 0;
+      this.replyCursors.set(cursorKey, index + 1);
+      const reply = matches[matches.length - 1 - index];
+      const snippet = reply ? truncateSnippet(reply.text) : '';
+      const target = row.querySelector<HTMLElement>('.au-activity-target');
+      if (!snippet || !target) continue;
+      target.textContent = '“' + snippet + '”';
+      // A list-activity parent would otherwise read as “reply” of Title.
+      const separator = target.nextSibling;
+      if (separator?.nodeType === Node.TEXT_NODE && target.nextElementSibling?.classList.contains('au-title'))
+        separator.textContent = ' on ';
+      changed = true;
+    }
+    return changed;
   }
 
   private appendContext(notification: HTMLElement, id: number, data: ActivityDetails): boolean {
+    const snippet = data.text ? plainActivityText(data.text) : '';
     if (
       notification.querySelector('.au-activity-context') ||
-      (!data.text && !data.mediaId && data.isPrivate === undefined)
+      (!snippet && !data.mediaId && data.isPrivate === undefined)
     )
       return false;
+
     const context = document.createElement('span');
     context.className = 'au-activity-context';
     if (data.isPrivate !== undefined) {
@@ -381,7 +469,7 @@ export class NotificationGroupService {
       context.hidden = !data.text && data.isPrivate !== true;
     }
     const nativeWording = notification.querySelector<HTMLElement>('.details > div .link .context');
-    if (nativeWording && data.text) {
+    if (nativeWording && snippet) {
       const wording = nativeWording.textContent?.trimEnd() ?? '';
       if (wording) {
         const enhanced = wording.replace(/[.!?:…]+$/u, '') + ':';
@@ -404,8 +492,8 @@ export class NotificationGroupService {
         media.href = '/' + (data.mediaType === 'MANGA' ? 'manga' : 'anime') + '/' + data.mediaId;
       media.textContent = data.mediaTitle ?? '';
       context.append(activity, formatted.titleSeparator, media);
-    } else if (data.text) {
-      activity.textContent = '“' + truncateSnippet(data.text) + '”';
+    } else if (snippet) {
+      activity.textContent = '“' + truncateSnippet(snippet) + '”';
       if (data.isPrivate) context.append(' ');
       context.append(activity);
     }

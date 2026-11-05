@@ -18,7 +18,28 @@ Feature areas and source locations.
 
 ## Settings and activation
 
-Current source feature keys include `calendar`, `astra`, `friendAlerts`, `notificationCleaner`, `hoverComments`, `friendActivity`, `socialActivity`, `listEditor`, `activityScore`, `reviewEnhancer`, `forumEnhancer`, `mediaMetadata`, `mediaMusic` and `pageRestore`. Supporting flags also exist. Refer to `src/core/config/defaults.ts` and the settings UI for actual defaults and grouping rather than assuming one switch per file.
+Each settings switch maps to these modules (registered in `src/setup.ts`). Changes apply on the next page load.
+
+| Switch (flag)                         | Modules                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Airing Calendar (`calendar`)          | `calendar`                                                                                         |
+| Astra Module (`astra`)                | `astra` stays registered and checks the flag itself                                                |
+| Media Metadata (`mediaMetadata`)      | `mediaMetadata`                                                                                    |
+| Music Themes (`mediaMusic`)           | `mediaMusic`                                                                                       |
+| Hover Comments (`hoverComments`)      | `hoverComments`                                                                                    |
+| Social Activity (`socialActivity`)    | `socialActivity`, `socialEnhancer`, `mediaSocialEnhancer`, `followingProgress`, `followingGroups`; also the calendar's friend data and the social buttons on cards |
+| Friend Alerts (`friendAlerts`)        | `friendAlerts` stays registered and checks the flag itself                                         |
+| Bulk Editor (`listEditor`)            | `bulkEditor`                                                                                       |
+| Activity Feed (`activityFeed`)        | `activityEnhancer`, `profileActivity`                                                              |
+| Profile Social (`profileSocial`)      | `userBanner`, `userSocialStats`, `profileConnections` (people in common)                           |
+| Astra Compare (`astraCompare`)        | `profileCompare`, see [ASTRA_COMPARE.md](ASTRA_COMPARE.md) |
+| Notification Cleaner (`notificationCleaner`) | `notificationCleaner`                                                                       |
+| Review Enhancer (`reviewEnhancer`)    | `reviewEnhancer`                                                                                   |
+| Forum Enhancer (`forumEnhancer`)      | `forumEnhancer`                                                                                    |
+| Activity Score (`activityScore`)      | `activityScore`                                                                                    |
+| Back Restore (`pageRestore`)          | `pageRestore`                                                                                      |
+
+`customList` has no switch: both the social panels and the activity feeds read custom user lists. A new module needs a flag with a settings card, or a stated reason for having none.
 
 Login, supported page type and account ownership can further gate a feature. The Bulk Editor checks the route owner against the viewer before activating selection; it verifies IDs/session again when loading and saving. No username is the privileged public editing account.
 

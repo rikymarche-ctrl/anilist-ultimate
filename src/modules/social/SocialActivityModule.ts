@@ -8,7 +8,7 @@
  *
  * @see SocialSidebar.ts for the sidebar component
  * @see SocialService.ts for the data layer
- * @see docs/MODULES.md#9-social-activity-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

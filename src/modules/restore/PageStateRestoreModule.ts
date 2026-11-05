@@ -29,7 +29,7 @@
  * snapshot is committed again); it resumes as soon as the user takes over.
  *
  * @see PageStateRestorer.ts for the replay and its user-input guard
- * @see docs/MODULES.md#13-page-state-restore-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

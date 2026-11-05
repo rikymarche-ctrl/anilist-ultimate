@@ -8,7 +8,7 @@
  *
  * @see CustomListService.ts for data persistence
  * @see CustomListModule.ts for the router/mounting layer
- * @see docs/MODULES.md#7-custom-list-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

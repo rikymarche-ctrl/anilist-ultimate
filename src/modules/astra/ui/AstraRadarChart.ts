@@ -9,7 +9,7 @@
  * short empty state instead of an empty grid.
  *
  * @see AstraRatingModal.ts for per-work usage
- * @see docs/MODULES.md#5-astra-module-advanced-scoring
+ * @see docs/MODULES.md
  */
 
 import type { AstraSection } from '../AstraInterfaces';

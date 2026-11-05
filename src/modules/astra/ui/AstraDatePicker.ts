@@ -146,28 +146,41 @@ function bindCalendar(options: DatePickerBinding): void {
   });
 }
 
+/** Local-time ISO day for a rating date, e.g. today when a title is completed. */
+export function localDateIso(date: Date = new Date()): string {
+  return isoDate(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/** Commits a rating date to its hidden input and refreshes the picker display. Shared by the calendar and status-driven fills. */
+export function setRatingDate(picker: HTMLElement, hidden: HTMLInputElement, iso: string): void {
+  hidden.value = iso;
+  hidden.dataset.dateEdited = 'true';
+  presentRatingDate(picker, iso);
+}
+
+function presentRatingDate(picker: HTMLElement, iso: string): void {
+  const label = picker.querySelector<HTMLElement>('.astra-dp-label');
+  const trigger = picker.querySelector<HTMLElement>('.astra-dropdown-trigger');
+  if (label) label.textContent = formatDateDisplay(iso);
+  const parts = miniCalendarDateParts(iso);
+  const month = picker.querySelector<HTMLElement>('.astra-mini-calendar-month');
+  const day = picker.querySelector<HTMLElement>('.astra-mini-calendar-day');
+  const year = picker.querySelector<HTMLElement>('.astra-mini-calendar-year');
+  if (month) month.textContent = parts.month;
+  if (day) day.textContent = parts.day;
+  if (year) year.textContent = parts.year;
+  const fieldLabel = picker.closest('.astra-input-box')?.querySelector('.astra-label-xs')?.textContent?.trim() || 'Date';
+  trigger?.setAttribute('aria-label', `${fieldLabel}: ${formatDateDisplay(iso)}. Click to choose date`);
+}
+
 export function bindRatingDatePicker(picker: HTMLElement, scope: AstraRatingViewScope, changed: () => void): void {
   const trigger = picker.querySelector<HTMLElement>('.astra-dropdown-trigger');
   const menu = picker.querySelector<HTMLElement>('.astra-datepicker-menu');
   const hidden = [...scope.root.querySelectorAll<HTMLInputElement>('input')].find(input => input.id === picker.dataset.target);
-  const label = picker.querySelector<HTMLElement>('.astra-dp-label');
-  if (!trigger || !menu || !hidden || !label) return;
-  const updateDatePresentation = (iso: string) => {
-    const display = formatDateDisplay(iso);
-    label.textContent = display;
-    const parts = miniCalendarDateParts(iso);
-    const month = picker.querySelector<HTMLElement>('.astra-mini-calendar-month');
-    const day = picker.querySelector<HTMLElement>('.astra-mini-calendar-day');
-    const year = picker.querySelector<HTMLElement>('.astra-mini-calendar-year');
-    if (month) month.textContent = parts.month;
-    if (day) day.textContent = parts.day;
-    if (year) year.textContent = parts.year;
-    const fieldLabel = picker.closest('.astra-input-box')?.querySelector('.astra-label-xs')?.textContent?.trim() || 'Date';
-    trigger.setAttribute('aria-label', `${fieldLabel}: ${formatDateDisplay(iso)}. Click to choose date`);
-  };
+  if (!trigger || !menu || !hidden || !picker.querySelector('.astra-dp-label')) return;
   bindCalendar({ picker, trigger, menu, scope, activeSelector: '.astra-dropdown.active', selectedIso: () => hidden.value,
     resetViewOnToday: true, select: iso => {
-      hidden.value = iso; hidden.dataset.dateEdited = 'true'; updateDatePresentation(iso); changed();
+      setRatingDate(picker, hidden, iso); changed();
     } });
 }
 

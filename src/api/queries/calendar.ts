@@ -9,7 +9,7 @@
  *   - ANIME_DETAILS_QUERY: single anime details with studio, genre, airing info
  *
  * @see CalendarDataService.ts for query execution
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  */
 
 /**

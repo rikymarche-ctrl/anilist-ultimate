@@ -39,7 +39,7 @@ const EMPTY_RELATIONS: ProfileRelationsInput = {
 };
 
 /** Bounded, expiring promise cache; a rejected load is evicted so a later call retries. */
-class PromiseCache<T> {
+export class PromiseCache<T> {
   private entries = new Map<string, { expires: number; value: Promise<T> }>();
 
   get(key: string, load: () => Promise<T>): Promise<T> {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NotificationGroupService } from './NotificationGroupService';
 
 describe('notification targets and wording', () => {
-  const service = new NotificationGroupService({ extractActivityId: () => 7, fetchActivityDetails: async () => new Map([[7, { text: 'Parent activity text', mediaId: 7, mediaTitle: 'Manga', mediaType: 'MANGA' }]]) } as never);
+  const service = new NotificationGroupService({ extractActivityId: () => 7, fetchActivityDetails: async () => new Map([[7, { text: 'Parent activity text', mediaId: 7, mediaTitle: 'Manga', mediaType: 'MANGA' }]]), fetchActivityReplies: async () => [], viewerUserId: () => null } as never);
   it.each([
     ['Alice liked your activity reply', 'reply_like', 'activity replies'],
     ['Alice LIKED your forum comment', 'forum_comment_like', 'forum comments'],
@@ -58,5 +58,103 @@ describe('notification targets and wording', () => {
     expect(service.groupingFor(notification)).toMatchObject({ kind: 'user', type: 'forum_comment_mention', user: 'Nova' });
     const summary = service.generateGroupText({ user: 'Nova', types: new Map([['forum_comment_mention', 2]]), count: 2, elements: [], firstTime: '', latestTime: '' });
     expect(summary.textContent).toBe('mentioned you in 2 forum comments');
+  });
+});
+
+describe('reply snippets pair each row with its own reply', () => {
+  const PARENT = 'Parent activity text';
+
+  function serviceWith(replies: unknown[], viewerId: number | null = 1, text = PARENT) {
+    return new NotificationGroupService({
+      extractActivityId: () => 7,
+      fetchActivityDetails: async () => new Map([[7, { text }]]),
+      fetchActivityReplies: async () => replies,
+      viewerUserId: () => viewerId,
+    } as never);
+  }
+
+  function row(markup: string): HTMLElement {
+    const element = document.createElement('div');
+    element.innerHTML = `<div class="details">${markup}</div>`;
+    return element;
+  }
+
+  function attachRows(rows: HTMLElement[]): HTMLElement {
+    const list = document.createElement('div');
+    document.body.append(list);
+    list.append(...rows);
+    return list;
+  }
+
+  it('shows the newest and then older replies of the same actor, in DOM order', async () => {
+    const replies = [
+      { id: 1, text: 'first reply', userId: 2, userName: 'Nova', likedBy: [] },
+      { id: 2, text: 'second reply', userId: 2, userName: 'Nova', likedBy: [] },
+      { id: 3, text: 'someone else', userId: 3, userName: 'Other', likedBy: [] },
+    ];
+    const rows = [
+      row('<a href="/user/Nova/">Nova</a> replied to your activity'),
+      row('<a href="/user/Nova/">Nova</a> replied to your activity'),
+    ];
+    const list = attachRows(rows);
+    await serviceWith(replies).enhanceNotificationsWithActivityDetails(rows);
+    expect(rows[0].querySelector('.au-activity-target')?.textContent).toBe('“second reply”');
+    expect(rows[1].querySelector('.au-activity-target')?.textContent).toBe('“first reply”');
+    list.remove();
+  });
+
+  it('pairs reply-like rows with the viewer replies the actor liked, newest first', async () => {
+    const replies = [
+      { id: 1, text: 'mine A', userId: 1, userName: 'Me', likedBy: ['Nova'] },
+      { id: 2, text: 'theirs', userId: 2, userName: 'Other', likedBy: ['Nova'] },
+      { id: 3, text: 'mine B', userId: 1, userName: 'Me', likedBy: ['Nova'] },
+      { id: 4, text: 'mine not liked', userId: 1, userName: 'Me', likedBy: [] },
+    ];
+    const rows = [
+      row('<a href="/user/Nova/">Nova</a> liked your activity reply'),
+      row('<a href="/user/Nova/">Nova</a> liked your activity reply'),
+    ];
+    const list = attachRows(rows);
+    await serviceWith(replies).enhanceNotificationsWithActivityDetails(rows);
+    expect(rows[0].querySelector('.au-activity-target')?.textContent).toBe('“mine B”');
+    expect(rows[1].querySelector('.au-activity-target')?.textContent).toBe('“mine A”');
+    list.remove();
+  });
+
+  it('keeps the parent text when no reply matches', async () => {
+    const rows = [row('<a href="/user/Nova/">Nova</a> replied to your activity')];
+    const list = attachRows(rows);
+    await serviceWith([]).enhanceNotificationsWithActivityDetails(rows);
+    expect(rows[0].querySelector('.au-activity-target')?.textContent).toBe(`“${PARENT}”`);
+    list.remove();
+  });
+
+  it('adds no quote when the parent text is only an image', async () => {
+    const rows = [row('<a href="/user/Nova/">Nova</a> liked your activity')];
+    const list = attachRows(rows);
+    await serviceWith([], 1, 'img300(https://files.example/a.png)').enhanceNotificationsWithActivityDetails(rows);
+    expect(rows[0].querySelector('.au-activity-context')).toBeNull();
+    list.remove();
+  });
+
+  it('fetches replies once per activity even for several rows', async () => {
+    let calls = 0;
+    const service = new NotificationGroupService({
+      extractActivityId: () => 7,
+      fetchActivityDetails: async () => new Map([[7, { text: PARENT }]]),
+      fetchActivityReplies: async () => {
+        calls++;
+        return [];
+      },
+      viewerUserId: () => 1,
+    } as never);
+    const rows = [
+      row('<a href="/user/Nova/">Nova</a> replied to your activity'),
+      row('<a href="/user/Nova/">Nova</a> replied to your activity'),
+    ];
+    const list = attachRows(rows);
+    await service.enhanceNotificationsWithActivityDetails(rows);
+    expect(calls).toBe(1);
+    list.remove();
   });
 });

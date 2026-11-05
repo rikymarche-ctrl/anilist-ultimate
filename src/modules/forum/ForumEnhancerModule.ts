@@ -10,7 +10,7 @@
  * - Uses SharedGlobalObserver instead of individual MutationObserver
  * - Reduces overhead when multiple modules observe document.body
  *
- * @see docs/MODULES.md#12-forum-enhancer-module
+ * @see docs/MODULES.md
  * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 

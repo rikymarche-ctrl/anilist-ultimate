@@ -363,30 +363,66 @@ describe('AstraRatingService safe persistence and sync', () => {
     expect(await service.saveAndSync(work(), { overallScore: 8 })).toBe('queued');
   });
 
-  it.each([false, true])(
-    'reports whether accepted deletion is still queued (%s)',
-    async (pending) => {
+  describe('deleteEntry', () => {
+    const remoteEntry = { Media: { id: 1, mediaListEntry: { id: 9, mediaId: 1, userId: 42 } } };
+    const deletion = (remote: unknown = remoteEntry) => {
       const f = setup();
+      const stored = work();
+      const astra = f.astra as unknown as Record<string, unknown>;
+      const getFullWork = vi.fn(async () => stored);
+      const deleteWork = vi.fn(async () => {});
+      astra.getFullWork = getFullWork;
+      astra.deleteWork = deleteWork;
+      f.api.query.mockResolvedValue(remote);
+      f.api.mutate.mockResolvedValue({ DeleteMediaListEntry: { deleted: true } });
       vi.mocked(f.queue.enqueue).mockResolvedValue();
-      vi.spyOn(f.queue, 'process').mockResolvedValue();
-      vi.spyOn(f.queue, 'getQueue').mockResolvedValue(
-        pending
-          ? [
-              {
-                id: 'delete',
-                type: 'ASTRA_DELETE',
-                userId: 42,
-                payload: { mediaId: 1 },
-                retries: 0,
-              },
-            ]
-          : []
-      );
-      expect(await f.service.deleteEntry(1)).toBe(pending ? 'queued' : 'synced');
-      expect(f.queue.enqueue).toHaveBeenCalledWith('ASTRA_DELETE', { mediaId: 1 });
+      vi.spyOn(f.queue, 'getQueue').mockResolvedValue([]);
+      return { ...f, stored, deleteWork };
+    };
+
+    it('empties Astra before AniList, ahead of background requests and without the queue', async () => {
+      const f = deletion();
+      await f.service.deleteEntry(1);
+      expect(f.deleteWork.mock.invocationCallOrder[0]).toBeLessThan(f.api.mutate.mock.invocationCallOrder[0]);
+      expect(f.api.mutate.mock.calls[0][1]).toEqual({ id: 9 });
+      expect((f.api.query.mock.calls[0] as unknown[])[3]).toEqual({ priority: true });
+      expect(f.queue.enqueue).not.toHaveBeenCalled();
       expect(f.astra.saveWork).not.toHaveBeenCalled();
-    }
-  );
+    });
+
+    it('cancels a queued save that could recreate the entry', async () => {
+      const f = deletion();
+      vi.spyOn(f.queue, 'getQueue').mockResolvedValue([
+        { id: 'save', type: 'ASTRA_SAVE', userId: 42, payload: { mediaId: 1 }, retries: 0 },
+      ]);
+      await f.service.deleteEntry(1);
+      expect(f.queue.enqueue).toHaveBeenCalledWith('ASTRA_DELETE', { mediaId: 1 });
+    });
+
+    it('needs no AniList write for a title saved only in Astra', async () => {
+      const f = deletion({ Media: { id: 1, mediaListEntry: null } });
+      await f.service.deleteEntry(1);
+      expect(f.deleteWork).toHaveBeenCalledOnce();
+      expect(f.api.mutate.mock.calls).toHaveLength(0);
+    });
+
+    it.each(['read', 'write'])('restores Astra when the AniList %s fails', async (step) => {
+      const f = deletion();
+      if (step === 'read') f.api.query.mockRejectedValue(new Error('Offline'));
+      else f.api.mutate.mockRejectedValue(new Error('Offline'));
+      await expect(f.service.deleteEntry(1)).rejects.toThrow('Offline');
+      expect(f.astra.saveWork).toHaveBeenCalledWith(f.stored, true);
+      expect(f.queue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('leaves AniList untouched when Astra cannot be emptied', async () => {
+      const f = deletion();
+      f.deleteWork.mockRejectedValue(new Error('Storage failed'));
+      await expect(f.service.deleteEntry(1)).rejects.toThrow('Storage failed');
+      expect(f.api.query.mock.calls).toHaveLength(0);
+      expect(f.api.mutate.mock.calls).toHaveLength(0);
+    });
+  });
 
   it('marks an owned pending deletion so Quick Edit cannot reopen it as an editable entry', async () => {
     const f = setup();

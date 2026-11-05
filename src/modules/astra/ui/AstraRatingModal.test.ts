@@ -6,6 +6,8 @@ import { AstraOverlayService } from '../services/AstraOverlayService';
 import { AstraRatingState } from './AstraRatingState';
 import { AstraRatingViewScope } from './AstraRatingViewScope';
 import { MediaListStatus } from '@/api/AnilistTypes';
+import { localDateIso, formatDateDisplay } from './AstraDatePicker';
+import { parseRatingDate } from './AstraRatingFormDraft';
 import type { AstraWork } from '../AstraInterfaces';
 import { ratingResponse } from '@/test/astra-rating-fixtures';
 import { ratingInitialResponse } from '../services/AstraRatingResponse';
@@ -28,6 +30,7 @@ interface ModalTestAccess {
   render(media: AstraRatingMedia | null, lists: string[]): void;
   state: AstraRatingState;
   needsListStatus: boolean;
+  progressBaseline: number;
   reloadHost(): void;
   renderDateField(id: string, label: string, iso: string): string;
   attachEvents(): void;
@@ -39,6 +42,8 @@ function setup() {
     calcSeasonScore: () => 8,
     getFullWork: vi.fn(async () => undefined),
     getWorks: () => [],
+    getSections: () => DEFAULT_SECTIONS,
+    getSettings: () => DEFAULT_SETTINGS,
   };
   const api = { getCurrentUserId: vi.fn(async () => 42) };
   const bus = { emit: vi.fn() };
@@ -386,12 +391,24 @@ describe('AstraRatingModal quick-edit data protection', () => {
     expect(rating.saveAndSync.mock.calls[0][0].status).toBe(MediaListStatus.CURRENT);
   });
 
-  it('does not add an unlisted title through automatic completion', async () => {
+  it('adds an unlisted title to the list when its progress rises', async () => {
     const { modal, state, overlay, rating } = completionSetup();
     inspect(modal).needsListStatus = true;
+    inspect(modal).progressBaseline = 0;
     overlay.querySelector<HTMLInputElement>('#astra-progress')!.value = '10';
     await inspect(modal).save();
-    expect(state.data.status).toBe(MediaListStatus.CURRENT);
+    expect(state.data.status).toBe(MediaListStatus.COMPLETED);
+    expect(inspect(modal).needsListStatus).toBe(false);
+    expect(rating.saveAndSync.mock.calls[0][1]).not.toHaveProperty('skipSync');
+  });
+
+  it('keeps an unlisted title in Astra only when the progress does not rise', async () => {
+    const { modal, overlay, rating } = completionSetup();
+    inspect(modal).needsListStatus = true;
+    inspect(modal).progressBaseline = 0;
+    overlay.querySelector<HTMLInputElement>('#astra-progress')!.value = '0';
+    await inspect(modal).save();
+    expect(inspect(modal).needsListStatus).toBe(true);
     expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ skipSync: true });
   });
 
@@ -561,5 +578,137 @@ describe('AstraRatingModal reconciliation with AniList on open', () => {
     await inspect(modal).save();
     expect(rating.saveAndSync.mock.calls[0][1]).toMatchObject({ syncScore: false });
     expect(rating.saveAndSync.mock.calls[0][1]).not.toHaveProperty('notes');
+  });
+});
+
+describe('AstraRatingModal finish date on Completed', () => {
+  const finishPicker = `<div class="astra-input-box"><span class="astra-label-xs">FINISH DATE</span>
+    <div class="astra-dropdown astra-datepicker" data-target="astra-finish-date">
+      <button type="button" class="astra-dropdown-trigger"><span class="astra-mini-calendar-month">Jan</span>
+        <span class="astra-mini-calendar-day">1</span><span class="astra-mini-calendar-year">2020</span>
+        <span class="astra-dp-label">Jan 1, 2020</span></button>
+      <div class="astra-datepicker-menu"></div>
+    </div>
+    <input type="hidden" id="astra-finish-date" value="%VALUE%"></div>`;
+
+  function finishSetup(finishValue: string, progress: string, status: MediaListStatus) {
+    const f = setup();
+    f.state.updateField('status', status);
+    f.state.updateField('episodes', 10);
+    f.overlay.innerHTML = `<input id="astra-progress" value="${progress}"><input id="astra-repeat" value="0">
+      <div id="astra-status-dropdown"><span id="astra-status-label">Watching</span></div>
+      <input id="astra-status" value="${status}">
+      ${finishPicker.replace('%VALUE%', finishValue)}`;
+    return f;
+  }
+  const setStatusOf = (modal: AstraRatingModal, status: MediaListStatus) =>
+    (modal as unknown as { setStatus(s: MediaListStatus): void }).setStatus(status);
+  const finishInput = (overlay: HTMLElement) =>
+    overlay.querySelector<HTMLInputElement>('#astra-finish-date')!;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '';
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+  });
+
+  it('stamps today on the hidden input and the visible picker when a title is set to Completed', () => {
+    const f = finishSetup('', '2', MediaListStatus.CURRENT);
+
+    setStatusOf(f.modal, MediaListStatus.COMPLETED);
+
+    const today = localDateIso();
+    expect(finishInput(f.overlay).value).toBe(today);
+    expect(finishInput(f.overlay).dataset.dateEdited).toBe('true');
+    expect(f.overlay.querySelector('.astra-dp-label')?.textContent).toBe(formatDateDisplay(today));
+    expect(f.overlay.querySelector('.astra-mini-calendar-year')?.textContent).toBe(today.slice(0, 4));
+  });
+
+  it('never overwrites an existing finish date', () => {
+    const f = finishSetup('2024-03-02', '2', MediaListStatus.CURRENT);
+
+    setStatusOf(f.modal, MediaListStatus.COMPLETED);
+
+    expect(finishInput(f.overlay).value).toBe('2024-03-02');
+    expect(finishInput(f.overlay).dataset.dateEdited).toBeUndefined();
+  });
+
+  it('does not stamp a date when the title was already Completed', () => {
+    const f = finishSetup('', '10', MediaListStatus.COMPLETED);
+
+    setStatusOf(f.modal, MediaListStatus.COMPLETED);
+
+    expect(finishInput(f.overlay).value).toBe('');
+  });
+
+  it('saves the stamped finish date when progress completes the title during capture', () => {
+    const f = finishSetup('', '10', MediaListStatus.CURRENT);
+    const capture = f.modal as unknown as { captureFormInputs(): { completedAt: unknown } };
+
+    const values = capture.captureFormInputs();
+
+    expect(f.state.data.status).toBe(MediaListStatus.COMPLETED);
+    expect(values.completedAt).toEqual(parseRatingDate(localDateIso()));
+  });
+});
+
+describe('AstraRatingModal fallback reconciliation without local work', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    vi.spyOn(window, 'addEventListener').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  async function openWithNotes(notes: string) {
+    const response = ratingResponse();
+    Object.assign(response.Media.mediaListEntry, { score: 0, notes });
+    const astra = {
+      calcSeasonScore: () => 0,
+      calcSectionScore: () => null,
+      getFullWork: vi.fn(async () => undefined),
+      getWorks: () => [],
+      getSections: vi.fn(() => DEFAULT_SECTIONS),
+      getScoringMode: () => 'detailed',
+      getSettings: () => DEFAULT_SETTINGS,
+      saveWork: vi.fn(),
+    };
+    const rating = {
+      saveAndSync: vi.fn(async (): Promise<AstraSaveResult> => 'synced'),
+      getMediaRatingData: vi.fn(async () => ratingInitialResponse(response, 1, 42)!),
+    };
+    const modal = new AstraRatingModal(
+      astra as unknown as AstraService,
+      { getCurrentUserId: vi.fn(async () => 42) } as unknown as IApiClient,
+      { emit: vi.fn() } as unknown as IEventBus,
+      { error: vi.fn(), info: vi.fn() } as unknown as ToastService,
+      rating as unknown as IAstraRatingService,
+      new AstraOverlayService()
+    );
+    await modal.open(1);
+    return { modal, astra };
+  }
+
+  it('reconciles AniList notes for a title without local work, without persisting the fallback', async () => {
+    const { modal, astra } = await openWithNotes('Plain personal note');
+
+    expect(astra.getSections).toHaveBeenCalled();
+    expect(astra.saveWork).not.toHaveBeenCalled();
+    expect(inspect(modal).state.data.seasons[0].scores).toEqual({});
+  });
+
+  it('keeps plain personal notes exactly as written', async () => {
+    const { modal, astra } = await openWithNotes('Plain personal note');
+
+    expect(astra.saveWork).not.toHaveBeenCalled();
+    expect(document.querySelector<HTMLTextAreaElement>('#astra-general-notes')!.value).toContain(
+      'Plain personal note'
+    );
+    expect(inspect(modal).state.data.seasons[0].scores).toEqual({});
   });
 });

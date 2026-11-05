@@ -64,6 +64,25 @@ describe('Astra card pill injection', () => {
     expect(document.querySelectorAll('[data-action="edit-entry"]')).toHaveLength(2);
   });
 
+  it('keeps the progress increment out of activity feed cards but leaves the pencil', () => {
+    document.body.innerHTML = '<div class="activity-feed"><article class="media-card"><a href="/anime/16498/attack-on-titan">Attack on Titan</a></article></div>';
+    const card = document.querySelector<HTMLElement>('.media-card')!;
+
+    serviceFor(card).enhanceCards('/user/someone/animelist');
+
+    expect(card.querySelector('[data-action="mark-watched"]')).toBeNull();
+    expect(card.querySelector('[data-action="edit-entry"]')).not.toBeNull();
+  });
+
+  it('still shows the progress increment on list cards outside the activity feed', () => {
+    document.body.innerHTML = '<div class="list-wrap"><article class="media-card"><a href="/anime/16498/attack-on-titan">Attack on Titan</a></article></div>';
+    const card = document.querySelector<HTMLElement>('.media-card')!;
+
+    serviceFor(card).enhanceCards('/user/someone/animelist');
+
+    expect(card.querySelector('[data-action="mark-watched"]')).not.toBeNull();
+  });
+
   it('does not add a pill to an ambiguous container with several media links', () => {
     document.body.innerHTML = `
       <div class="section-wrap">

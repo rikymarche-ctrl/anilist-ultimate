@@ -12,7 +12,7 @@
  * - Reduces overhead when multiple modules observe document.body
  *
  * @see ReviewService.ts for the GraphQL batch fetching with LRU+TTL cache
- * @see docs/MODULES.md#11-review-enhancer-module
+ * @see docs/MODULES.md
  * @see docs/PERFORMANCE.md#bug-007 for SharedGlobalObserver optimization
  */
 

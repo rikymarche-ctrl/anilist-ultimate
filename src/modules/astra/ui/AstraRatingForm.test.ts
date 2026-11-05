@@ -63,7 +63,7 @@ async function setup(
   };
   const rating = {
     getMediaRatingData: async () => structuredClone(data),
-    deleteEntry: vi.fn(async (_mediaId: number): Promise<'synced' | 'queued'> => 'synced'),
+    deleteEntry: vi.fn(async (_mediaId: number): Promise<void> => {}),
     saveAndSync: vi.fn(
       async (_work: AstraWork, _extra: AstraSaveOptions): Promise<AstraSaveResult> => 'local'
     ),
@@ -390,27 +390,21 @@ describe('Astra form consumer data preservation and safe rendering', () => {
     expect(f.root.isConnected).toBe(true);
   });
 
-  it.each(['synced', 'queued'] as const)(
-    'deletes an entry (%s) without auto-saving the form back into the list',
-    async (result) => {
-      const f = await open();
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
-      f.rating.deleteEntry.mockResolvedValue(result);
-      const reload = vi
-        .spyOn(f.modal as unknown as { reloadHost(): void }, 'reloadHost')
-        .mockImplementation(() => {});
-      f.root.querySelector<HTMLElement>('.astra-status-option[data-value="PLANNING"]')!.click();
-      f.root.querySelector<HTMLButtonElement>('#astra-delete-entry')!.click();
-      await vi.waitFor(() => expect(f.root.isConnected).toBe(false));
-      expect(f.rating.deleteEntry).toHaveBeenCalledExactlyOnceWith(1);
-      expect(f.rating.saveAndSync).not.toHaveBeenCalled();
-      expect(reload).toHaveBeenCalledTimes(result === 'synced' ? 1 : 0);
-      if (result === 'queued')
-        expect(f.toast.info).toHaveBeenCalledWith(expect.stringContaining('Deletion queued'));
-    }
-  );
+  it('deletes an entry and reloads without auto-saving the form back into the list', async () => {
+    const f = await open();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const reload = vi
+      .spyOn(f.modal as unknown as { reloadHost(): void }, 'reloadHost')
+      .mockImplementation(() => {});
+    f.root.querySelector<HTMLElement>('.astra-status-option[data-value="PLANNING"]')!.click();
+    f.root.querySelector<HTMLButtonElement>('#astra-delete-entry')!.click();
+    await vi.waitFor(() => expect(f.root.isConnected).toBe(false));
+    expect(f.rating.deleteEntry).toHaveBeenCalledExactlyOnceWith(1);
+    expect(f.rating.saveAndSync).not.toHaveBeenCalled();
+    expect(reload).toHaveBeenCalledOnce();
+  });
 
-  it('keeps the form and selected status editable if durable deletion cannot be accepted', async () => {
+  it('keeps the form and selected status editable if the deletion is rolled back', async () => {
     const f = await open();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     f.rating.deleteEntry.mockRejectedValueOnce(new Error('Storage failed'));

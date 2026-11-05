@@ -9,7 +9,7 @@
  *
  * @see ActivityEnhancerModule.ts
  * @see ActivityRenderer.ts
- * @see docs/MODULES.md#3-activity-enhancer-module
+ * @see docs/MODULES.md
  */
 
 import { MediaListStatus } from '@/api/AnilistTypes';

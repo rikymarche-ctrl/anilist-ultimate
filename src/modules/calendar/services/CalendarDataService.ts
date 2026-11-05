@@ -14,7 +14,7 @@
  *
  * @see CalendarService.ts for data transformation
  * @see CalendarStore.ts for the disposable schedule cache and persistent preferences
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  * @see docs/PERFORMANCE.md for caching metrics
  */
 

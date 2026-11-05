@@ -148,7 +148,14 @@ describe('Following progress rows and lifecycle', () => {
       expect(badges()).toHaveLength(0); await settle(); expect(badges()).toHaveLength(1);
     }
   });
-  it.each(['/home', '/manga/1/title', '/character/1/anime/2', '/anime/1/title/characters', '/anime/1/characters', '/anime/2147483648/title'])(
+  it('shows chapters on manga pages', async () => {
+    history.replaceState({}, '', '/manga/1/title');
+    expect(isFollowingProgressRoute('/manga/1/title')).toBe(true);
+    expect(isFollowingProgressRoute('/manga/1/title/characters')).toBe(false);
+    await module.init(); await settle();
+    expect(badges()[0]?.textContent).toContain(' ch');
+  });
+  it.each(['/home', '/character/1/anime/2', '/anime/1/title/characters', '/anime/1/characters', '/anime/2147483648/title'])(
     'does not query excluded route %s', async path => {
       expect(isFollowingProgressRoute(path)).toBe(false); history.replaceState({}, '', path);
       await module.init(); await settle(); expect(query).not.toHaveBeenCalled();

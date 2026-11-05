@@ -18,7 +18,14 @@ import { GraphQLResourceNotFoundError, type GraphQLBatcher } from '@core/api/Gra
 import { TIME } from '@core/constants';
 import { isRecord } from '@/api/GraphQLResponse';
 import { isActivityId } from '@/modules/activity/ActivityResponse';
-import { NOTIFICATION_ACTIVITY_QUERY, parseNotificationActivity, parseNotificationDetails } from './NotificationActivityResponse';
+import {
+  ACTIVITY_REPLIES_QUERY,
+  NOTIFICATION_ACTIVITY_QUERY,
+  parseActivityRepliesPage,
+  parseNotificationActivity,
+  parseNotificationDetails,
+  type ActivityReply,
+} from './NotificationActivityResponse';
 
 /** Simplified validated activity details used for notification grouping. */
 export interface ActivityDetails {
@@ -30,6 +37,9 @@ export interface ActivityDetails {
   status?: string;
   mediaType?: 'ANIME' | 'MANGA';
 }
+
+/** Replies are fetched at most this many pages (50 per page) per activity. */
+const MAX_REPLY_PAGES = 3;
 
 /**
  * Service responsible for fetching and caching activity metadata.
@@ -43,6 +53,8 @@ export class NotificationFetchService {
   private inFlight = new Map<string, Promise<ActivityDetails | undefined>>();
   private verifiedMessages = new Set<string>();
   private verifiedMissing = new Set<string>();
+  /** One reply lookup per session/user/activity; failures are cached as empty lists. */
+  private replyCache = new Map<string, Promise<ActivityReply[]>>();
 
   // A late write must finish and remove its stale value before a newer session
   // can publish to the same key. Reads verify the envelope's session as well.
@@ -52,7 +64,11 @@ export class NotificationFetchService {
     return pending;
   }
 
-  private activityKey(sessionId: string | undefined, userId: number | null | undefined, activityId: number): string {
+  private activityKey(
+    sessionId: string | undefined,
+    userId: number | null | undefined,
+    activityId: number
+  ): string {
     return JSON.stringify([sessionId ?? null, userId ?? null, activityId]);
   }
 
@@ -63,14 +79,16 @@ export class NotificationFetchService {
 
   public isActivityUnavailable(activityId: number): boolean {
     const context = this.api?.getContext?.();
-    return this.verifiedMissing.has(this.activityKey(context?.sessionId, context?.userId, activityId));
+    return this.verifiedMissing.has(
+      this.activityKey(context?.sessionId, context?.userId, activityId)
+    );
   }
 
   /** Cache configuration constants */
   private readonly CACHE_CONFIG = {
     namespace: 'notifications_activity',
     maxSize: 1000,
-    ttlMs: 30 * TIME.DAY_MS // Notification content is mostly static
+    ttlMs: 30 * TIME.DAY_MS, // Notification content is mostly static
   };
 
   /**
@@ -80,7 +98,7 @@ export class NotificationFetchService {
   constructor(
     @inject(TOKENS.GraphQLBatcher) private batcher: GraphQLBatcher,
     @inject(CacheFactory) cacheFactory: CacheFactory,
-    @inject(TOKENS.ApiClient) private api?: IApiClient,
+    @inject(TOKENS.ApiClient) private api?: IApiClient
   ) {
     this.cache = cacheFactory.create<number, unknown>(this.CACHE_CONFIG);
   }
@@ -88,7 +106,7 @@ export class NotificationFetchService {
   /**
    * Extracts the activity ID from a notification DOM element.
    * Scans for data attributes and specific URL patterns in anchor tags.
-   * 
+   *
    * @param notification Notification HTML element
    * @returns The extracted activity ID or null if not found
    */
@@ -103,8 +121,11 @@ export class NotificationFetchService {
       try {
         const url = new URL(href, 'https://anilist.co');
         const match = url.pathname.match(/^\/activity\/(\d+)\/?$/);
-        if (url.origin === 'https://anilist.co' && match && isActivityId(Number(match[1]))) return Number(match[1]);
-      } catch { /* Ignore unrelated native links. */ }
+        if (url.origin === 'https://anilist.co' && match && isActivityId(Number(match[1])))
+          return Number(match[1]);
+      } catch {
+        /* Ignore unrelated native links. */
+      }
     }
     return null;
   }
@@ -112,11 +133,14 @@ export class NotificationFetchService {
   /**
    * Fetches detailed metadata for multiple activity IDs.
    * Prioritizes the private cache and uses batcher for pending items.
-   * 
+   *
    * @param activityIds Array of IDs to query
    * @returns Map of activityId to its details
    */
-  public async fetchActivityDetails(activityIds: number[], onDetails?: (id: number, details: ActivityDetails) => void): Promise<Map<number, ActivityDetails>> {
+  public async fetchActivityDetails(
+    activityIds: number[],
+    onDetails?: (id: number, details: ActivityDetails) => void
+  ): Promise<Map<number, ActivityDetails>> {
     const ids = [...new Set(activityIds.filter(isActivityId))];
     const generation = this.generation;
     const context = this.api ? await captureApiContext(this.api) : undefined;
@@ -129,15 +153,27 @@ export class NotificationFetchService {
     const publish = (id: number, details: ActivityDetails) => {
       assertCurrent();
       results.set(id, parseNotificationDetails(details));
-      try { onDetails?.(id, parseNotificationDetails(details)); }
-      catch (error) { logger.warn('[NotificationFetch] Detail subscriber failed', error); }
+      try {
+        onDetails?.(id, parseNotificationDetails(details));
+      } catch (error) {
+        logger.warn('[NotificationFetch] Detail subscriber failed', error);
+      }
     };
     const pendingIds: number[] = [];
     const hasUsefulDetails = (details: ActivityDetails | undefined): details is ActivityDetails =>
-      Boolean(details && (details.text.trim() || details.mediaId !== undefined || details.isPrivate !== undefined));
+      Boolean(
+        details &&
+        (details.text.trim() || details.mediaId !== undefined || details.isPrivate !== undefined)
+      );
     const readDetails = (cached: unknown, id: number): ActivityDetails => {
-      if (!isRecord(cached) || cached.schemaVersion !== 1 || cached.activityId !== id || cached.sessionId !== (context?.sessionId ?? null)
-        || cached.userId !== (context?.userId ?? null)) throw new Error('Invalid notification cache identity');
+      if (
+        !isRecord(cached) ||
+        cached.schemaVersion !== 1 ||
+        cached.activityId !== id ||
+        cached.sessionId !== (context?.sessionId ?? null) ||
+        cached.userId !== (context?.userId ?? null)
+      )
+        throw new Error('Invalid notification cache identity');
       return parseNotificationDetails(cached.details);
     };
 
@@ -146,8 +182,11 @@ export class NotificationFetchService {
       const activityKey = this.activityKey(context?.sessionId, context?.userId, id);
       if (this.verifiedMissing.has(activityKey)) continue;
       let cached: unknown;
-      try { cached = await this.cache.get(id); }
-      catch { assertCurrent(); /* A disposable cache cannot block provider reads. */ }
+      try {
+        cached = await this.cache.get(id);
+      } catch {
+        assertCurrent(); /* A disposable cache cannot block provider reads. */
+      }
       assertCurrent();
       if (cached !== undefined) {
         try {
@@ -169,29 +208,44 @@ export class NotificationFetchService {
           }
           // Older versions could cache empty activity payloads. They look like
           // successful cache hits but suppress both display and future retries.
-          await this.mutateCache(async () => { assertCurrent(); await this.cache.delete(id); });
+          await this.mutateCache(async () => {
+            assertCurrent();
+            await this.cache.delete(id);
+          });
           assertCurrent();
         } catch {
-          try { await this.mutateCache(async () => {
+          try {
+            await this.mutateCache(async () => {
+              assertCurrent();
+              // A newer write may have replaced this snapshot while eviction waited.
+              // Validate again; cache adapters may return detached snapshots.
+              const latest = await this.cache.get(id);
+              assertCurrent();
+              if (latest === undefined) return;
+              try {
+                readDetails(latest, id);
+              } catch {
+                await this.cache.delete(id);
+              }
+            });
+          } catch {
             assertCurrent();
-            // A newer write may have replaced this snapshot while eviction waited.
-            // Validate again; cache adapters may return detached snapshots.
-            const latest = await this.cache.get(id);
-            assertCurrent();
-            if (latest === undefined) return;
-            try { readDetails(latest, id); } catch { await this.cache.delete(id); }
-          }); } catch { assertCurrent(); }
+          }
           assertCurrent();
         }
       }
       pendingIds.push(id);
     }
 
-    if (pendingIds.length === 0) { assertCurrent(); return results; }
+    if (pendingIds.length === 0) {
+      assertCurrent();
+      return results;
+    }
 
     // The shared batcher owns batching and 404 isolation. Do not turn one failed
     // batch into individual API calls or serialize the whole page behind it.
-    const loadOne = async (id: number): Promise<ActivityDetails | undefined> => { try {
+    const loadOne = async (id: number): Promise<ActivityDetails | undefined> => {
+      try {
         assertCurrent();
         let details: ActivityDetails | undefined;
         try {
@@ -209,23 +263,36 @@ export class NotificationFetchService {
         if (!hasUsefulDetails(details)) {
           // Resolved without displayable content (deleted, or a null media/type): never request it again this session.
           this.verifiedMissing.add(key);
-          if (this.verifiedMissing.size > this.CACHE_CONFIG.maxSize) this.verifiedMissing.delete(this.verifiedMissing.values().next().value!);
-          await this.mutateCache(async () => { assertCurrent(); await this.cache.delete(id); });
+          if (this.verifiedMissing.size > this.CACHE_CONFIG.maxSize)
+            this.verifiedMissing.delete(this.verifiedMissing.values().next().value!);
+          await this.mutateCache(async () => {
+            assertCurrent();
+            await this.cache.delete(id);
+          });
           return;
         }
-        try { await this.mutateCache(async () => {
-          assertCurrent();
-          try {
-            await this.cache.set(id, { schemaVersion: 1, activityId: id, sessionId: context?.sessionId ?? null, userId: context?.userId ?? null,
-              details: parseNotificationDetails(details) });
+        try {
+          await this.mutateCache(async () => {
             assertCurrent();
-          } catch (error) {
-            // Removal is serialized with all service writes, so it cannot delete
-            // a newer session's replacement while discarding this late write.
-            await this.cache.delete(id);
-            throw error;
-          }
-        }); } catch { assertCurrent(); }
+            try {
+              await this.cache.set(id, {
+                schemaVersion: 1,
+                activityId: id,
+                sessionId: context?.sessionId ?? null,
+                userId: context?.userId ?? null,
+                details: parseNotificationDetails(details),
+              });
+              assertCurrent();
+            } catch (error) {
+              // Removal is serialized with all service writes, so it cannot delete
+              // a newer session's replacement while discarding this late write.
+              await this.cache.delete(id);
+              throw error;
+            }
+          });
+        } catch {
+          assertCurrent();
+        }
         assertCurrent();
         return parseNotificationDetails(details);
       } catch (error) {
@@ -236,13 +303,20 @@ export class NotificationFetchService {
 
     // Reserve every ID before dispatch so overlapping scans share the same work.
     const requested: Array<{ id: number; task: Promise<ActivityDetails | undefined> }> = [];
-    const jobs: Array<{ id: number; key: string; task: Promise<ActivityDetails | undefined>; resolve: (value: ActivityDetails | undefined) => void }> = [];
+    const jobs: Array<{
+      id: number;
+      key: string;
+      task: Promise<ActivityDetails | undefined>;
+      resolve: (value: ActivityDetails | undefined) => void;
+    }> = [];
     for (const id of pendingIds) {
       const key = JSON.stringify([generation, context?.sessionId, context?.userId, id]);
       let task = this.inFlight.get(key);
       if (!task) {
         let resolve!: (value: ActivityDetails | undefined) => void;
-        task = new Promise<ActivityDetails | undefined>(finish => { resolve = finish; });
+        task = new Promise<ActivityDetails | undefined>((finish) => {
+          resolve = finish;
+        });
         this.inFlight.set(key, task);
         jobs.push({ id, key, task, resolve });
       }
@@ -251,19 +325,69 @@ export class NotificationFetchService {
 
     // Attach consumers before starting work: publish cache hits and each settled
     // ID immediately, even while an unrelated request or recovery is pending.
-    const consuming = Promise.all(requested.map(async ({ id, task }) => {
-      const details = await task;
-      assertCurrent();
-      if (hasUsefulDetails(details)) publish(id, details);
-    }));
-    const loading = Promise.all(jobs.map(async job => {
-      try { job.resolve(await loadOne(job.id)); }
-      catch { job.resolve(undefined); }
-      finally { if (this.inFlight.get(job.key) === job.task) this.inFlight.delete(job.key); }
-    }));
+    const consuming = Promise.all(
+      requested.map(async ({ id, task }) => {
+        const details = await task;
+        assertCurrent();
+        if (hasUsefulDetails(details)) publish(id, details);
+      })
+    );
+    const loading = Promise.all(
+      jobs.map(async (job) => {
+        try {
+          job.resolve(await loadOne(job.id));
+        } catch {
+          job.resolve(undefined);
+        } finally {
+          if (this.inFlight.get(job.key) === job.task) this.inFlight.delete(job.key);
+        }
+      })
+    );
     await Promise.all([loading, consuming]);
     assertCurrent();
     return results;
+  }
+
+  /** Signed-in viewer id, or null when unknown. Used to pair reply-like rows. */
+  public viewerUserId(): number | null {
+    return this.api?.getContext?.()?.userId ?? null;
+  }
+
+  /**
+   * Replies to an activity, oldest first, read as a non-priority background query.
+   * Resolves to [] on any failure. Each activity is requested at most once per session/user.
+   */
+  public fetchActivityReplies(activityId: number): Promise<ActivityReply[]> {
+    if (!isActivityId(activityId) || !this.api) return Promise.resolve([]);
+    const context = this.api.getContext?.();
+    const key = this.activityKey(context?.sessionId, context?.userId, activityId);
+    let pending = this.replyCache.get(key);
+    if (!pending) {
+      pending = this.loadActivityReplies(this.api, activityId);
+      this.replyCache.set(key, pending);
+    }
+    return pending;
+  }
+
+  private async loadActivityReplies(api: IApiClient, activityId: number): Promise<ActivityReply[]> {
+    const replies: ActivityReply[] = [];
+    try {
+      for (let page = 1; page <= MAX_REPLY_PAGES; page++) {
+        const data = await api.query<unknown>(
+          ACTIVITY_REPLIES_QUERY,
+          { id: activityId, page },
+          true,
+          { priority: false }
+        );
+        const parsed = parseActivityRepliesPage(data);
+        replies.push(...parsed.replies);
+        if (!parsed.hasNextPage) break;
+      }
+      return replies;
+    } catch (error) {
+      logger.debug(`[NotificationFetch] Failed to fetch replies for activity ${activityId}`, error);
+      return [];
+    }
   }
 
   /**
@@ -272,6 +396,7 @@ export class NotificationFetchService {
   public async clearCache(): Promise<void> {
     this.generation++;
     this.inFlight.clear();
+    this.replyCache.clear();
     this.verifiedMessages.clear();
     this.verifiedMissing.clear();
     await this.mutateCache(() => this.cache.clear());

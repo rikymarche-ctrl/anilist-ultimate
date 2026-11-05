@@ -21,7 +21,13 @@ import type { IApiClient } from '@core/interfaces/IApiClient';
 import type { ISyncQueueService } from '@core/interfaces/ISyncQueueService';
 import { ASTRA_RATING_QUERY } from '@/api/queries/astra-rating';
 import { ratingInitialResponse } from './AstraRatingResponse';
-import { isSyncId } from '@core/services/SyncResponse';
+import {
+  assertDeletionAcknowledgement,
+  isSyncId,
+  syncDeletionEntryResponse,
+} from '@core/services/SyncResponse';
+import { DELETE_ASTRA_ENTRY } from '@/api/queries/astra';
+import { SYNC_DELETE_ENTRY_QUERY } from '@/api/queries/sync';
 import type { IAstraParser } from '../interfaces/IAstraParser';
 import { captureApiContext, assertApiContext } from '@/api/ApiContext';
 import { copyAstraDates, queuedAstraDates, queuedAstraListState } from '../utils/AstraDates';
@@ -263,27 +269,47 @@ export class AstraRatingService implements IAstraRatingService {
     }
   }
 
-  public async deleteEntry(mediaId: number): Promise<'synced' | 'queued'> {
+  /**
+   * Empties Astra, then AniList. It succeeds only when both are gone: if AniList fails, the Astra
+   * data is restored and the error is rethrown. A title with no AniList entry counts as removed there.
+   */
+  public async deleteEntry(mediaId: number): Promise<void> {
     if (!isSyncId(mediaId)) throw new Error('Invalid AniList media ID');
     const context = await captureApiContext(this.api);
     const userId = context?.userId ?? (await this.api.getCurrentUserId());
     assertApiContext(this.api, context);
     if (!isSyncId(userId)) throw new Error('AniList authentication required');
-    await this.syncQueue.enqueue(
-      'ASTRA_DELETE',
-      { mediaId },
-      ...(context ? [context.sessionId] : [])
-    );
-    await this.syncQueue.process();
-    assertApiContext(this.api, context);
-    const pending = await this.syncQueue.getQueue();
-    assertApiContext(this.api, context);
-    return pending.some(
-      (item) =>
-        item.userId === userId && item.type === 'ASTRA_DELETE' && item.payload.mediaId === mediaId
-    )
-      ? 'queued'
-      : 'synced';
+    const stored = await this.astraService.getFullWork(mediaId);
+    const backup = stored ? structuredClone(stored) : null;
+    await this.astraService.deleteWork(mediaId);
+    try {
+      // The user is waiting on this read, so it must not queue behind background page requests.
+      const response = await this.api.query<unknown>(SYNC_DELETE_ENTRY_QUERY, { mediaId }, false, {
+        priority: true,
+      });
+      assertApiContext(this.api, context);
+      const entryId = syncDeletionEntryResponse(response, mediaId, userId);
+      if (entryId !== null) {
+        assertDeletionAcknowledgement(await this.api.mutate<unknown>(DELETE_ASTRA_ENTRY, { id: entryId }));
+      }
+    } catch (error) {
+      if (backup) await this.astraService.saveWork(backup, true);
+      throw error;
+    }
+    // Both are gone. Only a queued save could recreate the entry, and a durable delete cancels it;
+    // with none queued, nothing is left to do and the title must not read as pending deletion.
+    try {
+      const queue = await this.syncQueue.getQueue();
+      if (queue.some((item) => item.userId === userId && item.payload.mediaId === mediaId)) {
+        await this.syncQueue.enqueue(
+          'ASTRA_DELETE',
+          { mediaId },
+          ...(context ? [context.sessionId] : [])
+        );
+      }
+    } catch (error) {
+      logger.error('[AstraRatingService] Could not cancel queued saves after deletion', error);
+    }
   }
 
   /**

@@ -16,7 +16,7 @@
  *   - sum < 10  → high-contrast
  *   - else      → dark
  *
- * @see docs/MODULES.md#theme-detection
+ * @see docs/MODULES.md
  */
 
 import { logger } from './logger';

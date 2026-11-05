@@ -14,7 +14,7 @@
  * Known Issues:
  *   - Custom list auto-resets on AniList refresh (BUG-005 in docs/BUGS.md)
  *
- * @see docs/MODULES.md#3-activity-enhancer-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

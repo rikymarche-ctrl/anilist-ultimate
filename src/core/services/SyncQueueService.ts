@@ -452,9 +452,14 @@ export class SyncQueueService implements ISyncQueueService {
       this.assertOwner(mutation.userId, session);
       const entryId = syncDeletionEntryResponse(response, mutation.payload.mediaId!, mutation.userId);
       if (entryId !== null) {
-        const deleted: unknown = await this.api.mutate(DELETE_ASTRA_ENTRY, { id: entryId });
-        this.assertOwner(mutation.userId, session);
-        assertDeletionAcknowledgement(deleted);
+        try {
+          const deleted: unknown = await this.api.mutate(DELETE_ASTRA_ENTRY, { id: entryId });
+          this.assertOwner(mutation.userId, session);
+          assertDeletionAcknowledgement(deleted);
+        } catch (error) {
+          // AniList can still list an entry it has just deleted; a 404 means the goal is already met.
+          if ((error as { statusCode?: number }).statusCode !== 404) throw error;
+        }
       }
       // A retry after a lost acknowledgement can observe an already absent
       // remote entry. Local cleanup is idempotent and remains in the queue
@@ -499,7 +504,7 @@ export class SyncQueueService implements ISyncQueueService {
         this.assertOwner(mutation.userId, session);
       }
     }
-    // A setting change or a newer local save while the read/backup was pending cancels this report.
+    // A setting change or removed work cancels this report. A newer local save replaces it instead (enqueue dedupes per media).
     if (!(await notesAllowed())) delete payload.notes;
     if (mutation.payload.notes !== undefined && payload.notes === undefined
       && Object.keys(payload).every(key => key === 'mediaId' || payload[key as keyof typeof payload] === undefined)) return;

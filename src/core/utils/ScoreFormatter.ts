@@ -12,7 +12,7 @@
  *
  * Also provides semantic color and label helpers for score badges.
  *
- * @see docs/MODULES.md#4-activity-score-module
+ * @see docs/MODULES.md
  */
 
 import { ScoreFormat } from '@core/types';

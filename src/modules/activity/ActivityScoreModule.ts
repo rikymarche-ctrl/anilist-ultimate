@@ -8,7 +8,7 @@
  *
  * @see ActivityService.ts for batched score fetching
  * @see ScoreFormatter.ts for display format conversion
- * @see docs/MODULES.md#4-activity-score-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

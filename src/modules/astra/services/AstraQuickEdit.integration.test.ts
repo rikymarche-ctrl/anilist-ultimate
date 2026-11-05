@@ -251,7 +251,7 @@ describe('Quick Edit through real persistence and synchronization services', () 
       }
       await closing;
       await vi.waitFor(() => expect(entry?.status).toBe('PLANNING'));
-      expect(reload).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
       expect(entry?.status).toBe('PLANNING');
       expect((await activeRepo.getFullWork(1))?.status).toBe('PLANNING');
       if (scenario === 'stored fields') {
@@ -271,6 +271,7 @@ describe('Quick Edit through real persistence and synchronization services', () 
       expect(await queue.getQueue()).toEqual([]);
       expect(toast.error).not.toHaveBeenCalled();
 
+      reload.mockClear();
       await modal.open(1);
       expect(document.querySelector('#astra-status-label')?.textContent).toBe('Planning');
       vi.spyOn(window, 'confirm').mockReturnValue(true);

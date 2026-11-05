@@ -8,7 +8,7 @@
  *
  * @see SocialService.ts for the batch GraphQL fetching
  * @see AnimeCard.ts for the social bubble UI
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

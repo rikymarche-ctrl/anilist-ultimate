@@ -16,7 +16,7 @@ const queryRoots = new Set([
   'Studio',
   'SiteStatistics',
 ]);
-const mutationRoots = new Set(['SaveMediaListEntry', 'ToggleLikeV2']);
+const mutationRoots = new Set(['SaveMediaListEntry', 'DeleteMediaListEntry', 'ToggleLikeV2']);
 
 /** Fixed AniList endpoint and a bounded operation allowlist; no URL/header forwarding. */
 export function validateApiRequest(input: Record<string, unknown>): {

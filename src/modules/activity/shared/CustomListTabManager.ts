@@ -9,7 +9,7 @@
  *
  * @see ActivityEnhancerModule.ts for home page usage
  * @see MediaSocialEnhancer.ts for media page usage
- * @see docs/MODULES.md#3-activity-enhancer-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

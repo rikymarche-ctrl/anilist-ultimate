@@ -134,7 +134,7 @@ export class AstraEnhancementService {
       const options = {
         mediaId,
         isUserListCard: isUserList,
-        socialEnabled,
+        socialEnabled: socialEnabled && this.config.isFeatureEnabled('socialActivity'),
         socialShowAvatars,
         astraEnabled: astraFeatureFlag,
       };
@@ -168,7 +168,7 @@ export class AstraEnhancementService {
       const pill = this.pillBuilder.build({
         mediaId,
         isUserListCard: this.shouldShowProgressAction(card, path),
-        socialEnabled,
+        socialEnabled: socialEnabled && this.config.isFeatureEnabled('socialActivity'),
         socialShowAvatars,
         astraEnabled,
       });
@@ -183,6 +183,11 @@ export class AstraEnhancementService {
     path: string,
     isHome = path === '/' || path.startsWith('/home') || path.endsWith('/astra')
   ): boolean {
+    // The activity feed never gets the "+" progress increment; the pencil stays.
+    if (card?.closest('.activity-entry, .activity-feed, .activity-feed-wrap, .au-custom-activities-container')) {
+      return false;
+    }
+
     if (path.includes('/animelist') || path.includes('/mangalist')) {
       return true;
     }

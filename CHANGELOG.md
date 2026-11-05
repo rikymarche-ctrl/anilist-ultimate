@@ -1,5 +1,44 @@
 # Release notes
 
+## 1.2.0
+
+### Profiles
+
+- New **Astra Compare**: on someone else's anime or manga list, under AniList's Compare with your list, a long Wrapped-style story compares the two lists: head-to-head figures, shared titles, score affinity and habits, disagreements, genres, themes, formats, people in common, who got there first, what to try next and a downloadable card. Your private entries are left out, and a private list shows a clear message instead. It has its own switch in the extension settings.
+
+### Settings
+
+- The Social Activity switch now really turns off the social panels, Following progress and groups, the calendar's friend data and the social buttons on cards. Before, these ignored it.
+- New switches: Activity Feed for feed filters and custom-list feeds, and Profile Social for follower counts, banner actions and people in common. Turning off Social Activity no longer removes the feed filters.
+- Removed the Web Components and Virtual Scrolling switches, which did nothing.
+
+### Activity feeds
+
+- Custom-list feeds now format text inside centered blocks (`~~~`): headings, bold, links and line breaks no longer show as raw markup.
+- Bare links to anime, manga, characters, staff and studios show the name instead of the URL.
+- The + button no longer appears on activity feed cards. The pencil stays.
+
+### Notifications
+
+- Reply notifications show the reply itself instead of the first post of the thread, without markdown symbols.
+- Notifications from the same person about the same activity become one row with a note, such as "also liked your activity". Replies with different text stay separate.
+- Grouped notifications no longer move AniList's own rows.
+
+### Astra
+
+- The report in AniList notes could stay outdated after a save that also changed progress, showing an old breakdown and losing General thoughts. It is now written. Notes already out of date update the next time the entry is saved; text lost earlier cannot be recovered.
+- Setting Completed in Quick Edit fills an empty finish date with today.
+- Raising the progress of a title not on your list, or of one on Planning from zero, sets it to Watching or Reading and fills an empty start date with today. Lowering it back undoes this.
+- Closing Quick Edit reloads the page once AniList has received a status change, as deleting an entry does.
+- Delete entry also appears for a title saved only in Astra. It now empties Astra and then AniList, and succeeds only if both are removed. If AniList fails, the Astra data comes back and nothing is queued for later. It no longer waits behind other page requests.
+- Opening an entry with no local data now reads the scores and General thoughts from the report in AniList notes.
+
+### Following
+
+- Scores in Following rows always sit at the right edge, and the comment icon no longer covers them, on every page.
+- Following rows show the chapter on manga pages, as they show the episode on anime pages.
+- Following groups include members beyond the 50 most recent followings and members AniList has not loaded yet.
+
 ## 1.1.0
 
 AniList Ultimate is no longer a beta: the extension name and description drop the beta label.

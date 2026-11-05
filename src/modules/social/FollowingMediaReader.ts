@@ -18,14 +18,27 @@ export interface FollowingMediaResult {
   scoreFormat: ScoreFormat;
 }
 
-/** Score stays raw (POINT_100) and is formatted with the viewer's own format, as SocialService does. */
-export const FOLLOWING_MEDIA_QUERY = `query ($mediaId: Int) {
+const MEDIA_LIST_FIELDS = 'status score(format: POINT_100) user { id name avatar { large } }';
+
+/**
+ * Viewer followings for one title, plus any explicitly requested group members. The members alias
+ * is only sent when there are member ids, so the query stays minimal for the common case.
+ * Score stays raw (POINT_100) and is formatted with the viewer's own format, as SocialService does.
+ */
+export function buildFollowingMediaQuery(withMembers: boolean): string {
+  const members = withMembers
+    ? `\n    members: mediaList(mediaId: $mediaId, userId_in: $members, sort: [UPDATED_TIME_DESC]) { ${MEDIA_LIST_FIELDS} }`
+    : '';
+  // AniList rejects a declared variable that the query does not use.
+  const declarations = withMembers ? '$mediaId: Int, $members: [Int]' : '$mediaId: Int';
+  return `query (${declarations}) {
   Page(perPage: 50) {
-    mediaList(mediaId: $mediaId, isFollowing: true, sort: [UPDATED_TIME_DESC]) {
-      status score(format: POINT_100) user { id name avatar { large } }
-    }
+    following: mediaList(mediaId: $mediaId, isFollowing: true, sort: [UPDATED_TIME_DESC]) { ${MEDIA_LIST_FIELDS} }${members}
   }
 }`;
+}
+
+export const FOLLOWING_MEDIA_QUERY = buildFollowingMediaQuery(true);
 const MAX_ENTRIES = 50;
 const STATUSES = new Set<string>(Object.values(MediaListStatus));
 const SCORE_FORMATS = new Set<string>([
@@ -65,27 +78,34 @@ function parseEntry(value: unknown): FollowingMediaEntry | null {
   };
 }
 
+/** Members come first so a group member is kept over a following entry for the same user. */
 export function parseFollowingMedia(response: unknown): FollowingMediaEntry[] {
   const page = isRecord(response) && isRecord(response.Page) ? response.Page : response;
-  const list = isRecord(page) && Array.isArray(page.mediaList) ? page.mediaList : null;
-  if (!list) throw new Error('Invalid following media response');
+  const following = isRecord(page) && Array.isArray(page.following) ? page.following : null;
+  if (!following) throw new Error('Invalid following media response');
+  const members = isRecord(page) && Array.isArray(page.members) ? page.members : [];
   const byUser = new Map<number, FollowingMediaEntry>();
-  for (const item of list.slice(0, MAX_ENTRIES)) {
-    const entry = parseEntry(item);
-    if (entry && !byUser.has(entry.userId)) byUser.set(entry.userId, entry);
+  for (const list of [members, following]) {
+    for (const item of list.slice(0, MAX_ENTRIES)) {
+      const entry = parseEntry(item);
+      if (entry && !byUser.has(entry.userId)) byUser.set(entry.userId, entry);
+    }
   }
   return [...byUser.values()];
 }
 
-/** Background read for the Overview: the viewer's followings for one title. Never a priority request. */
+/** Background read for the Overview and Social tabs. Never a priority request. */
 @injectable()
 export class FollowingMediaReader {
   constructor(@inject(TOKENS.ApiClient) private api: IApiClient) {}
 
-  async read(mediaId: number): Promise<FollowingMediaResult> {
+  async read(mediaId: number, memberIds: readonly number[] = []): Promise<FollowingMediaResult> {
     if (!isAniListId(mediaId)) throw new Error('Invalid media id');
+    const members = [...new Set(memberIds.filter(isAniListId))];
+    const variables: Record<string, unknown> = { mediaId };
+    if (members.length) variables.members = members;
     const [response, viewer] = await Promise.all([
-      this.api.query<unknown>(FOLLOWING_MEDIA_QUERY, { mediaId }, true, { priority: false }),
+      this.api.query<unknown>(buildFollowingMediaQuery(members.length > 0), variables, true, { priority: false }),
       this.api.getCurrentUser(),
     ]);
     const format = String(viewer.mediaListOptions?.scoreFormat);

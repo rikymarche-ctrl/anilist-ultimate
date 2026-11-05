@@ -8,7 +8,7 @@
  *
  * @see CalendarGrid.ts for the rendered calendar component
  * @see CalendarModule.ts for the orchestration layer
- * @see docs/MODULES.md#1-calendar-module
+ * @see docs/MODULES.md
  */
 
 import { injectable, inject } from 'tsyringe';

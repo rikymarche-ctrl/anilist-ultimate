@@ -171,13 +171,13 @@ describe('notification native DOM and batched activity context', () => {
       '/manga/109'
     );
     document.querySelector<HTMLElement>('.au-virtual-notification')!.click();
-    expect(document.querySelector<HTMLElement>('.au-notification-dropdown')?.style.display).toBe(
-      'block'
-    );
+    expect(
+      document.querySelector<HTMLElement>('.au-virtual-notification')?.getAttribute('aria-expanded')
+    ).toBe('true');
     await f.internal.toggleGrouping();
     expect([...document.querySelectorAll('.notifications > .notification')]).toEqual(f.originals);
     expect(
-      document.querySelectorAll('.au-virtual-notification,.au-notification-dropdown')
+      document.querySelectorAll('.au-virtual-notification,.au-sub-notification[data-au-group]')
     ).toHaveLength(0);
     expect(document.querySelectorAll('.au-activity-context')).toHaveLength(4);
   });
@@ -198,7 +198,7 @@ describe('notification native DOM and batched activity context', () => {
     await f.module.init();
     expect(
       document
-        .querySelector('.au-notification-dropdown-inner')
+        .querySelector('.au-sub-notification')
         ?.classList.contains('au-notification-group-user')
     ).toBe(true);
     document.querySelector<HTMLElement>('.au-virtual-notification')!.click();
@@ -223,13 +223,15 @@ describe('notification native DOM and batched activity context', () => {
     expect(
       document.querySelectorAll('.au-sub-notification .details a[href^="/anime/"]')
     ).toHaveLength(3);
-    const siteAddedGroup = document.querySelector('.au-notification-group-site-added');
-    expect(siteAddedGroup?.querySelectorAll('.au-sub-notification .details .context')).toHaveLength(
-      3
-    );
-    expect(siteAddedGroup?.querySelector('.au-sub-notification .details a')?.textContent).toBe(
-      'RESPAWN!!'
-    );
+    const siteAddedRows = [
+      ...document.querySelectorAll<HTMLElement>(
+        '.au-sub-notification.au-notification-group-site-added'
+      ),
+    ];
+    expect(
+      siteAddedRows.flatMap((row) => [...row.querySelectorAll('.details .context')])
+    ).toHaveLength(3);
+    expect(siteAddedRows[0]?.querySelector('.details a')?.textContent).toBe('RESPAWN!!');
     expect(document.querySelector('.au-notification-summary-image.cover')).not.toBeNull();
     expect(document.querySelector('.au-notification-summary-content')?.textContent).toContain(
       '3 titles'
@@ -315,9 +317,9 @@ describe('notification native DOM and batched activity context', () => {
     expect(document.querySelector('.au-activity-count')?.textContent).toBe('3');
     expect(document.querySelectorAll('.au-sub-notification')).toHaveLength(3);
     expect(document.querySelectorAll('.au-activity-context')).toHaveLength(3);
-    expect(document.querySelector<HTMLElement>('.au-notification-dropdown')?.style.display).toBe(
-      'block'
-    );
+    expect(
+      document.querySelector<HTMLElement>('.au-virtual-notification')?.getAttribute('aria-expanded')
+    ).toBe('true');
     expect(f.queryRaw).toHaveBeenCalledTimes(2);
   });
   it('groups newly appended pages immediately while earlier API requests are still pending', async () => {
@@ -367,16 +369,12 @@ describe('notification native DOM and batched activity context', () => {
       expect(document.querySelectorAll('.au-activity-context')).toHaveLength(2)
     );
     f.filter.applySearchFilter('work 8');
-    expect(document.querySelector<HTMLElement>('.au-notification-dropdown')?.style.display).toBe(
-      'block'
-    );
+    expect(f.originals[1].classList.contains('au-notification-collapsed')).toBe(false);
     expect(f.originals[0].classList.contains('au-notification-search-hidden')).toBe(true);
     expect(f.originals[1].classList.contains('au-notification-search-hidden')).toBe(false);
     f.filter.applySearchFilter('');
     await f.internal.processNotifications();
-    expect(document.querySelector<HTMLElement>('.au-notification-dropdown')?.style.display).toBe(
-      'block'
-    );
+    expect(f.originals[1].classList.contains('au-notification-collapsed')).toBe(true);
   });
   it('updates grouped read state and reused activity identities without retaining stale context', async () => {
     const f = setup(activity(7) + activity(8));
@@ -636,5 +634,72 @@ describe('message privacy in notifications', () => {
     expect(
       f.originals[0].querySelector<HTMLElement>('.au-activity-context')?.dataset.activityId
     ).toBe('34');
+  });
+});
+
+describe('native rows stay in their parent and merged mentions', () => {
+  it('keeps every native row in its original parent after grouping and after ungrouping', async () => {
+    const f = setup([7, 8, 9].map((id) => activity(id)).join(''));
+    const parent = document.querySelector('.notifications')!;
+    await f.module.init();
+    await vi.waitFor(() =>
+      expect(document.querySelectorAll('.au-activity-context')).toHaveLength(3)
+    );
+    expect(document.querySelectorAll('.au-sub-notification')).toHaveLength(3);
+    expect(f.originals.every((node) => node.parentElement === parent)).toBe(true);
+    await f.internal.toggleGrouping();
+    expect(f.originals.every((node) => node.parentElement === parent)).toBe(true);
+    expect(document.querySelectorAll('.au-sub-notification,.au-virtual-notification')).toHaveLength(
+      0
+    );
+  });
+
+  it('folds a reply like into the reply once both rows show the same text', async () => {
+    const f = setup(
+      nativeActivity(7, 'Alice', 'liked your activity reply') +
+        nativeActivity(7, 'Alice', 'replied to your activity')
+    );
+    await f.module.init();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.au-merged-mention')?.textContent).toBe(
+        'also liked your reply'
+      )
+    );
+    expect(document.querySelectorAll('.au-notification-merged')).toHaveLength(1);
+    expect(document.querySelector('.au-virtual-notification')).toBeNull();
+  });
+
+  it('folds a mention into the reply from the same actor and time, then undoes it on unmerge', async () => {
+    const f = setup(
+      nativeActivity(7, 'Alice', 'mentioned you in an activity') +
+        nativeActivity(7, 'Alice', 'replied to your activity')
+    );
+    await f.module.init();
+    await vi.waitFor(() =>
+      expect(document.querySelectorAll('.au-activity-context')).toHaveLength(2)
+    );
+    expect(document.querySelectorAll('.au-notification-merged')).toHaveLength(1);
+    expect(document.querySelector('.au-merged-mention')?.textContent).toBe('also mentioned you');
+    expect(document.querySelector('.au-virtual-notification')).toBeNull();
+    await f.internal.toggleGrouping();
+    expect(document.querySelectorAll('.au-notification-merged,.au-merged-mention')).toHaveLength(0);
+  });
+
+  it('folds a like into the reply from the same actor and activity, then undoes it on unmerge', async () => {
+    const f = setup(
+      nativeActivity(7, 'Alice', 'liked your activity.') +
+        nativeActivity(7, 'Alice', 'replied to your activity')
+    );
+    await f.module.init();
+    await vi.waitFor(() =>
+      expect(document.querySelectorAll('.au-activity-context')).toHaveLength(2)
+    );
+    expect(document.querySelectorAll('.au-notification-merged')).toHaveLength(1);
+    expect(document.querySelector('.au-merged-mention')?.textContent).toBe(
+      'also liked your activity'
+    );
+    expect(document.querySelector('.au-virtual-notification')).toBeNull();
+    await f.internal.toggleGrouping();
+    expect(document.querySelectorAll('.au-notification-merged,.au-merged-mention')).toHaveLength(0);
   });
 });

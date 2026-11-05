@@ -11,6 +11,7 @@ import {
   type NotificationGroup,
 } from './services/NotificationGroupService';
 import { NotificationFilterService } from './services/NotificationFilterService';
+import { planRowMerges, type MergeRow } from './services/NotificationRowMerge';
 import '../../styles/notification-cleaner.css';
 
 /** "54 minutes ago – 1 hour ago" reads as "54 minutes – 1 hour ago": the shared suffix is kept once. */
@@ -36,13 +37,15 @@ export class NotificationCleanerModule extends BaseModule {
   private reprocessTimer: ReturnType<typeof setTimeout> | null = null;
   private metadataTimer: ReturnType<typeof setTimeout> | null = null;
   private delegatedClickListener: ((event: MouseEvent) => void) | null = null;
-  private originals = new Map<HTMLElement, Comment>();
+  /** Native rows touched by grouping; their parents are never changed. */
+  private originals = new Set<HTMLElement>();
   private groupedTexts = new Map<HTMLElement, NotificationGroup>();
   private lastNodes: HTMLElement[] = [];
   private signatures = new WeakMap<HTMLElement, string>();
   private activityIds = new WeakMap<HTMLElement, number | null>();
   private nextEnhancementAt = 0;
   private nextGroupId = 0;
+  /** Keyed by the first row of each group so the state survives rebuilds. */
   private expandedGroups = new WeakSet<HTMLElement>();
   private enrichmentInFlight = new WeakMap<HTMLElement, { id: number; generation: number }>();
   private runSafely(operation: Promise<void>): void {
@@ -97,6 +100,7 @@ export class NotificationCleanerModule extends BaseModule {
     this.pollingInterval = null;
     this.cleanup();
     this.clearVirtualNotifications();
+    this.groupService.resetReplyCursors();
     this.filterService.cleanup();
     for (const node of this.nativeNotifications()) this.groupService.removeActivityDetails(node);
     if (clearActivityCache && this.fetchService.clearCache)
@@ -292,65 +296,7 @@ export class NotificationCleanerModule extends BaseModule {
           this.activityIds.set(node, id);
           this.signatures.set(node, this.signature(node));
         }
-        if (this.enabled) {
-          let group: NotificationGroup | undefined;
-          const flush = () => {
-            if (group && group.count > 1) this.performGrouping(group);
-          };
-          for (const node of nodes) {
-            // Group by native actor/type/order; resource availability only
-            // controls detail fetching, never membership in the group.
-            const item = this.groupService.groupingFor(node);
-            if (!item) {
-              flush();
-              group = undefined;
-              continue;
-            }
-            const time = node.querySelector('.time')?.textContent?.trim() ?? '';
-            // A lone comment-like is keyed by comment; if the same actor continues
-            // the run, re-key it as that actor's group instead of splitting it.
-            if (
-              group &&
-              group.key !== item.key &&
-              group.kind === 'forum' &&
-              group.count === 1 &&
-              item.kind === 'user' &&
-              group.actor &&
-              group.actor.toLowerCase() === item.user.toLowerCase()
-            ) {
-              group.kind = 'user';
-              group.key = item.key;
-              group.user = item.user;
-              group.subject = undefined;
-            }
-            if (group?.key === item.key) {
-              group.elements.push(node);
-              group.count++;
-              group.latestTime = time;
-              group.types.set(item.type, (group.types.get(item.type) ?? 0) + 1);
-            } else if (
-              group?.kind === 'user' &&
-              item.kind === 'forum' &&
-              item.actor?.toLowerCase() === group.user.toLowerCase()
-            ) {
-              group.elements.push(node);
-              group.count++;
-              group.latestTime = time;
-              group.types.set(item.type, (group.types.get(item.type) ?? 0) + 1);
-            } else {
-              flush();
-              group = {
-                ...item,
-                count: 1,
-                types: new Map([[item.type, 1]]),
-                elements: [node],
-                firstTime: time,
-                latestTime: time,
-              };
-            }
-          }
-          flush();
-        }
+        if (this.enabled) this.rebuildGroups(nodes);
         this.lastNodes = nodes;
       }
       this.filterService.applySearchFilter(this.filterService.getSearchQuery());
@@ -398,20 +344,136 @@ export class NotificationCleanerModule extends BaseModule {
       }
     }
     if (!isCurrent()) return;
+    // Reply-like merges depend on reply text that is only known after enrichment,
+    // so the groups are rebuilt once that text is in place.
+    if (
+      this.enabled &&
+      this.lastNodes.some((node) => this.groupService.groupingFor(node)?.type === 'reply_like')
+    ) {
+      this.clearVirtualNotifications();
+      this.rebuildGroups(this.lastNodes);
+      this.filterService.applySearchFilter(this.filterService.getSearchQuery());
+    }
     // Coalesce progressive updates; finish synchronously for the final result.
     // A 404 leaves group membership, order and expanded state intact.
     this.cancelMetadataRefresh();
     this.refreshMetadata(generation);
   }
 
+  /**
+   * Folds rows about the same activity into a host row, as planned by planRowMerges. Merged rows
+   * stay in place with a class; the host gains a note, so ungrouping only removes those.
+   */
+  private mergeSameActivityRows(group: NotificationGroup): void {
+    const types = new Map<HTMLElement, string>();
+    const rows: MergeRow<HTMLElement>[] = group.elements.map((node) => {
+      const type = this.groupService.groupingFor(node)?.type ?? '';
+      types.set(node, type);
+      return {
+        row: node,
+        type,
+        activityId: this.fetchService.extractActivityId(node),
+        time: node.querySelector('.time')?.textContent?.trim() ?? '',
+        target: node.querySelector('.au-activity-target')?.textContent?.trim() ?? '',
+        resolved: this.groupService.isReplyPaired(node),
+      };
+    });
+    const merges = planRowMerges(rows);
+    if (!merges.length) return;
+    const merged = new Set<HTMLElement>();
+    for (const merge of merges) {
+      merged.add(merge.row);
+      merge.row.classList.add('au-notification-merged');
+      group.count--;
+      const type = types.get(merge.row) ?? '';
+      const remaining = (group.types.get(type) ?? 1) - 1;
+      if (remaining > 0) group.types.set(type, remaining);
+      else group.types.delete(type);
+      const host = merge.into.querySelector<HTMLElement>('.details') ?? merge.into;
+      const badge = document.createElement('span');
+      badge.className = 'au-merged-mention';
+      badge.textContent = merge.note;
+      host.append(badge);
+    }
+    group.elements = group.elements.filter((node) => !merged.has(node));
+  }
+
+  /** Groups consecutive rows from one actor. Native rows keep their parents and only gain classes. */
+  private rebuildGroups(nodes: HTMLElement[]): void {
+    let group: NotificationGroup | undefined;
+    const flush = () => {
+      if (!group) return;
+      this.mergeSameActivityRows(group);
+      if (group.count > 1) this.performGrouping(group);
+    };
+    for (const node of nodes) {
+      // Group by native actor/type/order; resource availability only
+      // controls detail fetching, never membership in the group.
+      const item = this.groupService.groupingFor(node);
+      if (!item) {
+        flush();
+        group = undefined;
+        continue;
+      }
+      const time = node.querySelector('.time')?.textContent?.trim() ?? '';
+      // A lone comment-like is keyed by comment; if the same actor continues
+      // the run, re-key it as that actor's group instead of splitting it.
+      if (
+        group &&
+        group.key !== item.key &&
+        group.kind === 'forum' &&
+        group.count === 1 &&
+        item.kind === 'user' &&
+        group.actor &&
+        group.actor.toLowerCase() === item.user.toLowerCase()
+      ) {
+        group.kind = 'user';
+        group.key = item.key;
+        group.user = item.user;
+        group.subject = undefined;
+      }
+      if (group?.key === item.key) {
+        group.elements.push(node);
+        group.count++;
+        group.latestTime = time;
+        group.types.set(item.type, (group.types.get(item.type) ?? 0) + 1);
+      } else if (
+        group?.kind === 'user' &&
+        item.kind === 'forum' &&
+        item.actor?.toLowerCase() === group.user.toLowerCase()
+      ) {
+        group.elements.push(node);
+        group.count++;
+        group.latestTime = time;
+        group.types.set(item.type, (group.types.get(item.type) ?? 0) + 1);
+      } else {
+        flush();
+        group = {
+          ...item,
+          count: 1,
+          types: new Map([[item.type, 1]]),
+          elements: [node],
+          firstTime: time,
+          latestTime: time,
+        };
+      }
+    }
+    flush();
+  }
+
+  /** Inserts a summary before the first native row. Native rows stay in place; they only gain classes. */
   private performGrouping(group: NotificationGroup): void {
-    const first = group.elements[0];
+    const rows = [...group.elements];
+    const first = rows[0];
+    const groupId = String(++this.nextGroupId);
+    const isExpanded = this.expandedGroups.has(first);
     const summary = document.createElement('div');
     summary.className = first.className;
     summary.classList.add('au-virtual-notification');
+    summary.dataset.auGroup = groupId;
     summary.classList.toggle(
       'unread',
-      group.elements.some((notification) => notification.classList.contains('unread'))
+      rows.some((notification) => notification.classList.contains('unread'))
     );
     for (const attr of first.attributes)
       if (attr.name.startsWith('data-v-')) summary.setAttribute(attr.name, attr.value);
@@ -444,56 +506,69 @@ export class NotificationCleanerModule extends BaseModule {
     text.append(groupText);
     content.append(text);
     summary.append(content);
-    const dropdown = document.createElement('div');
-    dropdown.className = 'au-notification-dropdown';
-    dropdown.style.display = this.expandedGroups.has(first) ? 'block' : 'none';
-    dropdown.id = 'au-notification-group-' + ++this.nextGroupId;
-    const inner = document.createElement('div');
-    inner.className =
-      'au-notification-dropdown-inner au-notification-group-' + (group.kind ?? 'user');
-    if (group.kind === 'site' && group.types.size === 1 && group.types.has('site_added'))
-      inner.classList.add('au-notification-group-site-added');
-    dropdown.append(inner);
     summary.setAttribute('role', 'button');
     summary.tabIndex = 0;
-    summary.setAttribute('aria-expanded', String(this.expandedGroups.has(first)));
-    summary.setAttribute('aria-controls', dropdown.id);
-    const toggle = () => {
-      const open = summary.getAttribute('aria-expanded') !== 'true';
+
+    const rowClasses = ['au-sub-notification', 'au-notification-group-' + (group.kind ?? 'user')];
+    if (group.kind === 'site' && group.types.size === 1 && group.types.has('site_added'))
+      rowClasses.push('au-notification-group-site-added');
+    rows.forEach((row, index) => {
+      row.classList.add(...rowClasses);
+      row.classList.toggle('au-sub-first', index === 0);
+      row.classList.toggle('au-sub-last', index === rows.length - 1);
+      row.dataset.auGroup = groupId;
+      row.classList.toggle('au-notification-collapsed', !isExpanded);
+      this.originals.add(row);
+    });
+
+    const setExpanded = (open: boolean): void => {
       summary.setAttribute('aria-expanded', String(open));
-      dropdown.style.display = open ? 'block' : 'none';
+      for (const row of rows) row.classList.toggle('au-notification-collapsed', !open);
       if (open) this.expandedGroups.add(first);
       else this.expandedGroups.delete(first);
+      // A search keeps its own visibility rules; re-apply them over the new state.
+      const query = this.filterService.getSearchQuery();
+      if (query) this.filterService.applySearchFilter(query);
     };
+    summary.setAttribute('aria-expanded', String(isExpanded));
     summary.addEventListener('click', (event) => {
-      if (!(event.target instanceof Element) || !event.target.closest('a')) toggle();
+      if (!(event.target instanceof Element) || !event.target.closest('a'))
+        setExpanded(summary.getAttribute('aria-expanded') !== 'true');
     });
     summary.addEventListener('keydown', (event) => {
       if (event.target === summary && (event.key === 'Enter' || event.key === ' ')) {
         event.preventDefault();
-        toggle();
+        setExpanded(summary.getAttribute('aria-expanded') !== 'true');
       }
     });
-    first.before(summary, dropdown);
-    for (const notification of group.elements) {
-      const marker = document.createComment('au-notification-position');
-      notification.before(marker);
-      this.originals.set(notification, marker);
-      notification.classList.add('au-sub-notification');
-      inner.append(notification);
-    }
+    first.before(summary);
   }
 
+  /** Removes every summary and class/merge change made by grouping. Native rows keep their parents. */
   private clearVirtualNotifications(): void {
     this.groupedTexts.clear();
-    for (const [notification, marker] of this.originals) {
-      notification.classList.remove('au-sub-notification');
-      if (marker.isConnected) marker.replaceWith(notification);
-    }
+    for (const row of this.originals) this.resetRow(row);
     this.originals.clear();
+    document.querySelectorAll<HTMLElement>('.au-sub-notification').forEach((row) => this.resetRow(row));
+    document.querySelectorAll('.au-virtual-notification').forEach((node) => node.remove());
     document
-      .querySelectorAll('.au-virtual-notification, .au-notification-dropdown')
-      .forEach((node) => node.remove());
+      .querySelectorAll('.au-notification-merged')
+      .forEach((node) => node.classList.remove('au-notification-merged'));
+    document.querySelectorAll('.au-merged-mention').forEach((node) => node.remove());
+  }
+
+  private resetRow(row: HTMLElement): void {
+    row.classList.remove(
+      'au-sub-notification',
+      'au-sub-first',
+      'au-sub-last',
+      'au-notification-collapsed',
+      'au-notification-group-user',
+      'au-notification-group-site',
+      'au-notification-group-forum',
+      'au-notification-group-site-added'
+    );
+    delete row.dataset.auGroup;
   }
 
   public override async destroy(): Promise<void> {
