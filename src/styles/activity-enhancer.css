@@ -219,8 +219,8 @@
 
 .au-custom-list-menu {
   position: fixed !important;
-  background: rgba(21, 31, 46, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  background: rgba(var(--color-foreground, 21, 31, 46), 0.97) !important;
+  border: 1px solid rgba(var(--color-text, 159, 173, 189), 0.12) !important;
   border-radius: 6px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
   width: 130px !important;
@@ -238,7 +238,7 @@
   padding: 6px 12px !important;
   font-size: 1.2rem !important;
   font-weight: 400 !important;
-  color: var(--color-text-light) !important;
+  color: rgb(var(--color-text-light)) !important;
   background: transparent !important;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -260,7 +260,7 @@
 }
 
 .au-custom-list-item.active {
-  color: var(--color-blue) !important;
+  color: rgb(var(--color-blue)) !important;
   font-weight: 600 !important;
   background: rgba(61, 180, 242, 0.05) !important;
 }
@@ -278,7 +278,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   margin-bottom: 4px;
   padding-bottom: 10px !important;
-  color: var(--color-text-lighter) !important;
+  color: rgb(var(--color-text-lighter)) !important;
   opacity: 0.8;
 }
 

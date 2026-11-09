@@ -14,6 +14,7 @@ import { inject, injectable, type Disposable } from 'tsyringe';
 import { TOKENS } from '@core/di/tokens';
 import { BackgroundOperationError } from '@core/errors/OperationFailure';
 import type { SeasonalChoices } from '../services/SeasonalWrappedModel';
+import type { ThemeMediaRatings, ThemeRatingInput } from './AstraThemeRatings';
 
 /** Read-side snapshot for a tab. All persistence goes to the background writer. */
 @injectable()
@@ -163,5 +164,10 @@ export class AstraRepositoryClient extends AstraRepository implements Disposable
   override factoryReset(): Promise<void> { return this.mutate('factoryReset'); }
   override exportJSON(): Promise<string> { return this.request('exportJSON'); }
   override importJSON(json: string): Promise<boolean> { return this.mutate('importJSON', [json]); }
+  override getThemeRatings(mediaId: number): Promise<ThemeMediaRatings> { return this.request('getThemeRatings', [mediaId]); }
+  override saveThemeRating(mediaId: number, themeId: string, rating: ThemeRatingInput | null): Promise<ThemeMediaRatings> {
+    return this.mutate('saveThemeRating', [mediaId, themeId, structuredClone(rating)]);
+  }
+  override markThemesPrompted(mediaId: number, themeIds: string[]): Promise<ThemeMediaRatings> { return this.mutate('markThemesPrompted', [mediaId, [...themeIds]]); }
   override saveSeasonalChoices(key: string, choices: SeasonalChoices): Promise<SeasonalChoices> { return this.mutate('saveSeasonalChoices', [key, structuredClone(choices)]); }
 }

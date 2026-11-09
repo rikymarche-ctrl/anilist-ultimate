@@ -22,12 +22,15 @@ import { ToastContainer } from '@ui/components/ToastContainer';
 import { logger } from '@core/logger';
 import type { ToastType } from '@ui/components/Toast';
 import type { ICalendarService } from '@core/interfaces/ICalendarService';
+import type { IThemeRatingPrompt } from '@core/interfaces/IThemeRatingPrompt';
 
 export interface ToastOptions {
   title?: string;
   duration?: number;
   mediaId?: number;
   progress?: number;
+  /** Progress before this update: lets the toast offer sliders for songs that start in between. */
+  previousProgress?: number;
 }
 
 @injectable()
@@ -41,11 +44,15 @@ export class ToastService {
   private awaitingBody = false;
   private generation = 0;
   private destroyed = false;
-  private readonly bodyReady = () => { this.awaitingBody = false; this.init(); };
+  private readonly bodyReady = () => {
+    this.awaitingBody = false;
+    this.init();
+  };
 
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
-    @inject(TOKENS.CalendarService) private calendarService: ICalendarService
+    @inject(TOKENS.CalendarService) private calendarService: ICalendarService,
+    @inject(TOKENS.ThemeRatingPrompt) private themePrompt?: IThemeRatingPrompt
   ) {
     this.setupEventListeners();
   }
@@ -65,7 +72,11 @@ export class ToastService {
           document.addEventListener('DOMContentLoaded', this.bodyReady, { once: true });
         }
       } else {
-        if (this.initTimeout === null) this.initTimeout = setTimeout(() => { this.initTimeout = null; this.init(); }, 100);
+        if (this.initTimeout === null)
+          this.initTimeout = setTimeout(() => {
+            this.initTimeout = null;
+            this.init();
+          }, 100);
       }
       return;
     }
@@ -116,18 +127,38 @@ export class ToastService {
     const id = crypto.randomUUID();
     const duration = options.duration ?? (type === 'error' ? 8000 : this.DEFAULT_DURATION);
 
-    this.container?.addToast({
-      id,
-      type,
-      message,
-      title: options.title,
-      duration,
-      mediaId: options.mediaId,
-      progress: options.progress
-    }, options.mediaId ? async (mId, note) => {
-      if (this.destroyed || generation !== this.generation) throw new Error('Toast account changed');
-      await this.calendarService.updateNotes(mId, options.progress ?? 0, note);
-    } : undefined);
+    this.container?.addToast(
+      {
+        id,
+        type,
+        message,
+        title: options.title,
+        duration,
+        mediaId: options.mediaId,
+        progress: options.progress,
+      },
+      options.mediaId
+        ? async (mId, note) => {
+            if (this.destroyed || generation !== this.generation)
+              throw new Error('Toast account changed');
+            await this.calendarService.updateNotes(mId, options.progress ?? 0, note);
+          }
+        : undefined
+    );
+    this.offerNewThemes(id, generation, options);
+  }
+
+  /** Cached data only: no network request on the progress path; failures keep the plain toast. */
+  private offerNewThemes(id: string, generation: number, { mediaId, progress, previousProgress }: ToastOptions): void {
+    const prompt = this.themePrompt;
+    if (!prompt || !mediaId || progress === undefined || previousProgress === undefined || progress <= previousProgress) return;
+    void prompt.findNewThemes(mediaId, previousProgress, progress).then(songs => {
+      if (this.destroyed || generation !== this.generation || !songs.length) return;
+      this.container?.showThemes(id, songs, async (song, score) => {
+        if (this.destroyed || generation !== this.generation) throw new Error('Toast account changed');
+        await prompt.rate(mediaId, song, score);
+      });
+    }).catch((error: unknown) => logger.warn('[ToastService] New theme lookup failed', error));
   }
 
   /**
@@ -138,58 +169,68 @@ export class ToastService {
     const lastErrorMessages = this.lastErrorMessages;
     const COOLDOWN = 3000; // 3 seconds cooldown for identical messages
 
-    this.subscriptions.push(this.eventBus.on(EVENT_TYPES.ERROR_OCCURRED, (data) => {
-      if (!data) return;
-      const { error, context, severity } = data;
-      const message = error.message || 'An unexpected error occurred';
-      const now = Date.now();
+    this.subscriptions.push(
+      this.eventBus.on(EVENT_TYPES.ERROR_OCCURRED, (data) => {
+        if (!data) return;
+        const { error, context, severity } = data;
+        const message = error.message || 'An unexpected error occurred';
+        const now = Date.now();
 
-      for (const [key, timestamp] of lastErrorMessages) {
-        if (now - timestamp >= COOLDOWN) lastErrorMessages.delete(key);
-      }
-      // Check for duplicates
-      if (lastErrorMessages.has(message) && (now - lastErrorMessages.get(message)! < COOLDOWN)) {
-        return;
-      }
-      if (lastErrorMessages.size >= 100) lastErrorMessages.delete(lastErrorMessages.keys().next().value!);
-      lastErrorMessages.set(message, now);
-      
-      // Only show toasts for High/Critical errors or if they have a specific context
-      if (severity === 'high' || severity === 'critical' || context !== 'unknown') {
-        this.error(message, {
-          title: context ? `Error in ${context}` : 'Error'
-        });
-      }
-    }));
+        for (const [key, timestamp] of lastErrorMessages) {
+          if (now - timestamp >= COOLDOWN) lastErrorMessages.delete(key);
+        }
+        // Check for duplicates
+        if (lastErrorMessages.has(message) && now - lastErrorMessages.get(message)! < COOLDOWN) {
+          return;
+        }
+        if (lastErrorMessages.size >= 100)
+          lastErrorMessages.delete(lastErrorMessages.keys().next().value!);
+        lastErrorMessages.set(message, now);
+
+        // Only show toasts for High/Critical errors or if they have a specific context
+        if (severity === 'high' || severity === 'critical' || context !== 'unknown') {
+          this.error(message, {
+            title: context ? `Error in ${context}` : 'Error',
+          });
+        }
+      })
+    );
 
     // Listen for Auth events
-    this.subscriptions.push(this.eventBus.on(EVENT_TYPES.AUTH_REQUIRED, () => {
-      this.warn('Authentication required to perform this action.', {
-        title: 'Login Required',
-        duration: 10000
-      });
-    }));
+    this.subscriptions.push(
+      this.eventBus.on(EVENT_TYPES.AUTH_REQUIRED, () => {
+        this.warn('Authentication required to perform this action.', {
+          title: 'Login Required',
+          duration: 10000,
+        });
+      })
+    );
 
     // Listen for API errors
-    this.subscriptions.push(this.eventBus.on(EVENT_TYPES.API_ERROR, (data) => {
-      if (data?.statusCode === 429) {
-        const now = Date.now();
-        // API errors can originate from concurrent requests. One warning for
-        // the 60-second cooldown is enough and avoids duplicate toast cards.
-        if (this.lastRateLimitWarningAt !== null && now - this.lastRateLimitWarningAt < 60000) return;
-        this.lastRateLimitWarningAt = now;
-        this.warn('AniList rate limit hit. Retrying in 60 seconds...', {
-          title: 'Rate Limited',
-          duration: 5000
-        });
-      }
-    }));
-    this.subscriptions.push(this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => {
-      this.generation++;
-      this.container?.clear();
-      this.lastErrorMessages.clear();
-      this.lastRateLimitWarningAt = null;
-    }));
+    this.subscriptions.push(
+      this.eventBus.on(EVENT_TYPES.API_ERROR, (data) => {
+        if (data?.statusCode === 429) {
+          const now = Date.now();
+          // API errors can originate from concurrent requests. One warning for
+          // the 60-second cooldown is enough and avoids duplicate toast cards.
+          if (this.lastRateLimitWarningAt !== null && now - this.lastRateLimitWarningAt < 60000)
+            return;
+          this.lastRateLimitWarningAt = now;
+          this.warn('AniList rate limit hit. Retrying in 60 seconds...', {
+            title: 'Rate Limited',
+            duration: 5000,
+          });
+        }
+      })
+    );
+    this.subscriptions.push(
+      this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, () => {
+        this.generation++;
+        this.container?.clear();
+        this.lastErrorMessages.clear();
+        this.lastRateLimitWarningAt = null;
+      })
+    );
   }
 
   public destroy(): void {

@@ -2,8 +2,8 @@
  * @file SocialMaskingService.ts
  * @description Centralized enforcer for social element visibility (the "4-point rule")
  *
- * This service manages the global 'au-social-avatars-hidden' body class which 
- * powers the CSS masking rules in astra.css. It centralizes logic previously 
+ * This service manages the global 'au-social-avatars-hidden' body class which
+ * powers the CSS masking rules in astra.css. It centralizes logic previously
  * duplicated in CalendarModule and AstraModule.
  */
 
@@ -45,7 +45,7 @@ export class SocialMaskingService {
 
     // 1. Subscribe to store changes for real-time updates
     this.unsubscribePreferences = this.store.subscribeToSelector(
-      state => ({
+      (state) => ({
         socialEnabled: state.preferences.socialEnabled,
         socialShowAvatars: state.preferences.socialShowAvatars,
       }),
@@ -55,7 +55,7 @@ export class SocialMaskingService {
 
     // 2. Register persistence observer to fight React re-renders of the body
     this.sharedObserver.register('social-masking-persistence', syncCurrent, 2000);
-    
+
     logger.success('[SocialMaskingService] Initialized and observing');
   }
 
@@ -93,6 +93,11 @@ export class SocialMaskingService {
     this.unsubscribeConfig?.();
     this.unsubscribeConfig = null;
     this.sharedObserver.unregister('social-masking-persistence');
-    document.body?.classList.remove('au-social-avatars-hidden', 'au-social-enabled', 'au-social-avatars-enabled', 'au-astra-enabled');
+    document.body?.classList.remove(
+      'au-social-avatars-hidden',
+      'au-social-enabled',
+      'au-social-avatars-enabled',
+      'au-astra-enabled'
+    );
   }
 }

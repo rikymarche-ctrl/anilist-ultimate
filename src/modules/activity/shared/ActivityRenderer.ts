@@ -486,7 +486,7 @@ export class ActivityRenderer {
     const status = document.createElement('div');
     status.className = 'au-feed-status';
     status.style.cssText =
-      'margin-bottom:20px; text-align:center; padding:40px; font-size:1.4rem; color:var(--color-text-lighter); background:var(--color-foreground); border-radius:3px;';
+      'margin-bottom:20px; text-align:center; padding:40px; font-size:1.4rem; color: rgb(var(--color-text-lighter)); background: rgb(var(--color-foreground)); border-radius:3px;';
     status.textContent = message;
     container.replaceChildren(status);
   }
@@ -494,7 +494,7 @@ export class ActivityRenderer {
   /** A failed request is not a confirmed empty feed. Retry controls belong to this DOM. */
   showErrorMessage(container: HTMLElement, retry: () => void): void {
     container.innerHTML =
-      '<div class="au-feed-status" style="margin-bottom:20px; text-align:center; padding:40px; color:var(--color-text-lighter); background:var(--color-foreground); border-radius:3px;">Activities could not be loaded. <button type="button">Try again</button></div>';
+      '<div class="au-feed-status" style="margin-bottom:20px; text-align:center; padding:40px; color: rgb(var(--color-text-lighter)); background: rgb(var(--color-foreground)); border-radius:3px;">Activities could not be loaded. <button type="button">Try again</button></div>';
     const button = container.querySelector<HTMLButtonElement>('button')!;
     button.addEventListener('click', () => {
       if (!container.isConnected || !container.contains(button) || button.disabled) return;
@@ -508,7 +508,7 @@ export class ActivityRenderer {
    */
   showLoader(container: HTMLElement): void {
     container.innerHTML = `
-      <div class="au-feed-status" style="margin-bottom:20px; display: flex; justify-content: center; align-items: center; padding: 60px; font-size: 1.5rem; color: var(--color-text-lighter); background: var(--color-foreground); border-radius: 3px;">
+      <div class="au-feed-status" style="margin-bottom:20px; display: flex; justify-content: center; align-items: center; padding: 60px; font-size: 1.5rem; color: rgb(var(--color-text-lighter)); background: rgb(var(--color-foreground)); border-radius: 3px;">
         <i class="fa-solid fa-spinner fa-spin" style="margin-right: 12px;"></i>
         Loading custom list activities...
       </div>

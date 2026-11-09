@@ -1,14 +1,14 @@
-# Chrome Web Store — AniList Ultimate (Unofficial) 1.2.0
+# Chrome Web Store — AniList Ultimate (Unofficial) 1.3.0
 
-Materiale aggiornato il 2026-11-05. I testi nei blocchi sono in inglese e pronti da incollare. Le istruzioni fuori dai blocchi sono per il manutentore. La bozza online non è stata modificata o inviata in revisione.
+Materiale aggiornato il 2026-11-08. I testi nei blocchi sono in inglese e pronti da incollare. Le istruzioni fuori dai blocchi sono per il manutentore. La bozza online non è stata modificata o inviata in revisione.
 
 ## 1. Pacchetto
 
-Caricare `release/anilist-ultimate-1.2.0.zip` sulla **scheda esistente** con ID `gogibdaaglfefnemakliohebmcjfdddo`. Non creare un nuovo elemento. Il titolo e il riepilogo provengono dal manifest del nuovo ZIP: le schermate con il vecchio titolo, vecchia icona e soli permessi storage/identity non rappresentano la build attuale.
+Caricare `release/anilist-ultimate-1.3.0.zip` sulla **scheda esistente** con ID `gogibdaaglfefnemakliohebmcjfdddo`. Non creare un nuovo elemento. Il titolo e il riepilogo provengono dal manifest del nuovo ZIP: le schermate con il vecchio titolo, vecchia icona e soli permessi storage/identity non rappresentano la build attuale.
 
 - Nome dal pacchetto: **AniList Ultimate (Unofficial)**.
-- Versione: **1.2.0**, successiva alla 1.1.0.
-- Permessi attuali: `storage`, `identity`, `unlimitedStorage`, `alarms`, più i cinque host documentati sotto.
+- Versione: **1.3.0**, successiva alla 1.2.0.
+- Permessi attuali: `storage`, `identity`, `unlimitedStorage`, `alarms`, più i sei host documentati sotto. Nuovo in 1.3.0: `https://www.animechrono.com/*` come host e come content script (legge l'ordine pubblicato di una pagina franchise solo quando l'utente la apre).
 - Lo ZIP non contiene la chiave di sviluppo, le sorgenti, i file `.env`, le dipendenze di sviluppo o le source map. `dist/` resta disponibile per il caricamento locale.
 - Prima dell'invio verificare il login del pacchetto destinato a questa scheda. Il client OAuth AniList deve avere come redirect l'identità effettiva dello Store; per questo ID la base è `https://gogibdaaglfefnemakliohebmcjfdddo.chromiumapp.org/`. Verificare il risultato effettivo di `chrome.identity.getRedirectURL()` e il redirect registrato sul client. Il client ID pubblico predefinito nel codice è `35100`, modificabile in fase di build; non è una credenziale personale. Non modificare il redirect a tentativi. [Guida OAuth](../OAUTH_SETUP.md).
 
@@ -42,11 +42,14 @@ Choose friends or a custom audience and follow their public progress and status 
 SMOOTHER EVERYDAY BROWSING
 Filter your activity feed, group notifications, preview accessible list Notes, use bulk editing on your own anime and manga lists, and organize followed users into custom groups on title pages. Back Restore brings back loaded content, list filters and scroll position when you return to an AniList page. Media tools add public metadata, scores and opening/ending theme links.
 
+ANIME PAGES
+See a franchise in watch order with your progress, runtime totals and the next title to watch, or explore it as a map. Community-curated orders from AnimeChrono are used when you open that franchise on animechrono.com yourself. Collapse any section of a title page, and optionally rate every opening and ending on the Astra scale.
+
 MAKE IT YOURS
 Enable the modules you want in settings. A free AniList account is needed for account-based features: connect your own account from the extension popup. No subscription is required.
 
 YOUR DATA
-Your Astra archive and login credentials are stored on your device, along with your custom Following group names and display settings; interface preferences may sync through your Chrome account. The extension reads AniList list data, activity and notification/message context needed for its features. Back Restore keeps limited AniList navigation and scroll state locally in the tab. User-requested list edits are sent to AniList, and media tools contact the public metadata providers described in the privacy policy. There are no ads, analytics, telemetry or sales of user data. Downloaded backups and share cards stay on your device until you choose to share them.
+Your Astra archive and login credentials are stored on your device, along with your custom Following group names and display settings; interface preferences may sync through your Chrome account. The extension reads AniList list data, activity and notification/message context needed for its features. Back Restore keeps limited AniList navigation and scroll state locally in the tab. User-requested list edits are sent to AniList, and media tools contact the public metadata providers described in the privacy policy. There are no ads, analytics, telemetry or sales of user data. Moving to another browser? Export a full backup from the settings and import it there; your login is never included. Downloaded backups and share cards stay on your device until you choose to share them.
 
 Wrapped reflects available logged activity, rather than measured video playback. Friend Alerts is an in-extension inbox; delivery depends on browser availability and AniList's API.
 
@@ -112,7 +115,7 @@ Schedule background processing of queued AniList list edits and Friend Alerts ch
 ### Autorizzazione host
 
 ```text
-https://anilist.co/*: insert the calendar, Astra, list/social tools and Back Restore only on AniList, and open AniList OAuth authorization. https://graphql.anilist.co/*: read AniList account/list/activity/notification data and submit list edits requested by the user. https://jikan.lucashdo.com/*: public MyAnimeList metadata and score lookups by numeric media ID or anime title. https://api.tenrai.org/*: opening/ending theme metadata by numeric MyAnimeList ID. https://toshy.github.io/*: public AnimeThemes video-link index and metadata. AniList tokens go only to AniList. Third-party metadata requests omit credentials and referrers; they contain no AniList token or account identity. No access to unrelated websites is requested.
+https://anilist.co/*: insert the calendar, Astra, list/social tools and Back Restore only on AniList, and open AniList OAuth authorization. https://graphql.anilist.co/*: read AniList account/list/activity/notification data and submit list edits requested by the user. https://jikan.lucashdo.com/*: public MyAnimeList metadata and score lookups by numeric media ID or anime title. https://api.tenrai.org/*: opening/ending theme metadata by numeric MyAnimeList ID. https://toshy.github.io/*: public AnimeThemes video-link index and metadata. https://www.animechrono.com/*: community-curated watch orders; the content script reads the published order of a franchise page only when the user opens that page, and the public sitemap. AniList tokens go only to AniList. Third-party metadata requests omit credentials and referrers; they contain no AniList token or account identity. No access to unrelated websites is requested.
 ```
 
 ### Usi codice remoto?
@@ -198,7 +201,7 @@ Ordine consigliato per i due screenshot preparati: **Wrapped**, poi **Settings**
 
 ## Verifiche eseguite
 
-- Build TypeScript/Vite completata per la versione 1.2.0.
+- Build TypeScript/Vite completata per la versione 1.3.0.
 - ZIP dell'estensione generato; manifest, risorse dichiarate e file HTML controllati.
 - Test automatizzati eseguiti; smoke test browser automatici non eseguiti per questa versione.
 - PNG riutilizzati dal kit 1.0.2; dimensioni e trasparenza già verificate per gli stessi file.

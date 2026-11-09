@@ -12,6 +12,10 @@ Feature areas and source locations.
 | Social        | `src/modules/social/`                                | Custom audiences, Following progress, Following groups (Social tab and title Overview, local), note tooltips, profile and media social panels. |
 | Bulk Editor   | `src/modules/bulk/`                                  | Sequential status/custom-list edits on the authenticated user's own anime/manga lists.                               |
 | Media         | `src/modules/media/`                                 | Public metadata and theme lists; external links are distinct from account writes.                                    |
+| Watch Order   | `src/modules/watchorder/`                            | Franchise graph from AniList relations, list and map views, optional AnimeChrono curated order (`src/animechrono-capture.ts`, `src/core/services/CuratedOrderClient.ts`). |
+| Section collapse | `src/modules/sectioncollapse/`                    | Chevron on anime/manga page headings; collapsed state kept per section.                                              |
+| Song ratings  | `src/modules/astra/services/AstraThemeRatingService.ts`, `store/AstraThemeRatings.ts` | Per-song OP/ED ratings in the Astra repository; progress-popup prompts; opt-in section links. |
+| Backup        | `src/core/storage/ExtensionBackup.ts`, `src/settings/BackupPanel.ts` | Full export/import of extension storage except login, pending writes and caches.                |
 | Reviews       | `src/modules/reviews/`                               | Review score enrichment.                                                                                             |
 | Forum         | `src/modules/forum/`                                 | Forum interface enhancements.                                                                                        |
 | Restore       | `src/modules/restore/`                               | Page-state capture and restoration across supported navigation.                                                      |
@@ -26,6 +30,8 @@ Each settings switch maps to these modules (registered in `src/setup.ts`). Chang
 | Astra Module (`astra`)                | `astra` stays registered and checks the flag itself                                                |
 | Media Metadata (`mediaMetadata`)      | `mediaMetadata`                                                                                    |
 | Music Themes (`mediaMusic`)           | `mediaMusic`                                                                                       |
+| Watch Order & Map (`watchOrder`)      | `watchOrder`                                                                                       |
+| Collapsible Sections (`sectionCollapse`) | `sectionCollapse`                                                                               |
 | Hover Comments (`hoverComments`)      | `hoverComments`                                                                                    |
 | Social Activity (`socialActivity`)    | `socialActivity`, `socialEnhancer`, `mediaSocialEnhancer`, `followingProgress`, `followingGroups`; also the calendar's friend data and the social buttons on cards |
 | Friend Alerts (`friendAlerts`)        | `friendAlerts` stays registered and checks the flag itself                                         |

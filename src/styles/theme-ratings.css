@@ -1,0 +1,276 @@
+/**
+ * Per-song OP/ED rating sliders (anime page cards and the progress toast).
+ * Uses AniList's own colour triplets so dark, light and contrast themes all work.
+ */
+
+.au-theme-rate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.au-theme-rate__slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  min-width: 80px;
+  height: 4px;
+  margin: 0;
+  border-radius: 2px;
+  --au-theme-track: rgba(var(--color-text-lighter, 146, 153, 161), 0.3);
+  --au-theme-filled: rgb(var(--color-blue, 61, 180, 242));
+  background: linear-gradient(to right, var(--au-theme-filled) var(--au-theme-fill, 0%), var(--au-theme-track) var(--au-theme-fill, 0%));
+  outline: none;
+  cursor: pointer;
+}
+
+.au-theme-rate__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgb(var(--color-text-lighter, 146, 153, 161));
+  transition: background 0.15s, transform 0.15s;
+}
+
+.au-theme-rate--set .au-theme-rate__slider::-webkit-slider-thumb,
+.au-theme-rate__slider:focus-visible::-webkit-slider-thumb {
+  background: rgb(var(--color-blue, 61, 180, 242));
+}
+
+.au-theme-rate__slider:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.25);
+}
+
+.au-theme-rate__value {
+  min-width: 2.4em;
+  text-align: right;
+  font-size: 1.2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--color-text-lighter, 146, 153, 161));
+}
+
+.au-theme-rate--set .au-theme-rate__value {
+  color: rgb(var(--color-text, 92, 114, 138));
+}
+
+.au-theme-rate--saving {
+  opacity: 0.6;
+}
+
+.au-theme-rate--error .au-theme-rate__value {
+  color: rgb(var(--color-red, 232, 93, 117));
+}
+
+/* Progress toast: one compact line per new song. */
+.au-toast__themes {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* A big jump (e.g. 0 → 24) can reach many songs: the toast scrolls instead of growing. */
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.au-toast__theme-label {
+  font-size: 12px;
+  color: var(--au-text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.au-toast__theme-label b {
+  color: var(--au-text);
+  font-weight: 600;
+}
+
+.au-toast__themes .au-theme-rate {
+  margin-top: 2px;
+}
+
+.au-toast__themes .au-theme-rate__slider {
+  --au-theme-filled: var(--au-primary);
+}
+
+.au-toast__themes .au-theme-rate__value {
+  font-size: 12px;
+}
+
+/* Media page: OP/ED means beside the Astra overall score. */
+.astra-theme-means {
+  font-size: 1.2rem;
+  color: rgb(var(--color-text-lighter, 146, 153, 161));
+  white-space: nowrap;
+}
+
+/* Astra settings: inside the "Rate openings and endings" card, under a divider. */
+.astra-settings-item--stacked {
+  flex-wrap: wrap;
+}
+
+.astra-theme-targets {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--astra-border-soft, rgba(127, 127, 127, 0.2));
+}
+
+.astra-theme-targets__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.astra-theme-targets__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--astra-muted);
+}
+
+.astra-theme-targets__glyph {
+  width: 8px;
+  height: 8px;
+  background: var(--astra-accent);
+}
+
+/* Drawn here: AniList's icon font has no "stop" glyph. */
+.astra-theme-targets__glyph--play {
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.astra-theme-targets__glyph--stop {
+  border-radius: 1.5px;
+}
+
+.astra-theme-target {
+  width: 100%;
+  height: 36px;
+  padding: 0 34px 0 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--astra-text, inherit);
+  background: var(--astra-bg-elev-2, transparent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border: 1px solid var(--astra-border-soft, rgba(127, 127, 127, 0.25));
+  border-radius: 8px;
+  appearance: none;
+  cursor: pointer;
+  color-scheme: dark light;
+  transition: border-color 0.15s ease;
+}
+
+.astra-theme-target:hover {
+  border-color: var(--astra-accent-a50, rgba(127, 127, 127, 0.5));
+}
+
+.astra-theme-target option {
+  background: var(--astra-bg-elev-2, Canvas);
+  color: var(--astra-text, CanvasText);
+}
+
+.astra-theme-target:focus-visible {
+  outline: 2px solid var(--astra-accent);
+  outline-offset: 1px;
+}
+
+/* Rating form: a linked section lists its songs; its own slider is replaced by their mean. */
+.astra-theme-linked .astra-slider-row,
+.astra-theme-linked .astra-main-section > .astra-slider {
+  display: none;
+}
+
+.astra-theme-linked .astra-score-num-input {
+  pointer-events: none;
+}
+
+.astra-theme-linked-note {
+  display: block;
+  font-size: 11px;
+  color: var(--astra-muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.astra-theme-songs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--astra-muted);
+}
+
+.astra-theme-song__title {
+  font-size: 12px;
+  color: var(--astra-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.astra-theme-song .au-theme-rate {
+  margin-top: 2px;
+}
+
+/* Inside Astra's own palette, follow it rather than the AniList page colours. */
+.astra-theme-song .au-theme-rate__slider {
+  --au-theme-track: var(--astra-bg-elev-2);
+  --au-theme-filled: var(--astra-accent);
+}
+
+.astra-theme-song .au-theme-rate__slider::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--astra-accent);
+}
+
+.astra-theme-song .au-theme-rate--set .au-theme-rate__slider::-webkit-slider-thumb {
+  background: var(--astra-accent);
+}
+
+.astra-theme-song .au-theme-rate__value {
+  font-size: 12px;
+  color: var(--astra-text);
+}
+
+/* Anime page: song ratings on, but this list has no score section to fill. */
+.au-theme-rate-hint {
+  margin: 6px 0 0;
+  font-size: 1.15rem;
+  line-height: 1.4;
+  color: rgb(var(--color-text-lighter, 146, 153, 161));
+}
+
+/* "Not counted": rated, but no Astra section takes it. */
+.au-theme-rate__tag {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: rgb(var(--color-text-lighter, 146, 153, 161));
+  background: rgba(var(--color-text-lighter, 146, 153, 161), 0.14);
+}
+
+.astra-theme-target:invalid,
+.astra-theme-target option[disabled] {
+  color: var(--astra-muted);
+}

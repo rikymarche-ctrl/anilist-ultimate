@@ -4,7 +4,7 @@ import type { AstraSection, AstraSettings, AstraWorkSummary } from '../AstraInte
 export const ASTRA_KEYS = {
   manifest: 'au_astra_manifest', sections: 'au_astra_sections', settings: 'au_astra_settings',
   revision: 'au_astra_revision', journal: 'au_astra_pending_commit', workPrefix: 'au_astra_work_',
-  seasonal: 'au_astra_seasonal_wrapped',
+  seasonal: 'au_astra_seasonal_wrapped', themeRatings: 'au_astra_theme_ratings',
 } as const;
 
 export interface AstraSnapshot {
@@ -66,7 +66,7 @@ export class AstraPersistence {
   }
 
   private allowedKey(key: string): boolean {
-    return [ASTRA_KEYS.manifest, ASTRA_KEYS.sections, ASTRA_KEYS.settings, ASTRA_KEYS.revision, ASTRA_KEYS.seasonal].includes(key as never)
+    return [ASTRA_KEYS.manifest, ASTRA_KEYS.sections, ASTRA_KEYS.settings, ASTRA_KEYS.revision, ASTRA_KEYS.seasonal, ASTRA_KEYS.themeRatings].includes(key as never)
       || /^au_astra_work_[1-9]\d*$/.test(key);
   }
 }

@@ -27,13 +27,13 @@
 
 /* Active state (Action: Decompress) - subtle blue */
 .au-compress-button.compressed {
-  background: #151f2e !important;
-  color: var(--au-primary) !important;
-  border: 1px solid rgba(61, 180, 242, 0.2) !important;
+  background: rgb(var(--color-foreground, 21, 31, 46)) !important;
+  color: rgb(var(--color-blue, 61, 180, 242)) !important;
+  border: 1px solid rgba(var(--color-blue, 61, 180, 242), 0.25) !important;
 }
 
 .au-compress-button.compressed:hover {
-  background: #1c293d !important;
+  background: rgb(var(--color-foreground-grey, 28, 41, 61)) !important;
 }
 
 /* Virtual Grouped Notifications */
@@ -46,7 +46,9 @@
   position: relative;
   cursor: pointer;
   border-left: 4px solid var(--au-primary) !important;
-  background: rgba(74, 158, 255, 0.03) !important;
+  /* A faint blue tint over AniList's own card colour, so it works on every theme. */
+  background: linear-gradient(rgba(var(--color-blue, 61, 180, 242), 0.04), rgba(var(--color-blue, 61, 180, 242), 0.04)),
+    rgb(var(--color-foreground, 21, 31, 46)) !important;
   animation: au-fade-in 0.3s ease;
 }
 

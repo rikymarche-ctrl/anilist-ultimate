@@ -1,7 +1,7 @@
 /**
  * @file Protocollo messaggi per comunicazione cross-context (popup ↔ background ↔ content script)
  * @author ExAstra
- * @version 1.2.0
+ * @version 1.3.0
  */
 
 /**
@@ -27,6 +27,15 @@ export const MSG = {
   MEDIA_MUSIC_THEMES: 'media:music-themes',
   MEDIA_MUSIC_SEARCH: 'media:music-search',
   MEDIA_MUSIC_VIDEOS: 'media:music-videos',
+  WATCH_ORDER_SLUGS: 'watch-order:slugs',
+  WATCH_ORDER_CURATED: 'watch-order:curated',
+  WATCH_ORDER_RETRY: 'watch-order:retry',
+  /** Sent only by the animechrono.com capture script. */
+  WATCH_ORDER_CAPTURE: 'watch-order:capture',
+  /** AniList asks the worker to open a capture tab (only after a click). */
+  WATCH_ORDER_OPEN: 'watch-order:open',
+  /** Worker to the AniList tab: a captured order is stored, look again. */
+  WATCH_ORDER_READY: 'watch-order:ready',
   MEDIA_METADATA_SCORE: 'media:metadata-score',
   LOCAL_STORAGE: 'storage:local',
   LOCAL_CHANGED: 'storage:changed',

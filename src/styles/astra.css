@@ -3759,8 +3759,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   position: absolute;
   top: calc(100% + 5px);
   left: 0;
-  background: #0b1622;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgb(var(--color-background, 11, 22, 34));
+  border: 1px solid rgba(var(--color-text, 159, 173, 189), 0.18);
   border-radius: 8px;
   padding: 8px;
   min-width: 180px;

@@ -18,6 +18,9 @@
  */
 import 'reflect-metadata'; // Required for tsyringe
 import { logger } from '@core/logger';
+import { hydratePagePrefs } from '@core/storage/PagePrefsMirror';
+import { PREFS_STORAGE_KEY } from '@/modules/watchorder/WatchOrderPrefs';
+import { COLLAPSE_STORAGE_KEY } from '@/modules/sectioncollapse/SectionCollapsePrefs';
 import { APP_VERSION } from '@core/constants';
 import { ThemeManager } from '@core/ThemeManager';
 import { container } from '@core/di/container';
@@ -48,6 +51,7 @@ import './styles/toast.css';
 import './styles/social-activity.css';
 import './styles/custom-lists.css';
 import './styles/astra.css';
+import './styles/theme-ratings.css';
 import './styles/astra-wrapped.css';
 import './styles/astra-wrapped-year.css';
 import './styles/astra-wrapped-hub.css';
@@ -97,6 +101,8 @@ async function init(): Promise<void> {
       setupDebugExposure(config, registry);
     }
 
+    // Restored or missing page preferences come back from extension storage before modules read them.
+    await hydratePagePrefs([PREFS_STORAGE_KEY, COLLAPSE_STORAGE_KEY]);
     await registry.initAll();
     logger.success('Astra Ultimate initialized');
   } catch (error) {

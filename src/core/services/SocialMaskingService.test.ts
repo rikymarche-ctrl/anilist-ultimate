@@ -3,7 +3,9 @@ import { SocialMaskingService } from './SocialMaskingService';
 import { CalendarStore } from '@/modules/calendar/CalendarStore';
 import { ConfigManager } from '@core/config/ConfigManager';
 
-vi.mock('@core/logger', () => ({ logger: { info: vi.fn(), debug: vi.fn(), success: vi.fn(), error: vi.fn() } }));
+vi.mock('@core/logger', () => ({
+  logger: { info: vi.fn(), debug: vi.fn(), success: vi.fn(), error: vi.fn() },
+}));
 
 const services: SocialMaskingService[] = [];
 function fixture() {

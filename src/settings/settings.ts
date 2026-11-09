@@ -23,6 +23,7 @@ import type { FeatureFlags } from '@core/config/types';
 import { escapeHtml } from '@core/utils/Template';
 import { APP_VERSION } from '@core/constants';
 import { RecoveryPanel } from './RecoveryPanel';
+import { BackupPanel } from './BackupPanel';
 
 /**
  * Settings Page Controller - Version 2.0
@@ -36,10 +37,14 @@ class SettingsPage {
     // Start as soon as possible, but ensure DOM is ready for rendering
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        void this.init().catch((error: unknown) => logger.error('[Settings] Initialization failed', error));
+        void this.init().catch((error: unknown) =>
+          logger.error('[Settings] Initialization failed', error)
+        );
       });
     } else {
-      void this.init().catch((error: unknown) => logger.error('[Settings] Initialization failed', error));
+      void this.init().catch((error: unknown) =>
+        logger.error('[Settings] Initialization failed', error)
+      );
     }
   }
 
@@ -68,6 +73,8 @@ class SettingsPage {
       this.attachListeners();
       const recoveryRoot = document.getElementById('data-recovery');
       if (recoveryRoot) new RecoveryPanel(recoveryRoot);
+      const backupRoot = document.getElementById('data-backup');
+      if (backupRoot) new BackupPanel(backupRoot);
 
       logger.debug('[Settings] Ready.');
     } catch (error) {
@@ -137,6 +144,8 @@ class SettingsPage {
                 ${this.renderModuleCard('astra', 'Astra Module', 'Advanced episode journal and quick rating system.', 'fa-book-journal-whills')}
                 ${this.renderModuleCard('mediaMetadata', 'Media Metadata', 'Extra database links (MAL, Reddit) on anime/manga pages.', 'fa-circle-info')}
                 ${this.renderModuleCard('mediaMusic', 'Music Themes', 'Display anime openings and endings with direct video links and YouTube search.', 'fa-music')}
+                ${this.renderModuleCard('watchOrder', 'Watch Order & Map', 'Franchise watch order on anime pages, derived from AniList relations, with your list progress.', 'fa-layer-group')}
+                ${this.renderModuleCard('sectionCollapse', 'Collapsible Sections', 'Collapse any section of anime and manga pages from a chevron on its heading; remembered per section.', 'fa-chevron-down')}
               </div>
             </div>
 
@@ -197,6 +206,7 @@ class SettingsPage {
 
           <!-- Advanced Section -->
           <section id="section-advanced" class="settings-section">
+            <div id="data-backup" class="category-block"></div>
             <div id="data-recovery" class="category-block"></div>
           </section>
 
@@ -317,7 +327,9 @@ class SettingsPage {
       });
 
       colorPicker.addEventListener('change', (e) => {
-        void this.saveAccentColor(e).catch((error: unknown) => logger.error('[Settings] Failed to save accent color', error));
+        void this.saveAccentColor(e).catch((error: unknown) =>
+          logger.error('[Settings] Failed to save accent color', error)
+        );
       });
     }
 
@@ -368,8 +380,10 @@ class SettingsPage {
 
     const icon = indicator.querySelector('i');
     const label = indicator.querySelector('span');
-    if (icon) icon.className = failed ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check';
-    if (label) label.textContent = failed ? 'Could not save. Please try again.' : 'Configuration updated';
+    if (icon)
+      icon.className = failed ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-check';
+    if (label)
+      label.textContent = failed ? 'Could not save. Please try again.' : 'Configuration updated';
     indicator.classList.add('visible');
     this.saveIndicatorTimeout = window.setTimeout(() => {
       indicator.classList.remove('visible');

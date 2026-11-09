@@ -90,6 +90,8 @@ export const TOKENS = {
   AstraNotesSyncPolicy: Symbol.for('AstraNotesSyncPolicy'),
   AstraStore: Symbol.for('AstraStore'),
   AstraJournalService: Symbol.for('AstraJournalService'),
+  ThemeRatingPrompt: Symbol.for('ThemeRatingPrompt'),
+  ThemeRatingLinks: Symbol.for('ThemeRatingLinks'),
   AstraDashboard: Symbol.for('AstraDashboard'),
   AstraPillBuilder: Symbol.for('AstraPillBuilder'),
   AstraStrategies: Symbol.for('AstraStrategies'),

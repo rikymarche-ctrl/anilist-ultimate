@@ -118,7 +118,8 @@ export function hasMusicThemes(themes: JikanThemeData): boolean {
   return themes.openings.length > 0 || themes.endings.length > 0;
 }
 
-export function readMusicThemeCache(value: unknown, mediaId: number, now = Date.now()): JikanThemeData | null {
+/** `allowStale` ignores the TTL: the progress popup reuses whatever list the media page cached last. */
+export function readMusicThemeCache(value: unknown, mediaId: number, now = Date.now(), allowStale = false): JikanThemeData | null {
   // Older entries lack the MAL identity needed for direct video lookup.
   if (!isMusicMediaId(mediaId) || !Number.isSafeInteger(now) || now < 0 || !isRecord(value) || value.version !== 3 || value.mediaId !== mediaId || value.type !== 'ANIME'
     || (value.idMal !== null && !isMusicMediaId(value.idMal))
@@ -127,7 +128,7 @@ export function readMusicThemeCache(value: unknown, mediaId: number, now = Date.
   try {
     const themes = parseJikanThemes(value.themes);
     const ttl = hasMusicThemes(themes) ? MUSIC_CACHE_TTL_MS : MUSIC_EMPTY_CACHE_TTL_MS;
-    return now - value.cachedAt >= ttl ? null : themes;
+    return !allowStale && now - value.cachedAt >= ttl ? null : themes;
   } catch { return null; }
 }
 

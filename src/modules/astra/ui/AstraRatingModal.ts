@@ -45,6 +45,8 @@ import { EVENT_TYPES } from '@core/events/EventTypes';
 import { AstraRatingViewScope } from './AstraRatingViewScope';
 import { ASTRA_JOURNAL_PAGE_SIZE, journalPage } from './AstraJournalPage';
 import { AstraRatingState } from './AstraRatingState';
+import { decorateThemeLinks, type AstraThemeLinkSource } from './AstraThemeLinks';
+import { songRatingsEnabled } from '../utils/AstraThemeScores';
 import { AstraRatingHeader } from './components/AstraRatingHeader';
 import type {
   IAstraRatingService,
@@ -204,6 +206,19 @@ export class AstraRatingModal {
     @inject(AstraOverlayService) private overlayService: AstraOverlayService
   ) {
     this.header = new AstraRatingHeader({});
+  }
+
+  /** Anime only: linked sections take the OP/ED means; the means also show under the overall score. */
+  private decorateThemeLinks(overlay: HTMLElement, work: AstraWork, sections: AstraSection[]): void {
+    // Resolved lazily: optional wiring, absent in isolated containers.
+    const links = container.isRegistered(TOKENS.ThemeRatingLinks, true)
+      ? container.resolve<AstraThemeLinkSource>(TOKENS.ThemeRatingLinks) : null;
+    if (!links || work.type !== 'anime') return;
+    if (!songRatingsEnabled(this.astraService.getSettings(), sections)) return;
+    const isCurrent = () => this.overlay === overlay && overlay.isConnected;
+    void decorateThemeLinks(overlay, work.mediaId, sections, links, isCurrent,
+      this.currentSeasonIdx === work.seasons.length - 1)
+      .catch((error: unknown) => logger.warn('[AstraRatingModal] Theme ratings unavailable', error));
   }
 
   private get dashboard(): AstraDashboard {
@@ -726,6 +741,7 @@ export class AstraRatingModal {
     this.attachEvents();
     this.updateLivePreview();
     this.refreshLodeButtons();
+    this.decorateThemeLinks(renderedOverlay, work, sections);
 
     // Trigger animation
     this.frame(() => {

@@ -13,6 +13,11 @@
 import { BaseComponent } from './BaseComponent';
 import { html } from '@core/utils/Template';
 import { logger } from '@core/logger';
+import type { ThemePromptSong } from '@core/interfaces/IThemeRatingPrompt';
+import { createThemeRatingControl } from './ThemeRatingControl';
+
+/** Time left to rate once new-song sliders appear. */
+const THEME_RATING_DURATION = 15000;
 
 export type ToastType = 'info' | 'success' | 'warning' | 'error';
 
@@ -159,6 +164,45 @@ export class Toast extends BaseComponent<ToastProps> {
         this.addEventListener(input, 'click', (e) => e.stopPropagation());
       }
     }
+  }
+
+  /** Adds one slider per newly reached opening/ending; without songs the toast is unchanged. */
+  public showThemes(songs: ThemePromptSong[], onRate: (song: ThemePromptSong, score: number | null) => Promise<void>): void {
+    const content = this.$('.au-toast__content');
+    if (!this.mounted || this.dismissing || !songs.length || !content || this.$('.au-toast__themes')) return;
+    const list = document.createElement('div');
+    list.className = 'au-toast__themes';
+    for (const song of songs) {
+      const label = document.createElement('div');
+      label.className = 'au-toast__theme-label';
+      const kind = document.createElement('b');
+      kind.textContent = `New ${song.kind}`;
+      label.append(kind, ` · ${song.title}${song.artist ? ` — ${song.artist}` : ''}`);
+      label.title = label.textContent ?? '';
+      list.append(label, createThemeRatingControl({
+        label: `Rate ${song.kind === 'OP' ? 'opening' : 'ending'} "${song.title}"`,
+        score: null,
+        onRate: score => onRate(song, score),
+        onInteract: () => this.pauseTimer(),
+        counted: song.counted,
+      }));
+    }
+    content.append(list);
+    this.extendTimer(THEME_RATING_DURATION);
+  }
+
+  private extendTimer(minimum: number): void {
+    if (!this.props.duration) return;
+    this.pauseTimer();
+    this.remaining = Math.max(this.remaining ?? 0, minimum);
+    const progress = this.$('.au-toast__progress') as HTMLElement | null;
+    if (progress) {
+      progress.style.animation = 'none';
+      void progress.offsetWidth; // restart the countdown bar from full
+      progress.style.animation = `au-toast-progress ${this.remaining}ms linear forwards`;
+    }
+    if (this.element.matches(':hover')) { if (progress) progress.style.animationPlayState = 'paused'; }
+    else this.resumeTimer();
   }
 
   private isPausedByInput(): boolean {

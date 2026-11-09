@@ -1,6 +1,7 @@
 import type { AstraRepository } from './AstraRepository';
 import { MAX_ASTRA_BACKUP_CHARACTERS } from './AstraBackup';
 import { validateSeasonKey, validateSeasonalArchive } from '../services/SeasonalWrappedModel';
+import { isThemeId, validateThemeRatingInput } from './AstraThemeRatings';
 
 export const ASTRA_COMMANDS = [
   'getSnapshot',
@@ -23,6 +24,9 @@ export const ASTRA_COMMANDS = [
   'exportJSON',
   'importJSON',
   'saveSeasonalChoices',
+  'getThemeRatings',
+  'saveThemeRating',
+  'markThemesPrompted',
 ] as const;
 export type AstraCommand = (typeof ASTRA_COMMANDS)[number];
 
@@ -54,6 +58,17 @@ export async function dispatchAstraCommand(
       if (args.length !== 2) throw new Error('Invalid Seasonal Wrapped arguments');
       validateSeasonKey(args[0]);
       validateSeasonalArchive({ [args[0]]: args[1] });
+      break;
+    case 'getThemeRatings':
+      if (args.length !== 1 || !id(args[0])) throw new Error('Invalid Astra mediaId');
+      break;
+    case 'saveThemeRating':
+      if (args.length !== 3 || !id(args[0]) || !isThemeId(args[1])) throw new Error('Invalid theme rating');
+      if (args[2] !== null) validateThemeRatingInput(args[2]);
+      break;
+    case 'markThemesPrompted':
+      if (args.length !== 2 || !id(args[0]) || !Array.isArray(args[1]) || args[1].length > 200 || !args[1].every(isThemeId))
+        throw new Error('Invalid theme prompts');
       break;
     case 'getSnapshot':
     case 'persist':
@@ -89,6 +104,8 @@ export async function dispatchAstraCommand(
             'autoSync',
             'appendAstraToComment',
             'detailedScoring',
+            'songRatings',
+            'songRatingsUncounted',
           ].includes(key)
         )
       )

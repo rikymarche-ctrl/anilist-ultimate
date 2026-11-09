@@ -3,7 +3,7 @@
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuY5ytUpwpZ8V10d8Yh407gOueLrutdRVJG3ElImmGUtDmg/65c6lOmfAoo7k2WCI+vn74xxY8Fe11duHdJbpCjnr37VrTjaO7xMCRYhFvB/dX9WQIqN3Zg27m8KFksBoIqmIeufVXi+dfEBSfyTo45wtNnv9Fw6pyUrJSJPTBrW8uPNl8AyKpj43eiVw9jzTcd4iYDcQg4XfLm0esCr6pXMpKHGjV4ACQki3kFuo1aEIQNzbmeNSoeMgVJAncFM7fFVpj8E7k1fkeu55OQzqsXVkFQlSz2vVSrTklmjUBly6xYN3XnyRIV9oeLo3x624U9s89tfOjIxWiR+p6qO5lwIDAQAB",
   "name": "AniList Ultimate (Unofficial)",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "AniList calendar, personal ratings, Wrapped recaps, custom activity feeds, friend alerts, people in common and list tools.",
   "author": "ExAstra",
   "homepage_url": "https://github.com/rikymarche-ctrl/anilist-ultimate",
@@ -13,7 +13,8 @@
     "https://graphql.anilist.co/*",
     "https://jikan.lucashdo.com/*",
     "https://api.tenrai.org/*",
-    "https://toshy.github.io/*"
+    "https://toshy.github.io/*",
+    "https://www.animechrono.com/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
@@ -34,6 +35,11 @@
     "default_popup": "popup.html"
   },
   "content_scripts": [
+    {
+      "matches": ["https://www.animechrono.com/*"],
+      "js": ["src/animechrono-capture.ts"],
+      "run_at": "document_idle"
+    },
     {
       "matches": ["https://anilist.co/*"],
       "js": ["src/native-list-editor.ts"],

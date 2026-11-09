@@ -1,5 +1,25 @@
 # Release notes
 
+## 1.3.0
+
+### Anime pages
+
+- New **Watch Order & Map** section after Relations. **Watch order** lists the franchise in order with posters, episode ranges, air dates and your list progress, and marks the next title to watch. A line shows the total episodes, movies and runtime, and how much is left. **Map** draws the franchise as a graph you can drag, zoom, fit, view in full screen and move around with a minimap.
+- **Default order** / **Release dates** switches the list between the watch order and air dates. **Show specials** / **Hide specials** includes or leaves out specials and music videos, and **Hide watched** / **Show watched** hides or shows what you completed.
+- When AnimeChrono has a curated order for the franchise, the list follows it and credits it. The order is read only when you open the franchise page on animechrono.com yourself; the section offers to do it. On the map, **Curated order** / **Default order** switches between the AnimeChrono line and the AniList relations layout.
+- Without a curated order, the derived order keeps each series line together (a started line is not interleaved with a parallel one), places recap films after what they retell, and never puts specials before the season they belong to.
+- Openings and endings have their own section right after Characters, with play links, and follow light themes.
+- Every opening and ending can be rated on its own, on the Astra scale. Turn on **Rate openings and endings** in Astra settings (Global Preferences) and choose, for Openings and for Endings, a score section (it takes the mean of your song ratings) or **Not counted** (rated, tagged "Not counted", no effect on the score). The two cannot share a section. Sliders appear on the anime page, and in the progress popup when you reach the first episode of a new song; a list never set up shows a reminder instead. Songs already rated are not asked again. With the switch off, nothing changes on anime pages.
+- New **Collapsible Sections**: a chevron on each heading of anime and manga pages collapses or opens that section, and the choice is remembered per section.
+
+### Settings
+
+- New **Backup** in Advanced: **Export backup** saves every preference, custom user list, Astra record and song rating to one file; **Import backup** restores it in another browser and restarts the extension. Your AniList login is not included: sign in again after importing.
+
+### Themes
+
+- Light themes: grouped notifications and the Merge/Unmerge button, custom-list menus, the Astra lists menu and some metadata colours now follow the AniList theme.
+
 ## 1.2.0
 
 ### Profiles

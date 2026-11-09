@@ -23,7 +23,7 @@ function fixture() {
     stats: { totalCount: 0, averageScore: 0, completedCount: 0, droppedCount: 0, planningCount: 0, genreDistribution: {}, statusDistribution: {} },
   };
   const store = { subscribe: vi.fn(), getState: () => state, setTab: vi.fn(), ready: vi.fn(async () => {}) };
-  const component = () => ({ mount: vi.fn(), unmount: vi.fn(), update: vi.fn(), getElement: () => document.createElement('div') });
+  const component = () => ({ consumeSongSetupChange: () => false, mount: vi.fn(), unmount: vi.fn(), update: vi.fn(), getElement: () => document.createElement('div') });
   const dashboard = new AstraDashboard(store as never, {} as never,
     { on: vi.fn() } as never, component() as never, component() as never,
     component() as never, {} as never);
@@ -63,7 +63,7 @@ function tableFixture() {
     setSort: (sort: IDashboardState['sort']) => { state = { ...state, sort }; update(state); }, setTab: vi.fn(), setSeparateAiring: vi.fn() };
   const service = { getSections: () => [{ id: 'story', name: 'Story', weight: 1 }] };
   const table = new AstraWorkTable(store as never, service as never, { open: vi.fn() } as never);
-  const component = () => ({ mount: vi.fn(), unmount: vi.fn(), update: vi.fn() });
+  const component = () => ({ consumeSongSetupChange: () => false, mount: vi.fn(), unmount: vi.fn(), update: vi.fn() });
   const dashboard = new AstraDashboard(store as never, service as never, { on: vi.fn() } as never,
     component() as never, table, component() as never, {} as never);
   dashboards.push(dashboard); dashboard.mount(document.body);
@@ -105,7 +105,7 @@ function dashboardLifecycleFixture() {
   const listeners = new Set<(state: IDashboardState) => void>();
   const store = { subscribe: vi.fn((listener: (state: IDashboardState) => void) => { listeners.add(listener); listener(state); return () => listeners.delete(listener); }),
     getState: () => state, ready: vi.fn(async () => {}), setTab: vi.fn(), setLayout: vi.fn(), setShowProgress: vi.fn() };
-  const component = () => ({ mount: vi.fn(), unmount: vi.fn(), update: vi.fn(), focusEntry: vi.fn(), getElement: () => document.createElement('div') });
+  const component = () => ({ consumeSongSetupChange: () => false, mount: vi.fn(), unmount: vi.fn(), update: vi.fn(), focusEntry: vi.fn(), getElement: () => document.createElement('div') });
   const table = { ...component(), prepareAiringData: vi.fn(async () => {}), cancelAiringDataRequest: vi.fn() };
   const service = { init: vi.fn(async () => {}) }; const bus = new EventBus();
   const overlay = new AstraOverlayService();

@@ -213,7 +213,7 @@ export class MediaMetadataModule extends BaseModule {
         <div class="data-set au-mal-score" style="margin-bottom: 14px;">
           <div
             class="type"
-            style="font-size: 1.2rem; color: var(--color-text-light); padding-bottom: 5px; font-weight: 500;"
+            style="font-size: 1.2rem; color: rgb(var(--color-text-light)); padding-bottom: 5px; font-weight: 500;"
           >
             MAL Score
           </div>
@@ -264,7 +264,7 @@ export class MediaMetadataModule extends BaseModule {
           </div>
           <span
             class="name"
-            style="font-size: 1.4rem; font-weight: 700; color: var(--color-text);"
+            style="font-size: 1.4rem; font-weight: 700; color: rgb(var(--color-text));"
             >Reddit</span
           >
         </div>

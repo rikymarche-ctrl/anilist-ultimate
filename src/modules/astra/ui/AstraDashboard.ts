@@ -25,6 +25,9 @@ import { SeasonalWrappedView } from './SeasonalWrappedView';
 import { latestReleasedSeason, type SeasonalPeriod } from '../services/SeasonalWrappedModel';
 import { paintWrappedHub, wrappedHub } from './wrapped/WrappedHub';
 
+/** AniList anime page, where the opening/ending sliders live. */
+const ANIME_PAGE = /^\/anime\/\d+/;
+
 @injectable()
 @singleton()
 export class AstraDashboard extends AstraView implements Disposable {
@@ -250,6 +253,11 @@ export class AstraDashboard extends AstraView implements Disposable {
    * Closes the dashboard overlay view with a fade-out animation.
    */
   public close(): void {
+    // Song-rating setup changed while on an anime page: reload so its sliders follow it.
+    if (this.settingsView.consumeSongSetupChange() && ANIME_PAGE.test(window.location.pathname)) {
+      window.location.reload();
+      return;
+    }
     this.cancelOpen();
     this.wrappedView?.unmount();
     this.showWrapped = false;

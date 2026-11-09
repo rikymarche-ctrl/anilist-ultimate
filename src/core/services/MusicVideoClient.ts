@@ -1,6 +1,10 @@
 import { isRecord } from '@/api/GraphQLResponse';
 import { isMusicMediaId } from '@/modules/media/MediaMusicResponse';
-import { parseThemeVideoIndex, parseThemeVideoSnapshot, type ThemeVideoResponse } from '@/modules/media/MediaThemeVideos';
+import {
+  parseThemeVideoIndex,
+  parseThemeVideoSnapshot,
+  type ThemeVideoResponse,
+} from '@/modules/media/MediaThemeVideos';
 import { PublicMediaClient } from './PublicMediaClient';
 
 // Public metadata only, published daily; media stay on AnimeThemes' own CDN.
@@ -23,10 +27,15 @@ export class MusicVideoClient {
     if (cached && Date.now() - cached.cachedAt < LINKS_TTL) return structuredClone(cached.value);
     let request = this.pending.get(idMal);
     if (!request) {
-      request = this.load(idMal).then(value => {
-        if (this.cached.size >= 128) this.cached.delete(this.cached.keys().next().value!);
-        this.cached.set(idMal, { cachedAt: Date.now(), value }); return value;
-      }).finally(() => { this.pending.delete(idMal); });
+      request = this.load(idMal)
+        .then((value) => {
+          if (this.cached.size >= 128) this.cached.delete(this.cached.keys().next().value!);
+          this.cached.set(idMal, { cachedAt: Date.now(), value });
+          return value;
+        })
+        .finally(() => {
+          this.pending.delete(idMal);
+        });
       this.pending.set(idMal, request);
     }
     return structuredClone(await request);
@@ -40,8 +49,11 @@ export class MusicVideoClient {
   }
 
   private getIndex(): Promise<Record<string, number>> {
-    if (this.index && Date.now() - this.index.cachedAt < INDEX_TTL) return Promise.resolve(this.index.ids);
-    this.loadingIndex ??= this.loadIndex().finally(() => { this.loadingIndex = undefined; });
+    if (this.index && Date.now() - this.index.cachedAt < INDEX_TTL)
+      return Promise.resolve(this.index.ids);
+    this.loadingIndex ??= this.loadIndex().finally(() => {
+      this.loadingIndex = undefined;
+    });
     return this.loadingIndex;
   }
 
@@ -50,15 +62,31 @@ export class MusicVideoClient {
     // It never crosses the content-script storage bridge and contains no account data.
     try {
       const raw: unknown = (await chrome.storage.session?.get(INDEX_KEY))?.[INDEX_KEY];
-      if (isRecord(raw) && typeof raw.cachedAt === 'number' && Number.isSafeInteger(raw.cachedAt)
-        && raw.cachedAt <= Date.now() && Date.now() - raw.cachedAt < INDEX_TTL && isRecord(raw.ids)
-        && Object.keys(raw.ids).length <= 20000 && Object.entries(raw.ids).every(([key, id]) => /^[1-9]\d*$/.test(key) && isMusicMediaId(Number(key)) && isMusicMediaId(id))) {
-        this.index = { cachedAt: raw.cachedAt, ids: raw.ids as Record<string, number> }; return this.index.ids;
+      if (
+        isRecord(raw) &&
+        typeof raw.cachedAt === 'number' &&
+        Number.isSafeInteger(raw.cachedAt) &&
+        raw.cachedAt <= Date.now() &&
+        Date.now() - raw.cachedAt < INDEX_TTL &&
+        isRecord(raw.ids) &&
+        Object.keys(raw.ids).length <= 20000 &&
+        Object.entries(raw.ids).every(
+          ([key, id]) => /^[1-9]\d*$/.test(key) && isMusicMediaId(Number(key)) && isMusicMediaId(id)
+        )
+      ) {
+        this.index = { cachedAt: raw.cachedAt, ids: raw.ids as Record<string, number> };
+        return this.index.ids;
       }
-    } catch { /* Optional disposable cache; network remains available. */ }
+    } catch {
+      /* Optional disposable cache; network remains available. */
+    }
     const ids = parseThemeVideoIndex(await this.client.get('/manifest.json'));
     this.index = { cachedAt: Date.now(), ids };
-    try { await chrome.storage.session?.set({ [INDEX_KEY]: this.index }); } catch { /* Optional disposable cache. */ }
+    try {
+      await chrome.storage.session?.set({ [INDEX_KEY]: this.index });
+    } catch {
+      /* Optional disposable cache. */
+    }
     return ids;
   }
 }

@@ -28,6 +28,10 @@ export interface FeatureFlags {
   activityScore: boolean;
   mediaMetadata: boolean;
   mediaMusic: boolean;
+  /** Franchise watch order section on anime pages. */
+  watchOrder: boolean;
+  /** Collapsible sections (chevron on each heading) on anime/manga overview pages. */
+  sectionCollapse: boolean;
   astra: boolean;
   /** Restore list/Browse filters, loaded results and scroll position on Back. */
   pageRestore: boolean;

@@ -6,6 +6,10 @@ The current backup reader accepts `schemaVersion: 1` with the supported workspac
 
 Keep the exported JSON unchanged. Unsupported fields, malformed data and oversized files are rejected rather than silently converted. The reader limit is 8 Mi characters; the file picker also checks file size.
 
+## Full extension backup
+
+`format: "anilist-ultimate-backup"`, `version: 1`, `exportedAt`, and two maps, `sync` and `local`, copying the extension's storage areas key by key. Files from a newer version are rejected. On import the keys are filtered again, so a file cannot bring in a login token, the pending-edit queue, recovery records or caches, whatever it contains. The size limit is 20 MB.
+
 ## Account and local workspaces
 
 Astra stores workspaces under the current account namespace or the current local-workspace namespace. Switching accounts does not merge them.

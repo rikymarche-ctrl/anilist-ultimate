@@ -1,9 +1,9 @@
 /**
  * @file NativeUiSyncService.ts
  * @description Synchronizes native AniList UI elements with extension-driven data changes
- * 
- * Listen for events like PROGRESS_UPDATED and scans the DOM for relevant 
- * native elements (cards, lists, headers) to update their text content 
+ *
+ * Listen for events like PROGRESS_UPDATED and scans the DOM for relevant
+ * native elements (cards, lists, headers) to update their text content
  * without requiring a page refresh.
  */
 
@@ -24,7 +24,7 @@ export class NativeUiSyncService implements INativeUiSyncService {
   constructor(
     @inject(TOKENS.EventBus) private eventBus: IEventBus,
     @inject(TOKENS.ApiClient) private api: IApiClient
-  ) { }
+  ) {}
 
   public init(): void {
     if (this.subscription) return;
@@ -37,7 +37,9 @@ export class NativeUiSyncService implements INativeUiSyncService {
         this.syncProgress(payload.mediaId, payload.progress, payload.status);
       }
     });
-    const restore = () => { for (const element of this.dimmed.keys()) this.restoreDimming(element); };
+    const restore = () => {
+      for (const element of this.dimmed.keys()) this.restoreDimming(element);
+    };
     this.lifecycleSubscriptions.push(this.eventBus.on(EVENT_TYPES.AUTH_STATE_CHANGED, restore));
     this.lifecycleSubscriptions.push(this.eventBus.on(EVENT_TYPES.PAGE_CHANGED, restore));
   }
@@ -46,28 +48,35 @@ export class NativeUiSyncService implements INativeUiSyncService {
    * Scans the DOM for any native AniList elements referring to mediaId and updates them
    */
   public syncProgress(mediaId: number, progress: number, status?: string): void {
-    if (!Number.isSafeInteger(mediaId) || mediaId <= 0 || !Number.isSafeInteger(progress) || progress < 0) return;
+    if (
+      !Number.isSafeInteger(mediaId) ||
+      mediaId <= 0 ||
+      !Number.isSafeInteger(progress) ||
+      progress < 0
+    )
+      return;
     for (const element of this.dimmed.keys()) if (!element.isConnected) this.dimmed.delete(element);
     logger.debug(`[NativeUiSync] Syncing progress for mediaId ${mediaId} -> ${progress}`);
 
     // 1. Find all potential containers (cards, list rows)
     const selectors = [
       `.media-preview-card`, // Home page "In Progress"
-      `.media-card`,        // Grid view
-      `.entry.row`,          // List view (classic)
-      `.list-item`           // List view (new)
+      `.media-card`, // Grid view
+      `.entry.row`, // List view (classic)
+      `.list-item`, // List view (new)
     ];
 
     const containers = document.querySelectorAll(selectors.join(', '));
 
-    containers.forEach(container => {
+    containers.forEach((container) => {
       // Check if this container refers to our mediaId
-      const matches = [...container.querySelectorAll<HTMLAnchorElement>('a[href]')].some(link => {
+      const matches = [...container.querySelectorAll<HTMLAnchorElement>('a[href]')].some((link) => {
         try {
           const url = new URL(link.href, window.location.href);
           return url.origin === window.location.origin && this.matchesMedia(url.pathname, mediaId);
+        } catch {
+          return false;
         }
-        catch { return false; }
       });
       if (!matches) return;
 
@@ -76,7 +85,8 @@ export class NativeUiSyncService implements INativeUiSyncService {
       // 2. Update Progress Text
       // Case A: Simple .progress element (e.g. Home page cards)
       const progressEl = container.querySelector('.progress');
-      if (progressEl && !progressEl.querySelector('input')) this.updateProgressText(progressEl, progress);
+      if (progressEl && !progressEl.querySelector('input'))
+        this.updateProgressText(progressEl, progress);
 
       // Case B: List view progress input
       const listProgressInput = container.querySelector('.progress input') as HTMLInputElement;
@@ -99,12 +109,17 @@ export class NativeUiSyncService implements INativeUiSyncService {
 
       // 3. Handle status change feedback
       if (status === MediaListStatus.COMPLETED) {
-        const isCurrentTab = !!document.querySelector('.status-tab.active[href*="/watching"], .status-tab.active[href*="/reading"]');
+        const isCurrentTab = !!document.querySelector(
+          '.status-tab.active[href*="/watching"], .status-tab.active[href*="/reading"]'
+        );
         if (isCurrentTab || window.location.pathname.includes('/home')) {
           const element = container as HTMLElement;
-          if (!this.dimmed.has(element)) this.dimmed.set(element, {
-            opacity: element.style.opacity, filter: element.style.filter, transition: element.style.transition,
-          });
+          if (!this.dimmed.has(element))
+            this.dimmed.set(element, {
+              opacity: element.style.opacity,
+              filter: element.style.filter,
+              transition: element.style.transition,
+            });
           (container as HTMLElement).style.opacity = '0.4';
           (container as HTMLElement).style.filter = 'grayscale(1)';
           (container as HTMLElement).style.transition = 'all 0.5s ease';
@@ -118,7 +133,9 @@ export class NativeUiSyncService implements INativeUiSyncService {
     // 4. Update Media Page Header (if we are ON the media page)
     if (this.matchesMedia(window.location.pathname, mediaId)) {
       // Find the progress display in the status button or sidebar
-      const headerProgress = document.querySelector('.entry-progress .progress, .list-status .progress, .status-button .progress');
+      const headerProgress = document.querySelector(
+        '.entry-progress .progress, .list-status .progress, .status-button .progress'
+      );
       if (headerProgress) {
         this.updateProgressText(headerProgress, progress);
       }

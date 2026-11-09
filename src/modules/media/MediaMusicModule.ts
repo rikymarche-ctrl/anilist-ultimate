@@ -21,6 +21,9 @@ import { EVENT_TYPES } from '@core/events/EventTypes';
 import { MSG } from '@shared/messages';
 import { MUSIC_MAL_ID_QUERY, createMusicThemeCache, isMusicMediaId, parseJikanAnimeSearchId, parseJikanThemeResponse, parseMusicMediaLookup, readMusicThemeCache, readMusicThemeMalId } from './MediaMusicResponse';
 import { findThemeVideo, musicSearchUrl, parseThemeVideoResponse } from './MediaThemeVideos';
+import { ensurePlaced, musicPlacement } from '@core/ui/OverviewPlacement';
+import type { IThemeRatingPrompt } from '@core/interfaces/IThemeRatingPrompt';
+import { mountThemeRatings } from './MediaThemeRatings';
 
 @injectable()
 export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
@@ -38,7 +41,8 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     @inject(TOKENS.Config) private config: IConfigManager,
     @inject(TOKENS.SharedGlobalObserver) private sharedObserver: SharedGlobalObserver,
     @inject(TOKENS.EventBus) protected eventBus: IEventBus,
-    @inject(TOKENS.LocalStorage) private storage: IStorageService
+    @inject(TOKENS.LocalStorage) private storage: IStorageService,
+    @inject(TOKENS.ThemeRatingPrompt) private themeRatings?: IThemeRatingPrompt
   ) {
     super(eventBus);
   }
@@ -134,6 +138,12 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     const overview = document.querySelector('.overview');
     if (!overview) return;
 
+    const mounted = overview.querySelector(':scope > .au-music-section');
+    if (this.mediaId === mediaId && mounted) {
+      // AniList may have (re)inserted Characters or Staff since: keep the order.
+      ensurePlaced(mounted, overview, musicPlacement(overview));
+      return;
+    }
     if (this.mediaId === mediaId && overview.querySelector('.au-music-section')) return;
     if (overview.getAttribute('data-au-music') === String(mediaId)) return;
     const version = this.pageVersion;
@@ -235,31 +245,28 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
       overview.setAttribute('data-au-music', String(this.mediaId));
       return;
     }
-    const staffSection = this.findSection(overview, 'Staff');
-    const charactersSection = this.findSection(overview, 'Characters');
-    
-    const anchor = staffSection || charactersSection || overview.lastElementChild;
-    const pos: 'before' | 'after' = staffSection ? 'before' : 'after';
+    // Right after Characters, so AniList's ad slot (between Characters and Staff) doesn't widen the gap.
 
     document.querySelectorAll('.au-music-section').forEach(e => e.remove());
 
     const container = document.createElement('div');
     container.className = 'au-music-section';
-    container.style.cssText = `margin: 30px 0 !important; width: 100% !important;`;
+    container.style.cssText = `margin: 0 !important; width: 100% !important;`;
 
     const build = (title: string, songs: string[], type: 'OP' | 'ED') => {
       if (!songs.length) return '';
       return `
         <div style="margin-bottom: 30px;">
-          <h2 style="font-size: 1.4rem; color: var(--color-text-light); margin-bottom: 15px;">${title}</h2>
+          <h2 style="font-size: 1.4rem; font-weight: 500; color: rgb(var(--color-text)); margin: 0 0 10px;">${title}</h2>
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 10px;">
             ${songs.map((song, index) => {
               const ytUrl = musicSearchUrl(song);
 
               return `
-                <div style="background: #151f2e; border-radius: 6px; display: flex; align-items: center; padding: 14px 18px; min-height: 65px;">
-                  <div style="flex-grow: 1; font-size: 1.3rem; color: var(--color-text); padding-right: 20px; line-height: 1.5;">
+                <div data-au-theme-card="${type}:${index}" style="background: rgb(var(--color-foreground)); border-radius: 6px; display: flex; align-items: center; padding: 14px 18px; min-height: 65px;">
+                  <div style="flex-grow: 1; min-width: 0; font-size: 1.3rem; color: rgb(var(--color-text-light)); padding-right: 20px; line-height: 1.5;">
                     ${this.formatSong(song.replace(/https?:\/\/[^\s)]+/, '').trim())}
+                    <div class="au-theme-rate-slot"></div>
                   </div>
                   <div style="display: flex; gap: 10px; align-items: center;">
                     <a data-au-music-type="${type}" data-au-song-index="${index}" href="${escapeHtml(ytUrl)}" target="_blank" rel="noopener noreferrer" title="Search on YouTube" aria-label="Search on YouTube" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,0,0,0.1); display: flex; align-items: center; justify-content: center;">
@@ -275,11 +282,20 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     };
 
     container.innerHTML = build('Openings', themes.openings, 'OP') + build('Endings', themes.endings, 'ED');
-    if (anchor) {
-      if (pos === 'before') anchor.before(container);
-      else anchor.after(container);
-    } else overview.append(container);
+    ensurePlaced(container, overview, musicPlacement(overview));
     if (idMal !== null) void this.enrichVideoLinks(container, themes, idMal);
+    this.mountRatings(container, themes);
+  }
+
+  /** Per-song Astra ratings: only with Astra on; a failure leaves the cards as they were. */
+  private mountRatings(container: HTMLElement, themes: JikanThemeData): void {
+    const mediaId = this.mediaId;
+    const prompt = this.themeRatings;
+    if (mediaId === null || !prompt || !this.config.isFeatureEnabled('astra')) return;
+    const version = this.pageVersion;
+    const isCurrent = () => !this.destroyed && version === this.pageVersion && container.isConnected;
+    void mountThemeRatings(container, mediaId, themes, prompt, isCurrent)
+      .catch(error => this.logger.warn('[MediaMusic] Theme ratings unavailable', error));
   }
 
   private async enrichVideoLinks(container: HTMLElement, themes: JikanThemeData, idMal: number): Promise<void> {
@@ -305,13 +321,7 @@ export class MediaMusicModule extends BaseModule implements IMediaMusicModule {
     } catch (error) { this.logger.debug?.('[MediaMusic] Direct video unavailable', error); }
   }
 
-  private findSection(overview: Element, text: string): Element | null {
-    const headers = Array.from(overview.querySelectorAll('h2, .section-header'));
-    const h = headers.find(h => h.textContent?.trim().toLowerCase() === text.toLowerCase());
-    return h?.closest('.section') || h?.parentElement || null;
-  }
-
   private formatSong(song: string): string {
-    return Sanitizer.escape(song).replace(/"([^"]+)"/, '<span style="font-weight: 600; color: var(--color-blue);">$1</span>');
+    return Sanitizer.escape(song).replace(/"([^"]+)"/, '<span style="font-weight: 600; color: rgb(var(--color-text));">$1</span>');
   }
 }

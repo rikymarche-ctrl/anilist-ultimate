@@ -29,7 +29,14 @@ import {
   AstraSection,
   AstraSettings,
   AstraSeason,
+  type AstraScoreSource,
 } from './AstraInterfaces';
+
+function withSource<T extends { source?: AstraScoreSource }>(item: T, source: AstraScoreSource | undefined): T {
+  const rest = { ...item };
+  delete rest.source;
+  return (source ? { ...rest, source } : rest) as T;
+}
 
 @singleton()
 @injectable()
@@ -180,7 +187,7 @@ export class AstraService {
    */
   public async incrementProgress(
     mediaId: number
-  ): Promise<{ mediaId: number; progress: number; title: string } | null> {
+  ): Promise<{ mediaId: number; progress: number; previousProgress: number; title: string } | null> {
     this.assertActive();
     try {
       const result = await this.ratingService.updateProgress(mediaId);
@@ -247,6 +254,29 @@ export class AstraService {
   }
   public createDefaultSeason(label?: string): AstraSeason {
     return this.repository.createDefaultSeason(label);
+  }
+
+  /** Points opening (OP) or ending (ED) song means at one section or sub-section; null stops counting them. */
+  public async setThemeTarget(kind: AstraScoreSource, target: { sectionId: string; subId?: string } | null): Promise<void> {
+    this.assertActive();
+    const other: AstraScoreSource = kind === 'OP' ? 'ED' : 'OP';
+    if (target && this.sourceAt(target) === other)
+      throw new Error(`That section already takes the ${other === 'OP' ? 'openings' : 'endings'}.`);
+    const pick = (sectionId: string, subId?: string) =>
+      target !== null && target.sectionId === sectionId && target.subId === subId ? kind : undefined;
+    const relink = <T extends { source?: AstraScoreSource }>(item: T, chosen: AstraScoreSource | undefined): T =>
+      withSource(item, chosen ?? (item.source === kind ? undefined : item.source));
+    const sections = this.repository.getSections().map(section => section.subSections?.length
+      ? { ...section, subSections: section.subSections.map(sub => relink(sub, pick(section.id, sub.id))) }
+      : relink(section, pick(section.id)));
+    await this.repository.updateSections(sections);
+  }
+
+  private sourceAt(target: { sectionId: string; subId?: string }): AstraScoreSource | undefined {
+    const section = this.repository.getSections().find((item) => item.id === target.sectionId);
+    return target.subId
+      ? section?.subSections?.find((item) => item.id === target.subId)?.source
+      : section?.source;
   }
 
   public async updateSectionWeight(id: string, weight: number): Promise<void> {

@@ -113,6 +113,7 @@ export class AstraPillManager {
           this.toast.success(`✓ ${result.title} → Ep ${result.progress}`, {
             mediaId: result.mediaId,
             progress: result.progress,
+            previousProgress: result.previousProgress,
           });
         }
       } catch (err) {

@@ -13,6 +13,7 @@ import { copyAstraSeason } from '../utils/AstraSeasons';
 import { AstraCalculator } from '../utils/AstraCalculator';
 import { parseAstraBackup } from './AstraBackup';
 import { ASTRA_KEYS, AstraPersistence, type AstraSnapshot } from './AstraPersistence';
+import { validateThemeRatingArchive, withThemeRating, withThemesPrompted, emptyThemeRatings, type ThemeMediaRatings, type ThemeRatingArchive, type ThemeRatingInput } from './AstraThemeRatings';
 import { validateSeasonKey, validateSeasonalArchive, emptySeasonalChoices, type SeasonalChoices, type SeasonalArchive } from '../services/SeasonalWrappedModel';
 
 export class AstraConflictError extends Error {
@@ -226,7 +227,7 @@ export class AstraRepository {
     return this.run(async () => {
       // Remove only indexed works. Other account/extension keys are never scanned or erased.
       const removals = this.snapshot.summaries.map(work => `${ASTRA_KEYS.workPrefix}${work.mediaId}`);
-      await this.commit({ summaries: [], sections: structuredClone(DEFAULT_SECTIONS), settings: { ...DEFAULT_SETTINGS }, revision: this.snapshot.revision }, { [ASTRA_KEYS.seasonal]: {} }, removals);
+      await this.commit({ summaries: [], sections: structuredClone(DEFAULT_SECTIONS), settings: { ...DEFAULT_SETTINGS }, revision: this.snapshot.revision }, { [ASTRA_KEYS.seasonal]: {}, [ASTRA_KEYS.themeRatings]: {} }, removals);
     });
   }
 
@@ -240,8 +241,10 @@ export class AstraRepository {
       }
       // Compact JSON avoids inflating otherwise valid archives past the import limit.
       const seasonalWrapped = await this.readSeasonalArchive();
+      const themeRatings = await this.readThemeArchive();
       const backup = JSON.stringify({ schemaVersion: 1, manifest: this.snapshot.summaries, sections: this.snapshot.sections, settings: this.snapshot.settings, works,
-        ...(Object.keys(seasonalWrapped).length ? { seasonalWrapped } : {}) });
+        ...(Object.keys(seasonalWrapped).length ? { seasonalWrapped } : {}),
+        ...(Object.keys(themeRatings).length ? { themeRatings } : {}) });
       parseAstraBackup(backup); // Never offer a backup that this version cannot restore.
       return backup;
     });
@@ -253,7 +256,9 @@ export class AstraRepository {
         if (expectedEmptyRevision !== undefined && (this.snapshot.revision !== expectedEmptyRevision || this.snapshot.summaries.length)) throw new AstraConflictError();
         const next: AstraSnapshot = { summaries: [], sections: data.sections, settings: { ...DEFAULT_SETTINGS, ...data.settings }, revision: this.snapshot.revision };
         const old = this.snapshot;
-        const writes: Record<string, unknown> = { [ASTRA_KEYS.seasonal]: data.seasonalWrapped ?? {} };
+        // An older backup without theme ratings keeps the ones already stored.
+        const writes: Record<string, unknown> = { [ASTRA_KEYS.seasonal]: data.seasonalWrapped ?? {},
+          ...(data.themeRatings !== undefined ? { [ASTRA_KEYS.themeRatings]: data.themeRatings } : {}) };
         for (const summary of data.manifest) {
           const work = data.works[String(summary.mediaId)];
           const previous = await this.readWork(summary.mediaId);
@@ -287,6 +292,36 @@ export class AstraRepository {
       await this.commit(structuredClone(this.snapshot), { [ASTRA_KEYS.seasonal]: archive });
       return structuredClone(saved);
     });
+  }
+
+  private async readThemeArchive(): Promise<ThemeRatingArchive> {
+    const archive = await this.storage.get<unknown>(ASTRA_KEYS.themeRatings) ?? {};
+    validateThemeRatingArchive(archive);
+    return structuredClone(archive);
+  }
+
+  public getThemeRatings(mediaId: number): Promise<ThemeMediaRatings> {
+    this.validateId(mediaId);
+    return this.run(async () => (await this.readThemeArchive())[String(mediaId)] ?? emptyThemeRatings());
+  }
+
+  /** Sets (or clears, with null) one song's rating; returns that media's ratings. */
+  public saveThemeRating(mediaId: number, themeId: string, rating: ThemeRatingInput | null): Promise<ThemeMediaRatings> {
+    this.validateId(mediaId);
+    const detached = structuredClone(rating);
+    return this.run(async () => this.commitThemes(mediaId, withThemeRating(await this.readThemeArchive(), mediaId, themeId, detached)));
+  }
+
+  public markThemesPrompted(mediaId: number, themeIds: string[]): Promise<ThemeMediaRatings> {
+    this.validateId(mediaId);
+    const ids = [...themeIds];
+    return this.run(async () => this.commitThemes(mediaId, withThemesPrompted(await this.readThemeArchive(), mediaId, ids)));
+  }
+
+  private async commitThemes(mediaId: number, archive: ThemeRatingArchive): Promise<ThemeMediaRatings> {
+    validateThemeRatingArchive(archive);
+    await this.commit(structuredClone(this.snapshot), { [ASTRA_KEYS.themeRatings]: archive });
+    return structuredClone(archive[String(mediaId)] ?? emptyThemeRatings());
   }
 
   private async commit(next: AstraSnapshot, works: Record<string, unknown> = {}, removals: string[] = []): Promise<void> {

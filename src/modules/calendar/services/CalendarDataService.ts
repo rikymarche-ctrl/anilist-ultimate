@@ -199,7 +199,7 @@ export class CalendarDataService {
       // Update local state
       this.calendarStore.updateEntry(mediaId, { progress: newProgress });
       accepted = true;
-      this.toastService.success(`Updated progress for ${entry.title}.`, { mediaId, progress: newProgress });
+      this.toastService.success(`Updated progress for ${entry.title}.`, { mediaId, progress: newProgress, previousProgress: result.previousProgress });
 
       this.eventBus.emit(EVENT_TYPES.EPISODE_MARKED_WATCHED, {
         mediaId,

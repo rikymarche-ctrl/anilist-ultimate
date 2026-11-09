@@ -8,10 +8,19 @@
 | Astra ratings, Journal, seasonal choices and pending edits | Local to this extension installation/browser profile; separated by account.     |
 | Custom friend lists and Friend Alerts inbox/subscriptions  | Local and account scoped.                                                       |
 | Feature toggles and interface preferences                  | Chrome sync storage; browser sync depends on the user's Chrome configuration.   |
+| Opening/ending ratings                                     | In the Astra repository, account scoped; never written to AniList Notes.        |
+| Watch Order view and collapsed sections                    | anilist.co local storage, mirrored to extension storage for the full backup.    |
+| AnimeChrono orders you opened                              | Extension local storage; public data, refreshed when you visit the page again.  |
 | Public metadata caches                                     | Memory or extension storage depending on the service; not an archive backup.    |
 | Downloaded JSON and PNG                                    | Files on your device, outside extension storage after download.                 |
 
 There is no extension-operated cloud backup. Synchronizing an AniList list entry does not upload the entire Astra workspace to AniList. See the [privacy policy](../PRIVACY.md).
+
+## Full backup (moving to another browser)
+
+Extension settings → Advanced → **Backup**. **Export backup** downloads `anilist-ultimate-backup-YYYY-MM-DD.json` with all extension storage: feature switches and preferences, custom user lists, Following groups, Friend Alerts, every Astra workspace with song ratings, and the Watch Order and collapsed-section preferences.
+
+It leaves out the login token and account details, the queue of edits not yet sent to AniList, recovery records and rebuildable caches. **Import backup** asks for confirmation, replaces this browser's data with the file (the login of this browser stays), and restarts the extension. Open AniList tabs pick up the restored page preferences when reloaded. Treat the file as private: it contains your ratings and Journal.
 
 ## Export and import Astra
 
@@ -19,7 +28,7 @@ In Astra settings, use **Export JSON** to download the current workspace. Keep t
 
 Before **Import JSON**, export the existing destination workspace. Import validates the current versioned backup format; missing versions, unsupported fields or oversized files can be rejected. The current reader has a limit of 8 Mi characters, with a separate file-size check in the file picker. Do not edit schema numbers to force an old backup through validation.
 
-An Astra backup is not an export of the login token, all preferences, Friend Alerts inbox, custom friend lists or the durable pending-edit queue. Those have separate scopes; the recovery panel offers dedicated pending-change and Notes-backup exports.
+An Astra backup is not an export of the login token, all preferences, Friend Alerts inbox, custom friend lists or the durable pending-edit queue; the full backup above covers everything except the login and the queue. Those have separate scopes; the recovery panel offers dedicated pending-change and Notes-backup exports.
 
 ## Offline and pending edits
 

@@ -10,6 +10,7 @@
  */
 
 import { BaseComponent } from './BaseComponent';
+import type { ThemePromptSong } from '@core/interfaces/IThemeRatingPrompt';
 import { Toast, type ToastProps } from './Toast';
 
 export class ToastContainer extends BaseComponent {
@@ -33,6 +34,11 @@ export class ToastContainer extends BaseComponent {
 
     this.toasts.set(props.id, toast);
     toast.mount(this.element);
+  }
+
+  /** Adds rating sliders for new openings/endings to a toast that is still shown. */
+  public showThemes(id: string, songs: ThemePromptSong[], onRate: (song: ThemePromptSong, score: number | null) => Promise<void>): void {
+    this.toasts.get(id)?.showThemes(songs, onRate);
   }
 
   /**

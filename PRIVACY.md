@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**AniList Ultimate (Unofficial)** · Last updated: 2026-10-28
+**AniList Ultimate (Unofficial)** · Last updated: 2026-11-08
 
 ## Summary
 
@@ -20,7 +20,9 @@ The extension stores the following in the browser's extension storage.
 **Local storage (`chrome.storage.local`)** stays on this device. In Chrome, access is restricted to the extension's trusted contexts; Firefox has no equivalent setting, so there the restriction is enforced by the extension's own code. In both browsers the extension's content scripts on anilist.co use it only through a fixed list of allowed keys, which never exposes credentials, and web pages cannot read it. It holds:
 
 - Your AniList access token, your AniList user ID and your AniList user name
-- Astra ratings, notes, Journal entries, sections, seasonal awards and backups
+- Astra ratings, notes, Journal entries, sections, seasonal awards and backups, including your opening/ending ratings
+- AnimeChrono watch orders and the AnimeChrono sitemap read during your own visits to animechrono.com (public data)
+- A copy of the Watch Order and collapsed-section preferences, so the full backup can carry them
 - Your custom user lists
 - Names, ordering and collapsed state for your custom Following groups
 - Friend alert state
@@ -32,6 +34,8 @@ The extension stores the following in the browser's extension storage.
 **Session storage (`chrome.storage.session`)** is kept in memory and cleared when the browser closes. It holds a cached public index of AnimeThemes video IDs and the last weekly calendar schedule of the signed-in account (titles, airing times and your list progress), so the calendar can show immediately after a page reload. The schedule is bound to the account and login session that saved it, expires after 30 minutes, is replaced when you edit an entry, and is readable only by the extension's background context.
 
 **AniList tab storage (`window.sessionStorage`)** is separate from extension storage. Back Restore keeps up to 25 snapshots in memory and mirrors them to the AniList tab's session storage. Each snapshot contains an AniList path and query string, capture time, scroll offset, loaded-content count and applicable list-filter values. These snapshots are used only to restore your page on Back/Forward navigation. They are not sent to the developer or metadata providers. AniList scripts share access to that origin's tab storage. The browser controls its lifetime and may preserve it when restoring a browsing session; clearing AniList site data removes it. Disabling Back Restore stops further captures.
+
+**AniList page storage (`window.localStorage`)** keeps two display preferences so they apply before the page draws: the Watch Order view and filters, and which page sections you collapsed. They contain no account data.
 
 **Memory-only caches** can contain viewer-dependent list, social, notification and review data. Notification Cleaner can read activity text and the body/privacy flag of an AniList message that AniList makes available to the authenticated account, to render notification context. These details are cached in memory, rather than persistent extension storage, and account changes clear those private caches. Wrapped separately reads received-message metadata without requesting message bodies.
 
@@ -45,6 +49,7 @@ Programmatic API and metadata requests use these hosts declared in the manifest:
 - **jikan.lucashdo.com (community Jikan / MyAnimeList mirror).** Public metadata and score lookups. Requests contain only a MyAnimeList numeric ID, or an anime title for an exact-title search.
 - **api.tenrai.org.** Opening and ending theme lists. Requests contain only a MyAnimeList numeric ID.
 - **toshy.github.io (public AnimeThemes tracker index).** Requests contain no user data.
+- **www.animechrono.com (community-curated watch orders).** The extension may fetch the public sitemap. A content script runs on animechrono.com franchise pages: when you open one yourself, from the Watch Order section or directly, it reads that page's published Markdown watch order and, at most once a day, the public sitemap, using your own visit, and hands them to the extension. It reads nothing else on the site. These requests contain no AniList data, only the franchise name.
 
 Your AniList access token is sent only to AniList. Requests to the other hosts are sent without credentials and without a referrer, and they never include your AniList token or identity.
 
@@ -71,7 +76,7 @@ AniList Ultimate's use of user data complies with the Chrome Web Store User Data
 - **Uninstall:** uninstalling the extension deletes all of its extension storage data.
 - **Back Restore data:** clear AniList site data to remove the tab-storage snapshots as well; this is separate from the extension's storage and uninstall behavior.
 - **Revoke access:** you can revoke the app's access to your AniList account in AniList under Settings → Apps.
-- **Export and recovery:** the extension's settings page includes data export and recovery.
+- **Export and recovery:** the extension's settings page includes data export and recovery. **Export backup** writes one file with all extension data except the login token, pending edits and caches; it stays on your device unless you move it.
 - **Sharing:** JSON backups and Wrapped PNGs are saved to your device. They are not posted automatically and may contain personal content if you include it. Files you have downloaded are not deleted by uninstalling the extension.
 - **Private titles:** Wrapped excludes known private/hidden titles initially. Choosing to include them can put them in your exported card. This display filter does not prevent authenticated data loading or anonymize social participants.
 

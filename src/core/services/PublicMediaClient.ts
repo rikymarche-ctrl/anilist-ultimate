@@ -14,7 +14,10 @@ export class PublicMediaClient {
   private failures = new Map<string, { until: number; error: unknown }>();
   private nextRequestAt = 0;
 
-  constructor(private readonly baseUrl = PUBLIC_MEDIA_BASE_URL, private readonly requestIntervalMs = 0) {}
+  constructor(
+    private readonly baseUrl = PUBLIC_MEDIA_BASE_URL,
+    private readonly requestIntervalMs = 0
+  ) {}
 
   public async get(path: string): Promise<unknown> {
     const failed = this.failures.get(path);
@@ -22,12 +25,16 @@ export class PublicMediaClient {
     this.failures.delete(path);
     let request = this.pending.get(path);
     if (!request) {
-      request = this.fetchPublic(path).catch((error: unknown) => {
-        // Observer ticks in many tabs must not hammer an unavailable provider.
-        if (this.failures.size >= 128) this.failures.delete(this.failures.keys().next().value!);
-        this.failures.set(path, { until: Date.now() + FAILURE_COOLDOWN_MS, error });
-        throw error;
-      }).finally(() => { this.pending.delete(path); });
+      request = this.fetchPublic(path)
+        .catch((error: unknown) => {
+          // Observer ticks in many tabs must not hammer an unavailable provider.
+          if (this.failures.size >= 128) this.failures.delete(this.failures.keys().next().value!);
+          this.failures.set(path, { until: Date.now() + FAILURE_COOLDOWN_MS, error });
+          throw error;
+        })
+        .finally(() => {
+          this.pending.delete(path);
+        });
       this.pending.set(path, request);
     }
     // Every tab receives its own public response; there is no account state here.
@@ -39,7 +46,7 @@ export class PublicMediaClient {
     const now = Date.now();
     const startAt = Math.max(now, this.nextRequestAt);
     this.nextRequestAt = startAt + this.requestIntervalMs;
-    if (startAt > now) await new Promise(resolve => setTimeout(resolve, startAt - now));
+    if (startAt > now) await new Promise((resolve) => setTimeout(resolve, startAt - now));
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Promise<never>((_, reject) => {
@@ -49,13 +56,23 @@ export class PublicMediaClient {
       }, PUBLIC_MEDIA_TIMEOUT_MS);
     });
     try {
-      return await Promise.race([deadline, (async () => {
-        const response = await fetch(`${this.baseUrl}${path}`, {
-          signal: controller.signal, credentials: 'omit', referrerPolicy: 'no-referrer',
-        });
-        if (!response.ok) throw Object.assign(new Error('Public media unavailable'), { statusCode: response.status });
-        return await response.json() as unknown;
-      })()]);
-    } finally { clearTimeout(timer); }
+      return await Promise.race([
+        deadline,
+        (async () => {
+          const response = await fetch(`${this.baseUrl}${path}`, {
+            signal: controller.signal,
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+          });
+          if (!response.ok)
+            throw Object.assign(new Error('Public media unavailable'), {
+              statusCode: response.status,
+            });
+          return (await response.json()) as unknown;
+        })(),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }

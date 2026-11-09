@@ -15,7 +15,9 @@ An unofficial browser extension bringing a calendar, personal ratings, Wrapped r
 - **Seasonal Wrapped:** broadcast-season rankings, personal awards, continuing titles and unfinished/leftover shows.
 - **Custom user lists and list ordering:** create and edit your own groups of people for activity filtering, and choose and reorder the Following groups displayed on a title's Social and Overview sections. These local user groups are separate from AniList's native anime/manga custom lists.
 - **Notifications:** search/filter and group compatible AniList notifications; Friend Alerts adds an independent local inbox for public progress/status updates from chosen people on titles you follow (not system push notifications).
-- **Enhanced anime/manga pages:** add a Reddit/subreddit link, MyAnimeList (MAL) score and link when available, additional public metadata, review-score badges, and anime opening/ending music and theme links.
+- **Enhanced anime/manga pages:** add a Reddit/subreddit link, MyAnimeList (MAL) score and link when available, additional public metadata, review-score badges, and anime opening/ending music and theme links. Every section can be collapsed from a chevron on its heading.
+- **Watch Order & Map:** on anime pages, the franchise in watch order with your progress, runtime totals and the next title to watch, or as a map you can drag and zoom. A curated AnimeChrono order is used when you open that franchise on animechrono.com yourself.
+- **Opening and ending ratings (optional):** turn them on in Astra settings and link them to a score section; then rate every opening and ending on the Astra scale, and the progress popup asks about new songs as you reach them.
 - **Episode counters and social context:** see friends' episode progress in a title's Following area, calendar episode counts, Following groups, available list Notes on hover and other social context.
 - **Navigation and state restoration:** on supported Back/Forward navigation, recover the previous scroll position and loaded feed content; on anime/manga list pages also restore filters, search, sorting and list view where possible.
 - **Bulk Editor:** select multiple entries on your own anime/manga lists and update statuses or AniList custom-list memberships with explicit save results.
@@ -146,7 +148,7 @@ Friend Alerts uses a local inbox, not system push notifications. Wrapped totals 
 
 Astra archives, account credentials, custom friend lists, alert state and pending edits are stored locally. Interface preferences use Chrome sync storage. Changes you request are sent to AniList; public metadata panels use additional services listed in the [privacy policy](PRIVACY.md).
 
-Export your archive before uninstalling, switching installation identity or importing. Chrome preference sync does not back up Astra data. Downloaded backups and share cards stay on your device until you choose to share them.
+To move to another browser, use **Export backup** in the extension settings (Advanced): one file with every preference, custom user list and Astra record, without your login. Export before uninstalling, switching installation identity or importing. Chrome preference sync does not back up Astra data. Downloaded backups and share cards stay on your device until you choose to share them.
 
 ## Development
 

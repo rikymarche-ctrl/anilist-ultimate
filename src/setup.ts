@@ -112,6 +112,7 @@ import { AstraSyncService } from '@/modules/astra/services/AstraSyncService';
 import { AstraFilterService } from '@/modules/astra/services/AstraFilterService';
 import { AstraStatsService } from '@/modules/astra/services/AstraStatsService';
 import { AstraJournalService } from '@/modules/astra/services/AstraJournalService';
+import { AstraThemeRatingService } from '@/modules/astra/services/AstraThemeRatingService';
 import { SeasonalWrappedService } from '@/modules/astra/services/SeasonalWrappedService';
 import { YearReviewService } from '@/modules/astra/services/year/YearReviewService';
 import { AstraRatingService } from '@/modules/astra/services/AstraRatingService';
@@ -133,6 +134,8 @@ import { AstraUIBridge } from './modules/astra/services/AstraUIBridge';
 import { AstraParserService } from '@/modules/astra/services/AstraParserService';
 import { AstraSyncManager } from '@/modules/astra/services/AstraSyncManager';
 import { MediaMusicModule } from '@/modules/media/MediaMusicModule';
+import { WatchOrderModule } from '@/modules/watchorder/WatchOrderModule';
+import { SectionCollapseModule } from '@/modules/sectioncollapse/SectionCollapseModule';
 import { PageStateRestoreModule } from '@/modules/restore/PageStateRestoreModule';
 import { PageStateStore } from '@/modules/restore/PageStateStore';
 import { PageStateRestorer } from '@/modules/restore/PageStateRestorer';
@@ -345,6 +348,9 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
 
   container.registerSingleton(AstraJournalService);
   container.register(TOKENS.AstraJournalService, { useToken: AstraJournalService });
+  container.registerSingleton(AstraThemeRatingService);
+  container.register(TOKENS.ThemeRatingPrompt, { useToken: AstraThemeRatingService });
+  container.register(TOKENS.ThemeRatingLinks, { useToken: AstraThemeRatingService });
 
   container.registerSingleton(AstraRatingService);
   container.register(TOKENS.IAstraRatingService, { useToken: AstraRatingService });
@@ -645,6 +651,20 @@ export async function setupDI(isBackground = false, storageReady?: Promise<void>
       enabled: config.isFeatureEnabled('mediaMusic'),
       factory: () => container.resolve(MediaMusicModule),
       pageMatch: (path) => /^\/anime\/\d+/.test(path),
+    },
+    {
+      name: 'watchOrder',
+      description: 'Franchise watch order on anime pages',
+      enabled: config.isFeatureEnabled('watchOrder'),
+      factory: () => container.resolve(WatchOrderModule),
+      pageMatch: (path) => /^\/anime\/\d+/.test(path),
+    },
+    {
+      name: 'sectionCollapse',
+      description: 'Collapsible sections on anime and manga pages',
+      enabled: config.isFeatureEnabled('sectionCollapse'),
+      factory: () => container.resolve(SectionCollapseModule),
+      pageMatch: (path) => /^\/(anime|manga)\/\d+/.test(path),
     },
     {
       name: 'pageRestore',

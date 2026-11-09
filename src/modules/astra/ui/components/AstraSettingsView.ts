@@ -7,7 +7,7 @@
 import { injectable, inject } from 'tsyringe';
 import { AstraView } from '../base/AstraView';
 import { AstraService } from '../../AstraService';
-import type { AstraSection } from '../../AstraInterfaces';
+import type { AstraScoreSource, AstraSection } from '../../AstraInterfaces';
 import { ToastService } from '@core/services/ToastService';
 import { TOKENS } from '@core/di/tokens';
 import { html, map, when } from '@core/utils/Template';
@@ -18,9 +18,14 @@ import { MAX_ASTRA_BACKUP_CHARACTERS } from '../../store/AstraBackup';
 import { AstraDashboardStore } from '../../store/AstraDashboardStore';
 import { AstraSettingsActions, type AstraSettingsScope } from './AstraSettingsActions';
 import { logger } from '@core/logger';
+import { songKindStates, songRatingsEnabled } from '../../utils/AstraThemeScores';
+
+/** Placeholder value of a song picker never set up. */
+const UNSET_TARGET = 'unset';
 
 @injectable()
 export class AstraSettingsView extends AstraView {
+  private songSetupChanged = false;
   private actions: AstraSettingsActions;
   private accountSubscription?: EventSubscription;
 
@@ -59,6 +64,7 @@ export class AstraSettingsView extends AstraView {
     const sections = this.service.getSections();
     const settings = this.service.getSettings();
     const hasFinale = this.service.hasFinaleSection();
+    const songRatings = songRatingsEnabled(settings, sections);
 
     return html`
       <div class="astra-settings-tab">
@@ -156,6 +162,26 @@ export class AstraSettingsView extends AstraView {
                   <div class="astra-toggle-handle"></div>
                 </div>
               </div>
+            </div>
+            <div class="astra-settings-item astra-settings-item--stacked">
+              <div class="astra-settings-info">
+                <span class="astra-settings-label">Rate openings and endings</span>
+                <span class="astra-settings-desc"
+                  >Rate each opening and ending of an anime. Sliders appear on anime pages and in
+                  the progress popup for the songs linked to a score section below.</span
+                >
+              </div>
+              <div
+                class="astra-toggle ${when(songRatings, 'active')}"
+                data-setting="songRatings"
+                role="switch"
+                tabindex="0"
+                aria-label="Rate openings and endings"
+                aria-checked="${songRatings}"
+              >
+                <div class="astra-toggle-handle"></div>
+              </div>
+              ${when(songRatings, this.renderThemeTargets(sections))}
             </div>
           </div>
 
@@ -446,13 +472,23 @@ export class AstraSettingsView extends AstraView {
     this.$$('.astra-toggle').forEach((toggle) => {
       this.addEventListener(toggle, 'click', () => {
         const setting = toggle.dataset.setting;
-        if (setting !== 'enableSeriesFinale' && setting !== 'appendAstraToComment') return;
+        if (
+          setting !== 'enableSeriesFinale' &&
+          setting !== 'appendAstraToComment' &&
+          setting !== 'songRatings'
+        )
+          return;
         this.save(
           async () => {
-            await this.service.updateSettings({ [setting]: !this.service.getSettings()[setting] });
+            await this.service.updateSettings({ [setting]: !this.currentSetting(setting) });
           },
           () => {
-            toggle.classList.toggle('active', this.service.getSettings()[setting]);
+            // The song-ratings links show only while the preference is on.
+            if (setting === 'songRatings') {
+              this.songSetupChanged = true;
+              return this.update();
+            }
+            toggle.classList.toggle('active', this.currentSetting(setting));
             if (setting === 'enableSeriesFinale') this.updateFinaleWarning();
           }
         );
@@ -495,6 +531,23 @@ export class AstraSettingsView extends AstraView {
     this.bindDataControls();
   }
 
+  private currentSetting(setting: 'enableSeriesFinale' | 'appendAstraToComment' | 'songRatings'): boolean {
+    const settings = this.service.getSettings();
+    return setting === 'songRatings'
+      ? songRatingsEnabled(settings, this.service.getSections())
+      : settings[setting];
+  }
+
+  /**
+   * True once after the song-rating switch or links changed: the dashboard then reloads an
+   * anime page on close, so its sliders follow the new setup.
+   */
+  public consumeSongSetupChange(): boolean {
+    const changed = this.songSetupChanged;
+    this.songSetupChanged = false;
+    return changed;
+  }
+
   private updateFinaleWarning(): void {
     const item = this.$<HTMLElement>('[data-finale-warning-item]');
     const badge = this.$<HTMLElement>('[data-finale-warning-badge]');
@@ -513,6 +566,46 @@ export class AstraSettingsView extends AstraView {
       this.toast.error('Could not save configuration. Please try again.');
       this.update();
     });
+  }
+
+  /** One compact row: which section (if any) takes the mean of rated openings / endings. */
+  private renderThemeTargets(sections: AstraSection[]): HTMLElement {
+    // Option values are positions ("2" or "3.0"): section ids are free-form slugs.
+    const targets = sections.flatMap((section, i) => section.subSections?.length
+      ? section.subSections.map((sub, j) => ({ value: `${i}.${j}`, label: `${section.name} › ${sub.name}` }))
+      : [{ value: String(i), label: section.name }]);
+    const states = songKindStates(this.service.getSettings(), sections);
+    const picker = (kind: AstraScoreSource, label: string, icon: string) => {
+      const other: AstraScoreSource = kind === 'OP' ? 'ED' : 'OP';
+      const taken = this.themeTarget(other, sections);
+      const current = states[kind] === 'unset' ? UNSET_TARGET : this.themeTarget(kind, sections);
+      return html`
+      <label class="astra-theme-targets__item">
+        <span class="astra-theme-targets__label"><span class="astra-theme-targets__glyph astra-theme-targets__glyph--${icon}" aria-hidden="true"></span> ${label}</span>
+        <select class="astra-theme-target" data-kind="${kind}" data-current="${current}">
+          <option value="${UNSET_TARGET}" disabled hidden>Choose a section…</option>
+          <option value="">Not counted</option>
+          ${map(targets, (target) => target.value === taken
+            ? html`<option value="${target.value}" disabled>${target.label} (${other === 'OP' ? 'openings' : 'endings'})</option>`
+            : html`<option value="${target.value}">${target.label}</option>`)}
+        </select>
+      </label>`;
+    };
+    return html`
+      <div class="astra-theme-targets" title="A section takes the mean of your ratings for those songs; Not counted keeps them out of the score">
+        ${picker('OP', 'Openings', 'play')}
+        ${picker('ED', 'Endings', 'stop')}
+      </div>`;
+  }
+
+  private themeTarget(kind: AstraScoreSource, sections = this.service.getSections()): string {
+    for (const [i, section] of sections.entries()) {
+      if (section.subSections?.length) {
+        const j = section.subSections.findIndex((item) => item.source === kind);
+        if (j >= 0) return `${i}.${j}`;
+      } else if (section.source === kind) return String(i);
+    }
+    return '';
   }
 
   private weight(sectionId: string, subId?: string): number | undefined {
@@ -539,6 +632,29 @@ export class AstraSettingsView extends AstraView {
   }
 
   private bindSectionControls(): void {
+    this.$$<HTMLSelectElement>('.astra-theme-target').forEach((select) => {
+      const kind: AstraScoreSource = select.dataset.kind === 'ED' ? 'ED' : 'OP';
+      select.value = select.dataset.current ?? '';
+      this.addEventListener(select, 'change', () => {
+        const [i, j] = select.value.split('.').map(Number);
+        const section = select.value ? this.service.getSections()[i] : undefined;
+        const subId = j === undefined ? undefined : section?.subSections?.[j]?.id;
+        const uncounted = this.service.getSettings().songRatingsUncounted ?? [];
+        this.save(
+          async () => {
+            await this.service.setThemeTarget(kind, section ? { sectionId: section.id, subId } : null);
+            // "Not counted" is a choice of its own: the anime page then shows plain sliders.
+            const next: AstraScoreSource[] = section ? uncounted.filter((item) => item !== kind) : [...new Set([...uncounted, kind])];
+            if (next.length !== uncounted.length) await this.service.updateSettings({ songRatingsUncounted: next });
+          },
+          // Re-render: the other picker disables the section just taken.
+          () => {
+            this.songSetupChanged = true;
+            this.update();
+          }
+        );
+      });
+    });
     this.$$<HTMLInputElement>('.astra-weight-input, .astra-sub-weight-input').forEach((input) => {
       const sectionId = input.dataset.sectionId ?? input.dataset.id;
       const subId = input.dataset.subId;

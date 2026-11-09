@@ -5,6 +5,7 @@ import type { WorkValidationField } from '@core/errors/OperationFailure';
 import { ASTRA_SEASON_FIELDS, isManualScore } from '../utils/AstraSeasons';
 import { validateSeasonalArchive, type SeasonalArchive } from '../services/SeasonalWrappedModel';
 import { parseWebUrl } from '@core/utils/WebUrl';
+import { validateThemeRatingArchive, type ThemeRatingArchive } from './AstraThemeRatings';
 
 export class AstraWorkValidationError extends Error {
   constructor(readonly validationField: WorkValidationField) {
@@ -20,6 +21,8 @@ export interface AstraBackup {
   settings: AstraSettings;
   works: Record<string, AstraWork>;
   seasonalWrapped?: SeasonalArchive;
+  /** Per-song opening/ending ratings (optional: older backups have none). */
+  themeRatings?: ThemeRatingArchive;
 }
 
 /**
@@ -65,7 +68,8 @@ function validSection(value: unknown): boolean {
     safeKey(value.id) &&
     text(value.name) &&
     finite(value.weight) &&
-    value.weight >= 0
+    value.weight >= 0 &&
+    optional(value.source, (source) => source === 'OP' || source === 'ED')
   );
 }
 
@@ -188,6 +192,10 @@ export function parseAstraBackup(json: string): AstraBackup {
       (key) => typeof settings[key as keyof typeof settings] === 'boolean'
     ) ||
     (settings.detailedScoring !== undefined && typeof settings.detailedScoring !== 'boolean') ||
+    (settings.songRatings !== undefined && typeof settings.songRatings !== 'boolean') ||
+    (settings.songRatingsUncounted !== undefined &&
+      !(Array.isArray(settings.songRatingsUncounted) &&
+        settings.songRatingsUncounted.every((kind) => kind === 'OP' || kind === 'ED'))) ||
     !finite(settings.finaleWeightMultiplier) ||
     settings.finaleWeightMultiplier < 0
   )
@@ -213,5 +221,6 @@ export function parseAstraBackup(json: string): AstraBackup {
   }
   if (Object.keys(data.works).length !== ids.size) throw new Error('Backup contains missing works');
   if (data.seasonalWrapped !== undefined) validateSeasonalArchive(data.seasonalWrapped);
+  if (data.themeRatings !== undefined) validateThemeRatingArchive(data.themeRatings);
   return data as unknown as AstraBackup;
 }

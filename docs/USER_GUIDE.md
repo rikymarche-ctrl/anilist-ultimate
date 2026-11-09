@@ -47,6 +47,19 @@ Profile Social covers follower counts, banner actions and people in common on us
 
 Media pages can show public metadata, review scores and opening/ending theme links. These depend on external services and may be unavailable without affecting your local Astra archive.
 
+## Anime and manga pages
+
+**Collapsible sections.** Click the chevron or the heading of a section on an anime or manga page to collapse it; click again to open it. Each section remembers its state.
+
+**Watch Order & Map.** On anime pages, the section after Relations shows the whole franchise.
+
+- **Watch order** lists the titles in order with episode ranges, air dates and your progress; the next title to watch is highlighted. The line above the list gives the number of titles, total episodes, movies and runtime, and the bar on its right counts what you have watched.
+- **Default order** / **Release dates** switches between the watch order and air dates. **Show specials** / **Hide specials** includes or leaves out specials and music videos. **Hide watched** / **Show watched** hides or shows completed titles. These apply to the AniList order, not to a curated one.
+- **Map** draws the franchise as a graph: drag to move, use the controls to zoom, fit or go full screen, and click the minimap to jump. With a curated order, **Curated order** / **Default order** switches between the AnimeChrono line and the AniList relations layout.
+- **Curated orders.** AnimeChrono publishes community-curated orders. The extension reads one only when you open that franchise page on animechrono.com yourself (the section offers a button for it); the order is then kept locally and credited under the list.
+
+**Opening and ending ratings.** Off by default. In Astra settings → Global Preferences, turn on **Rate openings and endings**, then choose right below it, for Openings and for Endings, a score section (or sub-section), which takes the mean of your song ratings, or **Not counted**, which keeps the ratings out of the score and tags their sliders "Not counted". Openings and endings cannot use the same section. Each song then has its own slider on the anime page, and when you raise your progress to the first episode of a new opening or ending (from ranges such as "eps 14-25") the progress popup shows a slider for it beside the notes field; songs already rated are not asked again. A list never set up shows a reminder instead of sliders. Turning the switch off hides everything and keeps the ratings already given. After changing these settings on an anime page, closing Astra reloads the page so its sliders follow. They are never written to your AniList notes.
+
 ## Bulk Editor
 
 Every authenticated user can use the editor on their own anime/manga lists. The extension account must match the list owner; the editor stays inactive on somebody else's list or while signed out.
@@ -55,6 +68,6 @@ Hold a title briefly to select it, choose **Edit selected**, and change status o
 
 ## Backups and account changes
 
-Export Astra JSON from Astra settings before reinstalling, resetting, switching browser profiles or importing. Chrome sync settings do not include the Astra archive. Logout removes credentials; local account workspaces are kept separate rather than transferred to the next user.
+To move to another browser, open extension settings → Advanced → **Backup** and use **Export backup**; in the new browser, **Import backup** restores preferences, custom user lists, Astra and song ratings, then restarts the extension. Sign in again afterwards: the login is not in the file. Astra settings still offer **Export JSON** for the Astra archive alone. Chrome sync settings do not include the Astra archive. Logout removes credentials; local account workspaces are kept separate rather than transferred to the next user.
 
 Read [data and backups](DATA_AND_BACKUPS.md) before recovery, and [migration](MIGRATION.md) when replacing older extensions.

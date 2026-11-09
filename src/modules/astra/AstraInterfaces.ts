@@ -76,12 +76,18 @@ export interface AstraSection {
   name: string;
   weight: number;
   subSections?: AstraSubSection[];
+  /** Opt-in: the score is the mean of this media's rated openings (OP) or endings (ED), read-only in the form. */
+  source?: AstraScoreSource;
 }
+
+export type AstraScoreSource = 'OP' | 'ED';
 
 export interface AstraSubSection {
   id: string;
   name: string;
   weight: number;
+  /** Same as AstraSection.source, for a sub-section such as Sound → Intro. */
+  source?: AstraScoreSource;
 }
 
 export interface AstraSettings {
@@ -91,4 +97,11 @@ export interface AstraSettings {
   appendAstraToComment: boolean;
   /** Section-based scoring in Quick Edit. Absent until the user picks a mode (or one is inferred from rated works). */
   detailedScoring?: boolean;
+  /**
+   * Rate each opening and ending. Absent in older data: then on only if a section is
+   * already linked to the song ratings (see songRatingsEnabled).
+   */
+  songRatings?: boolean;
+  /** Song kinds the user set to "Not counted": rated freely, without filling a section. */
+  songRatingsUncounted?: AstraScoreSource[];
 }

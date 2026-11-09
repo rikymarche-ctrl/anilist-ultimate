@@ -101,6 +101,25 @@ describe('Astra scoring mode choice', () => {
     expect(selected()).toEqual(['detailed']);
   });
 });
+describe('Rate openings and endings preference', () => {
+  it('starts off, and shows the song links under it only once switched on', async () => {
+    const h = harness();
+    const toggle = '[data-setting="songRatings"]';
+    expect(document.querySelector(toggle)?.classList.contains('active')).toBe(false);
+    expect(document.querySelector('.astra-theme-targets')).toBeNull();
+    click(toggle);
+    await flush();
+    expect(h.service.updateSettings).toHaveBeenCalledWith({ songRatings: true });
+    // Closing the dashboard on an anime page then reloads it, once.
+    expect(h.view.consumeSongSetupChange()).toBe(true);
+    expect(h.view.consumeSongSetupChange()).toBe(false);
+    expect(document.querySelector(toggle)?.classList.contains('active')).toBe(true);
+    expect(document.querySelectorAll('.astra-theme-target')).toHaveLength(2);
+    // Never set up: the picker asks to choose instead of showing "Not counted".
+    expect(document.querySelector<HTMLSelectElement>('.astra-theme-target[data-kind="OP"]')!.value).toBe('unset');
+  });
+});
+
 describe('Astra configuration persistence and lifecycle', () => {
   it('places Separate Airing first in Global Preferences and updates the saved switch', () => {
     const { dashboardStore } = harness();

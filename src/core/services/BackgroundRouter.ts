@@ -15,15 +15,52 @@ import { operationFailureCode } from '@core/errors/OperationFailure';
 import { AstraWorkValidationError } from '@/modules/astra/store/AstraBackup';
 import { MUSIC_THEMES_BASE_URL, PublicMediaClient } from './PublicMediaClient';
 import { MusicVideoClient } from './MusicVideoClient';
+import { CuratedOrderClient, curatedFailureReason } from './CuratedOrderClient';
+import { CuratedCaptureJobs, validTitles } from './CuratedCaptureJobs';
+import { CURATED_ORIGIN, isValidSlug } from '@/modules/watchorder/CuratedOrderMatch';
+import { parseCuratedOrder } from '@/modules/watchorder/CuratedOrderParser';
 import { dispatchCalendarSessionCache } from '@/modules/calendar/CalendarSessionCache';
 import { isExtensionPageUrl } from '@core/utils/ExtensionPage';
+
+/** Curated lookups report why they failed, so the page can say so instead of staying silent. */
+async function curatedResult(
+  load: () => Promise<unknown>
+): Promise<{ success: true; data: unknown } | { success: false; reason: string }> {
+  try {
+    return { success: true, data: await load() };
+  } catch (error) {
+    return { success: false, reason: curatedFailureReason(error) };
+  }
+}
+
+/** The capture script on animechrono.com: trusted for one message type only. */
+export function isCuratedCaptureSender(sender: chrome.runtime.MessageSender): boolean {
+  if (sender.id !== chrome.runtime.id) return false;
+  try {
+    return new URL(sender.url || sender.tab?.url || '').origin === CURATED_ORIGIN;
+  } catch {
+    return false;
+  }
+}
+
+/** Shared by the router and tests: extension storage behind the curated client. */
+const curatedStore = {
+  async get(key: string): Promise<unknown> {
+    return (await chrome.storage.local.get(key))[key];
+  },
+  async set(key: string, value: unknown): Promise<void> {
+    await chrome.storage.local.set({ [key]: value });
+  },
+};
 
 export function isTrustedExtensionSender(sender: chrome.runtime.MessageSender): boolean {
   if (sender.id !== chrome.runtime.id) return false;
   try {
     const source = sender.url || sender.tab?.url || '';
     const url = new URL(source);
-    return isExtensionPageUrl(source) || (url.protocol === 'https:' && url.hostname === 'anilist.co');
+    return (
+      isExtensionPageUrl(source) || (url.protocol === 'https:' && url.hostname === 'anilist.co')
+    );
   } catch {
     return false;
   }
@@ -47,7 +84,44 @@ export function createBackgroundMessageHandler(
   const publicMedia = new PublicMediaClient();
   const musicThemes = new PublicMediaClient(MUSIC_THEMES_BASE_URL, 550);
   const musicVideos = new MusicVideoClient();
+  const curatedOrders = new CuratedOrderClient(curatedStore);
+  const captureJobs = new CuratedCaptureJobs(curatedOrders);
   return (input, sender, respond) => {
+    if (
+      isCuratedCaptureSender(sender) &&
+      input &&
+      typeof input === 'object' &&
+      (input as { type?: unknown }).type === MSG.WATCH_ORDER_CAPTURE
+    ) {
+      const message = input as Record<string, unknown>;
+      const tabId = sender.tab?.id;
+      const reply = (work: () => Promise<unknown>) => {
+        void ready
+          .then(work)
+          .then((data) => respond({ success: true, ...(data as object) }))
+          .catch(() => respond({ success: false }));
+        return true;
+      };
+      if (message.kind === 'status')
+        return reply(async () => ({
+          needsSitemap: await curatedOrders.needsSitemap(),
+          job: captureJobs.isJob(tabId),
+        }));
+      if (message.kind === 'candidates')
+        return reply(async () => ({ slugs: await captureJobs.candidates(tabId) }));
+      if (message.kind === 'done') return reply(async () => captureJobs.finish(tabId));
+      const capture =
+        message.kind === 'order'
+          ? { kind: 'order' as const, slug: String(message.slug), text: message.text as string }
+          : { kind: 'sitemaps' as const, texts: message.texts as string[] };
+      void ready
+        .then(async () => {
+          const stored = await curatedOrders.capture(capture, parseCuratedOrder);
+          respond({ success: stored, needsSitemap: await curatedOrders.needsSitemap() });
+        })
+        .catch(() => respond({ success: false }));
+      return true;
+    }
     if (
       !isTrustedExtensionSender(sender) ||
       !input ||
@@ -73,10 +147,7 @@ export function createBackgroundMessageHandler(
               ),
             });
           case MSG.ASTRA_RECOVERY:
-            if (
-              !repositoryHost ||
-              !isExtensionPageUrl(sender.url)
-            )
+            if (!repositoryHost || !isExtensionPageUrl(sender.url))
               throw new Error('Extension page required');
             return respond({
               success: true,
@@ -128,8 +199,7 @@ export function createBackgroundMessageHandler(
           }
           case MSG.SYNC_RECOVERY: {
             // Recovery payloads are restricted to trusted extension pages.
-            if (!isExtensionPageUrl(sender.url))
-              throw new Error('Extension page required');
+            if (!isExtensionPageUrl(sender.url)) throw new Error('Extension page required');
             const status = await auth().getStatus();
             if (
               !status.authenticated ||
@@ -179,7 +249,10 @@ export function createBackgroundMessageHandler(
             const status = await auth().getStatus();
             if (typeof message.sessionId !== 'string' || message.sessionId !== status.sessionId)
               throw new Error('API account changed');
-            if ((request.method === 'mutate' || request.method === 'mutateOnce') && !status.authenticated)
+            if (
+              (request.method === 'mutate' || request.method === 'mutateOnce') &&
+              !status.authenticated
+            )
               throw new Error('Authentication required');
             const client = api();
             const options = { priority: request.priority };
@@ -217,6 +290,23 @@ export function createBackgroundMessageHandler(
           case MSG.MEDIA_MUSIC_VIDEOS:
             if (typeof message.idMal !== 'number') throw new Error('Invalid music video MAL ID');
             return respond({ success: true, data: await musicVideos.get(message.idMal) });
+          case MSG.WATCH_ORDER_SLUGS:
+            return respond(await curatedResult(() => curatedOrders.getSlugs()));
+          case MSG.WATCH_ORDER_OPEN: {
+            const titles = validTitles(message.titles);
+            const opener = sender.tab?.id;
+            if (!titles || opener === undefined) throw new Error('Invalid watch order request');
+            await captureJobs.open(titles, opener);
+            return respond({ success: true });
+          }
+          case MSG.WATCH_ORDER_RETRY:
+            curatedOrders.resetCooldown();
+            return respond({ success: true });
+          case MSG.WATCH_ORDER_CURATED:
+            if (!isValidSlug(message.slug)) throw new Error('Invalid curated order slug');
+            return respond(
+              await curatedResult(() => curatedOrders.getOrder(message.slug as string))
+            );
           case MSG.MEDIA_METADATA_SCORE: {
             const { idMal, mediaType } = message;
             if (
