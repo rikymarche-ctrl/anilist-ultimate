@@ -16,7 +16,7 @@ An unofficial browser extension bringing a calendar, personal ratings, Wrapped r
 - **Custom user lists and list ordering:** create and edit your own groups of people for activity filtering, and choose and reorder the Following groups displayed on a title's Social and Overview sections. These local user groups are separate from AniList's native anime/manga custom lists.
 - **Notifications:** search/filter and group compatible AniList notifications; Friend Alerts adds an independent local inbox for public progress/status updates from chosen people on titles you follow (not system push notifications).
 - **Enhanced anime/manga pages:** add a Reddit/subreddit link, MyAnimeList (MAL) score and link when available, additional public metadata, review-score badges, and anime opening/ending music and theme links. Every section can be collapsed from a chevron on its heading.
-- **Watch Order & Map:** on anime pages, the franchise in watch order with your progress, runtime totals and the next title to watch, or as a map you can drag and zoom. A curated AnimeChrono order is used when you open that franchise on animechrono.com yourself.
+- **Watch Order & Map:** on anime pages, the franchise in watch order with your progress, runtime totals and the next title to watch, or as a map you can drag and zoom. A curated AnimeChrono order is fetched only when you press **Check AnimeChrono**.
 - **Opening and ending ratings (optional):** turn them on in Astra settings and link them to a score section; then rate every opening and ending on the Astra scale, and the progress popup asks about new songs as you reach them.
 - **Episode counters and social context:** see friends' episode progress in a title's Following area, calendar episode counts, Following groups, available list Notes on hover and other social context.
 - **Navigation and state restoration:** on supported Back/Forward navigation, recover the previous scroll position and loaded feed content; on anime/manga list pages also restore filters, search, sorting and list view where possible.
@@ -94,6 +94,20 @@ Explore a personal recap and shareable yearly highlights, including favorite voi
 ![Astra Wrapped yearly recap overview](docs/screenshots/astra-wrapped-overview-2026.webp)
 
 ![Astra Wrapped ranking of favorite voice actors and characters](docs/screenshots/astra-wrapped-voice-actors-2026.webp)
+
+### Astra Compare
+
+Compare your anime or manga list with another AniList user's list through a story-style recap of shared titles and how your lists differ.
+
+![Astra Compare story comparing your list with another AniList user's list](docs/screenshots/astra-compare-story.png)
+
+### Watch Order and Relation Map
+
+Explore a franchise in watch order with watched progress and runtime totals, or switch to a pannable, zoomable relation map. When available, the curated AnimeChrono order is shown with its source and update date.
+
+![Anime watch order with watched progress, runtime totals and an AnimeChrono-curated order](docs/screenshots/watch-order-animechrono.png)
+
+![Anime relation map showing franchise titles connected by main story, side story, alternative and recap relations](docs/screenshots/relation-map-animechrono.png)
 
 ### Bulk Editor
 
